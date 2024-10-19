@@ -6,6 +6,9 @@
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
     "tauri": "pnpm desktop tauri",
+    "server": "npm run server:mac && npm run server:windows",
+    "server:mac": "cd apps/server && source env/bin/activate && python server.py",
+    "server:windows": "cd apps/server && env\\Scripts\\activate && python server.py",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
@@ -18,3 +21,4 @@
     "node": ">=18"
   }
 }
+
