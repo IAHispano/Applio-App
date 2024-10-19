@@ -3,17 +3,19 @@
   "private": true,
   "scripts": {
     "build": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe",
+    "build:mac": "cd apps/desktop && pnpm tauri build && cp src-tauri/target/release/applio-app ../build/applio-app && cd ../server && pyinstaller --onefile --icon=logo.ico --noconsole server.py && cp dist/server ../build/server",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
     "tauri": "pnpm desktop tauri",
-    "server": "cd apps/server && env\\Scripts\\activate && python server.py",
+    "server": "cd apps/server && source env/bin/activate && python server.py",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
-    "prettier": "^3.2.5",
-    "turbo": "^2.2.0",
-    "typescript": "^5.4.5"
+    "prettier": "^3.3.3",
+    "turbo": "^2.2.1",
+    "typescript": "^5.6.3",
+    "tauri": "^1.0.0" 
   },
   "packageManager": "pnpm@8.15.6",
   "engines": {
