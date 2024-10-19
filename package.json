@@ -7,7 +7,7 @@
     "desktop": "pnpm --filter desktop --",
     "tauri": "pnpm desktop tauri",
     "build:mac": "cd apps/server && source .venv/bin/activate && python server.py",
-    "build:windows": "cd apps/server && .\\env\\Scripts\\activate && python server.py",
+    "build:windows": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && .\\env\\Scripts\\activate && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe",
     "server:mac": "cd apps/server && source .venv/bin/activate && python server.py",
     "server:windows": "cd apps/server && .\\env\\Scripts\\activate && python server.py",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
