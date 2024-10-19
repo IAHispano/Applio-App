@@ -6,14 +6,19 @@
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
     "tauri": "pnpm desktop tauri",
-    "build:mac": "cd apps/server && source env/bin/activate && python server.py",
-    "build:windows": "cd apps/server && env\\Scripts\\activate && python server.py",
+    "build:mac": "cd apps/server && source .venv/bin/activate && python server.py",
+    "build:windows": "cd apps/server && .\\env\\Scripts\\activate && python server.py",
+    "server:mac": "cd apps/server && source .venv/bin/activate && python server.py",
+    "server:windows": "cd apps/server && .\\env\\Scripts\\activate && python server.py",
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
     "prettier": "^3.2.5",
     "turbo": "^2.2.0",
     "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "express": "^4.18.2"  
   },
   "packageManager": "pnpm@8.15.6",
   "engines": {
