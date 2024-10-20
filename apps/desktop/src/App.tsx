@@ -1,6 +1,6 @@
 import "./App.css";
 import { useEffect, useState } from "react";
-import { platform, version } from "@tauri-apps/plugin-os";
+import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -55,12 +55,27 @@ function App() {
     };
   }, [])
 
+  async function checkIfDev() {
+    const isDev = await invoke('is_dev');
+    console.log(isDev);
+    if (!isDev) {
+      checkOS();
+    }
+  }
+
+  async function checkOS() {
+    const os = await type();
+    if (os === "macos" || os === "linux") {
+      window.location.href = "/os-not-supported";
+    }
+  }
+
   useEffect(() => {
     const initialized = localStorage.getItem('appInitialized');
-
     if (!initialized) {
       localStorage.setItem('appInitialized', 'true');
       checkUpdates();
+      checkIfDev();
     }
   }, []);
 
@@ -138,7 +153,7 @@ function App() {
       </a>)}
       <TitleBar />
       <div className="flex w-screen h-screen gap-0">
-      {window.location.pathname !== "/first-time" && window.location.pathname !== "/pretraineds" && <Header />}
+      {window.location.pathname !== "/first-time" && window.location.pathname !== "/pretraineds" && window.location.pathname !== "/os-not-supported" && <Header />}
       {loading && <div className="absolute inset-0 w-screen h-screen bg-[#111111] slow z-50">
         <span className="flex justify-center items-center m-auto h-screen">
         <svg
@@ -167,6 +182,7 @@ function App() {
         <Route path="/settings" element={<Settings />} />
         <Route path="/convert" element={<Convert />} />
         <Route path="/pretraineds" element={<DownloadPretraineds />} />
+        <Route path="/os-not-supported" element={<OSNotSupported />} />
       </Routes>
       </div>
     </Router>
@@ -510,6 +526,18 @@ function DownloadPretraineds() {
     </div>
     </div>
 </section>
+  )
+}
+
+function OSNotSupported() {
+  return (
+    <main className="absolute inset-0 bg-black">
+    <div className="w-screen h-screen flex flex-col justify-center items-center mx-auto pb-4">
+      <h1 className="text-center text-4xl font-bold title">OS not supported</h1>
+      <p className="max-w-[350px] text-sm text-center text-neutral-300 mt-2">We are working on supporting more operating systems.</p>
+      <p className="max-w-[350px] text-sm text-center text-neutral-300">Sorry for the inconvenience.</p>
+    </div>
+    </main>
   )
 }
 

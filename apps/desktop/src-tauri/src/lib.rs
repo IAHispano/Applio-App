@@ -67,7 +67,12 @@ pub fn run() {
         })
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![set_discord_presence])
+        .invoke_handler(tauri::generate_handler![set_discord_presence, is_dev])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[tauri::command]
+fn is_dev() -> bool {
+    cfg!(debug_assertions) 
 }
