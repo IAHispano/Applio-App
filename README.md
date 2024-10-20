@@ -72,12 +72,22 @@ This TurboRepo setup includes two main apps:
    pip install -r requirements.txt
    ```
 
-7. **Return to the root folder of the project**:
+7. **Build the server**:
+   - On Windows:
+     ```bash
+     pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\server.exe ..\desktop\src-tauri\python\server.exe
+     ```
+   - On macOS/Linux:
+     ```bash
+     pyinstaller --onefile --icon=logo.ico --noconsole server.py && cp dist/server ../desktop/src-tauri/python/server.exe
+     ```
+
+8. **Return to the root folder of the project**:
    ```bash
    cd ../..
    ```
 
-8. **Create a `.env` file**:
+9. **Create a `.env` file**:
    Add your Supabase keys for proper API integration:
    ```bash
    VITE_API_KEY=your_supabase_api_key
@@ -85,19 +95,19 @@ This TurboRepo setup includes two main apps:
    ```
    If you're not using Supabase, you can input placeholder values.
 
-9. **Run the desktop application**:
+10. **Run the desktop application**:
    ```bash
    pnpm tauri dev
    ```
 
-10. **Build the server**:
+### **Run only the server**
     ```bash
-    cd apps/server
-    pyinstaller --onefile --icon=logo.ico --noconsole server.py
+    pnpm tauri server:{your operating system (windows/macos)}
     ```
-11. **Build the desktop app**:
+
+### ** Build Applio App**
     ```bash
-    pnpm tauri build
+    pnpm tauri build:{your operating system (windows/macos)}
     ```
 
 ## Contributing
