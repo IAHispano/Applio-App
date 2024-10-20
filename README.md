@@ -39,7 +39,7 @@ This TurboRepo setup includes two main apps:
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/bygimenez/applio-app.git
+   git clone https://github.com/iahispano/applio-app.git
    ```
 
 2. **Install the dependencies for the desktop app**:
@@ -73,6 +73,7 @@ This TurboRepo setup includes two main apps:
    ```
 
 7. **Build the server**:
+   ###### Use CMD on Windows, dont use PowerShell.
    - On Windows:
      ```bash
      pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\server.exe ..\desktop\src-tauri\python\server.exe
@@ -95,6 +96,7 @@ This TurboRepo setup includes two main apps:
    ```
    If you're not using Supabase, you can input placeholder values.
 
+
 10. **Run the desktop application**:
    ```bash
    pnpm tauri dev
@@ -102,12 +104,12 @@ This TurboRepo setup includes two main apps:
 
 ### **Run only the server**
     ```bash
-    pnpm tauri server:{your operating system (windows/macos)}
+    pnpm server:{your operating system (windows/macos)}
     ```
 
-### ** Build Applio App**
+### **Build Applio App**
     ```bash
-    pnpm tauri build:{your operating system (windows/macos)}
+    pnpm build:{your operating system (windows/macos)}
     ```
 
 ## Contributing
@@ -116,7 +118,7 @@ We welcome contributions to enhance the app’s features and support for additio
 
 ## License
 
-This project is licensed under the [CC BY-NC license](https://github.com/bygimenez/applio-app/blob/master/LICENSE).
+This project is licensed under the [CC BY-NC license](https://github.com/iahispano/applio-app/blob/master/LICENSE).
 
 ## Acknowledgements
 
