@@ -7,6 +7,7 @@ async function checkFirstRun(): Promise<boolean> {
 
         if (isFirstRun === null) {
             await store.set('firstRun', true);
+            await store.save();
             return true;
         }
     } catch (error) {
@@ -24,6 +25,7 @@ async function setNotFirstRun(): Promise<boolean> {
     try {
         const store = await createStore("firstRun");
         await store.set('firstRun', false);
+        await store.save();
         return true;
     } catch (error) {
         console.error('Error setting first run:', error);
