@@ -11,6 +11,7 @@ import json
 import signal
 import threading
 from requests.exceptions import HTTPError
+import sys
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -499,6 +500,8 @@ def get_audio():
     return send_file(audio_path, mimetype='audio/wav')
 
 if __name__ == "__main__":
-    logging.info(remove_ansi_escape_sequences("Server started at: http://127.0.0.1:5123"))
-    app.run(port=5123, host='0.0.0.0', debug=False)
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
+    print(f"Server started at: http://127.0.0.1:{port}")
+    logging.info(remove_ansi_escape_sequences(f"Server started at: http://127.0.0.1:{port}"))
+    app.run(port=port, host='0.0.0.0', debug=False)
     logging.info(remove_ansi_escape_sequences("Server stopped"))
