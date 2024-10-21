@@ -13,6 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
 import { open } from '@tauri-apps/plugin-shell'
 import Background1 from "./components/svg/background1";
+import { createStore } from "@tauri-apps/plugin-store";
 
 function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -45,14 +46,24 @@ function App() {
   async function setWindowEffect() {
     const currentPlatform = await platform();
     const osVersion = await version();
-    if (currentPlatform === "windows") {
-      if (osVersion >= "10.0.22000.0") {
-      document.documentElement.style.background = 'transparent';
-      document.documentElement.style.backgroundColor = 'rgba(17, 17, 17, 0.7)';
-      await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
+    const store = await createStore("settings.json")
+    const background = await store.get('backgroundColor');
+
+    if (!background) {
+      await store.set('backgroundColor', 'rgba(17, 17, 17, 0.7)');
+      await store.save();
+    }
+    
+    if (background) {
+      if (currentPlatform === "windows") {
+        if (osVersion >= "10.0.22000.0") {
+        document.documentElement.style.background = 'transparent';
+        document.documentElement.style.backgroundColor = background;
+        await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
+        }
+      } else {
+        document.documentElement.style.background = '#111111';
       }
-    } else {
-      document.documentElement.style.background = '#111111';
     }
 
     console.log(currentPlatform);
@@ -407,6 +418,7 @@ function Settings() {
   const [tauriVersion, setTauriVersion] = useState("");
   const [system, setSystem] = useState("")
   const [systemVersion, setSystemVersion] = useState("")
+  const [backgroundColor, setBackgroundColor] = useState("")
 
   // get server port
   async function getServerPort() {
@@ -447,6 +459,27 @@ function Settings() {
     };
 }
 
+  const hexToRGBA = (hex: string, alpha: number) => {
+    const bigint = parseInt(hex.slice(1), 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  function rgbaToHex(rgba: string) {
+    const parts = rgba.match(/(\d+), (\d+), (\d+), (\d+(\.\d+)?)/);
+    if (!parts) return "#111111";
+  
+    const r = parseInt(parts[1]);
+    const g = parseInt(parts[2]);
+    const b = parseInt(parts[3]);
+  
+    const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+    return hex;
+  }
+  
+
   useEffect(() => {
     async function checkVersion() {
       const appversion = await getVersion();
@@ -463,6 +496,59 @@ function Settings() {
     checkVersion();
   }, []);
 
+  async function changeBackgroundColor(background: string) {
+    const color = hexToRGBA(background, 0.7)
+    const store = await createStore("settings.json")
+    await store.set("backgroundColor", color)
+    await store.save();
+    setBackgroundColor(background as string);
+    setWindowEffect();
+  }
+
+  async function setWindowEffect() {
+    const currentPlatform = await platform();
+    const osVersion = await version();
+    const store = await createStore("settings.json")
+    const background = await store.get('backgroundColor');
+
+    if (!background) {
+      await store.set('backgroundColor', 'rgba(17, 17, 17, 0.7)');
+      await store.save();
+    }
+    
+    if (background) {
+      if (currentPlatform === "windows") {
+        if (osVersion >= "10.0.22000.0") {
+        document.documentElement.style.background = 'transparent';
+        document.documentElement.style.backgroundColor = background as string;
+        await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
+        }
+      } else {
+        document.documentElement.style.background = '#111111';
+      }
+    }
+
+    console.log(currentPlatform);
+  }
+
+
+  useEffect(() => {
+    async function getBackground() {
+      const store = await createStore("settings.json")
+      const background = await store.get('backgroundColor');
+      if (background) {
+        const color = rgbaToHex(background as string)
+        setBackgroundColor(color)
+      } else {
+        setBackgroundColor("#111111")
+      }
+    }
+
+    getBackground();
+  }, [])
+
+  const predefinedColors = ["#111111", "#4D4D4D", "#004d2f", "#3a0057", "#04567c", "#615600"];
+
   return (
     <div className="grid h-screen w-screen">
       <main className="flex flex-col items-end justify-end mt-8 w-full overflow-auto">
@@ -470,6 +556,34 @@ function Settings() {
           <div className="col-span-3 row-span-2 rounded-t-xl bg-[#111111]/20 w-full h-full border border-white/20 ">
             <div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">  
               <h1 className="text-xl font-bold title">Settings</h1>
+              <h2 className="text-lg font-medium mt-4">Personalization</h2>
+              <div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4"/>
+              <div className="flex flex-col gap-2">
+              <p className="text-xs text-neutral-300">Background</p>
+              <div className="flex items-center gap-3 mb-4 mt-2">
+                {predefinedColors.map(color => (
+                  <button 
+                    type="button"
+                    key={color} 
+                    style={{ backgroundColor: color }}
+                    className="w-10 h-10 rounded-full border-2 border-white/20 focus:outline-none transition transform hover:scale-105 shadow-md"
+                    onClick={() => changeBackgroundColor(color)}
+                  />
+                ))}
+                
+                <div className="relative flex items-center">
+                  <input 
+                    type="color" 
+                    value={backgroundColor} 
+                    onChange={e => changeBackgroundColor(e.target.value)} 
+                    className={`w-10 h-10 cursor-pointer rounded-full border-2 border-white/20 focus:outline-none bg-[${backgroundColor}] appearance-none`}
+                  />
+                  <span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="#ffffff"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M4 12H20M12 4V20" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+                  </span>
+                </div>
+              </div>
+              </div>
               <h2 className="text-lg font-medium mt-4">Developer</h2>
               <div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4"/>
               <div className="flex gap-2">

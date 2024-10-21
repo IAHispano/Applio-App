@@ -59,3 +59,15 @@
   height: 100%;
   border-radius: 10px;
 }
+
+input[type="color"] {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+}
+input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+input[type="color"]::-webkit-color-swatch {
+  border: none;
+}
