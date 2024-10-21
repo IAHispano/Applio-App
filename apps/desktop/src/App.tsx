@@ -15,46 +15,16 @@ import { open } from '@tauri-apps/plugin-shell'
 import Background1 from "./components/svg/background1";
 
 function App() {
-  const [loading, setLoading] = useState(true);
   const [updateAvailable, setUpdateAvailable] = useState(false);
 
-  useEffect(() => {
-    const handleContextMenu = (event: MouseEvent) => {
-      event.preventDefault();
-    };
+  // get server port
+  async function getServerPort() {
+    const port = await invoke("get_port")
+    console.log('port', port)
+    return port;
+  }
 
-    document.addEventListener('contextmenu', handleContextMenu);
-
-    return () => {
-      document.removeEventListener('contextmenu', handleContextMenu);
-    };
-  }, []);
-
-  useEffect(() => {
-    const handleCloseRequested = async (event: any) => {
-      event.preventDefault(); 
-        const response = await fetch('http://localhost:5123/stop');
-        localStorage.removeItem('appInitialized');
-
-        if (!response.ok) {
-          alert('Error, please report on GitHub');
-        } else {
-          console.log('Server shutting down...');
-          getCurrentWindow().destroy();
-        }
-    };
-
-    const currentWindow = getCurrentWindow();
-    
-    const unlisten = currentWindow.onCloseRequested((event) => {
-      handleCloseRequested(event);
-    });
-
-    return () => {
-      unlisten.then(fn => fn());
-    };
-  }, [])
-
+  // check if dev mode
   async function checkIfDev() {
     const isDev = await invoke('is_dev');
     console.log(isDev);
@@ -63,6 +33,7 @@ function App() {
     }
   }
 
+  // check os type
   async function checkOS() {
     const os = await type();
     if (os === "macos" || os === "linux") {
@@ -70,50 +41,36 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    const initialized = localStorage.getItem('appInitialized');
-    if (!initialized) {
-      localStorage.setItem('appInitialized', 'true');
-      checkUpdates();
-      checkIfDev();
-    }
-  }, []);
-
-  useEffect(() => {
-    async function setWindowEffect() {
-      const currentPlatform = await platform();
-      const osVersion = await version();
-      if (currentPlatform === "windows") {
-        if (osVersion >= "10.0.22000.0") {
-        document.documentElement.style.background = 'transparent';
-        document.documentElement.style.backgroundColor = 'rgba(17, 17, 17, 0.7)';
-        await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
-        setLoading(false);
-        }
-      } else {
-        document.documentElement.style.background = '#111111';
-        setLoading(false);
+  // set window acrylic effect
+  async function setWindowEffect() {
+    const currentPlatform = await platform();
+    const osVersion = await version();
+    if (currentPlatform === "windows") {
+      if (osVersion >= "10.0.22000.0") {
+      document.documentElement.style.background = 'transparent';
+      document.documentElement.style.backgroundColor = 'rgba(17, 17, 17, 0.7)';
+      await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
       }
-
-      console.log(currentPlatform);
+    } else {
+      document.documentElement.style.background = '#111111';
     }
 
-    checkFirstRun();
-    setWindowEffect();
-    initializeDiscordRpc();
-  }, []);
+    console.log(currentPlatform);
+  }
 
+  // initialize discord rpc
   const initializeDiscordRpc = async () => {
-      try {
-        await invoke("set_discord_presence", {
-          state: "Creating awesome AI Audios.",
-          details: "Using the easiest voice cloning tool, now in app."
-        });
-      } catch (error) {
-        console.error("Error starting discord presence:", error);
-      }
+    try {
+      await invoke("set_discord_presence", {
+        state: "Creating awesome AI Audios.",
+        details: "Using the easiest voice cloning tool, now in app."
+      });
+    } catch (error) {
+      console.error("Error starting discord presence:", error);
+    }
   };
 
+  // check if first run
   const checkFirstRun = async () => {
     const isFirstTime = await isFirstRun(); 
     console.log(isFirstTime);
@@ -125,11 +82,13 @@ function App() {
     } else {
         console.log('Not first time...')
     }
-}
+  }
 
+  // check rvc updates
   const checkUpdates = async () => {
     if (window.location.pathname === "/") {
-      const eventSource = new EventSource('http://localhost:5123/check-update');
+      const port = await getServerPort();
+      const eventSource = new EventSource(`http://localhost:${port}/check-update`);
       eventSource.onmessage = (event) => {
         console.log(event.data);
         if (event.data.includes('up to date')) {
@@ -146,6 +105,62 @@ function App() {
   }
 }
 
+    // remove contextmenu
+    useEffect(() => {
+      const handleContextMenu = (event: MouseEvent) => {
+        event.preventDefault();
+      };
+  
+      document.addEventListener('contextmenu', handleContextMenu);
+  
+      return () => {
+        document.removeEventListener('contextmenu', handleContextMenu);
+      };
+    }, []);
+  
+    // stop server on close request
+    useEffect(() => {
+      const handleCloseRequested = async (event: any) => {
+        event.preventDefault(); 
+          const port = await getServerPort();
+          const response = await fetch(`http://localhost:${port}/stop`);
+          localStorage.removeItem('appInitialized');
+  
+          if (!response.ok) {
+            alert('Error, please report on GitHub');
+          } else {
+            console.log('Server shutting down...');
+            getCurrentWindow().destroy();
+          }
+      };
+  
+      const currentWindow = getCurrentWindow();
+      
+      const unlisten = currentWindow.onCloseRequested((event) => {
+        handleCloseRequested(event);
+      });
+  
+      return () => {
+        unlisten.then(fn => fn());
+      };
+    }, [])
+
+  // check if app is initialized
+  useEffect(() => {
+    const initialized = localStorage.getItem('appInitialized');
+    if (!initialized) {
+      localStorage.setItem('appInitialized', 'true');
+      checkUpdates();
+      checkIfDev();
+      initializeDiscordRpc();
+      checkFirstRun();
+    }
+  }, []);
+
+  useEffect(() => {
+    setWindowEffect();
+  }, []);
+
   return (
     <Router>
       {updateAvailable && window.location.pathname !== "/first-time" && (<a href="/first-time" className="hover:bg-black/20 slow absolute left-24 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl" style={{zIndex: 300}}>
@@ -154,26 +169,6 @@ function App() {
       <TitleBar />
       <div className="flex w-screen h-screen gap-0">
       {window.location.pathname !== "/first-time" && window.location.pathname !== "/pretraineds" && window.location.pathname !== "/os-not-supported" && <Header />}
-      {loading && <div className="absolute inset-0 w-screen h-screen bg-[#111111] slow z-50">
-        <span className="flex justify-center items-center m-auto h-screen">
-        <svg
-								aria-hidden="true"
-								className="w-8 h-8 animate-spin text-neutral-800 fill-white"
-								viewBox="0 0 100 101"
-								fill="none"
-								xmlns="http://www.w3.org/2000/svg"
-							>
-								<path
-									d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z"
-									fill="currentColor"
-								/>
-								<path
-									d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z"
-									fill="currentFill"
-								/>
-							</svg>
-        </span>
-      </div>}
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="*" element={<NotFound />} />
@@ -270,6 +265,7 @@ function Models() {
         setLoading(false);
         return;
       }
+      if (!supabase) return;
       const { data, error } = await supabase.from('models').select('*').ilike('name', `%${value}%`).order("created_at", { ascending: false }).limit(12);
       if (error) {
         console.log(error);
@@ -285,16 +281,25 @@ function Models() {
       }
       
     }
+
     getModels();
   }, [value]);
 
+  // get server port
+  async function getServerPort() {
+    const port = await invoke("get_port")
+    console.log('port', port)
+    return port;
+  }
+
   const downloadModel = async (id: string, link: string, epochs: string, algorithm: string, name: string, author: string, from: string) => {
+    const port = await getServerPort();
     setDropdownOpen(true)
     setInfo('Starting...');
     setStatus('Sending request...');
     setError(false)
     try {
-      const eventSource = new EventSource(`http://localhost:5123/download?link=${encodeURIComponent(link)}&id=${encodeURIComponent(id)}&epochs=${encodeURIComponent(epochs)}&algorithm=${encodeURIComponent(algorithm)}&name=${encodeURIComponent(name)}&author=${encodeURIComponent(author)}&from=${encodeURIComponent(from)}`)
+      const eventSource = new EventSource(`http://localhost:${port}/download?link=${encodeURIComponent(link)}&id=${encodeURIComponent(id)}&epochs=${encodeURIComponent(epochs)}&algorithm=${encodeURIComponent(algorithm)}&name=${encodeURIComponent(name)}&author=${encodeURIComponent(author)}&from=${encodeURIComponent(from)}`)
 
       eventSource.onmessage = (event) => {
         console.log(event.data)
@@ -403,9 +408,17 @@ function Settings() {
   const [system, setSystem] = useState("")
   const [systemVersion, setSystemVersion] = useState("")
 
+  // get server port
+  async function getServerPort() {
+    const port = await invoke("get_port")
+    console.log('port', port)
+    return port;
+  }
+
   const handleTestBackend = async () => {
     try {
-      const response = await fetch("http://localhost:5123/");
+      const port = await getServerPort();
+      const response = await fetch(`http://localhost:${port}/`);
       if (response.ok) {
         alert("Backend is running!");
       } else {
@@ -417,7 +430,8 @@ function Settings() {
   }
 
   const checkUpdates = async () => {
-      const eventSource = new EventSource('http://localhost:5123/check-update');
+      const port = await getServerPort();
+      const eventSource = new EventSource(`http://localhost:${port}/check-update`);
       eventSource.onmessage = (event) => {
         console.log(event.data);
         if (event.data.includes('up to date')) {
@@ -481,33 +495,49 @@ function DownloadPretraineds() {
   const [status, setStatus] = useState("Starting...");
   const [info, setInfo] = useState("Downloading...");
 
+    // get server port
+    async function getServerPort() {
+      const port = await invoke("get_port")
+      console.log('port', port)
+      return port;
+    }
     useEffect(() => {
-      const eventSource = new EventSource('http://localhost:5123/pretraineds');
+      const installPretraineds = async () => {
+        try {
+          const port = await getServerPort();
+          const eventSource = new EventSource(`http://localhost:${port}/pretraineds`);
 
-      eventSource.onmessage = (event) => {
-          console.log(event.data); 
-          setStatus(event.data);
+          eventSource.onmessage = (event) => {
+            console.log(event.data);
+            setStatus(event.data);
 
-          if (event.data.includes('installed successfully')) {
+            if (event.data.includes('installed successfully')) {
               eventSource.close();
-              setInfo('Finishing....')
+              setInfo('Finishing....');
               setStatus('Installing... please wait...');
-              window.location.href = '/'
-          }
-      }
+              window.location.href = '/';
+            }
+          };
 
-      eventSource.onerror = (err) => {
-          console.log(info);
-          console.error('Error with event source:', err);
-          eventSource.close(); 
-          setStatus('');
+          eventSource.onerror = (err) => {
+            console.log(info);
+            console.error('Error with event source:', err);
+            eventSource.close();
+            setStatus('');
+            setInfo('We detected an error. Please try again later.');
+          };
+
+          return () => {
+            eventSource.close();
+          };
+        } catch (error) {
+          console.error('Error fetching port or setting up event source:', error);
           setInfo('We detected an error. Please try again later.');
+        }
       };
 
-      return () => {
-          eventSource.close(); 
-      };
-  }, []);
+      installPretraineds();
+    }, [info]);
 
   return (
     <section className="absolute inset-0 z-50">
@@ -556,11 +586,19 @@ function Convert()  {
   const [pitch, setPitch] = useState(0)
   const [indexRate, setIndexRate] = useState(0.3)
   const [filterRadius, setFilterRadius] = useState(3)
+
+  // get server port
+  async function getServerPort() {
+    const port = await invoke("get_port")
+    console.log('port', port)
+    return port;
+  }
   
   useEffect(() => {
     async function getLocalModels() {
       try {
-        const response = await fetch('http://localhost:5123/get-models');
+        const port = await getServerPort();
+        const response = await fetch(`http://localhost:${port}/get-models`);
         if (response.ok) { 
           const models = await response.json();
           setModels(models); 
@@ -612,7 +650,8 @@ function Convert()  {
     formData.append('audio', file);
 
     try {
-      const response = await fetch('http://localhost:5123/upload', {
+      const port = await getServerPort();
+      const response = await fetch(`http://localhost:${port}/upload`, { 
         method: 'POST',
         body: formData,
       });
@@ -634,9 +673,10 @@ function Convert()  {
     setInfo('Starting...');
     setStatus('Sending request...');
     setError(false)
+    const port = await getServerPort();  
     try {
-      const eventSource = new EventSource(`http://localhost:5123/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`);
-      console.log(`http://localhost:5123/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`)
+      const eventSource = new EventSource(`http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`);
+      console.log(`http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`)
       eventSource.onmessage = (event) => {
         console.log(event.data)
         setStatus(event.data)
@@ -685,9 +725,10 @@ function Convert()  {
   }
 
   async function getAudio(path: string) {
-    const transformedPath = transformPath(path); 
+    const transformedPath = transformPath(path);
+    const port = await getServerPort();
     try {
-      const response = await fetch(`http://localhost:5123/audio?path=${encodeURIComponent(transformedPath)}`);
+      const response = await fetch(`http://localhost:${port}/audio?path=${encodeURIComponent(transformedPath)}`);
       if (!response.ok) {
         throw new Error('Error getting audio');
       }
