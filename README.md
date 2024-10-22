@@ -16,6 +16,7 @@ This TurboRepo setup includes two main apps:
 - [x] RVC Auto-Update
 - [x] Discord Presence integration
 - [x] Conversion capabilities
+- [x] Installer
 - [ ] App Auto-Update (coming soon)
 - [ ] Model Training (coming soon)
 - [ ] Translations (coming soon)
