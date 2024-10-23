@@ -367,7 +367,7 @@ def upload_audio():
     return {'message': 'File uploaded successfully', 'file_path': file_path}, 200
 
 # convert
-def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius):
+def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune):
     output_path = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
     os.makedirs(output_path, exist_ok=True)
     audio_path = os.path.join(output_path, 'audio.wav')
@@ -383,6 +383,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius):
     "--pitch", pitch,
     "--index_rate", indexRate,
     "--filter_radius", filterRadius,
+    "--f0_autotune", autotune
 ]
     command_path = os.path.abspath(os.path.join(os.getcwd(), 'rvc'))
 
@@ -487,12 +488,13 @@ def convert_audio():
     pitch = request.args.get('pitch')
     indexRate = request.args.get('indexRate')
     filterRadius = request.args.get('filterRadius')
+    autotune = request.args.get('autotune')
     logging.info(remove_ansi_escape_sequences('Getting conversion info...'))
     if not input_path or not pth_path or not index_path or not pitch:
         logging.error(remove_ansi_escape_sequences("Error: arguments missing."))
         return Response("Error: arguments missing", status=400)
     
-    return Response(convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius), content_type='text/event-stream')
+    return Response(convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune), content_type='text/event-stream')
 
 @app.route('/audio', methods=["GET"])
 def get_audio():
