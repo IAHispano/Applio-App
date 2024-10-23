@@ -58,7 +58,7 @@ function App() {
       if (currentPlatform === "windows") {
         if (osVersion >= "10.0.22000.0") {
         document.documentElement.style.background = 'transparent';
-        document.documentElement.style.backgroundColor = background;
+        document.documentElement.style.backgroundColor = background as string;
         await getCurrentWindow().setEffects({effects: [Effect.Acrylic]});
         }
       } else {
@@ -700,6 +700,7 @@ function Convert()  {
   const [pitch, setPitch] = useState(0)
   const [indexRate, setIndexRate] = useState(0.3)
   const [filterRadius, setFilterRadius] = useState(3)
+  const [autotune, setAutotune] = useState(false)
 
   // get server port
   async function getServerPort() {
@@ -789,7 +790,8 @@ function Convert()  {
     setError(false)
     const port = await getServerPort();  
     try {
-      const eventSource = new EventSource(`http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`);
+      const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}`;
+      const eventSource = new EventSource(url);
       console.log(`http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`)
       eventSource.onmessage = (event) => {
         console.log(event.data)
@@ -990,6 +992,22 @@ function Convert()  {
                   <input value={filterRadius} onChange={(e) => setFilterRadius(Number(e.target.value))} type="range" defaultValue='3' min='0' max='6' className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
                   </div>
                   <p className="text-xs text-neutral-300">Apply median filtering to the extracted pitch values if this value is greater than or equal to three. This can help reduce breathiness in the output audio.</p>
+                  </div>
+                  <div className="flex flex-col">
+                  <div className="flex justify-between items-center w-full">
+                  <h2 className="text-neutral-200 text-lg">Autotune</h2>
+                  <div className="inline-flex items-center">
+                  <label className="flex items-center cursor-pointer relative">
+                    <input checked={autotune}  onChange={(e) => setAutotune(e.target.checked)} type="checkbox" className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white" id="check" />
+                    <span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" stroke="currentColor" strokeWidth="1" aria-label="Checkmark" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                      </svg>
+                    </span>
+                  </label>
+                </div> 
+                  </div>
+                  <p className="text-xs text-neutral-300">Apply a light autotune to the inferred audio. Particularly useful for singing voice conversions.</p>
                   </div>
               </div>
               {(status || info) && (
