@@ -1012,7 +1012,7 @@ function Convert()  {
               <div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">
               <div className="row-span-full w-full h-full border border-white/20 rounded-xl p-4 flex flex-col gap-6">
                   <div className="flex flex-col gap-2">
-                  <h2 className="text-neutral-200 text-lg">Pitch</h2>
+                  <h2 className="text-neutral-200 text-lg font-medium">Pitch</h2>
                   <div className="flex gap-2 justify-center items-center">
                   <p className="text-sm text-neutral-200">{pitch}</p>
                   <input value={pitch} onChange={(e) => setPitch(Number(e.target.value))} type="range" defaultValue='0' min='0' max='10' className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
@@ -1020,7 +1020,7 @@ function Convert()  {
                   <p className="text-xs text-neutral-300">Set the pitch of the audio. Higher values result in a higher pitch.</p>
                   </div>
                   <div className="flex flex-col gap-2">
-                  <h2 className="text-neutral-200 text-lg">Index Rate</h2>
+                  <h2 className="text-neutral-200 text-lg font-medium">Index Rate</h2>
                   <div className="flex gap-2 justify-center items-center">
                   <p className="text-sm text-neutral-200">{indexRate}</p>
                   <input value={indexRate} onChange={(e) => setIndexRate(Number(e.target.value))} type="range" defaultValue='0.3' min='0' max='1' step='0.1' className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
@@ -1028,7 +1028,7 @@ function Convert()  {
                   <p className="text-xs text-neutral-300">Control the influence of the index file on the output. Higher values mean stronger influence. Lower values can help reduce artifacts but may result in less accurate voice cloning.</p>
                   </div>
                   <div className="flex flex-col gap-2">
-                  <h2 className="text-neutral-200 text-lg">Filter Radius</h2>
+                  <h2 className="text-neutral-200 text-lg font-medium">Filter Radius</h2>
                   <div className="flex gap-2 justify-center items-center">
                   <p className="text-sm text-neutral-200">{filterRadius}</p>
                   <input value={filterRadius} onChange={(e) => setFilterRadius(Number(e.target.value))} type="range" defaultValue='3' min='0' max='6' className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" />
