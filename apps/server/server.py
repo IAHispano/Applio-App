@@ -12,6 +12,7 @@ import signal
 import threading
 from requests.exceptions import HTTPError
 import sys
+import uuid
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -368,9 +369,10 @@ def upload_audio():
 
 # convert
 def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune):
+    unique_id = str(uuid.uuid4())
     output_path = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
     os.makedirs(output_path, exist_ok=True)
-    audio_path = os.path.join(output_path, 'audio.wav')
+    audio_path = os.path.join(output_path, f'{unique_id}.wav')
 
     command = [
     os.path.join("env", "python.exe"), 
