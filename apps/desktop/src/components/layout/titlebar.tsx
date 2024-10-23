@@ -35,7 +35,7 @@ export const TitleBar = () => {
         <button
           type="button"
           onClick={minimized}
-          className="hover:scale-110 transition-transform duration-200 ease-in-out focus:outline-none hover:text-white"
+          className="slow hover:text-white"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={20} height={20} fill={"none"} aria-hidden="true">
             <path d="M20 12L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -44,7 +44,7 @@ export const TitleBar = () => {
         <button
           onClick={maximize}
           type="button"
-          className="hover:scale-110 transition-transform duration-200 ease-in-out focus:outline-none hover:text-white"
+          className="slow focus:outline-none hover:text-white"
         >
           {maximized === false ? (
             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -65,7 +65,7 @@ export const TitleBar = () => {
         <button
           onClick={close}
           type="button"
-          className="hover:scale-110 transition-transform duration-200 ease-in-out focus:outline-none hover:text-white"
+          className="slow focus:outline-none hover:text-red-500"
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={20} height={20} fill={"none"} aria-hidden="true">
             <path d="M19.0005 4.99988L5.00045 18.9999M5.00045 4.99988L19.0005 18.9999" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
