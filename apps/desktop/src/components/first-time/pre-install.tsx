@@ -1,53 +1,78 @@
 import { useEffect, useState } from "react";
 import Background1 from "../svg/background1";
+import { invoke } from "@tauri-apps/api/core";
 
 export default function PreInstall() {
     const [status, setStatus] = useState("Starting...");
     const [info, setInfo] = useState("Downloading...");
 
+    async function getServerPort() {
+        const port = await invoke("get_port")
+        console.log('port', port)
+        return port;
+    }
+
     useEffect(() => {
-        const eventSource = new EventSource('http://localhost:5123/pre-install');
+        const fetchData = async () => {
+            try {
+                const port = await getServerPort();
+                const eventSource = new EventSource(`http://localhost:${port}/pre-install`);
+        
+                eventSource.onmessage = (event) => {
+                    console.log(event.data);
+                    setStatus(event.data);
     
-        eventSource.onmessage = (event) => {
-            console.log(event.data); 
-            setStatus(event.data);
-            if (event.data.includes('RVC repository downloaded successfully.')) {
-                setInfo('Installing....')
-                setStatus('Installing... please wait...');
-            }
-            if (event.data.includes('already exists')) {
-                setInfo('You already have the latest version installed. Please wait...');
-                setStatus('Completed');
-                window.location.href = '/';
-            }
-            if (event.data.includes('Installing collected packages:')) {
-                setInfo('Please wait... this may take a while.');
-            }
-            if (event.data.includes('RVC repository is up to date. No need to download.')) {
-                eventSource.close();
-                setStatus('You already have the latest version installed.');
-                setInfo('No updates available');
-            }
-            if (event.data.includes('RVC CLI has been installed successfully')) {
-                setInfo('Finishing...')
-                setStatus('Finishing RVC installation... please wait...');
-                window.location.href = '/pretraineds'
-                eventSource.close();
+                    if (event.data.includes('RVC repository downloaded successfully.')) {
+                        setInfo('Installing....');
+                        setStatus('Installing... please wait...');
+                    }
+    
+                    if (event.data.includes('already exists')) {
+                        setInfo('You already have the latest version installed. Please wait...');
+                        setStatus('Completed');
+                        window.location.href = '/';
+                    }
+    
+                    if (event.data.includes('Installing collected packages:')) {
+                        setInfo('Please wait... this may take a while.');
+                    }
+    
+                    if (event.data.includes('RVC repository is up to date. No need to download.')) {
+                        eventSource.close();
+                        setStatus('You already have the latest version installed.');
+                        setInfo('No updates available');
+                    }
+    
+                    if (event.data.includes('RVC CLI has been installed successfully')) {
+                        setInfo('Finishing...');
+                        setStatus('Finishing RVC installation... please wait...');
+                        window.location.href = '/pretraineds';
+                        eventSource.close();
+                    }
+                };
+    
+                eventSource.onerror = (err) => {
+                    console.log(info);
+                    console.error('Error with event source:', err);
+                    eventSource.close();
+                    setStatus('');
+                    setInfo('We detected an error. Please try again later.');
+                };
+    
+                // Clean up
+                return () => {
+                    eventSource.close();
+                };
+            } catch (error) {
+                console.error('Failed to get the server port or connect to EventSource:', error);
+                setInfo('An error occurred while initializing. Please try again.');
             }
         };
     
-        eventSource.onerror = (err) => {
-            console.log(info);
-            console.error('Error with event source:', err);
-            eventSource.close(); 
-            setStatus('');
-            setInfo('We detected an error. Please try again later.');
-        };
+        fetchData(); 
     
-        return () => {
-            eventSource.close(); 
-        };
-    }, []);  
+    }, []); 
+    
 
     return (
         <section className="absolute inset-0 z-50">
