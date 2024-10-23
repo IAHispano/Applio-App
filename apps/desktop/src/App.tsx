@@ -702,37 +702,37 @@ function Convert()  {
   const [filterRadius, setFilterRadius] = useState(3)
   const [autotune, setAutotune] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [progress, setProgress] = useState('0')
+  const [convertedAudio, setConvertedAudio] = useState('')
   const audioRef = useRef<HTMLAudioElement>(null)
 
   const togglePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
-        audioRef.current.pause()
+        audioRef.current.pause();
       } else {
-        audioRef.current.play()
+        audioRef.current.play();
       }
-      setIsPlaying(!isPlaying)
+      setIsPlaying(prevState => !prevState); 
     }
-  }
+  };
 
   const handleTimeUpdate = () => {
     if (audioRef.current) {
       const progress = (audioRef.current.currentTime / audioRef.current.duration) * 100
-      setProgress(progress)
+      setProgress(progress as unknown as string)
     }
   }
-
+  
   useEffect(() => {
-    const audioElement = audioRef.current
+    const audioElement = audioRef.current;
     if (audioElement) {
       audioElement.addEventListener('timeupdate', handleTimeUpdate)
       return () => {
         audioElement.removeEventListener('timeupdate', handleTimeUpdate)
       }
     }
-  }, [])
-
+  }, [isPlaying]);  
 
   // get server port
   async function getServerPort() {
@@ -838,6 +838,7 @@ function Convert()  {
         if (event.data.includes('finished')) {
           const audioPath = event.data.split('Audio path: ')[1];
           console.log(audioPath)
+          setConvertedAudio(audioPath)
           getAudio(audioPath)
           setInfo('Conversion completed!');
           setStatus('Your audio has been converted successfully.');
@@ -868,8 +869,15 @@ function Convert()  {
     open('https://docs.applio.org')    
   };
 
+  const downloadAudio = async (path: string) => {
+    const lastSlashIndex = path.lastIndexOf('\\');
+    const pathWithoutFile = path.substring(0, lastSlashIndex);
+    
+    open(pathWithoutFile);
+  };    
+  
   function transformPath(path: string) {
-    return path.replace(/\\/g, '/'); 
+    return path.replace(/\\/g, '/');
   }
 
   async function getAudio(path: string) {
@@ -886,6 +894,8 @@ function Convert()  {
       console.error('Error:', error);
     }
   }
+
+  
 
   return (
     <div className="grid h-screen w-screen">
@@ -1046,51 +1056,50 @@ function Convert()  {
                 <div className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 ${error ? 'bg-red-500/10' : ''}`}>
                   <p className="font-medium">{info}</p>
                   <p className="text-sm text-neutral-300 max-w-5xl truncate">{status}</p>
-                  {error && <p className="text-neutral-400 text-xs mt-1">Maybe you have done something wrong? <button className="text-neutral-300 hover:underline" onClick={openDocs}>Check the docs</button>.</p>}
+                  {error && <p className="text-neutral-400 text-xs mt-1">Maybe you have done something wrong? <button className="text-neutral-300 hover:underline" type="button" onClick={openDocs}>Check the docs</button>.</p>}
                 </div>
               )}
               {info === 'Conversion completed!' && output && (
               <div className="w-full flex gap-2">
-                <div className="w-full border border-white/20 shadow-xl shadow-white/10 rounded-xl px-4 py-2 flex justify-between items-center gap-4">
-                <div className="flex justify-start items-center">
-                  <button type="button" className="rounded-full p-2 bg-[#111111]/50 border border-white/20" onClick={togglePlayPause}>
-                  {isPlaying ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                      <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                      <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  </button>
-                  </div>
-                  <div className="w-full flex items-center gap-1.5">
-                  <div className="text-sm font-medium text-neutral-400">
-                      {audioRef.current ? `${Math.floor(audioRef.current.currentTime)}s` : '0s'}
-                  </div>
-                  <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="absolute top-0 left-0 h-full bg-primary transition-all duration-300 ease-in-out"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                  </div>
-                  <audio
-                    ref={audioRef}
-                    className="hidden"
-                    onPlay={() => setIsPlaying(true)}
-                    onPause={() => setIsPlaying(false)}
-                  >
-                    <source src={output} type="audio/wav" />
-                    Your browser does not support the audio element.
-                  </audio>
-                </div>
-                <button className="bg-white px-4 rounded-xl w-fit flex items-center justify-center" type="button">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="111111" className="w-6 h-6">
-                  <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v11.69l3.22-3.22a.75.75 0 111.06 1.06l-4.5 4.5a.75.75 0 01-1.06 0l-4.5-4.5a.75.75 0 111.06-1.06l3.22 3.22V3a.75.75 0 01.75-.75zm-9 13.5a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
-                </svg>
+              <div className="w-full border border-white/20 shadow-xl shadow-white/10 rounded-xl px-4 py-1.5 flex justify-between items-center gap-4">
+              <div className="flex justify-start items-center">
+                <button type="button" className="rounded-full p-2 bg-[#111111]/50 border border-white/20" onClick={togglePlayPause}>
+                {isPlaying ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                    <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                  </svg>
+                ) : (
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5" aria-hidden="true">
+                    <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                  </svg>
+                )}
                 </button>
+                </div>
+                <div className="w-full flex items-center gap-1.5">
+                <div className="text-sm font-medium text-neutral-400">
+                    {audioRef.current ? `${Math.floor(audioRef.current.currentTime)}s` : '0s'}
+                </div>
+                <div className="relative w-full h-2 border border-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-in-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                </div>
+                <audio
+                  ref={audioRef}
+                  className="hidden"
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                >
+                  <source src={output} type="audio/wav" />
+                </audio>
+              </div>
+                {convertedAudio && <button className="bg-white px-4 rounded-xl w-fit flex items-center justify-center" type="button" onClick={() => downloadAudio(convertedAudio)}>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#111111" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6" aria-hidden="true">
+                    <path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                  </svg>
+                </button>}
                 </div>
               )}
               <div className="relative group">
