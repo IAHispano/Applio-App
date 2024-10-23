@@ -704,6 +704,7 @@ function Convert()  {
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState('0')
   const [convertedAudio, setConvertedAudio] = useState('')
+  const [convertTime, setConvertTime] = useState('')
   const audioRef = useRef<HTMLAudioElement>(null)
 
   const togglePlayPause = () => {
@@ -817,9 +818,17 @@ function Convert()  {
   };
 
   const convert = async () => {
+    const startingTime = performance.now();
     setInfo('Starting...');
     setStatus('Sending request...');
     setError(false)
+
+    const time = setInterval(() => {
+      const actualTime = performance.now();
+      const duration = (actualTime - startingTime) / 1000;
+      setConvertTime(duration.toFixed(2));
+    }, 100);
+
     const port = await getServerPort();  
     try {
       const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}`;
@@ -832,9 +841,9 @@ function Convert()  {
           setInfo('Error');
           setStatus('An error has occurred, please try again.');
           setError(true)
+          clearInterval(time);
           eventSource.close();
         } 
-
         if (event.data.includes('finished')) {
           const audioPath = event.data.split('Audio path: ')[1];
           console.log(audioPath)
@@ -842,8 +851,14 @@ function Convert()  {
           getAudio(audioPath)
           setInfo('Conversion completed!');
           setStatus('Your audio has been converted successfully.');
-          
+          clearInterval(time);
           eventSource.close();
+        }
+
+        if (event.data.includes('completed')) {
+          setInfo('Finishing...');
+          setStatus('Receiving audio...');
+          clearInterval(time);
         }
       };
   
@@ -852,14 +867,17 @@ function Convert()  {
         console.error('Error with event source:', err);
         eventSource.close(); 
         setError(true)
+        clearInterval(time);
         setStatus('We detected an error, please try again.');
       };
 
       return () => {
-        eventSource.close(); 
+        eventSource.close();
+        clearInterval(time);
       };
     } catch (error) {
       console.error('Error:', error);
+      clearInterval(time);
       setStatus('We detected an error. Please try again later.');
     }
     
@@ -1053,13 +1071,18 @@ function Convert()  {
                   </div>
               </div>
               {(status || info) && (
-                <div className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 ${error ? 'bg-red-500/10' : ''}`}>
+                <div className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 flex justify-between items-center ${error ? 'bg-red-500/10' : ''}`}>
+                  <div>
                   <p className="font-medium">{info}</p>
-                  <p className="text-sm text-neutral-300 max-w-5xl truncate">{status}</p>
+                  {!status.includes('completed') && <p className="text-sm text-neutral-300 max-w-3xl truncate">{status}</p>}
                   {error && <p className="text-neutral-400 text-xs mt-1">Maybe you have done something wrong? <button className="text-neutral-300 hover:underline" type="button" onClick={openDocs}>Check the docs</button>.</p>}
+                  </div>
+                  <div className="justify-start mb-auto flex">
+                    <p className="text-sm text-neutral-400">{convertTime || 0}s</p>
+                  </div>
                 </div>
               )}
-              {info === 'Conversion completed!' && output && (
+              {info.includes('completed!') && output && (
               <div className="w-full flex gap-2">
               <div className="w-full border border-white/20 shadow-xl shadow-white/10 rounded-xl px-4 py-1.5 flex justify-between items-center gap-4">
               <div className="flex justify-start items-center">
