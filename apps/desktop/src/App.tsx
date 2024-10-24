@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import Header from "./components/layout/header";
 import { TitleBar } from "./components/layout/titlebar";
 import Welcome from "./components/first-time/welcome";
@@ -14,6 +14,7 @@ import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
 import { open } from '@tauri-apps/plugin-shell'
 import Background1 from "./components/svg/background1";
 import { createStore } from "@tauri-apps/plugin-store";
+import { ConvertProvider, useConvertContext } from './components/convert/conversion-context';
 
 function App() {
   const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -173,6 +174,7 @@ function App() {
   }, []);
 
   return (
+    <ConvertProvider>
     <Router>
       {updateAvailable && window.location.pathname !== "/first-time" && (<a href="/first-time" className="hover:bg-black/20 slow absolute left-24 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl" style={{zIndex: 300}}>
         <p className="text-xs">Update available!</p>
@@ -181,7 +183,7 @@ function App() {
       <div className="flex w-screen h-screen gap-0">
       {window.location.pathname !== "/first-time" && window.location.pathname !== "/pretraineds" && window.location.pathname !== "/os-not-supported" && <Header />}
       <Routes>
-        <Route path="/" element={<Home />} />
+        <Route index path="/" element={<Home />} />
         <Route path="*" element={<NotFound />} />
         <Route path="/first-time" element={<FirstTime />} />
         <Route path="/models" element={<Models />} />
@@ -192,6 +194,7 @@ function App() {
       </Routes>
       </div>
     </Router>
+    </ConvertProvider>
   );
 }
 
@@ -199,7 +202,7 @@ function Home() {
   return (
     <div className="grid h-screen w-screen">
       <main className="flex flex-col items-center justify-start mt-8 w-full overflow-auto">
-        <div className="grid grid-cols-3 grid-rows-3 gap-4 w-full h-full p-4">
+        <div className="grid grid-cols-3 md:grid-rows-3 gap-4 w-full h-full p-4">
           <div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20 shadow-2xl shadow-[#00AA68]/20">
             <div className="pt-6 flex flex-col w-full h-full rounded-xl justify-center items-center noise relative" style={{ background: 'radial-gradient(150% 150% at 50% 10%, #111111A3 40%, #00AA68 100%)' }}>  
             <h1 className="text-[100px] font-bold title">Applio</h1>
@@ -686,25 +689,27 @@ function OSNotSupported() {
 }
 
 function Convert()  {
-  const [models, setModels] = useState<any[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [file, setFile] = useState<File | null>(null);
-  const [uploaded, setUploaded] = useState(false)
-  const [info, setInfo] = useState("")
-  const [status, setStatus] = useState("")
-  const [error, setError] = useState(false)
-  const [input, setInput] = useState("")
-  const [pth, setPth] = useState("")
-  const [index, setIndex] = useState("")
-  const [output, setOutput] = useState("")
-  const [pitch, setPitch] = useState(0)
-  const [indexRate, setIndexRate] = useState(0.3)
-  const [filterRadius, setFilterRadius] = useState(3)
-  const [autotune, setAutotune] = useState(false)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState('0')
-  const [convertedAudio, setConvertedAudio] = useState('')
-  const [convertTime, setConvertTime] = useState('')
+  const {
+    models, setModels,
+    currentIndex, setCurrentIndex,
+    file, setFile,
+    uploaded, setUploaded,
+    info, setInfo,
+    status, setStatus,
+    error, setError,
+    input, setInput,
+    pth, setPth,
+    index, setIndex,
+    output, setOutput,
+    pitch, setPitch,
+    indexRate, setIndexRate,
+    filterRadius, setFilterRadius,
+    autotune, setAutotune,
+    isPlaying, setIsPlaying,
+    progress, setProgress,
+    convertedAudio, setConvertedAudio,
+    convertTime, setConvertTime,
+} = useConvertContext();
   const audioRef = useRef<HTMLAudioElement>(null)
 
   const togglePlayPause = () => {
@@ -913,7 +918,18 @@ function Convert()  {
     }
   }
 
-  
+  const handleReset = () => {
+    setInput('');
+    setPth('');
+    setIndex('');
+    setPitch(0);
+    setIndexRate(0.3);
+    setFilterRadius(3);
+    setAutotune(false);
+    setOutput('');
+    setUploaded(false);
+    setFile(null);
+  };
 
   return (
     <div className="grid h-screen w-screen">
@@ -987,9 +1003,9 @@ function Convert()  {
                 </div>
                 <p className="text-center text-neutral-300 text-xs z-50">
                   Download more models{' '}
-                  <a href="/models" className="text-white hover:underline">
+                  <Link to="/models" className="text-white hover:underline">
                     here
-                  </a>.
+                  </Link>.
                 </p>
               </div>
             </div>
@@ -1025,7 +1041,8 @@ function Convert()  {
                   onChange={handleFileChange}
                 />
               </div>
-              {file && <button type="button" onClick={handleUpload} disabled={uploaded} className="w-full border border-white/20 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50">Upload</button>}
+              {file && !uploaded && <button type="button" onClick={handleUpload} disabled={uploaded} className="w-full border border-white/20 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50">Upload</button>}
+              {uploaded || status.includes("successfully") ? <button type="button" onClick={handleReset} className="w-full border border-white/20 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50">Reset</button> : null}
               </div>
               <div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">
               <div className="row-span-full w-full h-full border border-white/20 rounded-xl p-4 flex flex-col gap-6">
@@ -1055,7 +1072,7 @@ function Convert()  {
                   </div>
                   <div className="flex flex-col">
                   <div className="flex justify-between items-center w-full">
-                  <h2 className="text-neutral-200 text-lg">Autotune</h2>
+                  <h2 className="text-neutral-200 text-lg font-medium">Autotune</h2>
                   <div className="inline-flex items-center">
                   <label className="flex items-center cursor-pointer relative">
                     <input checked={autotune}  onChange={(e) => setAutotune(e.target.checked)} type="checkbox" className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white" id="check" />
