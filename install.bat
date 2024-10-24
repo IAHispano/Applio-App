@@ -21,9 +21,6 @@ call .\env\Scripts\activate
 REM Install server dependencies
 pip install -r requirements.txt
 
-REM Deactivate the virtual environment (Windows only)
-call .\env\Scripts\deactivate
-
 REM Build the server (use CMD, not PowerShell)
 pyinstaller --onefile --icon=logo.ico --noconsole server.py
 copy dist\server.exe ..\desktop\src-tauri\python\server.exe
