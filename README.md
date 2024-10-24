@@ -4,22 +4,19 @@
   The easiest voice cloning tool, now in app. Made to be simple, fast, and light.
 </p>
 
-## Project Overview
-
-This TurboRepo setup includes two main apps:
-1. **Desktop App** (Tauri-based) – A lightweight voice cloning tool with a sleek, intuitive UI.
-2. **Server** (Python-based) – Powers the backend, handles AI models, and provides essential APIs for the desktop app.
-
 ## Features
 - [x] Simple integrated installation
 - [x] Applio models support
 - [x] RVC Auto-Update
 - [x] Discord Presence integration
 - [x] Conversion capabilities
+- [ ] Converted audios section
 - [x] Installer
-- [ ] App Auto-Update (coming soon)
-- [ ] Model Training (coming soon)
-- [ ] Translations (coming soon)
+- [ ] App Auto-Update
+- [ ] Model Training
+- [ ] Translations
+- [ ] macOS support
+- [ ] Linux support
 
 ## Supported Systems
 | System      | Support Status                          |
@@ -43,71 +40,21 @@ This TurboRepo setup includes two main apps:
    git clone https://github.com/iahispano/applio-app.git
    ```
 
-2. **Install the dependencies for the desktop app**:
+2. **Run install.bat**:
    ```bash
-   pnpm install --filter=desktop
+   ./install.bat
    ```
 
-3. **Navigate to the server folder**:
-   ```bash
-   cd apps/server
-   ```
+   
 
-4. **Set up the virtual environment**:
-   ```bash
-   py -m venv env
-   ```
-
-5. **Activate the virtual environment**:
-   - On Windows:
-     ```bash
-     .\env\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```bash
-     source env/bin/activate
-     ```
-
-6. **Install the server dependencies**:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-7. **Build the server**:
-   ###### Use CMD on Windows, dont use PowerShell.
-   - On Windows:
-     ```bash
-     pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\server.exe ..\desktop\src-tauri\python\server.exe
-     ```
-   - On macOS/Linux:
-     ```bash
-     pyinstaller --onefile --icon=logo.ico --noconsole server.py && cp dist/server ../desktop/src-tauri/python/server.exe
-     ```
-
-8. **Return to the root folder of the project**:
-   ```bash
-   cd ../..
-   ```
-
-9. **Create a `.env` file**:
-   Add your Supabase keys for proper API integration:
-   ```bash
-   VITE_API_KEY=your_supabase_api_key
-   VITE_API_URL=your_supabase_url
-   ```
-   If you're not using Supabase, you can input placeholder values.
-
-
-10. **Run the desktop application**:
-   ```bash
-   pnpm tauri dev
-   ```
-
+### **Run Applio App**
+    ```bash
+    pnpm tauri dev
+    ```
 ### **Run only the server**
     ```bash
     pnpm server:{your operating system (windows/macos)}
     ```
-
 ### **Build Applio App**
     ```bash
     pnpm build:{your operating system (windows/macos)}
@@ -119,7 +66,7 @@ We welcome contributions to enhance the app’s features and support for additio
 
 ## License
 
-This project is licensed under the [CC BY-NC license](https://github.com/iahispano/applio-app/blob/master/LICENSE).
+This project is licensed under the [MIT license](https://github.com/iahispano/applio-app/blob/master/LICENSE).
 
 ## Acknowledgements
 
