@@ -20,8 +20,8 @@
         "resizable": true,
         "focus": false,
         "transparent": true,
-        "minWidth": 500,
-        "minHeight": 500
+        "minWidth": 700,
+        "minHeight": 700
       }
     ],
     "security": {
