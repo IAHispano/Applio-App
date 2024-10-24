@@ -10,10 +10,9 @@
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
     "tauri": "pnpm desktop tauri",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+    "format": "pnpm desktop format"
   },
   "devDependencies": {
-    "prettier": "^3.3.3",
     "turbo": "^2.2.3",
     "typescript": "^5.6.3"
   },
