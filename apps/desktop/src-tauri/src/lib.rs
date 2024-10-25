@@ -86,7 +86,7 @@ fn is_dev() -> bool {
 
 #[tauri::command]
 fn set_discord_presence(state: &str, details: &str) {
-    let client = DeclarativeDiscordIpcClient::new("1182749528059813908");
+    let client = DeclarativeDiscordIpcClient::new("1144714449563955302");
 
     client.enable();
 
