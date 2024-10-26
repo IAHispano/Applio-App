@@ -1,38 +1,47 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Server
+apps/server/rvc
+apps/server/logs
+apps/server/audios
+apps/server/env
+apps/server/version.json
+apps/server/dist
+apps/server/build
+apps/server/enviroment
 
-# Dependencies
+# Installer
+apps/installer/env
+
+# Desktop
+apps/desktop/logs
+apps/desktop/*.log
+apps/desktop/npm-debug.log*
+apps/desktop/yarn-debug.log*
+apps/desktop/yarn-error.log*
+apps/desktop/pnpm-debug.log*
+apps/desktop/lerna-debug.log*
+apps/desktop/dist
+apps/desktop/dist-ssr
+apps/desktop/*.local
+apps/desktop/src-tauri/python/server.exe
+apps/desktop/src-tauri/version.json
+apps/desktop/compiled
+apps/desktop/node_modules
+apps/desktop/.pnp
+apps/desktop/.pnp.js
+apps/desktop/.env
 node_modules
-.pnp
-.pnp.js
 
-# Local env files
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# Testing
+# Global
 coverage
-
-# Turbo
 .turbo
-
-# Vercel
 .vercel
-
-# Build Outputs
+.env
 .next/
 out/
 build
 dist
-
-
-# Debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-
-# Misc
 .DS_Store
 *.pem
