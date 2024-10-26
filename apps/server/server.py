@@ -13,6 +13,9 @@ import threading
 from requests.exceptions import HTTPError
 import sys
 import uuid
+import ctypes
+import socket
+import shutil
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -37,6 +40,11 @@ def remove_ansi_escape_sequences(log_line):
     ansi_escape = re.compile(r'(?:\x1B[@-_][0-?]*[ -/]*[@-~])')
     return ansi_escape.sub('', log_line)
 
+def find_available_port():
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))  
+        return s.getsockname()[1] 
+
 # get latest commit hash
 def get_latest_commit_hash():
     api_url = "https://api.github.com/repos/blaisewf/rvc-cli/commits/main"
@@ -47,10 +55,7 @@ def get_latest_commit_hash():
 
         if response.status_code == 403 and "X-RateLimit-Remaining" in response.headers and response.headers["X-RateLimit-Remaining"] == "0":
             reset_time = response.headers.get("X-RateLimit-Reset")
-            return {
-                "error": "Rate limit exceeded. Please try again later.",
-                "reset_time": reset_time
-            }
+            return None
 
         commit_data = response.json()
         return {"commit_hash": commit_data['sha']}
@@ -64,6 +69,10 @@ def get_latest_commit_hash():
 
 # save last commit hash to version.json
 def save_commit_info(commit_hash):
+    if not commit_hash:
+        logging.info("No commit hash to save due to an error or rate limit.")
+        return
+
     version_file_path = os.path.abspath(os.path.join(os.getcwd(), 'version.json'))
     logging.info(f"Saving commit {commit_hash} to {version_file_path}")
     with open(version_file_path, 'w') as version_file:
@@ -88,6 +97,12 @@ def checkUpdate():
     if saved_commit_hash == latest_commit_hash:
         logging.info("RVC repository is up to date. No need to download.")
         yield 'data: RVC repository is up to date. No need to download.\n\n'
+        return False
+    
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
         return False
 
 # download RVC repository from GitHub and extract it
@@ -124,6 +139,10 @@ def downloadRepo():
             yield 'data: Extracting RVC repository from GitHub... Done!\n\n'
 
         old_folder_name = os.path.join(extraction_path, 'rvc-cli-main')
+
+        if os.path.exists(new_folder_name):
+            shutil.rmtree(new_folder_name) 
+            logging.info(remove_ansi_escape_sequences(f"Removed existing folder: {new_folder_name}"))
 
         if os.path.exists(old_folder_name):
             os.rename(old_folder_name, new_folder_name)
@@ -504,7 +523,13 @@ def get_audio():
     return send_file(audio_path, mimetype='audio/wav')
 
 if __name__ == "__main__":
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 5000
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else find_available_port()
+
+    if not is_admin():
+        params = f'{port} ' + ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
+        sys.exit(0)
+
     print(f"Server started at: http://127.0.0.1:{port}")
     logging.info(remove_ansi_escape_sequences(f"Server started at: http://127.0.0.1:{port}"))
     app.run(port=port, host='0.0.0.0', debug=False)
