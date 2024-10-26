@@ -2,7 +2,7 @@ import { Store } from "@tauri-apps/plugin-store";
 
 async function checkFirstRun(): Promise<boolean> {
 	try {
-		const store = await Store.load("firstRun", { rid: "firstRun" });
+		const store = await Store.load("firstRun");
 		const isFirstRun = await store.get("firstRun");
 
 		if (isFirstRun === null) {
