@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
 import { open } from "@tauri-apps/plugin-shell";
 import Background1 from "./components/svg/background1";
-import { createStore } from "@tauri-apps/plugin-store";
+import { Store } from "@tauri-apps/plugin-store";
 import {
 	ConvertProvider,
 	useConvertContext,
@@ -50,7 +50,7 @@ function App() {
 	async function setWindowEffect() {
 		const currentPlatform = await platform();
 		const osVersion = await version();
-		const store = await createStore("settings.json");
+		const store = await Store.load("settings.json");
 		const background = await store.get("backgroundColor");
 
 		if (!background) {
@@ -62,7 +62,7 @@ function App() {
 			if (currentPlatform === "windows") {
 				if (osVersion >= "10.0.22000.0") {
 					document.documentElement.style.background = "transparent";
-					document.documentElement.style.backgroundColor = background as string;
+					document.documentElement.style.backgroundColor = background as unknown as string;
 					await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
 				}
 			} else {
@@ -611,7 +611,7 @@ function Settings() {
 
 	async function changeBackgroundColor(background: string) {
 		const color = hexToRGBA(background, 0.7);
-		const store = await createStore("settings.json");
+		const store = await Store.load("settings.json");
 		await store.set("backgroundColor", color);
 		await store.save();
 		setBackgroundColor(background as string);
@@ -621,7 +621,7 @@ function Settings() {
 	async function setWindowEffect() {
 		const currentPlatform = await platform();
 		const osVersion = await version();
-		const store = await createStore("settings.json");
+		const store = await Store.load("settings.json");
 		const background = await store.get("backgroundColor");
 
 		if (!background) {
@@ -646,7 +646,7 @@ function Settings() {
 
 	useEffect(() => {
 		async function getBackground() {
-			const store = await createStore("settings.json");
+			const store = await Store.load("settings.json");
 			const background = await store.get("backgroundColor");
 			if (background) {
 				const color = rgbaToHex(background as string);

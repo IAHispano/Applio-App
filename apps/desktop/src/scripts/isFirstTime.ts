@@ -1,8 +1,8 @@
-import { createStore } from "@tauri-apps/plugin-store";
+import { Store } from "@tauri-apps/plugin-store";
 
 async function checkFirstRun(): Promise<boolean> {
 	try {
-		const store = await createStore("firstRun");
+		const store = await Store.load("firstRun", { rid: "firstRun" });
 		const isFirstRun = await store.get("firstRun");
 
 		if (isFirstRun === null) {
@@ -23,7 +23,7 @@ async function isFirstRun(): Promise<boolean> {
 
 async function setNotFirstRun(): Promise<boolean> {
 	try {
-		const store = await createStore("firstRun");
+		const store = await Store.load("firstRun");
 		await store.set("firstRun", false);
 		await store.save();
 		return true;
