@@ -9,7 +9,7 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
-    "tauri": "pnpm desktop tauri",
+    "tauri": "dotenv -- pnpm desktop tauri",
     "format": "pnpm desktop format"
   },
   "devDependencies": {
@@ -19,5 +19,9 @@
   "packageManager": "pnpm@9.12.2",
   "engines": {
     "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "dotenv-cli": "github:motdotla/dotenv-cli"
   }
 }
