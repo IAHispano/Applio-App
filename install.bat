@@ -28,9 +28,13 @@ copy dist\server.exe ..\desktop\src-tauri\python\server.exe
 REM Return to the root folder of the project
 cd ../..
 
-REM Create the .env file with Supabase keys (replace with your real values)
-echo VITE_API_KEY=your_supabase_api_key > .env
-echo VITE_API_URL=your_supabase_url >> .env
+REM Check if .env file already exists; if not, copy .env.example to .env
+IF NOT EXIST .env (
+    echo Copying .env.example to .env
+    copy .env.example .env
+    echo Please open the .env file and fill in the required information.
+    pause
+)
 
 REM Run the desktop application
 pnpm tauri dev
