@@ -8,10 +8,10 @@
 - [x] Simple integrated installation
 - [x] Applio models support
 - [x] RVC Auto-Update
+- [x] Installer
 - [x] Discord Presence integration
 - [x] Conversion capabilities
 - [ ] Converted audios section
-- [x] Installer
 - [ ] App Auto-Update
 - [ ] Model Training
 - [ ] Translations
@@ -23,17 +23,17 @@
 |-------------|-----------------------------------------|
 | Windows 11  | Full support                            |
 | Windows 10  | Full support                            |
-| macOS       | No support, working to make it possible |
-| Linux       | No support, working to make it possible |
+| macOS       | No support                              |
+| Linux       | No support                              |
 
-## Installation Instructions
+## For developers
 
 ### Prerequisites
 - Install [pnpm](https://pnpm.js.org/)
 - Install [Python](https://www.python.org/downloads/) (required for the server)
 - Ensure you meet the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for desktop development
 
-### Steps for Developers
+### Steps
 
 1. **Clone the repository**:
    ```bash
@@ -44,21 +44,33 @@
    ```bash
    ./install.bat
    ```
-
    
 
 ### **Run Applio App**
+  ##### This will **open the app** in development mode.
     ```bash
     pnpm tauri dev
     ```
-### **Run only the server**
-    ```bash
-    pnpm server:{your operating system (windows/macos)}
-    ```
 ### **Build Applio App**
+  ##### This will **generate a `build` folder** with a `server.exe` file and `applio-app.exe`. Insert the `server` file inside a folder named `python` and run applio-app.exe.
     ```bash
     pnpm build:{your operating system (windows/macos)}
     ```
+### **Run the server**
+  ##### This will open **only the server** so you can make changes only in the backend.
+    ```bash
+    pnpm server:{your operating system (windows/macos)}
+    ```
+
+## Roadmap
+[![APP Roadmap](https://i.imgur.com/LMqCMBV.png)](https://applio.org/products/app)
+
+## Screenshoots
+[![APP Home Section](https://i.imgur.com/AEZTSt6.png)](https://applio.org/products/app)
+[![APP Inference Section](https://i.imgur.com/SSvq2NN.png)](https://applio.org/products/app)
+[![APP Models Section](https://i.imgur.com/gomSBRE.png)](https://applio.org/products/app)
+[![APP Settings Section](https://i.imgur.com/ZsNWqab.png)](https://applio.org/products/app)
+###### <p align="center">*Pre-release images. Final product may vary*</p>
 
 ## Contributing
 
@@ -72,5 +84,3 @@ This project is licensed under the [MIT license](https://github.com/iahispano/ap
 
 - [rvc-cli](https://github.com/blaisewf/rvc-cli) by [blaisewf](https://github.com/blaisewf)
 - [Tauri](https://github.com/tauri-apps/tauri) by [Tauri team](https://github.com/tauri-apps)
-
-Feel free to contribute or suggest features!
