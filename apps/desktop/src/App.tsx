@@ -917,6 +917,10 @@ function Convert() {
 		setConvertedAudio,
 		convertTime,
 		setConvertTime,
+		cleanAudio,
+		setCleanAudio,
+		exportFormat,
+		setExportFormat
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -1045,11 +1049,9 @@ function Convert() {
 
 		const port = await getServerPort();
 		try {
-			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}`;
+			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}`;
 			const eventSource = new EventSource(url);
-			console.log(
-				`http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}`,
-			);
+			console.log(url);
 			eventSource.onmessage = (event) => {
 				console.log(event.data);
 				setStatus(event.data);
@@ -1345,7 +1347,7 @@ function Convert() {
 								) : null}
 							</div>
 							<div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">
-								<div className="row-span-full w-full h-full border border-white/20 rounded-xl p-4 flex flex-col gap-6">
+								<div className="row-span-full w-full h-full border border-white/20 rounded-xl p-4 flex flex-col gap-6 max-h-full overflow-auto">
 									<div className="flex flex-col gap-2">
 										<h2 className="text-neutral-200 text-lg font-medium">
 											Pitch
@@ -1415,7 +1417,7 @@ function Convert() {
 											help reduce breathiness in the output audio.
 										</p>
 									</div>
-									<div className="flex flex-col">
+									<div className="flex flex-col mt-8">
 										<div className="flex justify-between items-center w-full">
 											<h2 className="text-neutral-200 text-lg font-medium">
 												Autotune
@@ -1455,6 +1457,85 @@ function Convert() {
 											useful for singing voice conversions.
 										</p>
 									</div>
+									<div className="flex flex-col">
+										<div className="flex justify-between items-center w-full">
+											<h2 className="text-neutral-200 text-lg font-medium">
+												Clean audio
+											</h2>
+											<div className="inline-flex items-center">
+												<label className="flex items-center cursor-pointer relative">
+													<input
+														checked={cleanAudio}
+														onChange={(e) => setCleanAudio(e.target.checked)}
+														type="checkbox"
+														className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+														id="check"
+													/>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+											</div>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Clean the output audio using noise reduction algorithms. Recommended for speech conversions.
+										</p>
+									</div>
+									<div className="flex flex-col">
+										<div className="flex justify-between items-center w-full">
+											<h2 className="text-neutral-200 text-lg font-medium">
+												Export format
+											</h2>
+											<div className="inline-flex items-center">
+												<label className="flex items-center cursor-pointer relative">
+													<select
+														defaultValue={exportFormat}
+														onChange={(e) => setExportFormat(e.target.value)}
+														className="h-8 w-fit flex items-center justify-center text-end px-4 cursor-pointer transition-all appearance-none rounded-lg shadow-sm hover:shadow-md border border-slate-300 bg-white text-slate-700 focus:outline-none focus:border-slate-400"
+													>
+														<option value="WAV">WAV</option>
+														<option value="MP3">MP3</option>
+													</select>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+											</div>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Select the desired output audio format.
+										</p>
+									</div>
 								</div>
 								{(status || info) && (
 									<div
@@ -1490,7 +1571,7 @@ function Convert() {
 								)}
 								{info.includes("completed!") && output && (
 									<div className="w-full flex gap-2">
-										<div className="w-full border border-white/20 shadow-xl shadow-white/10 rounded-xl px-4 py-1.5 flex justify-between items-center gap-4">
+										<div className="w-full border border-white/20 rounded-xl pl-4 h-18 flex justify-between items-center gap-4">
 											<div className="flex justify-start items-center">
 												<button
 													type="button"
@@ -1528,13 +1609,8 @@ function Convert() {
 													)}
 												</button>
 											</div>
-											<div className="w-full flex items-center gap-1.5">
-												<div className="text-sm font-medium text-neutral-400">
-													{audioRef.current
-														? `${Math.floor(audioRef.current.currentTime)}s`
-														: "0s"}
-												</div>
-												<div className="relative w-full h-2 border border-white/20 rounded-full overflow-hidden">
+											<div className="w-full flex items-center gap-4">
+												<div className="relative w-full h-[8svh] rounded-r-xl bg-white/10 overflow-hidden">
 													<div
 														className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-in-out"
 														style={{ width: `${progress}%` }}
@@ -1551,8 +1627,9 @@ function Convert() {
 											</audio>
 										</div>
 										{convertedAudio && (
+											<div className="flex flex-col gap-2 h-full">
 											<button
-												className="bg-white px-4 rounded-xl w-fit flex items-center justify-center"
+												className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
 												type="button"
 												onClick={() => downloadAudio(convertedAudio)}
 											>
@@ -1560,16 +1637,36 @@ function Convert() {
 													xmlns="http://www.w3.org/2000/svg"
 													viewBox="0 0 24 24"
 													fill="none"
-													stroke="#111111"
+													stroke="#ffffff"
 													strokeWidth="2"
 													strokeLinecap="round"
 													strokeLinejoin="round"
-													className="w-6 h-6"
+													className="w-4 h-4"
 													aria-hidden="true"
 												>
 													<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
 												</svg>
 											</button>
+											<button
+											className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
+											type="button"
+											onClick={() => downloadAudio(convertedAudio)}
+										>
+											<svg
+												xmlns="http://www.w3.org/2000/svg"
+												viewBox="0 0 24 24"
+												fill="none"
+												stroke="#ffffff"
+												strokeWidth="2"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+												className="w-4 h-4"
+												aria-hidden="true"
+											>
+												<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+											</svg>
+										</button>
+										</div>
 										)}
 									</div>
 								)}

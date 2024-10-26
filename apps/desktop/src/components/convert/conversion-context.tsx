@@ -39,6 +39,10 @@ interface ConvertContextType {
 	setConvertedAudio: React.Dispatch<React.SetStateAction<string>>;
 	convertTime: string;
 	setConvertTime: React.Dispatch<React.SetStateAction<string>>;
+	cleanAudio: boolean;
+	setCleanAudio: React.Dispatch<React.SetStateAction<boolean>>;
+	exportFormat: string;
+	setExportFormat: React.Dispatch<React.SetStateAction<string>>;
 }
 
 const ConvertContext = createContext<ConvertContextType | undefined>(undefined);
@@ -69,6 +73,8 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 	const [progress, setProgress] = useState("0");
 	const [convertedAudio, setConvertedAudio] = useState("");
 	const [convertTime, setConvertTime] = useState("");
+	const [cleanAudio, setCleanAudio] = useState(false);
+	const [exportFormat, setExportFormat] = useState("WAV");
 
 	return (
 		<ConvertContext.Provider
@@ -103,6 +109,8 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 				setFilterRadius,
 				autotune,
 				setAutotune,
+				cleanAudio, 
+				setCleanAudio,
 				isPlaying,
 				setIsPlaying,
 				progress,
@@ -111,6 +119,8 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 				setConvertedAudio,
 				convertTime,
 				setConvertTime,
+				exportFormat,
+				setExportFormat
 			}}
 		>
 			{children}
