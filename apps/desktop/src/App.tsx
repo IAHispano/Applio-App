@@ -122,6 +122,16 @@ function App() {
 		}
 	};
 
+	const checkRVC = async () => {
+		const port = await getServerPort();
+		const response = await fetch(`http://localhost:${port}/check-rvc`);
+		const data = await response.json();
+		console.log(data);
+		if (data.exists) {
+			setUpdateAvailable(true);
+		}
+	};
+
 	// remove contextmenu
 	useEffect(() => {
 		const handleContextMenu = (event: MouseEvent) => {
@@ -167,7 +177,6 @@ function App() {
 		const initialized = localStorage.getItem("appInitialized");
 		if (!initialized) {
 			localStorage.setItem("appInitialized", "true");
-			checkUpdates();
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
@@ -176,6 +185,8 @@ function App() {
 
 	useEffect(() => {
 		setWindowEffect();
+		checkRVC();
+		checkUpdates();
 	}, []);
 
 	return (
@@ -184,7 +195,7 @@ function App() {
 				{updateAvailable && window.location.pathname !== "/first-time" && (
 					<a
 						href="/first-time"
-						className="hover:bg-black/20 slow absolute left-24 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
+						className="hover:bg-black/20 slow absolute right-32 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
 						style={{ zIndex: 300 }}
 					>
 						<p className="text-xs">Update available!</p>
