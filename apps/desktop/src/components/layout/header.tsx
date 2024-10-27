@@ -8,7 +8,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-6 h-6"
+			className="w-6 h-6 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -24,7 +24,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-6 h-6"
+			className="w-6 h-6 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -40,7 +40,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-6 h-6"
+			className="w-6 h-6 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -52,7 +52,7 @@ const icons = {
 	),
 	Settings: (
 		<svg
-			className="w-6 h-6"
+			className="w-6 h-6 opacity-70"
 			viewBox="0 0 24 24"
 			fill="none"
 			xmlns="http://www.w3.org/2000/svg"
@@ -94,7 +94,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-5 h-5"
+			className="w-5 h-5 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -110,7 +110,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-5 h-5"
+			className="w-5 h-5 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -126,7 +126,7 @@ const icons = {
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
-			className="w-5 h-5"
+			className="w-5 h-5 opacity-70"
 		>
 			<path
 				strokeLinecap="round"
@@ -162,7 +162,7 @@ export default function Sidebar() {
 
 	return (
 		<div
-			className={`flex flex-col h-full border-r border-white/20 text-gray-100 p-4 rounded-sm transition-all duration-300 ease-in-out ${
+			className={`flex flex-col border border-white/20 text-gray-100 p-4 m-4 rounded-xl transition-all duration-300 ease-in-out ${
 				isExpanded ? "w-64" : "w-20"
 			}`}
 			style={{ zIndex: 200 }}
@@ -173,7 +173,7 @@ export default function Sidebar() {
 						<li key={index}>
 							<Link
 								to={item.to}
-								className="flex items-center space-x-3 p-3 rounded-lg hover:bg-neutral-700 transition-colors duration-200"
+								className="flex items-center justify-start space-x-3 p-2 rounded-lg hover:bg-neutral-700 transition-colors duration-200"
 							>
 								{icons[item.icon as keyof typeof icons]}
 								{isExpanded && <span>{item.label}</span>}
