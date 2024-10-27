@@ -319,6 +319,9 @@ function Models() {
 	const [status, setStatus] = useState("");
 	const [info, setInfo] = useState("");
 	const [error, setError] = useState(false);
+	const [mode, setMode] = useState("explore");
+	const [url, setUrl] = useState("");
+	const [name, setName] = useState("");
 
 	useEffect(() => {
 		async function getModels() {
@@ -360,13 +363,13 @@ function Models() {
 	}
 
 	const downloadModel = async (
-		id: string,
 		link: string,
-		epochs: string,
-		algorithm: string,
-		name: string,
-		author: string,
-		from: string,
+		id?: string,
+		epochs?: string,
+		algorithm?: string,
+		name?: string,
+		author?: string,
+		from?: string,
 	) => {
 		const port = await getServerPort();
 		setDropdownOpen(true);
@@ -374,9 +377,23 @@ function Models() {
 		setStatus("Sending request...");
 		setError(false);
 		try {
-			const eventSource = new EventSource(
-				`http://localhost:${port}/download?link=${encodeURIComponent(link)}&id=${encodeURIComponent(id)}&epochs=${encodeURIComponent(epochs)}&algorithm=${encodeURIComponent(algorithm)}&name=${encodeURIComponent(name)}&author=${encodeURIComponent(author)}&from=${encodeURIComponent(from)}`,
-			);
+			const queryParams = new URLSearchParams();
+			queryParams.append("link", encodeURIComponent(link));
+			if (id) {
+				queryParams.append("id", encodeURIComponent(id));
+			} else {
+				const newId = crypto.randomUUID();
+				queryParams.append("id", encodeURIComponent(newId));
+			}
+			if (epochs) queryParams.append("epochs", encodeURIComponent(epochs));
+			if (algorithm) queryParams.append("algorithm", encodeURIComponent(algorithm));
+			if (name) queryParams.append("name", encodeURIComponent(name));
+			if (author) queryParams.append("author", encodeURIComponent(author));
+			if (from) queryParams.append("from", encodeURIComponent(from));
+			
+			console.log(queryParams.toString());
+
+			const eventSource = new EventSource(`http://localhost:${port}/download?${queryParams.toString()}`);
 
 			eventSource.onmessage = (event) => {
 				console.log(event.data);
@@ -385,7 +402,7 @@ function Models() {
 					setInfo("Downloading");
 					setStatus("Downloading model...");
 				}
-				if (event.data.includes("downloaded!")) {
+				if (event.data.includes("downloaded")) {
 					setInfo("Downloaded");
 					setStatus("Downloaded successfully");
 					eventSource.close();
@@ -393,6 +410,12 @@ function Models() {
 				if (event.data.includes("error")) {
 					setInfo("Error");
 					setStatus("Error downloading model, please try again.");
+					setError(true);
+					eventSource.close();
+				}
+				if (event.data.includes("WinError") && event.data.includes("183")) {
+					setInfo("Error");
+					setStatus("You already have this model!");
 					setError(true);
 					eventSource.close();
 				}
@@ -416,15 +439,18 @@ function Models() {
 	};
 
 	return (
-		<div className="w-screen h-screen flex flex-col py-12 pr-4 relative p-4">
+		<div className="w-screen h-screen flex flex-col pt-12 pr-4 relative p-4 overflow-hidden">
 			{dropdownOpen && (
-				<div className="absolute inset-0 bg-[#111111]/80 backdrop-blur-2xl backdrop-filter w-full h-full">
+				<div className="absolute inset-0 ml-3 backdrop-blur-2xl backdrop-filter w-full h-full overflow-hidden">
 					<div className="w-full h-full flex justify-center items-center">
-						<div className="w-full max-w-2xl h-fit min-h-[18svh] border border-white/20 bg-[#111111] shadow rounded-xl p-4">
-							<h1 className="font-medium text-2xl">Downloading model</h1>
-							<div className="w-full flex rounded-full h-2.5 dark:bg-gray-700 mt-4">
+						<div className="w-full max-w-2xl h-fit min-h-[16svh] border border-white/10 bg-[#111111] shadow rounded-xl p-4 flex flex-col">
+							<div className="flex mb-auto justify-start items-start">
+							<h1 className="font-medium text-2xl">Download model</h1>
+							</div>
+							<div className="mt-auto flex justify-end items-start flex-col gap-4 w-full"> 
+							<div className="w-full flex rounded-full h-2.5 border border-white/10 mt-6 shadow-lg shadow-white/10">
 								<div
-									className="bg-green-500 h-2.5 rounded-full"
+									className={`h-2.5 rounded-full ${error ? "bg-red-500/30" : "bg-green-500"}`}
 									style={{
 										width:
 											info === "Starting..."
@@ -438,12 +464,12 @@ function Models() {
 								/>
 							</div>
 							{!error && (
-								<p className="text-xs text-neutral-400 mt-2">
+								<p className="text-xs text-neutral-400 flex">
 									Status: {status}
 								</p>
 							)}
 							{error && (
-								<div className="px-4 py-2 my-4 text-sm rounded-xl bg-red-500/20 border border-white/10 text-neutral-300">
+								<div className="px-4 py-2 text-sm rounded-xl bg-red-500/30 text-neutral-300 w-full">
 									{status}
 								</div>
 							)}
@@ -456,10 +482,19 @@ function Models() {
 									Close
 								</button>
 							)}
+							</div>
 						</div>
 					</div>
 				</div>
 			)}
+			<div className="p-4 bg-[#111111]/30 border border-white/20 h-full rounded-xl flex flex-col gap-4 overflow-auto">
+			<div className="border border-white/10 rounded-xl w-full p-4 flex gap-4 shadow-2xl shadow-white/10">
+			<button type="button" onClick={() => setMode("explore")} className={`px-4 py-1 rounded-xl ${mode === "explore" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Explore</button>
+			<button type="button" onClick={() => setMode("import")} className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Import</button>
+			<button type="button" onClick={() => setMode("downloaded")} className={`justify-end ml-auto px-4 py-1 rounded-xl ${mode === "downloaded" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>My models</button>
+			</div>
+			{mode === "explore" && (
+			<div className="mt-6">
 			<input
 				type="text"
 				className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4"
@@ -467,7 +502,7 @@ function Models() {
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
 			/>
-			<div className="w-full  mt-6">
+			<div className="w-full mt-6">
 				{!loading && data === null && (
 					<div className="flex flex-col items-center justify-center w-full h-full">
 						<h1 className="text-center text-neutral-300">No results found</h1>
@@ -491,8 +526,8 @@ function Models() {
 							<button
 								onClick={() =>
 									downloadModel(
-										item.id,
 										item.link,
+										item.id,
 										item.epochs,
 										item.algorithm,
 										item.name,
@@ -531,6 +566,30 @@ function Models() {
 							</button>
 						))}
 					</div>
+				)}
+			</div>
+			</div>
+			)}
+			{mode === "import" && (
+				<div className="w-full h-full flex flex-col items-center mt-6 gap-2">
+					<div className="flex flex-col w-full">
+					<p className="font-medium justify-start mr-auto px-0.5 mb-2">URL</p>
+					<input required onChange={(e) => setUrl(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing" />
+					</div>
+					{/* <div className="flex flex-col w-full">	
+					<p className="font-medium justify-start mr-auto px-0.5 mb-2">Name</p>
+					<input onChange={(e) => setName(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="Quevedo --- 3000 epochs" />
+					</div> */}
+					{url && <button onClick={() => downloadModel(url)} className="w-fit justify-end ml-auto mt-12 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow" type="button">Import</button>}
+				</div>
+				)}
+			{mode === "downloaded" && (
+				<div className="w-full h-full flex flex-col items-center justify-center">
+					<h1 className="text-center text-neutral-300">My models</h1>
+					<p className="text-sm text-neutral-300 mt-2">
+						Here you gonna see your downloaded models.
+					</p>
+				</div>
 				)}
 			</div>
 		</div>
