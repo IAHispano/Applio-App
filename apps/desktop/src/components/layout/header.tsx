@@ -1,121 +1,116 @@
-import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
-import { useConvertContext } from "../convert/conversion-context";
+import React, { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 
-export default function Header() {
-	const { status } = useConvertContext();
+const icons = {
+  Home: (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+    </svg>
+  ),
+  Models: (
+	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />	
+	</svg>
+  ),
+  Convert: (
+	<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-6 h-6">
+		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />	
+	</svg>
+  ),
+  Settings: (
+	<svg className='w-6 h-6' viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <g id="Interface / Settings_Future"> <g id="Vector"> <path d="M13.6006 21.0761L19.0608 17.9236C19.6437 17.5871 19.9346 17.4188 20.1465 17.1834C20.3341 16.9751 20.4759 16.7297 20.5625 16.4632C20.6602 16.1626 20.6602 15.8267 20.6602 15.1568V8.84268C20.6602 8.17277 20.6602 7.83694 20.5625 7.53638C20.4759 7.26982 20.3341 7.02428 20.1465 6.816C19.9355 6.58161 19.6453 6.41405 19.0674 6.08043L13.5996 2.92359C13.0167 2.58706 12.7259 2.41913 12.416 2.35328C12.1419 2.295 11.8584 2.295 11.5843 2.35328C11.2744 2.41914 10.9826 2.58706 10.3997 2.92359L4.93843 6.07666C4.35623 6.41279 4.06535 6.58073 3.85352 6.816C3.66597 7.02428 3.52434 7.26982 3.43773 7.53638C3.33984 7.83765 3.33984 8.17436 3.33984 8.84742V15.1524C3.33984 15.8254 3.33984 16.1619 3.43773 16.4632C3.52434 16.7297 3.66597 16.9751 3.85352 17.1834C4.06548 17.4188 4.35657 17.5871 4.93945 17.9236L10.3997 21.0761C10.9826 21.4126 11.2744 21.5806 11.5843 21.6465C11.8584 21.7047 12.1419 21.7047 12.416 21.6465C12.7259 21.5806 13.0177 21.4126 13.6006 21.0761Z" stroke="#f2f2f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M9 11.9998C9 13.6566 10.3431 14.9998 12 14.9998C13.6569 14.9998 15 13.6566 15 11.9998C15 10.3429 13.6569 8.99976 12 8.99976C10.3431 8.99976 9 10.3429 9 11.9998Z" stroke="#f2f2f2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path> </g> </g> </g></svg>
+  ),
+  MoreHorizontal: (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+    </svg>
+  ),
+  ArrowRight: (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+    </svg>
+  ),
+  ArrowLeft: (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    </svg>
+  ),
+}
 
-	const isConverting = status && !status.includes("successfully");
+export default function Sidebar() {
+  const [isExpanded, setIsExpanded] = useState(false)
 
-	return (
-		<header className="max-w-[25svh] w-fit h-full bg-[#111111]/50 border-r border-white/10 z-[200]">
-			<div className="flex flex-col gap-4 justify-start items-end ml-auto p-4 h-full">
-				<Link
-					className="text-xl flex gap-4 w-full ml-auto items-center justify-end"
-					to="/"
-				>
-					<span className="flex items-center justify-center m-auto h-12 w-12 rounded-xl border-white/20 border hover:bg-white/10 slow hover:shadow-xl hover:shadow-[#00AA68]/20">
-						<svg
-							className="w-6 h-6"
-							aria-hidden="true"
-							xmlns="http://www.w3.org/2000/svg"
-							width="246"
-							height="277"
-							viewBox="0 0 246 277"
-							fill="none"
-						>
-							<path
-								d="M142.546 65.9462C154.744 61.4426 166.841 59.0827 179.348 59.5337C197.564 59.9161 211.312 68.5078 222.768 81.8792C235.667 96.9345 243.113 114.515 245.278 134.439C246.525 145.917 246.084 157.39 244.518 168.856C242.388 184.449 238.845 199.624 232.498 213.964C227.037 226.301 221.317 238.591 212.676 248.947C201.87 261.897 188.857 271.644 172.58 276.017C166.998 277.516 161.425 277.3 155.914 275.372C147.617 272.47 139.192 269.998 130.793 267.432C126.89 266.24 123.079 266.193 119.179 267.251C108.974 270.019 98.8226 273.048 88.5304 275.415C74.1206 278.729 61.192 275.509 50.0251 265.105C32.7469 249.009 20.633 229.306 11.7755 207.281C6.1537 193.302 1.99027 178.843 0.647594 163.756C-1.58648 138.653 1.68141 114.492 14.8237 92.6888C22.0198 80.7505 31.3059 70.7559 43.6319 64.2519C51.1145 60.3036 59.174 59.2029 67.4627 59.4291C81.6658 59.8168 95.457 63.0475 109.298 65.9345C110.256 66.1342 111.221 66.2973 112.187 66.4485C112.317 66.4689 112.473 66.319 112.85 66.1326C111.9 62.4624 110.097 59.1468 108.199 55.9415C103.617 48.2035 98.4703 40.8635 93.0673 33.7141C91.4254 31.5415 89.4436 30.5494 86.7276 30.597C80.9899 30.6976 78.7957 27.4036 80.5906 21.6925C82.458 15.7512 87.7745 13.78 92.8396 17.1207C94.5208 18.2295 95.9083 19.6384 97.1803 21.2069C102.677 27.9852 107.245 35.4171 111.506 43.0592C113.689 46.9754 115.045 51.2461 116.276 55.5633C116.591 56.6648 116.678 57.9147 117.819 58.7835C119.336 57.4697 119.06 55.5086 119.221 53.9181C120.825 38.1083 128.378 26.0129 140.331 16.4106C148.54 9.8161 157.07 3.94243 167.145 0.858849C168.084 0.571508 169.039 0.318437 170.001 0.137933C173.68 -0.55182 175.82 1.37585 176.274 5.23625C178.399 23.2986 171.21 37.5301 159.396 49.9427C154.899 54.6673 150.031 58.9246 144.898 62.8768C144.072 63.5123 143.074 64.0124 142.546 65.9462Z"
-								fill="white"
-							/>
-						</svg>
-					</span>
-				</Link>
-				<Link
-					className="text-xl flex gap-4 w-full ml-auto items-center justify-end"
-					to="/models"
-				>
-					<span className="w-12 h-12 flex items-center justify-center m-auto rounded-xl border-white/20 border hover:bg-white/10 slow">
-						<svg
-							aria-hidden="true"
-							xmlns="http://www.w3.org/2000/svg"
-							viewBox="0 0 24 24"
-							fill="none"
-							stroke="currentColor"
-							strokeWidth="2"
-							strokeLinecap="round"
-							strokeLinejoin="round"
-							className="w-7 h-6 text-white"
-						>
-							<path d="M16 6l4 14" />
-							<path d="M12 6v14" />
-							<path d="M8 8v12" />
-							<path d="M4 4v16" />
-						</svg>
-					</span>
-				</Link>
-				<Link
-					className="text-xl flex gap-4 w-full ml-auto items-center justify-end"
-					to="/convert"
-				>
-					<span
-						className={`h-12 w-12 flex items-center justify-center m-auto rounded-xl border-white/20 border hover:bg-white/10 slow ${isConverting ? "shadow-xl shadow-green-500/40" : ""}`}
-					>
-						{isConverting && (
-							<motion.div
-								className="shadow-xl shadow-green-500/40"
-								animate={{ opacity: 1 }}
-								initial={{ opacity: 0 }}
-								transition={{ duration: 6 }}
-							/>
-						)}
-						<svg
-							className="w-6 h-6"
-							fill="white"
-							preserveAspectRatio="xMidYMid meet"
-							viewBox="0 0 36 36"
-							xmlns="http://www.w3.org/2000/svg"
-						>
-							<path d="m31.49 27.4-8.49-12.46v-10.94h1a1 1 0 0 0 0-2h-11.92a1 1 0 0 0 0 2h.92v10.94l-8.42 12.37a4.31 4.31 0 0 0 -.78 3 4.23 4.23 0 0 0 4.2 3.69h19.86a4.36 4.36 0 0 0 3.14-1.2 4.23 4.23 0 0 0 .49-5.4zm-16.49-11.91v-11.49h6v11.49l5.15 7.51h-16.3z" />
-							<path d="m0 0h36v36h-36z" fill="none" />
-						</svg>
-					</span>
-				</Link>
-				<Link
-					className="text-xl flex gap-4 w-full ml-auto mt-auto "
-					to="/settings"
-				>
-					<span className="h-12 w-12 flex items-center justify-center m-auto rounded-xl border-white/20 border hover:bg-white/10 slow">
-						<svg
-							viewBox="0 0 512 512"
-							fill="currentColor"
-							className="w-6 h-6"
-							aria-hidden="true"
-						>
-							<path
-								fill="none"
-								stroke="currentColor"
-								strokeLinecap="round"
-								strokeLinejoin="round"
-								strokeWidth={32}
-								d="M262.29 192.31a64 64 0 1057.4 57.4 64.13 64.13 0 00-57.4-57.4zM416.39 256a154.34 154.34 0 01-1.53 20.79l45.21 35.46a10.81 10.81 0 012.45 13.75l-42.77 74a10.81 10.81 0 01-13.14 4.59l-44.9-18.08a16.11 16.11 0 00-15.17 1.75A164.48 164.48 0 01325 400.8a15.94 15.94 0 00-8.82 12.14l-6.73 47.89a11.08 11.08 0 01-10.68 9.17h-85.54a11.11 11.11 0 01-10.69-8.87l-6.72-47.82a16.07 16.07 0 00-9-12.22 155.3 155.3 0 01-21.46-12.57 16 16 0 00-15.11-1.71l-44.89 18.07a10.81 10.81 0 01-13.14-4.58l-42.77-74a10.8 10.8 0 012.45-13.75l38.21-30a16.05 16.05 0 006-14.08c-.36-4.17-.58-8.33-.58-12.5s.21-8.27.58-12.35a16 16 0 00-6.07-13.94l-38.19-30A10.81 10.81 0 0149.48 186l42.77-74a10.81 10.81 0 0113.14-4.59l44.9 18.08a16.11 16.11 0 0015.17-1.75A164.48 164.48 0 01187 111.2a15.94 15.94 0 008.82-12.14l6.73-47.89A11.08 11.08 0 01213.23 42h85.54a11.11 11.11 0 0110.69 8.87l6.72 47.82a16.07 16.07 0 009 12.22 155.3 155.3 0 0121.46 12.57 16 16 0 0015.11 1.71l44.89-18.07a10.81 10.81 0 0113.14 4.58l42.77 74a10.8 10.8 0 01-2.45 13.75l-38.21 30a16.05 16.05 0 00-6.05 14.08c.33 4.14.55 8.3.55 12.47z"
-							/>
-						</svg>
-					</span>
-				</Link>
-				<Link className="text-xl flex gap-4 w-full ml-auto" to="/account">
-					<span className="h-12 w-12 flex items-center justify-center m-auto rounded-xl border-white/20 border hover:bg-white/10 slow">
-						<svg
-							viewBox="0 0 24 24"
-							fill="currentColor"
-							className="w-6 h-6"
-							aria-hidden="true"
-						>
-							<path d="M12 4a4 4 0 014 4 4 4 0 01-4 4 4 4 0 01-4-4 4 4 0 014-4m0 10c4.42 0 8 1.79 8 4v2H4v-2c0-2.21 3.58-4 8-4z" />
-						</svg>
-					</span>
-				</Link>
-			</div>
-		</header>
-	);
+  const menuItems = [
+    { icon: 'Home', label: 'Home', to: '/' },
+    { icon: 'Models', label: 'Models', to: '/models' },
+    { icon: 'Convert', label: 'Convert', to: '/convert' },
+    { icon: 'Settings', label: 'Settings', to: '/settings' },
+  ]
+
+  const handleClick = () => {
+    setIsExpanded(!isExpanded)
+	localStorage.setItem('sidebar-expanded', `${!isExpanded}`) 
+  }
+
+  useEffect(() => {
+    const expanded = localStorage.getItem('sidebar-expanded')
+    if (expanded) {
+      setIsExpanded(expanded === 'true')
+    }
+  }, [])
+
+  return (
+    <div 
+      className={`flex flex-col h-full border-r border-white/20 text-gray-100 p-4 rounded-sm transition-all duration-300 ease-in-out ${
+        isExpanded ? 'w-64' : 'w-20'
+      }`}
+	  style={{zIndex: 200}}
+    >
+      <nav className="flex-1">
+        <ul className="space-y-2">
+          {menuItems.map((item, index) => (
+            <li key={index}>
+              <Link
+                to={item.to}
+                className="flex items-center space-x-3 p-3 rounded-lg hover:bg-neutral-700 transition-colors duration-200"
+              >
+                {icons[item.icon]}
+                {isExpanded && <span>{item.label}</span>}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <div className="mt-auto">
+        <div className={`flex items-center ${isExpanded ? "justify-start" : "justify-center"} space-x-2 mb-4`}>
+          <button 
+		  	type='button'
+            className="p-2 rounded-full bg-neutral-700/50 hover:bg-neutral-700 transition-colors duration-200"
+            onClick={handleClick}
+            aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+          >
+            {isExpanded ? icons.ArrowLeft : icons.ArrowRight}
+          </button>
+          {isExpanded && (
+            <button className="p-2 rounded-full bg-neutral-700/50 hover:bg-neutral-700 transition-colors duration-200" type='button'>
+              {icons.MoreHorizontal}
+            </button>
+          )}
+        </div>
+        {isExpanded && (
+          <div className="flex items-center space-x-3 px-4 py-3 bg-neutral-700/50 rounded-lg">
+            <img
+              src="https://avatars.githubusercontent.com/u/100789151?v=4"
+              alt="User avatar"
+              className="w-10 h-10 rounded-full"
+            />
+            <div className="flex-1">
+              <p className="font-semibold">Messi</p>
+              <p className="text-sm text-gray-400">@messi</p>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
 }

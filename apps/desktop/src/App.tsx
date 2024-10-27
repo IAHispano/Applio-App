@@ -214,7 +214,7 @@ function Home() {
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-8 w-full overflow-auto">
-				<div className="grid grid-cols-3 md:grid-rows-3 gap-4 w-full h-full p-4">
+				<div className="grid grid-cols-3 md:grid-cols-3 gap-4 w-full h-full p-4">
 					<div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20 shadow-2xl shadow-[#00AA68]/20">
 						<div
 							className="pt-6 flex flex-col w-full h-full rounded-xl justify-center items-center noise relative"
