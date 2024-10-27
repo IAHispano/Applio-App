@@ -11,6 +11,7 @@ import json
 import signal
 import threading
 from requests.exceptions import HTTPError
+from datetime import datetime
 import sys
 import uuid
 import ctypes
@@ -440,6 +441,45 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
         process.kill()
 
         yield f'data: Conversion finished. Audio path: {audio_path}\n\n'
+        finished_time = datetime.now().isoformat()
+        conversion_info = {
+            "id": unique_id,
+            "converted_at": finished_time,
+            "audio_input": input_path,
+            "audio_output": audio_path,
+            "model_pth": pth_path,
+            "model_index": index_path,
+            "pitch": pitch,
+            "indexRate": indexRate,
+            "filterRadius": filterRadius,
+            "autotune": autotune,
+            "cleanaudio": cleanaudio,
+            "exportformat": exportformat
+        }
+
+        json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+        logging.info(f"Attempting to create directory: {json_logs_dir}")
+
+        try:
+            if not os.path.exists(json_logs_dir):
+                os.makedirs(json_logs_dir)
+                logging.info(f"Created directory: {json_logs_dir}")
+            else:
+                logging.info(f"Directory already exists: {json_logs_dir}")
+        except OSError as e:
+            logging.error(f"Error creating directory {json_logs_dir}: {str(e)}")
+            yield f'data: Error creating directory {json_logs_dir}: {str(e)}\n\n'
+            return
+
+        log_file_path = os.path.join(json_logs_dir, f'{unique_id}.json')
+        logging.info(f"Saving conversion info to: {log_file_path}")
+
+        with open(log_file_path, 'w') as log_file:
+            json.dump(conversion_info, log_file, indent=4)
+
+        yield f'data: Conversion info saved in {log_file_path}.\n\n'
+        logging.info(remove_ansi_escape_sequences(f"Conversion info saved in {log_file_path}."))
+
 
     except Exception as e:
         yield f'data: Error running conversion: {str(e)}\n\n'
