@@ -17,6 +17,7 @@ import uuid
 import ctypes
 import socket
 import shutil
+from urllib.parse import unquote
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -259,7 +260,7 @@ def get_latest_files(directory):
 
 # download model
 def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name, author, server):
-    command = [os.path.join("env", "python.exe"), "rvc_cli.py", "download", "--model_link", f'"{modelLink}"']
+    command = [os.path.join("env", "python.exe"), "rvc_cli.py", "download", "--model_link", f'"{unquote(modelLink)}"']
     command_path = os.path.abspath(os.path.join(os.getcwd(), 'rvc'))
 
     logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
