@@ -1583,12 +1583,12 @@ function Convert() {
 									</div>
 								)}
 								{info.includes("completed!") && output && (
-									<div className="w-full flex gap-2">
+									<div className="w-full h-[10svh] flex gap-2">
 										<div className="w-full border border-white/20 rounded-xl pl-4 h-18 flex justify-between items-center gap-4">
 											<div className="flex justify-start items-center">
 												<button
 													type="button"
-													className="rounded-full p-2 bg-[#111111]/50 border border-white/20"
+													className="w-full h-full"
 													onClick={togglePlayPause}
 												>
 													{isPlaying ? (
@@ -1623,7 +1623,7 @@ function Convert() {
 												</button>
 											</div>
 											<div className="w-full flex items-center gap-4">
-												<div className="relative w-full h-[8svh] rounded-r-xl bg-white/10 overflow-hidden">
+												<div className="relative w-full h-[10svh] rounded-r-xl bg-white/10 overflow-hidden">
 													<div
 														className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-in-out"
 														style={{ width: `${progress}%` }}
@@ -1642,7 +1642,7 @@ function Convert() {
 										{convertedAudio && (
 											<div className="flex flex-col gap-2 h-full">
 												<button
-													className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
+													className="border border-white/20 px-5 rounded-lg w-fit h-full flex items-center justify-center"
 													type="button"
 													onClick={() => downloadAudio(convertedAudio)}
 												>
@@ -1654,26 +1654,7 @@ function Convert() {
 														strokeWidth="2"
 														strokeLinecap="round"
 														strokeLinejoin="round"
-														className="w-4 h-4"
-														aria-hidden="true"
-													>
-														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-													</svg>
-												</button>
-												<button
-													className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
-													type="button"
-													onClick={() => downloadAudio(convertedAudio)}
-												>
-													<svg
-														xmlns="http://www.w3.org/2000/svg"
-														viewBox="0 0 24 24"
-														fill="none"
-														stroke="#ffffff"
-														strokeWidth="2"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-														className="w-4 h-4"
+														className="w-6 h-6" 
 														aria-hidden="true"
 													>
 														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
