@@ -321,7 +321,7 @@ function Models() {
 	const [error, setError] = useState(false);
 	const [mode, setMode] = useState("explore");
 	const [url, setUrl] = useState("");
-	const [name, setName] = useState("");
+	// const [name, setName] = useState("");
 
 	useEffect(() => {
 		async function getModels() {
