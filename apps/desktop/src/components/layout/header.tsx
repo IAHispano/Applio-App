@@ -162,7 +162,7 @@ export default function Sidebar() {
 
 	return (
 		<div
-			className={`flex flex-col border border-white/20 text-gray-100 p-4 m-4 rounded-xl transition-all duration-300 ease-in-out ${
+			className={`flex flex-col border border-white/20 text-gray-100 p-4 m-4 mr-0 rounded-xl transition-all duration-300 ease-in-out ${
 				isExpanded ? "w-64" : "w-20"
 			}`}
 			style={{ zIndex: 200 }}
