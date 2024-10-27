@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 
 const icons = {
@@ -175,7 +175,7 @@ export default function Sidebar() {
 								to={item.to}
 								className="flex items-center space-x-3 p-3 rounded-lg hover:bg-neutral-700 transition-colors duration-200"
 							>
-								{icons[item.icon]}
+								{icons[item.icon as keyof typeof icons]}
 								{isExpanded && <span>{item.label}</span>}
 							</Link>
 						</li>
