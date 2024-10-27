@@ -104,6 +104,11 @@ def is_admin():
         return ctypes.windll.shell32.IsUserAnAdmin()
     except:
         return False
+    
+def RVC_repository_exists():
+    repository_exists = os.path.exists(os.path.join(os.getcwd(), 'rvc'))
+    logging.info(f"RVC repository exists: {repository_exists}")
+    return str(repository_exists)
 
 # download RVC repository from GitHub and extract it
 def downloadRepo():
@@ -459,6 +464,11 @@ def shutdown():
     
     return response, 200 
 
+@app.get('/check-rvc')
+def check_rvc_repo():
+    logging.info("Checking for RVC repository...")
+    exists = RVC_repository_exists() 
+    return jsonify({"exists": exists}) 
 
 @app.route('/pre-install', methods=['GET'])
 def pre_install():
@@ -528,8 +538,9 @@ def get_audio():
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else find_available_port()
+    launched_from_tauri = "--from-tauri" in sys.argv
 
-    if not is_admin():
+    if launched_from_tauri and not is_admin():
         params = f'{port} ' + ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
         ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
         sys.exit(0)
