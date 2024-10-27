@@ -62,7 +62,8 @@ function App() {
 			if (currentPlatform === "windows") {
 				if (osVersion >= "10.0.22000.0") {
 					document.documentElement.style.background = "transparent";
-					document.documentElement.style.backgroundColor = background as unknown as string;
+					document.documentElement.style.backgroundColor =
+						background as unknown as string;
 					await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
 				}
 			} else {
@@ -920,7 +921,7 @@ function Convert() {
 		cleanAudio,
 		setCleanAudio,
 		exportFormat,
-		setExportFormat
+		setExportFormat,
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -1493,7 +1494,8 @@ function Convert() {
 											</div>
 										</div>
 										<p className="text-xs text-neutral-300">
-											Clean the output audio using noise reduction algorithms. Recommended for speech conversions.
+											Clean the output audio using noise reduction algorithms.
+											Recommended for speech conversions.
 										</p>
 									</div>
 									<div className="flex flex-col">
@@ -1628,45 +1630,45 @@ function Convert() {
 										</div>
 										{convertedAudio && (
 											<div className="flex flex-col gap-2 h-full">
-											<button
-												className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
-												type="button"
-												onClick={() => downloadAudio(convertedAudio)}
-											>
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													viewBox="0 0 24 24"
-													fill="none"
-													stroke="#ffffff"
-													strokeWidth="2"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-													className="w-4 h-4"
-													aria-hidden="true"
+												<button
+													className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
+													type="button"
+													onClick={() => downloadAudio(convertedAudio)}
 												>
-													<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-												</svg>
-											</button>
-											<button
-											className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
-											type="button"
-											onClick={() => downloadAudio(convertedAudio)}
-										>
-											<svg
-												xmlns="http://www.w3.org/2000/svg"
-												viewBox="0 0 24 24"
-												fill="none"
-												stroke="#ffffff"
-												strokeWidth="2"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-												className="w-4 h-4"
-												aria-hidden="true"
-											>
-												<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-											</svg>
-										</button>
-										</div>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="#ffffff"
+														strokeWidth="2"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														className="w-4 h-4"
+														aria-hidden="true"
+													>
+														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+													</svg>
+												</button>
+												<button
+													className="border border-white/20 px-4 rounded-lg w-fit h-full flex items-center justify-center"
+													type="button"
+													onClick={() => downloadAudio(convertedAudio)}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="#ffffff"
+														strokeWidth="2"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														className="w-4 h-4"
+														aria-hidden="true"
+													>
+														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+													</svg>
+												</button>
+											</div>
 										)}
 									</div>
 								)}

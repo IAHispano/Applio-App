@@ -109,7 +109,7 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 				setFilterRadius,
 				autotune,
 				setAutotune,
-				cleanAudio, 
+				cleanAudio,
 				setCleanAudio,
 				isPlaying,
 				setIsPlaying,
@@ -120,7 +120,7 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 				convertTime,
 				setConvertTime,
 				exportFormat,
-				setExportFormat
+				setExportFormat,
 			}}
 		>
 			{children}
