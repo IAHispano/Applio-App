@@ -54,7 +54,7 @@ export const TitleBar = () => {
 				<button
 					onClick={maximize}
 					type="button"
-					className="slow focus:outline-none hover:text-white"
+					className="slow hover:text-white"
 				>
 					{maximized === false ? (
 						<svg
@@ -97,7 +97,7 @@ export const TitleBar = () => {
 				<button
 					onClick={close}
 					type="button"
-					className="slow focus:outline-none hover:text-red-500"
+					className="slow hover:text-white"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
