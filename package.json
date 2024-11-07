@@ -2,9 +2,9 @@
   "name": "applio-app-monorepo",
   "private": true,
   "scripts": {
-    "build:windows": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe",
-    "server:windows": "cd apps/server && env\\Scripts\\activate && python server.py",
-    "server:macos": "cd apps/server && source env/bin/activate && python server.py",
+    "build:windows": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && ./env/scripts/activate && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe",
+    "server:windows": "cd apps/server && env\\Scripts\\activate && ./env/scripts/activate && python server.py",
+    "server:macos": "cd apps/server && source env/bin/activate && ./env/scripts/activate && python server.py",
     "dev": "turbo dev",
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
