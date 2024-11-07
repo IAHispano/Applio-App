@@ -321,7 +321,7 @@ function Models() {
 	const [error, setError] = useState(false);
 	const [mode, setMode] = useState("explore");
 	const [url, setUrl] = useState("");
-	// const [name, setName] = useState("");
+	const [name, setName] = useState("");
 
 	useEffect(() => {
 		async function getModels() {
@@ -439,11 +439,12 @@ function Models() {
 	};
 
 	return (
-		<div className="w-screen h-screen flex flex-col pt-12 pr-4 relative p-4 overflow-hidden">
+		<div className="w-screen h-screen flex flex-col pt-12 pr-4 p-4 overflow-hidden">
 			{dropdownOpen && (
-				<div className="absolute inset-0 ml-3 backdrop-blur-2xl backdrop-filter w-full h-full overflow-hidden">
+				<div className="absolute inset-0 bg-[#111111]/60 backdrop-blur-2xl backdrop-filter w-screen h-full overflow-hidden" style={{zIndex: 250}}>
+					<TitleBar />
 					<div className="w-full h-full flex justify-center items-center">
-						<div className="w-full max-w-2xl h-fit min-h-[16svh] border border-white/10 bg-[#111111] shadow rounded-xl p-4 flex flex-col">
+						<div className="w-full max-w-2xl h-fit min-h-[16svh] border border-white/10 bg-[#111111] shadow-2xl shadow-white/10 rounded-xl p-4 flex flex-col">
 							<div className="flex mb-auto justify-start items-start">
 							<h1 className="font-medium text-2xl">Download model</h1>
 							</div>
@@ -576,10 +577,6 @@ function Models() {
 					<p className="font-medium justify-start mr-auto px-0.5 mb-2">URL</p>
 					<input required onChange={(e) => setUrl(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing" />
 					</div>
-					{/* <div className="flex flex-col w-full">	
-					<p className="font-medium justify-start mr-auto px-0.5 mb-2">Name</p>
-					<input onChange={(e) => setName(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="Quevedo --- 3000 epochs" />
-					</div> */}
 					{url && <button onClick={() => downloadModel(url)} className="w-fit justify-end ml-auto mt-12 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow" type="button">Import</button>}
 				</div>
 				)}
@@ -1207,6 +1204,11 @@ function Convert() {
 		setInput("");
 		setPth("");
 		setIndex("");
+		setStatus("");
+		setInfo("");
+		setFile(null);
+		setInput("");
+		setExportFormat("wav");
 		setPitch(0);
 		setIndexRate(0.3);
 		setFilterRadius(3);
@@ -1215,6 +1217,17 @@ function Convert() {
 		setUploaded(false);
 		setFile(null);
 	};
+
+	const divRef = useRef<HTMLDivElement | null>(null);
+	useEffect(() => {
+		const generateGradient = () => {
+		  if (divRef.current) {
+			divRef.current.style.background = `linear-gradient(${Math.floor(Math.random() * 360)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}))`;
+		  }
+		};
+	
+		generateGradient();
+	  }, [pth]);
 
 	return (
 		<div className="grid h-screen w-screen">
@@ -1225,6 +1238,7 @@ function Convert() {
 							<div className="grid grid-cols-1 grid-rows-3 gap-2 w-full max-w-[40svh] h-full">
 								<div className="relative border border-white/20 rounded-xl row-span-2 w-full h-full">
 									<div
+										ref={divRef}
 										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"
 										style={{
 											background: "linear-gradient(#111111A3 10%, #00AA68)",
@@ -1260,25 +1274,25 @@ function Convert() {
 												</button>
 												{currentModel && (
 													<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4">
-														<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
 															{currentModel ? currentModel.epochs : "Undefined"}{" "}
 															epochs
-														</li>
-														<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														</li>}
+														{currentModel.algorithm &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.algorithm
 																: "Undefined algorithm"}
-														</li>
-														<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														</li>}
+														{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.author
 																: "Undefined author"}
-														</li>
-														<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														</li>}
+														{currentModel.from &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.from
 																: "Undefined server"}
-														</li>
+														</li>}
 													</ul>
 												)}
 												<button

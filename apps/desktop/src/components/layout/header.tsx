@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useConvertContext } from "../convert/conversion-context";
 
 const icons = {
 	Home: (
@@ -136,10 +137,45 @@ const icons = {
 			/>
 		</svg>
 	),
+	Converting: (
+		<svg
+		className="w-5 h-5 opacity-70"
+		viewBox="0 0 32 32"
+		fill="#f8f8f8"
+		stroke="#f8f8f8"
+		aria-hidden="true"
+	>
+		<g id="SVGRepo_bgCarrier" strokeWidth="0" />
+		<g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round" />
+		<g id="SVGRepo_iconCarrier">
+			<g>
+				<path
+					className="st0"
+					d="M17.9,9.9c-4.6,0.9-6,2.3-6.9,6.9c-0.9-4.6-2.3-6-6.9-6.9C8.7,9,10.1,7.6,11,3C11.9,7.6,13.3,9,17.9,9.9z"
+				/>
+			</g>
+			<g>
+				<path
+					className="st0"
+					d="M21.8,25c-3.2,0.6-4.1,1.6-4.8,4.8c-0.6-3.2-1.6-4.1-4.8-4.8c3.2-0.6,4.1-1.6,4.8-4.8 C17.6,23.4,18.6,24.4,21.8,25z"
+				/>
+			</g>
+			<g>
+				<path
+					className="st0"
+					d="M29,15c-2.6,0.5-3.4,1.3-3.9,3.9c-0.5-2.6-1.3-3.4-3.9-3.9c2.6-0.5,3.4-1.3,3.9-3.9C25.6,13.7,26.4,14.5,29,15 z"
+				/>
+			</g>
+			<line className="st0" x1="5" y1="23" x2="5" y2="23" />
+			<line className="st0" x1="28" y1="6" x2="28" y2="6" />
+		</g>
+	</svg>
+	)
 };
 
 export default function Sidebar() {
 	const [isExpanded, setIsExpanded] = useState(false);
+	const {info} = useConvertContext();
 
 	const menuItems = [
 		{ icon: "Home", label: "Home", to: "/" },
@@ -182,7 +218,16 @@ export default function Sidebar() {
 					))}
 				</ul>
 			</nav>
-			<div className="mt-auto">
+			<div className="mt-auto flex flex-col gap-2">
+				{!isExpanded && info && (
+					<Link
+						to="/convert"
+						className={`p-2 ${isExpanded ? "justify-start items-start" : "justify-center items-center"} flex m-auto rounded-full bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200`}	
+						aria-label="Convert"
+					>
+						{icons.Converting}
+					</Link>
+				)}
 				<div
 					className={`flex items-center ${isExpanded ? "justify-start" : "justify-center"} space-x-2 mb-4`}
 				>
@@ -202,8 +247,18 @@ export default function Sidebar() {
 							{icons.MoreHorizontal}
 						</button>
 					)}
+					{isExpanded && info && (
+						<Link
+							to="/convert"
+							className={`p-2 ${isExpanded ? "justify-start items-start" : "justify-center items-center"} flex m-auto rounded-full bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200`}	
+							aria-label="Convert"
+						>
+							{icons.Converting}
+						</Link>
+					)}
 				</div>
-				{isExpanded && (
+				{/* Add when login is implemented */}
+				{/* {isExpanded && (
 					<div className="flex items-center space-x-3 px-4 py-3 bg-neutral-700/50 rounded-lg">
 						<img
 							src="https://avatars.githubusercontent.com/u/100789151?v=4"
@@ -215,7 +270,7 @@ export default function Sidebar() {
 							<p className="text-sm text-gray-400">@messi</p>
 						</div>
 					</div>
-				)}
+				)} */}
 			</div>
 		</div>
 	);
