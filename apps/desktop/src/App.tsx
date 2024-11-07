@@ -321,6 +321,7 @@ function Models() {
 	const [error, setError] = useState(false);
 	const [mode, setMode] = useState("explore");
 	const [url, setUrl] = useState("");
+	const [downloadedModels, setDownloadedModels] = useState<any>([]);
 
 	useEffect(() => {
 		async function getModels() {
@@ -436,6 +437,29 @@ function Models() {
 			setStatus("We detected an error. Please try again later.");
 		}
 	};
+
+	useEffect(() => {
+		const getDownloadedModels = async () => {
+			try {
+				const port = await getServerPort();
+				const response = await fetch(`http://localhost:${port}/get-models`);
+				if (response.ok) {
+					const models = await response.json();
+
+					console.log(models)
+					setDownloadedModels(models);
+				} else {
+					console.error("Error fetching models:", response.statusText);
+				}
+			} catch (error) {
+				console.error("Fetch error:", error);
+			}
+		};
+
+		if (mode === "downloaded") {
+			getDownloadedModels();
+		}
+	}, [mode]);
 
 	return (
 		<div className="w-screen h-screen flex flex-col pt-10 pr-4 p-4 overflow-hidden">
@@ -580,13 +604,14 @@ function Models() {
 				</div>
 				)}
 			{mode === "downloaded" && (
-				<div className="w-full h-full flex flex-col items-center justify-center">
-					<h1 className="text-center text-neutral-300">My models</h1>
-					<p className="text-sm text-neutral-300 mt-2">
-						Here you gonna see your downloaded models.
-					</p>
+				<div className="w-full grid-cols-4 grid gap-4">
+					{downloadedModels.map((item: { id: string; name: string }) => (
+						<div key={item.id} className="w-full h-full min-h-[40svh] text-left rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 hover:shadow-xl hover:shadow-white/20 slow flex flex-col items-start justify-start">
+							<h1 className="text-center text-neutral-300 font-semibold title truncate max-w-[200px]">{item.name}</h1>
+						</div>
+					))}
 				</div>
-				)}
+			)}
 			</div>
 		</div>
 	);
@@ -1238,7 +1263,7 @@ function Convert() {
 								<div className="relative border border-white/20 rounded-xl row-span-2 w-full h-full">
 									<div
 										ref={divRef}
-										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"
+										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-30"
 										style={{
 											background: "linear-gradient(#111111A3 10%, #00AA68)",
 											zIndex: -1,
