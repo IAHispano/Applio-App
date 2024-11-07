@@ -242,13 +242,20 @@ def runInstallation():
 # get latest downloaded model
 def get_latest_files(directory):
     model_files = {"pth": None, "index": None}
+    latest_times = {"pth": 0, "index": 0}
 
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith('.pth'):
-                model_files["pth"] = os.path.join(root, file)
-            elif file.endswith('.index'):
-                model_files["index"] = os.path.join(root, file)
+            file_path = os.path.join(root, file)
+            file_mtime = os.path.getmtime(file_path) 
+
+            if file.endswith('.pth') and file_mtime > latest_times["pth"]:
+                model_files["pth"] = file_path
+                latest_times["pth"] = file_mtime
+
+            elif file.endswith('.index') and file_mtime > latest_times["index"]:
+                model_files["index"] = file_path
+                latest_times["index"] = file_mtime
 
     logging.info(f"Model .pth file found: {model_files['pth']}")
     logging.info(f"Model .index file found: {model_files['index']}")
@@ -309,10 +316,12 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
             return
 
         model_folder_path = os.path.dirname(model_files["pth"])
+        file_name = os.path.splitext(os.path.basename(model_files["pth"]))[0]
 
+        name = model_name if model_name else file_name
         model_info = {
             "id": model_id,
-            "name": model_name,
+            "name": name,
             "epochs": model_epochs,
             "algorithm": model_algorithm,
             "author": author,
@@ -504,6 +513,14 @@ def shutdown():
     threading.Timer(1.0, shutdown_server).start() 
     
     return response, 200 
+
+@app.get('/get-latest-models')
+def get_latest_models():
+    logging.info("Getting latest models...")
+    logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'rvc', 'logs'))
+    models = get_latest_files(logs_dir)
+    
+    return jsonify(models), 200
 
 @app.get('/check-rvc')
 def check_rvc_repo():
