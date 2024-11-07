@@ -24,7 +24,7 @@ export const TitleBar = () => {
 
 	return (
 		<div
-			className="absolute top-0 right-0 select-none overflow-hidden px-2 py-4 w-full"
+			className="absolute top-0 right-0 select-none overflow-hidden p-2 pt-3 w-full"
 			style={{ zIndex: 200 }}
 			data-tauri-drag-region
 		>
@@ -37,8 +37,8 @@ export const TitleBar = () => {
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 24 24"
-						width={20}
-						height={20}
+						width={18}
+						height={18}
 						fill={"none"}
 						aria-hidden="true"
 					>
@@ -60,8 +60,8 @@ export const TitleBar = () => {
 						<svg
 							aria-hidden="true"
 							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
+							width="14"
+							height="14"
 							viewBox="0 0 24 24"
 							fill="none"
 							stroke="currentColor"
@@ -78,8 +78,8 @@ export const TitleBar = () => {
 						<svg
 							aria-hidden="true"
 							xmlns="http://www.w3.org/2000/svg"
-							width="16"
-							height="16"
+							width="14"
+							height="14"
 							viewBox="0 0 24 24"
 							fill="none"
 							stroke="currentColor"
@@ -102,8 +102,8 @@ export const TitleBar = () => {
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 24 24"
-						width={20}
-						height={20}
+						width={18}
+						height={18}
 						fill={"none"}
 						aria-hidden="true"
 					>

@@ -195,7 +195,7 @@ function App() {
 				{updateAvailable && window.location.pathname !== "/first-time" && (
 					<a
 						href="/first-time"
-						className="hover:bg-black/20 slow absolute right-32 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
+						className="hover:bg-black/20 slow absolute left-4 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
 						style={{ zIndex: 300 }}
 					>
 						<p className="text-xs">Update available!</p>
@@ -225,7 +225,7 @@ function App() {
 function Home() {
 	return (
 		<div className="grid h-screen w-screen">
-			<main className="flex flex-col items-center justify-start mt-8 w-full overflow-visible">
+			<main className="flex flex-col items-center justify-start mt-6 w-full overflow-visible">
 				<div className="grid grid-cols-3 md:grid-cols-3 gap-4 w-full h-full p-4 ">
 					<div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20 shadow-2xl shadow-[#00AA68]/20">
 						<div
@@ -438,7 +438,7 @@ function Models() {
 	};
 
 	return (
-		<div className="w-screen h-screen flex flex-col pt-12 pr-4 p-4 overflow-hidden">
+		<div className="w-screen h-screen flex flex-col pt-10 pr-4 p-4 overflow-hidden">
 			{dropdownOpen && (
 				<div className="absolute inset-0 bg-[#111111]/60 backdrop-blur-2xl backdrop-filter w-screen h-full overflow-hidden" style={{zIndex: 250}}>
 					<TitleBar />
@@ -737,7 +737,7 @@ function Settings() {
 
 	return (
 		<div className="grid h-screen w-screen">
-			<main className="flex flex-col items-end justify-end mt-8 w-full overflow-auto">
+			<main className="flex flex-col items-end justify-end mt-6 w-full overflow-auto">
 				<div className="flex gap-4 w-full h-full p-4 pb-0">
 					<div className="col-span-3 row-span-2 rounded-t-xl bg-[#111111]/20 w-full h-full border border-white/20 ">
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
@@ -1230,7 +1230,7 @@ function Convert() {
 
 	return (
 		<div className="grid h-screen w-screen">
-			<main className="flex flex-col items-end justify-center mt-8 w-full overflow-auto">
+			<main className="flex flex-col items-end justify-center mt-6 w-full overflow-auto">
 				<div className="flex gap-4 w-full h-full p-4 pb-4">
 					<div className="col-span-3 row-span-2 rounded-xl w-full h-full">
 						<div className="flex gap-2 w-full h-full rounded-xl">
