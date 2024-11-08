@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-	background-color: #111111;
+	background-color: rgba(17, 17, 17);
 	color: rgb(231 229 228);
 	user-select: none;
 	-webkit-user-select: none;

@@ -46,15 +46,24 @@ function App() {
 		}
 	}
 
+	const RGBAtoRGB = (rgba: string) => {
+		const match = rgba.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/);
+		if (match) {
+			return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+		}
+		return rgba;
+	};
+
 	// set window acrylic effect
 	async function setWindowEffect() {
 		const currentPlatform = await platform();
 		const osVersion = await version();
 		const store = await Store.load("settings.json");
 		const background = await store.get("backgroundColor");
+		const effect = await store.get("effect");
 
 		if (!background) {
-			await store.set("backgroundColor", "rgba(17, 17, 17, 0.7)");
+			await store.set("backgroundColor", `rgba(17, 17, 17, ${effect ? 0.5 : 1})`);
 			await store.save();
 		}
 
@@ -64,10 +73,14 @@ function App() {
 					document.documentElement.style.background = "transparent";
 					document.documentElement.style.backgroundColor =
 						background as unknown as string;
-					await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
+					if (effect) {
+						await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
+					} else {
+						document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+					}
 				}
 			} else {
-				document.documentElement.style.background = "#111111";
+				document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
 			}
 		}
 
@@ -223,16 +236,43 @@ function App() {
 }
 
 function Home() {
+	const [backgroundColor, setBackgroundColor] = useState("#00AA68");
+
+	useEffect(() => {
+		const getColor = async () => {
+			const store = await Store.load("settings.json");
+			const color = await store.get("backgroundColor");
+
+			if (color) {
+				function rgbaToHex(rgba: string) {
+					const parts = rgba.match(/(\d+), (\d+), (\d+), (\d+(\.\d+)?)/);
+					if (!parts) return "#111111";
+			
+					const r = parseInt(parts[1]);
+					const g = parseInt(parts[2]);
+					const b = parseInt(parts[3]);
+			
+					const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+					return hex;
+				}
+
+				setBackgroundColor(rgbaToHex(color as string));
+			} 
+		}
+
+		getColor();
+	}, []);
+
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-6 w-full overflow-visible">
 				<div className="grid grid-cols-3 md:grid-cols-3 gap-4 w-full h-full p-4 ">
-					<div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full shadow-2xl shadow-[#00AA68]/20">
+					<div className={`col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full shadow-2xl shadow-[${backgroundColor}]/20`}>
 						<div
 							className="pt-6 flex flex-col w-full h-full rounded-xl justify-center items-center noise relative overflow-visible"
 							style={{
 								background:
-									"radial-gradient(150% 150% at 50% 10%, #111111A3 40%, #00AA68 100%)",
+									`radial-gradient(150% 150% at 50% 10%, #111111A3 40%, ${backgroundColor} 100%)`,
 							}}
 						>
 							<h1 className="text-[100px] font-bold title">Applio</h1>
@@ -621,6 +661,7 @@ function Settings() {
 	const [system, setSystem] = useState("");
 	const [systemVersion, setSystemVersion] = useState("");
 	const [backgroundColor, setBackgroundColor] = useState("");
+	const [effect, setEffect] = useState(false);
 
 	// get server port
 	async function getServerPort() {
@@ -700,7 +741,7 @@ function Settings() {
 	}, []);
 
 	async function changeBackgroundColor(background: string) {
-		const color = hexToRGBA(background, 0.7);
+		const color = hexToRGBA(background, 0.5);
 		const store = await Store.load("settings.json");
 		await store.set("backgroundColor", color);
 		await store.save();
@@ -708,14 +749,25 @@ function Settings() {
 		setWindowEffect();
 	}
 
+	const RGBAtoRGB = (rgba: string) => {
+		const match = rgba.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/);
+		if (match) {
+			return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
+		}
+		return rgba;
+	};
+
 	async function setWindowEffect() {
 		const currentPlatform = await platform();
 		const osVersion = await version();
 		const store = await Store.load("settings.json");
 		const background = await store.get("backgroundColor");
+		const effect = await store.get("effect");
+
+		console.log('effect', effect);
 
 		if (!background) {
-			await store.set("backgroundColor", "rgba(17, 17, 17, 0.7)");
+			await store.set("backgroundColor", `rgba(17, 17, 17, ${effect ? 0.5 : 1})`);
 			await store.save();
 		}
 
@@ -724,14 +776,34 @@ function Settings() {
 				if (osVersion >= "10.0.22000.0") {
 					document.documentElement.style.background = "transparent";
 					document.documentElement.style.backgroundColor = background as string;
-					await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
+					if (effect) {
+						await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
+					} else {
+						document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+					}
 				}
 			} else {
-				document.documentElement.style.background = "#111111";
+				document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
 			}
 		}
 
 		console.log(currentPlatform);
+	}
+
+	async function setHaveEffect(haveEffect: boolean) {
+		const background = await platform();
+		const store = await Store.load("settings.json");
+		await store.set("effect", haveEffect);
+		await store.save();
+
+		setEffect(haveEffect);
+		console.log('effect', haveEffect);
+
+		if (haveEffect) {
+			setWindowEffect();
+		} else {
+			window.location.reload();
+		}
 	}
 
 	useEffect(() => {
@@ -746,8 +818,21 @@ function Settings() {
 			}
 		}
 
+		async function getEffect() {
+			const store = await Store.load("settings.json");
+			const effect = await store.get("effect");
+			if (effect) {
+				setHaveEffect(true);
+			} else {
+				setEffect(false);
+			}
+		}
+
+		getEffect();
 		getBackground();
 	}, []);
+
+	console.log('effect', effect);
 
 	const predefinedColors = [
 		"#111111",
@@ -767,9 +852,45 @@ function Settings() {
 							<h1 className="text-xl font-bold title">Settings</h1>
 							<h2 className="text-lg font-medium mt-4">Personalization</h2>
 							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
-							<div className="flex flex-col gap-2">
-								<p className="text-xs text-neutral-300">Background</p>
-								<div className="flex items-center gap-3 mb-4 mt-2">
+							<div className="items-center w-full justify-between flex">
+												<div>
+											    <p className="text-neutral-200 font-medium">Window effect</p>
+												<p className="text-xs text-neutral-400">This will apply an acrylic effect to the application window when you select a background colour, only available in Windows 11.</p>
+												</div>
+												<label className="flex items-center cursor-pointer relative">
+													<input
+														checked={effect}
+														onChange={(e) => setHaveEffect(e.target.checked)}
+														type="checkbox"
+														className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+														id="check"
+													/>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+										</div>
+							<div className="flex justify-between w-full items-center mt-6"> 
+								<div>
+								<p className="text-sm text-neutral-200 font-medium">Background</p>
+								<p className="text-xs text-neutral-400">This will apply a background colour to the application window.</p>
+								</div>
+								<div className="flex items-center gap-3 mt-4">
 									{predefinedColors.map((color) => (
 										<button
 											type="button"
