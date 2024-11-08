@@ -321,6 +321,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         name = model_name if model_name else file_name
         model_info = {
             "id": model_id,
+            "downloaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "name": name,
             "epochs": model_epochs,
             "algorithm": model_algorithm,
@@ -382,6 +383,35 @@ def get_models():
                     print(f"error reading {file_name}: {e}")
 
     return json_files
+
+# delete model
+def delete_folder(id):
+    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+    json_file = os.path.join(json_logs_dir, f"{id}.json")
+    
+    if not os.path.exists(json_file):
+        logging.info(f"The file {json_file} does not exist.")
+        return {"status": "error", "message": f"The file {json_file} does not exist."}
+    
+    with open(json_file, 'r') as file:
+        data = json.load(file)
+    
+    folder_path = data.get("model_folder_path")
+    if not folder_path:
+        logging.info("Path not found in the JSON.")
+        return {"status": "error", "message": "Path not found in the JSON."}
+    
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+        logging.info(f"The folder {folder_path} has been deleted.")
+    else:
+        logging.info(f"The folder {folder_path} does not exist.")
+    
+    os.remove(json_file)
+    logging.info(f"The file {json_file} has been deleted.")
+    return {"status": "success", "message": f"The file {json_file} and folder {folder_path} have been deleted."}
+
+
 
 # upload audio
 def upload_audio():
@@ -521,6 +551,16 @@ def get_latest_models():
     models = get_latest_files(logs_dir)
     
     return jsonify(models), 200
+
+@app.route('/delete-model', methods=['GET'])
+def delete_model():
+    model_id = request.args.get('id')
+    
+    if not model_id:
+        return jsonify({"status": "error", "message": "Model ID is required"}), 400
+    
+    result = delete_folder(model_id)
+    return jsonify(result)
 
 @app.get('/check-rvc')
 def check_rvc_repo():
