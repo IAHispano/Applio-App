@@ -545,7 +545,7 @@ function Models() {
 			<div>
 			<input
 				type="text"
-				className="w-full h-12 rounded-xl focus:outline-none bg-neutral-800 text-sm p-4"
+				className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/50 text-sm p-4"
 				placeholder="Search..."
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
@@ -584,7 +584,7 @@ function Models() {
 									)
 								}
 								type="button"
-								className="w-full h-full min-h-[20svh] text-left rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 hover:shadow-xl hover:shadow-white/20 slow flex flex-col items-start justify-start"
+								className="w-full h-full min-h-[20svh] text-left rounded-xl focus:outline-none bg-[#111111]/50 p-4 hover:shadow-xl hover:shadow-white/20 slow flex flex-col items-start justify-start"
 								key={item.id}
 							>
 								<h1 className="font-semibold title text-neutral-200 text-lg">
@@ -1546,7 +1546,7 @@ function Convert() {
 										disabled={uploaded}
 										type="file"
 										accept="audio/*"
-										className="absolute inset-0 opacity-0 z-50 "
+										className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed"
 										onChange={handleFileChange}
 									/>
 								</div>
