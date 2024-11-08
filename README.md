@@ -66,10 +66,10 @@
 [![APP Roadmap](https://i.imgur.com/LMqCMBV.png)](https://applio.org/products/app)
 
 ## Screenshoots
-[![APP Home Section](https://i.imgur.com/GR1iwqX.png)](https://applio.org/products/app)
-[![APP Inference Section](https://i.imgur.com/RzEcbKA.png)](https://applio.org/products/app)
-[![APP Models Section](https://i.imgur.com/SbOr7K2.png)](https://applio.org/products/app)
-[![APP Settings Section](https://i.imgur.com/tkvQ2jL.png)](https://applio.org/products/app)
+[![APP Home Section](https://i.imgur.com/zYiobES.png)](https://applio.org/products/app)
+[![APP Inference Section](https://i.imgur.com/03aNl2r.png)](https://applio.org/products/app)
+[![APP Models Section](https://i.imgur.com/Cfx1I5U.png)](https://applio.org/products/app)
+[![APP Settings Section](https://i.imgur.com/sA3cgOf.png)](https://applio.org/products/app)
 ###### <p align="center">*Pre-release images. Final product may vary*</p>
 
 ## Contributing
