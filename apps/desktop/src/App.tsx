@@ -227,7 +227,7 @@ function Home() {
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-6 w-full overflow-visible">
 				<div className="grid grid-cols-3 md:grid-cols-3 gap-4 w-full h-full p-4 ">
-					<div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20 shadow-2xl shadow-[#00AA68]/20">
+					<div className="col-span-3 row-span-2 rounded-xl bg-[#111111]/50 w-full h-full shadow-2xl shadow-[#00AA68]/20">
 						<div
 							className="pt-6 flex flex-col w-full h-full rounded-xl justify-center items-center noise relative overflow-visible"
 							style={{
@@ -236,50 +236,6 @@ function Home() {
 							}}
 						>
 							<h1 className="text-[100px] font-bold title">Applio</h1>
-						</div>
-					</div>
-					<div className="col-span-1 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20">
-						<div className="pt-6 flex flex-col w-full h-full rounded-xl justify-end items-start noise relative p-4">
-							<p className="text-xl">
-								Now with{" "}
-								<span className="title font-semibold text-green-400">
-									Applio AI
-								</span>
-							</p>
-							<p className="text-sm text-neutral-300">
-								All models will have a description generated with artificial
-								intelligence based on the character's name, language and
-								profession.
-							</p>
-						</div>
-					</div>
-					<div className="col-span-1 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20">
-						<div className="pt-6 flex flex-col w-full h-full rounded-xl justify-end items-start noise relative p-4">
-							<p className="text-xl">
-								Cloud <span className="text-blue-400">sync</span>
-							</p>
-							<p className="text-sm text-neutral-300">
-								You will be able to see the inferences you have made, the
-								trained models or any data from this application elsewhere in
-								our ecosystem.
-							</p>
-						</div>
-					</div>
-					<div className="col-span-1 rounded-xl bg-[#111111]/50 w-full h-full border border-white/20">
-						<div className="pt-6 flex flex-col w-full h-full rounded-xl justify-end items-start noise relative p-4">
-							<p className="text-xl">
-								Customize to your
-								<span className="text-red-400 ml-1">l</span>
-								<span className="text-yellow-400">i</span>
-								<span className="text-green-400">k</span>
-								<span className="text-blue-400">i</span>
-								<span className="text-purple-400">n</span>
-								<span className="text-pink-400">g</span>
-							</p>
-							<p className="text-sm text-neutral-300">
-								In your settings you can change the theme of the application to
-								your liking, or import a pre-made one from the community.
-							</p>
 						</div>
 					</div>
 				</div>
@@ -532,8 +488,8 @@ function Models() {
 					</div>
 				</div>
 			)}
-			<div className="p-4 bg-[#111111]/30 border border-white/20 h-full rounded-xl flex flex-col gap-4 overflow-auto">
-			<div className="border border-white/10 rounded-xl w-full p-4 flex gap-4 shadow-2xl shadow-white/10">
+			<div className="p-4 bg-[#111111]/30 border border-white/10 h-full rounded-xl flex flex-col gap-4 overflow-auto">
+			<div className="bg-[#111111]/20 border border-white/10 rounded-xl w-full p-4 flex gap-4">
 			<button type="button" onClick={() => setMode("explore")} className={`px-4 py-1 rounded-xl ${mode === "explore" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Explore</button>
 			<button type="button" onClick={() => setMode("import")} className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Import</button>
 			<button type="button" onClick={() => setMode("downloaded")} className={`justify-end ml-auto px-4 py-1 rounded-xl ${mode === "downloaded" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>My models</button>
@@ -542,14 +498,14 @@ function Models() {
 			<div className="w-full rounded-xl p-4 bg-orange-500/10">
 				<h1>Warning</h1>
 				<p className="text-xs text-neutral-400">
-				We are aware of a problem with models coming from huggingface, we are working on fixing it. As a workaround you can manually install those models that give error.
+				We are aware of a problem with models coming from HuggingFace, we are working on fixing it. As a workaround you can manually install those models that give error.
 				</p>
 			</div>
 			{mode === "explore" && (
 			<div>
 			<input
 				type="text"
-				className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4"
+				className="w-full h-12 rounded-xl focus:outline-none bg-neutral-800 text-sm p-4"
 				placeholder="Search..."
 				value={value}
 				onChange={(e) => setValue(e.target.value)}
@@ -806,7 +762,7 @@ function Settings() {
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-end justify-end mt-6 w-full overflow-auto">
 				<div className="flex gap-4 w-full h-full p-4 pb-0">
-					<div className="col-span-3 row-span-2 rounded-t-xl bg-[#111111]/20 w-full h-full border border-white/20 ">
+					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10">
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
 							<h1 className="text-xl font-bold title">Settings</h1>
 							<h2 className="text-lg font-medium mt-4">Personalization</h2>
@@ -1302,7 +1258,7 @@ function Convert() {
 					<div className="col-span-3 row-span-2 rounded-xl w-full h-full">
 						<div className="flex gap-2 w-full h-full rounded-xl">
 							<div className="grid grid-cols-1 grid-rows-3 gap-2 w-full max-w-[40svh] h-full">
-								<div className="relative border border-white/20 rounded-xl row-span-2 w-full h-full">
+								<div className="relative rounded-xl row-span-2 w-full h-full">
 									<div
 										ref={divRef}
 										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-30"
@@ -1340,21 +1296,21 @@ function Convert() {
 												</button>
 												{currentModel && (
 													<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4">
-														{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 															{currentModel ? currentModel.epochs : "Undefined"}{" "}
 															epochs
 														</li>}
-														{currentModel.algorithm &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														{currentModel.algorithm &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.algorithm
 																: "Undefined algorithm"}
 														</li>}
-														{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.author
 																: "Undefined author"}
 														</li>}
-														{currentModel.from &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/20 px-4 py-1 rounded-xl">
+														{currentModel.from &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 															{currentModel
 																? currentModel.from
 																: "Undefined server"}
@@ -1393,13 +1349,9 @@ function Convert() {
 										</p>
 									</div>
 								</div>
-								<div className="relative border border-white/20 h-full w-full rounded-xl p-4 bg-[#111111]/10 enabled:hover:bg-[#111111]/50 disabled:hover:bg-[#111111]/10 slow flex flex-col gap-2 justify-center items-center">
+								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
 									<div
-										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"
-										style={{
-											background: "linear-gradient(#111111A3 100%, #00AA68)",
-										}}
-									/>
+										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"/>
 									{uploaded ? (
 										<svg
 											className="w-16 h-16 opacity-60"
@@ -1473,7 +1425,7 @@ function Convert() {
 										disabled={uploaded}
 										type="file"
 										accept="audio/*"
-										className="absolute inset-0 opacity-0 z-40 enabled:cursor-pointer"
+										className="absolute inset-0 opacity-0 z-50 "
 										onChange={handleFileChange}
 									/>
 								</div>
@@ -1482,7 +1434,7 @@ function Convert() {
 										type="button"
 										onClick={handleUpload}
 										disabled={uploaded}
-										className="w-full border border-white/20 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50"
+										className="w-full border border-white/10 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50"
 									>
 										Upload
 									</button>
@@ -1498,7 +1450,7 @@ function Convert() {
 								) : null}
 							</div>
 							<div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">
-								<div className="row-span-full w-full h-full border border-white/20 rounded-xl p-4 flex flex-col gap-6 max-h-full overflow-auto">
+								<div className="row-span-full w-full h-full border border-white/10 rounded-xl p-4 flex flex-col gap-6 max-h-full overflow-auto">
 									<div className="flex flex-col gap-2">
 										<h2 className="text-neutral-200 text-lg font-medium">
 											Pitch
