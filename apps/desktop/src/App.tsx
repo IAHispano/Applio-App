@@ -322,6 +322,7 @@ function Models() {
 	const [mode, setMode] = useState("explore");
 	const [url, setUrl] = useState("");
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
+	
 
 	useEffect(() => {
 		async function getModels() {
@@ -461,6 +462,26 @@ function Models() {
 		}
 	}, [mode]);
 
+	const deleteModel = async (id: string) => {
+		try {
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/delete-model?id=${encodeURIComponent(id)}`);
+			if (response.ok) {
+				const data = await response.json();
+				if (data.status === "success") {
+					console.log(data);
+					setDownloadedModels(downloadedModels.filter((item: any) => item.id !== id));
+				} else {
+					console.error("Error deleting model:", data.message);
+				}
+			} else {
+				console.error("Error deleting model:", response.statusText);
+			}
+		} catch (error) {
+			console.error("Error deleting model:", error);
+		}
+	};
+
 	return (
 		<div className="w-screen h-screen flex flex-col pt-10 pr-4 p-4 overflow-hidden">
 			{dropdownOpen && (
@@ -517,8 +538,15 @@ function Models() {
 			<button type="button" onClick={() => setMode("import")} className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Import</button>
 			<button type="button" onClick={() => setMode("downloaded")} className={`justify-end ml-auto px-4 py-1 rounded-xl ${mode === "downloaded" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>My models</button>
 			</div>
+			{/* huggingface warning */}
+			<div className="w-full rounded-xl p-4 bg-orange-500/10">
+				<h1>Warning</h1>
+				<p className="text-xs text-neutral-400">
+				We are aware of a problem with models coming from huggingface, we are working on fixing it. As a workaround you can manually install those models that give error.
+				</p>
+			</div>
 			{mode === "explore" && (
-			<div className="mt-6">
+			<div>
 			<input
 				type="text"
 				className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4"
@@ -595,7 +623,7 @@ function Models() {
 			</div>
 			)}
 			{mode === "import" && (
-				<div className="w-full h-full flex flex-col items-center mt-6 gap-2">
+				<div className="w-full h-full flex flex-col items-center gap-2">
 					<div className="flex flex-col w-full">
 					<p className="font-medium justify-start mr-auto px-0.5 mb-2">URL</p>
 					<input required onChange={(e) => setUrl(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing" />
@@ -605,9 +633,23 @@ function Models() {
 				)}
 			{mode === "downloaded" && (
 				<div className="w-full grid-cols-4 grid gap-4">
-					{downloadedModels.map((item: { id: string; name: string }) => (
-						<div key={item.id} className="w-full h-full min-h-[40svh] text-left rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 hover:shadow-xl hover:shadow-white/20 slow flex flex-col items-start justify-start">
+					{downloadedModels.map((item: { id: string; name: string, downloaded_at: string }) => (
+						<div key={item.id} className="w-full h-full min-h-[15svh] text-left rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 flex flex-col items-start justify-start">
+							<div className="flex justify-between w-full items-center">
 							<h1 className="text-center text-neutral-300 font-semibold title truncate max-w-[200px]">{item.name}</h1>
+							<button type="button" className="rounded-xl bg-neutral-800 p-2 hover:bg-red-500/20 hover:shadow-xl hover:shadow-red-500/20 text-sm text-white slow" onClick={() => deleteModel(item.id)}>
+							<svg className="w-4 h-4 opacity-70" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0" /><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/><g id="SVGRepo_iconCarrier"> <path d="M4 7H20" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> <path d="M6 7V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /> </g></svg>
+							</button>
+							</div>
+							<div className="flex mt-auto ml-auto">
+								<p className="text-xs text-neutral-400">
+									{new Date(item.downloaded_at).toLocaleDateString("en-US", {
+										year: "numeric",
+										month: "long",
+										day: "numeric",
+									})}
+								</p>
+							</div>
 						</div>
 					))}
 				</div>
