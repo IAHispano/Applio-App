@@ -75,6 +75,7 @@ pub fn run() {
         .manage(port.clone())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::new().build())
+        .plugin(tauri_plugin_oauth::init())
         .invoke_handler(tauri::generate_handler![set_discord_presence, is_dev, get_port])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

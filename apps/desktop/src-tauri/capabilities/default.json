@@ -19,6 +19,8 @@
     "store:allow-set",
     "shell:allow-open",
     "shell:default",
-    "store:default"
-  ]
+    "store:default",
+    "oauth:allow-start",
+    "oauth:allow-cancel"
+    ]
 }
