@@ -178,7 +178,7 @@ export default function Models() {
 	};
 
 	return (
-		<div className="w-screen h-screen flex flex-col pt-10 pr-4 p-4 overflow-hidden">
+		<div className="grid h-screen w-screen">
 			{dropdownOpen && (
 				<div className="absolute inset-0 bg-[#111111]/80 backdrop-blur-2xl backdrop-filter w-screen h-full overflow-hidden" style={{zIndex: 250}}>
 					<TitleBar />
@@ -227,7 +227,7 @@ export default function Models() {
 					</div>
 				</div>
 			)}
-			<div className="p-4 border border-white/10 h-full rounded-xl flex flex-col gap-4 overflow-auto">
+			<div className="mt-10 mx-4 border border-white/10 rounded-xl p-4 h-full flex flex-col gap-4"> 
 			<div className="bg-[#111111]/20 rounded-xl w-full p-4 flex gap-4">
 			<button type="button" onClick={() => setMode("explore")} className={`px-4 py-1 rounded-xl ${mode === "explore" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Explore</button>
 			<button type="button" onClick={() => setMode("import")} className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Import</button>
@@ -320,14 +320,20 @@ export default function Models() {
 			{mode === "import" && (
 				<div className="w-full h-full flex flex-col items-center gap-2">
 					<div className="flex flex-col w-full">
-					<p className="font-medium justify-start mr-auto px-0.5 mb-2">URL</p>
-					<input required onChange={(e) => setUrl(e.target.value)} className="w-full h-12 rounded-xl border-white/20 border focus:outline-none bg-[#111111]/50 p-4 text-sm text-neutral-300" type="text" placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing" />
+	
+					<input required onChange={(e) => setUrl(e.target.value)} className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4" placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing" type="text" />
 					</div>
 					{url && <button onClick={() => downloadModel(url)} className="w-fit justify-end ml-auto mt-12 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow" type="button">Import</button>}
 				</div>
 				)}
 			{mode === "downloaded" && (
-				<div className="w-full grid-cols-4 grid gap-4">
+				<>
+				{downloadedModels.length === 0 && (
+						<div className="flex flex-col items-center justify-center w-full h-full mb-12">
+							<h1 className="text-center text-sm text-neutral-400">No models found</h1>
+						</div>
+					)}
+				<div className="w-full grid grid-cols-3 gap-4">
 					{downloadedModels.map((item: { id: string; name: string, downloaded_at: string, model_folder_path: string }) => (
 						<div key={item.id} className="w-full h-full min-h-[15svh] text-left rounded-xl focus:outline-none bg-[#111111]/20 p-4 flex flex-col items-start justify-start">
 							<div className="flex justify-between w-full items-center">
@@ -365,6 +371,7 @@ export default function Models() {
 						</div>
 					))}
 				</div>
+				</>
 			)}
 			</div>
 		</div>
