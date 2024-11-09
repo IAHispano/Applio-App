@@ -114,8 +114,6 @@ export default function Settings() {
 		const background = await store.get("backgroundColor");
 		const effect = await store.get("effect");
 
-		console.log('effect', effect);
-
 		if (!background) {
 			await store.set("backgroundColor", `rgba(17, 17, 17, ${effect ? 0.5 : 1})`);
 			await store.save();
@@ -181,8 +179,6 @@ export default function Settings() {
 		getEffect();
 		getBackground();
 	}, []);
-
-	console.log('effect', effect);
 
 	const predefinedColors = [
 		"#2a2b2a",
