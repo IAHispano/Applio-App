@@ -1,0 +1,814 @@
+import { invoke } from "@tauri-apps/api/core";
+import { useRef, useEffect } from "react";
+import { useConvertContext } from "../../components/convert/conversion-context";
+import { Link } from "react-router-dom";
+
+export default function Convert() {
+	const {
+		models,
+		setModels,
+		currentIndex,
+		setCurrentIndex,
+		file,
+		setFile,
+		uploaded,
+		setUploaded,
+		info,
+		setInfo,
+		status,
+		setStatus,
+		error,
+		setError,
+		input,
+		setInput,
+		pth,
+		setPth,
+		index,
+		setIndex,
+		output,
+		setOutput,
+		pitch,
+		setPitch,
+		indexRate,
+		setIndexRate,
+		filterRadius,
+		setFilterRadius,
+		autotune,
+		setAutotune,
+		isPlaying,
+		setIsPlaying,
+		progress,
+		setProgress,
+		convertedAudio,
+		setConvertedAudio,
+		convertTime,
+		setConvertTime,
+		cleanAudio,
+		setCleanAudio,
+		exportFormat,
+		setExportFormat,
+	} = useConvertContext();
+	const audioRef = useRef<HTMLAudioElement>(null);
+
+	const togglePlayPause = () => {
+		if (audioRef.current) {
+			if (isPlaying) {
+				audioRef.current.pause();
+			} else {
+				audioRef.current.play();
+			}
+			setIsPlaying((prevState) => !prevState);
+		}
+	};
+
+	const handleTimeUpdate = () => {
+		if (audioRef.current) {
+			const progress =
+				(audioRef.current.currentTime / audioRef.current.duration) * 100;
+			setProgress(progress as unknown as string);
+		}
+	};
+
+	useEffect(() => {
+		const audioElement = audioRef.current;
+		if (audioElement) {
+			audioElement.addEventListener("timeupdate", handleTimeUpdate);
+			return () => {
+				audioElement.removeEventListener("timeupdate", handleTimeUpdate);
+			};
+		}
+	}, [isPlaying]);
+
+	// get server port
+	async function getServerPort() {
+		const port = await invoke("get_port");
+		console.log("port", port);
+		return port;
+	}
+
+	useEffect(() => {
+		async function getLocalModels() {
+			try {
+				const port = await getServerPort();
+				const response = await fetch(`http://localhost:${port}/get-models`);
+				if (response.ok) {
+					const models = await response.json();
+					setModels(models);
+				} else {
+					console.error("Error fetching models:", response.statusText);
+				}
+			} catch (error) {
+				console.error("Fetch error:", error);
+			}
+		}
+
+		getLocalModels();
+	}, []);
+
+	useEffect(() => {
+		if (models[currentIndex] && models[currentIndex].model_index_file) {
+			console.log("model_index_file:", models[currentIndex].model_index_file);
+			console.log("model_pth_file:", models[currentIndex].model_pth_file);
+			setIndex(models[currentIndex].model_index_file);
+			setPth(models[currentIndex].model_pth_file);
+		}
+	}, [models, currentIndex]);
+
+	const nextModel = () => {
+		if (currentIndex < models.length - 1) {
+			setCurrentIndex(currentIndex + 1);
+		}
+	};
+
+	const prevModel = () => {
+		if (currentIndex > 0) {
+			setCurrentIndex(currentIndex - 1);
+		}
+	};
+
+	const currentModel = models[currentIndex];
+
+	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const selectedFile = e.target.files?.[0];
+		if (selectedFile) {
+			setFile(selectedFile);
+		}
+	};
+
+	const handleUpload = async () => {
+		if (!file) return;
+
+		const formData = new FormData();
+		formData.append("audio", file);
+
+		try {
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/upload`, {
+				method: "POST",
+				body: formData,
+			});
+
+			if (!response.ok) {
+				throw new Error("Error uploading file");
+			}
+
+			const data = await response.json();
+			console.log(data);
+			setUploaded(true);
+			setInput(data[0].file_path);
+		} catch (error) {
+			console.error(error);
+		}
+	};
+
+	const convert = async () => {
+		const startingTime = performance.now();
+		setInfo("Starting...");
+		setStatus("Sending request...");
+		setError(false);
+
+		const time = setInterval(() => {
+			const actualTime = performance.now();
+			const duration = (actualTime - startingTime) / 1000;
+			setConvertTime(duration.toFixed(2));
+		}, 100);
+
+		const port = await getServerPort();
+		try {
+			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}`;
+			const eventSource = new EventSource(url);
+			console.log(url);
+			eventSource.onmessage = (event) => {
+				console.log(event.data);
+				setStatus(event.data);
+				if (event.data.includes("error")) {
+					setInfo("Error");
+					setStatus("An error has occurred, please try again.");
+					setError(true);
+					clearInterval(time);
+					eventSource.close();
+				}
+				if (event.data.includes("finished")) {
+					const audioPath = event.data.split("Audio path: ")[1];
+					console.log(audioPath);
+					setConvertedAudio(audioPath);
+					getAudio(audioPath);
+					setInfo("Conversion completed!");
+					setStatus("Your audio has been converted successfully.");
+					clearInterval(time);
+					eventSource.close();
+				}
+
+				if (event.data.includes("completed")) {
+					setInfo("Finishing...");
+					setStatus("Receiving audio...");
+					clearInterval(time);
+				}
+			};
+
+			eventSource.onerror = (err) => {
+				console.log(info);
+				console.error("Error with event source:", err);
+				eventSource.close();
+				setError(true);
+				clearInterval(time);
+				setStatus("We detected an error, please try again.");
+			};
+
+			return () => {
+				eventSource.close();
+				clearInterval(time);
+			};
+		} catch (error) {
+			console.error("Error:", error);
+			clearInterval(time);
+			setStatus("We detected an error. Please try again later.");
+		}
+	};
+
+	const openDocs = async () => {
+		open("https://docs.applio.org");
+	};
+
+	const downloadAudio = async (path: string) => {
+		const lastSlashIndex = path.lastIndexOf("\\");
+		const pathWithoutFile = path.substring(0, lastSlashIndex);
+
+		open(pathWithoutFile);
+	};
+
+	function transformPath(path: string) {
+		return path.replace(/\\/g, "/");
+	}
+
+	async function getAudio(path: string) {
+		const transformedPath = transformPath(path);
+		const port = await getServerPort();
+		try {
+			const response = await fetch(
+				`http://localhost:${port}/audio?path=${encodeURIComponent(transformedPath)}`,
+			);
+			if (!response.ok) {
+				throw new Error("Error getting audio");
+			}
+			const audioBlob = await response.blob();
+			setOutput(URL.createObjectURL(audioBlob));
+		} catch (error) {
+			console.error("Error:", error);
+		}
+	}
+
+	const handleReset = () => {
+		setInput("");
+		setPth("");
+		setIndex("");
+		setStatus("");
+		setInfo("");
+		setFile(null);
+		setInput("");
+		setExportFormat("wav");
+		setPitch(0);
+		setIndexRate(0.3);
+		setFilterRadius(3);
+		setAutotune(false);
+		setOutput("");
+		setUploaded(false);
+		setFile(null);
+	};
+
+	const divRef = useRef<HTMLDivElement | null>(null);
+	useEffect(() => {
+		const generateGradient = () => {
+		  if (divRef.current) {
+			divRef.current.style.background = `linear-gradient(${Math.floor(Math.random() * 360)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}))`;
+		  }
+		};
+	
+		generateGradient();
+	  }, [pth]);
+
+	return (
+		<div className="grid h-screen w-screen">
+			<main className="flex flex-col items-end justify-center mt-6 w-full overflow-auto">
+				<div className="flex gap-4 w-full h-full p-4 pb-4">
+					<div className="col-span-3 row-span-2 rounded-xl w-full h-full">
+						<div className="flex gap-2 w-full h-full rounded-xl">
+							<div className="grid grid-cols-1 grid-rows-3 gap-2 w-full max-w-[40svh] h-full">
+								<div className="relative rounded-xl row-span-2 w-full h-full">
+									<div
+										ref={divRef}
+										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-30"
+									/>
+									<div className="w-full h-full flex flex-col py-2">
+										<p className="text-center text-neutral-200 mt-2 text-xl max-w-xl mx-4 truncate z-50">
+											{currentModel ? currentModel.name : "No model selected"}
+										</p>
+										<div className="w-full h-full gap-2">
+											<div className="flex justify-between items-center my-auto h-full gap-2 p-4">
+												<button
+													type="button"
+													className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
+													style={{zIndex: 500}}
+													onClick={prevModel}
+													disabled={currentIndex === 0}
+												>
+													<svg
+														className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+														viewBox="0 0 24 24"
+														fill="none"
+														xmlns="http://www.w3.org/2000/svg"
+														aria-hidden="true"
+													>
+														<path
+															fillRule="evenodd"
+															clipRule="evenodd"
+															d="M15.7071 4.29289C16.0976 4.68342 16.0976 5.31658 15.7071 5.70711L9.41421 12L15.7071 18.2929C16.0976 18.6834 16.0976 19.3166 15.7071 19.7071C15.3166 20.0976 14.6834 20.0976 14.2929 19.7071L7.29289 12.7071C7.10536 12.5196 7 12.2652 7 12C7 11.7348 7.10536 11.4804 7.29289 11.2929L14.2929 4.29289C14.6834 3.90237 15.3166 3.90237 15.7071 4.29289Z"
+															fill="#ffffff"
+														/>
+													</svg>
+												</button>
+												{currentModel && (
+													<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4 z-50">
+														{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+															{currentModel ? currentModel.epochs : "Undefined"}{" "}
+															epochs
+														</li>}
+														{currentModel.algorithm &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+															{currentModel
+																? currentModel.algorithm
+																: "Undefined algorithm"}
+														</li>}
+														{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+															{currentModel
+																? currentModel.author
+																: "Undefined author"}
+														</li>}
+														{currentModel.from &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+															{currentModel
+																? currentModel.from
+																: "Undefined server"}
+														</li>}
+													</ul>
+												)}
+												<button
+													type="button"
+													className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
+													style={{zIndex: 500}}
+													onClick={nextModel}
+													disabled={currentIndex === models.length - 1}
+												>
+													<svg
+														className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+														viewBox="0 0 24 24"
+														fill="none"
+														xmlns="http://www.w3.org/2000/svg"
+														aria-hidden="true"
+													>
+														<path
+															fillRule="evenodd"
+															clipRule="evenodd"
+															d="M8.29289 4.29289C8.68342 3.90237 9.31658 3.90237 9.70711 4.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L9.70711 19.7071C9.31658 20.0976 8.68342 20.0976 8.29289 19.7071C7.90237 19.3166 7.90237 18.6834 8.29289 18.2929L14.5858 12L8.29289 5.70711C7.90237 5.31658 7.90237 4.68342 8.29289 4.29289Z"
+															fill="#ffffff"
+														/>
+													</svg>
+												</button>
+											</div>
+										</div>
+										<p className="text-center text-neutral-300 text-xs z-50">
+											Download more models{" "}
+											<Link to="/models" className="text-white hover:underline">
+												here
+											</Link>
+											.
+										</p>
+									</div>
+								</div>
+								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
+									<div
+										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"/>
+									{uploaded ? (
+										<svg
+											className="w-16 h-16 opacity-60"
+											viewBox="0 0 24 24"
+											fill="none"
+											xmlns="http://www.w3.org/2000/svg"
+											aria-hidden="true"
+										>
+											<g id="SVGRepo_bgCarrier" strokeWidth="0" />
+											<g
+												id="SVGRepo_tracerCarrier"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
+											<g id="SVGRepo_iconCarrier">
+												<g id="Interface / Check">
+													<path
+														id="Vector"
+														d="M6 12L10.2426 16.2426L18.727 7.75732"
+														stroke="#ffffff"
+														strokeWidth="2"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+													/>
+												</g>
+											</g>
+										</svg>
+									) : (
+										<svg
+											className="w-16 h-16 opacity-80 z-50"
+											viewBox="0 0 24 24"
+											fill="none"
+											xmlns="http://www.w3.org/2000/svg"
+											aria-hidden="true"
+										>
+											<g id="SVGRepo_bgCarrier" strokeWidth="0" />
+											<g
+												id="SVGRepo_tracerCarrier"
+												strokeLinecap="round"
+												strokeLinejoin="round"
+											/>
+											<g id="SVGRepo_iconCarrier">
+												<path
+													d="M22 20.8201C15.426 22.392 8.574 22.392 2 20.8201"
+													stroke="#ffffff"
+													strokeWidth="1.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+												<path
+													d="M12.0508 16V2"
+													stroke="#ffffff"
+													strokeWidth="1.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+												<path
+													d="M7.09961 6.21997L10.6096 2.60986C10.7895 2.42449 11.0048 2.27715 11.2427 2.17651C11.4806 2.07588 11.7363 2.02417 11.9946 2.02417C12.2529 2.02417 12.5086 2.07588 12.7465 2.17651C12.9844 2.27715 13.1997 2.42449 13.3796 2.60986L16.8996 6.21997"
+													stroke="#ffffff"
+													strokeWidth="1.5"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+											</g>
+										</svg>
+									)}
+									<p className="text-sm text-neutral-300 z-50 truncate max-w-3xl">
+										{file ? file.name : "Select your audio."}
+									</p>
+									<input
+										disabled={uploaded}
+										type="file"
+										accept="audio/*"
+										className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed"
+										onChange={handleFileChange}
+									/>
+								</div>
+								{file && !uploaded && (
+									<button
+										type="button"
+										onClick={handleUpload}
+										disabled={uploaded}
+										className="w-full border border-white/10 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50"
+									>
+										Upload
+									</button>
+								)}
+								{uploaded || status.includes("successfully") ? (
+									<button
+										type="button"
+										onClick={handleReset}
+										className="w-full border border-white/20 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50"
+									>
+										Reset
+									</button>
+								) : null}
+							</div>
+							<div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">
+								<div className="row-span-full w-full h-full border border-white/10 rounded-xl p-4 flex flex-col gap-6 max-h-full overflow-auto">
+									<div className="flex flex-col gap-2">
+										<h2 className="text-neutral-200 text-lg font-medium">
+											Pitch
+										</h2>
+										<div className="flex gap-2 justify-center items-center">
+											<p className="text-sm text-neutral-200">{pitch}</p>
+											<input
+												value={pitch}
+												onChange={(e) => setPitch(Number(e.target.value))}
+												type="range"
+												defaultValue="0"
+												min="0"
+												max="10"
+												className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+											/>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Set the pitch of the audio. Higher values result in a
+											higher pitch.
+										</p>
+									</div>
+									<div className="flex flex-col gap-2">
+										<h2 className="text-neutral-200 text-lg font-medium">
+											Index Rate
+										</h2>
+										<div className="flex gap-2 justify-center items-center">
+											<p className="text-sm text-neutral-200">{indexRate}</p>
+											<input
+												value={indexRate}
+												onChange={(e) => setIndexRate(Number(e.target.value))}
+												type="range"
+												defaultValue="0.3"
+												min="0"
+												max="1"
+												step="0.1"
+												className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+											/>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Control the influence of the index file on the output.
+											Higher values mean stronger influence. Lower values can
+											help reduce artifacts but may result in less accurate
+											voice cloning.
+										</p>
+									</div>
+									<div className="flex flex-col gap-2">
+										<h2 className="text-neutral-200 text-lg font-medium">
+											Filter Radius
+										</h2>
+										<div className="flex gap-2 justify-center items-center">
+											<p className="text-sm text-neutral-200">{filterRadius}</p>
+											<input
+												value={filterRadius}
+												onChange={(e) =>
+													setFilterRadius(Number(e.target.value))
+												}
+												type="range"
+												defaultValue="3"
+												min="0"
+												max="6"
+												className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
+											/>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Apply median filtering to the extracted pitch values if
+											this value is greater than or equal to three. This can
+											help reduce breathiness in the output audio.
+										</p>
+									</div>
+									<div className="flex flex-col mt-8">
+										<div className="flex justify-between items-center w-full">
+											<h2 className="text-neutral-200 text-lg font-medium">
+												Autotune
+											</h2>
+											<div className="inline-flex items-center">
+												<label className="flex items-center cursor-pointer relative">
+													<input
+														checked={autotune}
+														onChange={(e) => setAutotune(e.target.checked)}
+														type="checkbox"
+														className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+														id="check"
+													/>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+											</div>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Apply a light autotune to the inferred audio. Particularly
+											useful for singing voice conversions.
+										</p>
+									</div>
+									<div className="flex flex-col">
+										<div className="flex justify-between items-center w-full">
+											<h2 className="text-neutral-200 text-lg font-medium">
+												Clean audio
+											</h2>
+											<div className="inline-flex items-center">
+												<label className="flex items-center cursor-pointer relative">
+													<input
+														checked={cleanAudio}
+														onChange={(e) => setCleanAudio(e.target.checked)}
+														type="checkbox"
+														className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+														id="check"
+													/>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+											</div>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Clean the output audio using noise reduction algorithms.
+											Recommended for speech conversions.
+										</p>
+									</div>
+									<div className="flex flex-col">
+										<div className="flex justify-between items-center w-full">
+											<h2 className="text-neutral-200 text-lg font-medium">
+												Export format
+											</h2>
+											<div className="inline-flex items-center">
+												<label className="flex items-center cursor-pointer relative">
+													<select
+														defaultValue={exportFormat}
+														onChange={(e) => setExportFormat(e.target.value)}
+														className="h-8 w-fit flex items-center justify-center text-end px-4 cursor-pointer transition-all appearance-none rounded-lg shadow-sm hover:shadow-md border border-slate-300 bg-white text-slate-700 focus:outline-none focus:border-slate-400"
+													>
+														<option value="WAV">WAV</option>
+														<option value="MP3">MP3</option>
+													</select>
+													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															className="h-3.5 w-3.5"
+															viewBox="0 0 20 20"
+															fill="currentColor"
+															stroke="currentColor"
+															strokeWidth="1"
+															aria-label="Checkmark"
+															aria-hidden="true"
+														>
+															<path
+																fill-rule="evenodd"
+																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+																clip-rule="evenodd"
+															/>
+														</svg>
+													</span>
+												</label>
+											</div>
+										</div>
+										<p className="text-xs text-neutral-300">
+											Select the desired output audio format.
+										</p>
+									</div>
+								</div>
+								{(status || info) && (
+									<div
+										className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 flex justify-between items-center ${error ? "bg-red-500/10" : ""}`}
+									>
+										<div>
+											<p className="font-medium">{info}</p>
+											{!status.includes("completed") && (
+												<p className="text-sm text-neutral-300 max-w-3xl truncate">
+													{status}
+												</p>
+											)}
+											{error && (
+												<p className="text-neutral-400 text-xs mt-1">
+													Maybe you have done something wrong?{" "}
+													<button
+														className="text-neutral-300 hover:underline"
+														type="button"
+														onClick={openDocs}
+													>
+														Check the docs
+													</button>
+													.
+												</p>
+											)}
+										</div>
+										<div className="justify-start mb-auto flex">
+											<p className="text-sm text-neutral-400">
+												{convertTime || 0}s
+											</p>
+										</div>
+									</div>
+								)}
+								{info.includes("completed!") && output && (
+									<div className="w-full h-[10svh] flex gap-2">
+										<div className="w-full border border-white/20 rounded-xl pl-4 h-18 flex justify-between items-center gap-4">
+											<div className="flex justify-start items-center">
+												<button
+													type="button"
+													className="w-full h-full"
+													onClick={togglePlayPause}
+												>
+													{isPlaying ? (
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 24 24"
+															fill="currentColor"
+															className="w-5 h-5"
+															aria-hidden="true"
+														>
+															<path
+																fillRule="evenodd"
+																d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z"
+																clipRule="evenodd"
+															/>
+														</svg>
+													) : (
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 24 24"
+															fill="currentColor"
+															className="w-5 h-5"
+															aria-hidden="true"
+														>
+															<path
+																fillRule="evenodd"
+																d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z"
+																clipRule="evenodd"
+															/>
+														</svg>
+													)}
+												</button>
+											</div>
+											<div className="w-full flex items-center gap-4">
+												<div className="relative w-full h-[10svh] rounded-r-xl bg-white/10 overflow-hidden">
+													<div
+														className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-in-out"
+														style={{ width: `${progress}%` }}
+													/>
+												</div>
+											</div>
+											<audio
+												ref={audioRef}
+												className="hidden"
+												onPlay={() => setIsPlaying(true)}
+												onPause={() => setIsPlaying(false)}
+											>
+												<source src={output} type="audio/wav" />
+											</audio>
+										</div>
+										{convertedAudio && (
+											<div className="flex flex-col gap-2 h-full">
+												<button
+													className="border border-white/20 px-5 rounded-lg w-fit h-full flex items-center justify-center"
+													type="button"
+													onClick={() => downloadAudio(convertedAudio)}
+												>
+													<svg
+														xmlns="http://www.w3.org/2000/svg"
+														viewBox="0 0 24 24"
+														fill="none"
+														stroke="#ffffff"
+														strokeWidth="2"
+														strokeLinecap="round"
+														strokeLinejoin="round"
+														className="w-6 h-6" 
+														aria-hidden="true"
+													>
+														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+													</svg>
+												</button>
+											</div>
+										)}
+									</div>
+								)}
+								<div className="relative group">
+									{!uploaded && (
+										<p className="absolute left-0 right-0 bottom-full mb-4 text-xs text-red-400 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+											First upload your audio!
+										</p>
+									)}
+									<button
+										className="min-h-12 w-full bg-white disabled:opacity-60 text-black rounded-xl h-full enabled:hover:bg-white/80 slow"
+										type="button"
+										disabled={!!status || !uploaded}
+										onClick={convert}
+									>
+										Convert
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</main>
+		</div>
+	);
+}
