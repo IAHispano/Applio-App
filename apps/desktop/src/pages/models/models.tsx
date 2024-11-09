@@ -331,9 +331,9 @@ export default function Models() {
 					{downloadedModels.map((item: { id: string; name: string, downloaded_at: string, model_folder_path: string }) => (
 						<div key={item.id} className="w-full h-full min-h-[15svh] text-left rounded-xl focus:outline-none bg-[#111111]/20 p-4 flex flex-col items-start justify-start">
 							<div className="flex justify-between w-full items-center">
-							<h1 className="text-center text-neutral-300 font-semibold title truncate max-w-[200px]">{item.name}</h1>
+							<h1 className="text-center text-neutral-300 font-semibold title truncate max-w-[200px]">{decodeURIComponent(item.name)}</h1>
 							<div className="flex gap-2">
-							<button className="rounded-xl bg-neutral-800 p-2 hover:bg-neutral-700 slow hover:shadow-xl hover:shadow-neutral-700 text-sm" type="button" onClick={() => open(item.model_folder_path)}>
+							<button className="rounded-xl bg-neutral-800/60 border border-white/10 p-2 hover:bg-neutral-700 slow hover:shadow-xl hover:shadow-neutral-700 text-sm" type="button" onClick={() => open(item.model_folder_path)}>
 								<svg
 									xmlns="http://www.w3.org/2000/svg"
 									viewBox="0 0 24 24"
@@ -348,7 +348,7 @@ export default function Models() {
 									<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
 								</svg>
 							</button>
-							<button type="button" className="rounded-xl bg-neutral-800 p-2 hover:bg-red-500/20 hover:shadow-xl hover:shadow-red-500/20 text-sm text-white slow" onClick={() => deleteModel(item.id)}>
+							<button type="button" className="rounded-xl bg-neutral-800/60 border border-white/10 p-2 hover:bg-red-500/20 hover:shadow-xl hover:shadow-red-500/20 text-sm text-white slow" onClick={() => deleteModel(item.id)}>
 							<svg className="w-4 h-4 opacity-70" aria-hidden="true" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0" /><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"/><g id="SVGRepo_iconCarrier"> <path d="M4 7H20" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> <path d="M6 7V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V7" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/> <path d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /> </g></svg>
 							</button>
 							</div>
