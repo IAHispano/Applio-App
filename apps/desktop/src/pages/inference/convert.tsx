@@ -301,86 +301,108 @@ export default function Convert() {
 									/>
 									<div className="w-full h-full flex flex-col py-2">
 										<p className="text-center text-neutral-200 mt-2 text-xl max-w-xl mx-4 truncate z-50">
-											{currentModel ? currentModel.name : "No model selected"}
+											{currentModel ? decodeURIComponent(currentModel.name) : ""}
 										</p>
 										<div className="w-full h-full gap-2">
 											<div className="flex justify-between items-center my-auto h-full gap-2 p-4">
-												<button
-													type="button"
-													className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
-													style={{zIndex: 500}}
-													onClick={prevModel}
-													disabled={currentIndex === 0}
-												>
-													<svg
-														className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
-														viewBox="0 0 24 24"
-														fill="none"
-														xmlns="http://www.w3.org/2000/svg"
-														aria-hidden="true"
-													>
-														<path
-															fillRule="evenodd"
-															clipRule="evenodd"
-															d="M15.7071 4.29289C16.0976 4.68342 16.0976 5.31658 15.7071 5.70711L9.41421 12L15.7071 18.2929C16.0976 18.6834 16.0976 19.3166 15.7071 19.7071C15.3166 20.0976 14.6834 20.0976 14.2929 19.7071L7.29289 12.7071C7.10536 12.5196 7 12.2652 7 12C7 11.7348 7.10536 11.4804 7.29289 11.2929L14.2929 4.29289C14.6834 3.90237 15.3166 3.90237 15.7071 4.29289Z"
-															fill="#ffffff"
-														/>
-													</svg>
-												</button>
-												{currentModel && (
-													<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4 z-50">
-														{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-															{currentModel ? currentModel.epochs : "Undefined"}{" "}
-															epochs
-														</li>}
-														{currentModel.algorithm &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-															{currentModel
-																? currentModel.algorithm
-																: "Undefined algorithm"}
-														</li>}
-														{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-															{currentModel
-																? currentModel.author
-																: "Undefined author"}
-														</li>}
-														{currentModel.from &&<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-															{currentModel
-																? currentModel.from
-																: "Undefined server"}
-														</li>}
-													</ul>
+												{!currentModel && (
+													<div className="flex flex-col z-50">
+													<p className="text-neutral-300 text-xs text-center">No model found</p>
+													<div className="flex flex-col justify-center items-center w-full h-full z-50">
+													<div className="-mb-2.5 flex flex-col gap-4">
+													<h1 className="text-3xl font-semibold title text-center px-4 mt-12">Explore our model library</h1>
+													<div className="flex overflow-hidden gap-4 flex-col justify-start p-4 mt-auto bg-[#111111]/50 w-full h-[40svh] rounded-t-xl">
+													<div className="p-4 rounded-xl bg-[#111111]/60">
+													<h1 className="font-medium title">Taylor Swift</h1>
+													</div>
+													<div className="p-4 rounded-xl bg-[#111111]/60">
+													<h1 className="font-medium title">Eminem</h1>
+													</div>
+													<div className="p-4 rounded-xl bg-[#111111]/60">
+													<h1 className="font-medium title">Bad bunny</h1>
+													</div>
+													<div className="p-4 rounded-xl bg-[#111111]/60">
+													<h1 className="font-medium title">Anthony Diaz</h1>
+													</div>
+													<div className="p-4 rounded-xl bg-[#111111]/60" />
+													</div>
+													</div>
+													</div>
+													</div>
 												)}
-												<button
-													type="button"
-													className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
-													style={{zIndex: 500}}
-													onClick={nextModel}
-													disabled={currentIndex === models.length - 1}
-												>
-													<svg
-														className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
-														viewBox="0 0 24 24"
-														fill="none"
-														xmlns="http://www.w3.org/2000/svg"
-														aria-hidden="true"
-													>
-														<path
-															fillRule="evenodd"
-															clipRule="evenodd"
-															d="M8.29289 4.29289C8.68342 3.90237 9.31658 3.90237 9.70711 4.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L9.70711 19.7071C9.31658 20.0976 8.68342 20.0976 8.29289 19.7071C7.90237 19.3166 7.90237 18.6834 8.29289 18.2929L14.5858 12L8.29289 5.70711C7.90237 5.31658 7.90237 4.68342 8.29289 4.29289Z"
-															fill="#ffffff"
-														/>
-													</svg>
-												</button>
+												{currentModel && (
+													<>
+														<button
+															type="button"
+															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
+															style={{zIndex: 500}}
+															onClick={prevModel}
+															disabled={currentIndex === 0}
+														>
+															<svg
+																className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+																viewBox="0 0 24 24"
+																fill="none"
+																xmlns="http://www.w3.org/2000/svg"
+																aria-hidden="true"
+															>
+																<path
+																	fillRule="evenodd"
+																	clipRule="evenodd"
+																	d="M15.7071 4.29289C16.0976 4.68342 16.0976 5.31658 15.7071 5.70711L9.41421 12L15.7071 18.2929C16.0976 18.6834 16.0976 19.3166 15.7071 19.7071C15.3166 20.0976 14.6834 20.0976 14.2929 19.7071L7.29289 12.7071C7.10536 12.5196 7 12.2652 7 12C7 11.7348 7.10536 11.4804 7.29289 11.2929L14.2929 4.29289C14.6834 3.90237 15.3166 3.90237 15.7071 4.29289Z"
+																	fill="#ffffff"
+																/>
+															</svg>
+														</button>
+														<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4 z-50">
+															{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																{currentModel ? currentModel.epochs : "Undefined"} epochs
+															</li>}
+															{currentModel.algorithm && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																{currentModel ? currentModel.algorithm : "Undefined algorithm"}
+															</li>}
+															{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																{currentModel ? currentModel.author : "Undefined author"}
+															</li>}
+															{currentModel.from && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																{currentModel ? currentModel.from : "Undefined server"}
+															</li>}
+														</ul>
+														<button
+															type="button"
+															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
+															style={{zIndex: 500}}
+															onClick={nextModel}
+															disabled={currentIndex === models.length - 1}
+														>
+															<svg
+																className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+																viewBox="0 0 24 24"
+																fill="none"
+																xmlns="http://www.w3.org/2000/svg"
+																aria-hidden="true"
+															>
+																<path
+																	fillRule="evenodd"
+																	clipRule="evenodd"
+																	d="M8.29289 4.29289C8.68342 3.90237 9.31658 3.90237 9.70711 4.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L9.70711 19.7071C9.31658 20.0976 8.68342 20.0976 8.29289 19.7071C7.90237 19.3166 7.90237 18.6834 8.29289 18.2929L14.5858 12L8.29289 5.70711C7.90237 5.31658 7.90237 4.68342 8.29289 4.29289Z"
+																	fill="#ffffff"
+																/>
+															</svg>
+														</button>
+													</>
+												)}
 											</div>
 										</div>
-										<p className="text-center text-neutral-300 text-xs z-50">
-											Download more models{" "}
-											<Link to="/models" className="text-white hover:underline">
-												here
-											</Link>
-											.
-										</p>
+										{currentModel && (
+											<p className="text-center text-neutral-300 text-xs z-50">
+												Download more models{" "}
+												<Link to="/models" className="text-white hover:underline">
+													here
+												</Link>
+												.
+											</p>
+										)}
 									</div>
 								</div>
 								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
