@@ -139,7 +139,6 @@ export default function Settings() {
 	}
 
 	async function setHaveEffect(haveEffect: boolean) {
-		const background = await platform();
 		const store = await Store.load("settings.json");
 		await store.set("effect", haveEffect);
 		await store.save();

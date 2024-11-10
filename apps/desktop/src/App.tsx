@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
-import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from "react-router-dom";
+import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Header from "./components/layout/header";
 import { TitleBar } from "./components/layout/titlebar";
 import { invoke } from "@tauri-apps/api/core";
@@ -11,7 +11,6 @@ import { Store } from "@tauri-apps/plugin-store";
 import { ConvertProvider } from "./components/convert/conversion-context";
 import { open } from "@tauri-apps/plugin-shell";
 import { supabase } from "./utils/database";
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 
 
 // Pages
@@ -156,7 +155,7 @@ function App() {
 		if (window.location.pathname !== "/beta-access") {
 		const session = await supabase?.auth.getSession();
 		if (session && session.data.session) {
-			const { data, error } = await supabase?.from("profiles").select("*").eq("auth_id", session.data.session.user.id).single() || { data: null, error: null };
+			const { data } = await supabase?.from("profiles").select("*").eq("auth_id", session.data.session.user.id).single() || { data: null, error: null };
 			if (data || data.tester) {
 				console.log("Beta access granted");
 			} else {
