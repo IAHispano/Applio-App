@@ -2,6 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useRef, useEffect } from "react";
 import { useConvertContext } from "../../components/convert/conversion-context";
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { supabase } from "../../utils/database";
 
 export default function Convert() {
 	const {
@@ -49,6 +51,8 @@ export default function Convert() {
 		setExportFormat,
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
+
+	const [previewModels, setPreviewModels] = useState<any>([]);
 
 	const togglePlayPause = () => {
 		if (audioRef.current) {
@@ -287,6 +291,20 @@ export default function Convert() {
 		generateGradient();
 	  }, [pth]);
 
+	useEffect(() => {
+		async function getPreviewModels() {
+			const { data, error } = await supabase?.from("models").select("*").limit(10).order("id", { ascending: false }) || { data: null, error: null };
+			if (data) {
+				console.log('models', data)
+				setPreviewModels(data);
+			} else {
+				console.error("Error fetching preview models:", error);
+			}
+		}
+
+		getPreviewModels();
+	}, [!currentModel]);
+
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-end justify-center mt-6 w-full overflow-auto">
@@ -304,27 +322,21 @@ export default function Convert() {
 											{currentModel ? decodeURIComponent(currentModel.name) : ""}
 										</p>
 										<div className="w-full h-full gap-2">
-											<div className="flex justify-between items-center my-auto h-full gap-2 p-4">
+											<div className="flex justify-between items-center my-auto h-full gap-2 p-4 overflow-hidden">
 												{!currentModel && (
 													<div className="flex flex-col z-50">
 													<p className="text-neutral-300 text-xs text-center">No model found</p>
 													<div className="flex flex-col justify-center items-center w-full h-full z-50">
 													<div className="-mb-2.5 flex flex-col gap-4">
-													<h1 className="text-3xl font-semibold title text-center px-4 mt-12">Explore our model library</h1>
-													<div className="flex overflow-hidden gap-4 flex-col justify-start p-4 mt-auto bg-[#111111]/50 w-full h-[40svh] rounded-t-xl">
-													<div className="p-4 rounded-xl bg-[#111111]/60">
-													<h1 className="font-medium title">Taylor Swift</h1>
-													</div>
-													<div className="p-4 rounded-xl bg-[#111111]/60">
-													<h1 className="font-medium title">Eminem</h1>
-													</div>
-													<div className="p-4 rounded-xl bg-[#111111]/60">
-													<h1 className="font-medium title">Bad bunny</h1>
-													</div>
-													<div className="p-4 rounded-xl bg-[#111111]/60">
-													<h1 className="font-medium title">Anthony Diaz</h1>
-													</div>
-													<div className="p-4 rounded-xl bg-[#111111]/60" />
+													<h1 className="text-3xl font-semibold title text-center px-4 mt-8">Explore our model library</h1>
+													<div className="flex overflow-auto gap-4 flex-col justify-start p-4 pt-6 mt-auto bg-[#111111]/50 w-full h-[40svh] rounded-t-xl">
+													{previewModels.length > 0 && previewModels.map((item: any) => (
+														<Link to="/models">
+														<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow" key={item.id}>
+														<h1 className="font-medium title text-sm">{item.name}</h1>
+														</div>
+														</Link>
+													))}
 													</div>
 													</div>
 													</div>

@@ -26,14 +26,12 @@ function App() {
 	// get server port
 	async function getServerPort() {
 		const port = await invoke("get_port");
-		console.log("port", port);
 		return port;
 	}
 
 	// check if dev mode
 	async function checkIfDev() {
 		const isDev = await invoke("is_dev");
-		console.log(isDev);
 		if (!isDev) {
 			checkOS();
 		}
@@ -86,7 +84,6 @@ function App() {
 			}
 		}
 
-		console.log(currentPlatform);
 	}
 
 	// initialize discord rpc
@@ -104,7 +101,6 @@ function App() {
 	// check if first run
 	const checkFirstRun = async () => {
 		const isFirstTime = await isFirstRun();
-		console.log(isFirstTime);
 		if (isFirstTime) {
 			console.log("First time run, continuing...");
 			window.location.href = "/first-time";
@@ -150,19 +146,17 @@ function App() {
 	
 	// check if user has access to beta
 	const checkBetaAccess = async () => {
-		if (window.location.pathname === "/beta-access") return;
-		const user = await supabase?.auth.getSession();
-		if (user) {
-			const { data, error } = await supabase?.from("profiles").select("*").eq("auth_id", user.data.session?.user.id).single() || { data: null, error: null };
+		if (window.location.pathname !== "/beta-access") {
+		const session = await supabase?.auth.getSession();
+		if (session && session.data.session) {
+			const { data, error } = await supabase?.from("profiles").select("*").eq("auth_id", session.data.session.user.id).single() || { data: null, error: null };
 			if (data && data.tester) {
 				console.log("Beta access granted");
 			} else {
-				console.log("Beta access error", error);
 				console.log("Beta access not granted");
 				window.location.href = "/beta-access";
 			}
-		} else {
-			console.log("User not logged in");
+		}
 		}
 	};
 

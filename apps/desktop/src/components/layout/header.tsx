@@ -252,8 +252,6 @@ export default function Sidebar() {
 				return;
 			}
 			if (data) {
-				console.log('Session data set:', data);
-
 			}
 		})
 	}
@@ -298,11 +296,10 @@ export default function Sidebar() {
 				}
 				if (data) {
 					setUserInfo(data);
-					console.log('User profile fetched:', data);
 				}
 			})
 		} else {
-			console.log('user', user);
+			window.location.href = "/login";
 		}
 	}
 
@@ -346,7 +343,7 @@ export default function Sidebar() {
 				>
 					<button
 						type="button"
-						className={`flex gap-2 items-center ${isExpanded ? "px-4 w-full text-center justify-center " : ""} p-2 rounded-full bg-neutral-700 hover:bg-neutral-600/60 transition-colors duration-200`}
+						className={`flex gap-2 items-center ${isExpanded ? "px-4 w-full text-center justify-center " : ""} p-2 rounded-full bg-[#111111]/20 hover:bg-[#111111]/40 transition-colors duration-200`}
 						onClick={handleClick}
 						aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
 					>
@@ -373,7 +370,7 @@ export default function Sidebar() {
 				{isExpanded && (
 					<>
 					{userInfo ? (
-					<div className="flex items-center space-x-3 px-4 py-3 bg-neutral-700 rounded-lg">
+					<div className="flex items-center space-x-3 px-4 py-3 bg-[#111111]/20 rounded-lg">
 						<img
 							src={userInfo.avatar_url}
 							alt="User avatar"
