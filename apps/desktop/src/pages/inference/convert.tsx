@@ -53,6 +53,8 @@ export default function Convert() {
 	const audioRef = useRef<HTMLAudioElement>(null);
 
 	const [previewModels, setPreviewModels] = useState<any>([]);
+	const [modelName, setModelName] = useState<string>("");
+	const inputFileRef = useRef<HTMLInputElement | null>(null);
 
 	const togglePlayPause = () => {
 		if (audioRef.current) {
@@ -115,6 +117,7 @@ export default function Convert() {
 			console.log("model_pth_file:", models[currentIndex].model_pth_file);
 			setIndex(models[currentIndex].model_index_file);
 			setPth(models[currentIndex].model_pth_file);
+			setModelName(models[currentIndex].name);
 		}
 	}, [models, currentIndex]);
 
@@ -136,34 +139,46 @@ export default function Convert() {
 		const selectedFile = e.target.files?.[0];
 		if (selectedFile) {
 			setFile(selectedFile);
+			console.log("File selected:", selectedFile);  
 		}
 	};
 
+	useEffect(() => {
+		if (file) {
+			handleUpload(); 
+		}
+	}, [file]);
+	
 	const handleUpload = async () => {
-		if (!file) return;
-
+		if (!file) {
+			console.error("No file selected");
+			return;
+		}
+	
 		const formData = new FormData();
 		formData.append("audio", file);
-
+	
 		try {
 			const port = await getServerPort();
+			console.log("Server port:", port);  
 			const response = await fetch(`http://localhost:${port}/upload`, {
 				method: "POST",
 				body: formData,
 			});
-
+	
 			if (!response.ok) {
 				throw new Error("Error uploading file");
 			}
-
+	
 			const data = await response.json();
-			console.log(data);
+			console.log("Upload response:", data); 
 			setUploaded(true);
 			setInput(data[0].file_path);
 		} catch (error) {
-			console.error(error);
+			console.error("Upload error:", error);  
 		}
 	};
+	
 
 	const convert = async () => {
 		const startingTime = performance.now();
@@ -179,7 +194,7 @@ export default function Convert() {
 
 		const port = await getServerPort();
 		try {
-			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}&name=${encodeURIComponent(currentModel.name || currentModel.id)}`;
+			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}&name=${encodeURIComponent(modelName)}`;
 			const eventSource = new EventSource(url);
 			console.log(url);
 			eventSource.onmessage = (event) => {
@@ -278,6 +293,9 @@ export default function Convert() {
 		setOutput("");
 		setUploaded(false);
 		setFile(null);
+		if (inputFileRef.current) {
+			inputFileRef.current.value = '';
+		}
 	};
 
 	const divRef = useRef<HTMLDivElement | null>(null);
@@ -325,8 +343,6 @@ export default function Convert() {
 											<div className="flex justify-between items-center my-auto h-full gap-2 overflow-hidden">
 												{!currentModel && (
 													<div className="absolute rounded-xl w-full h-full">
-														<h3 className="text-neutral-400 text-xs text-center mt-2">No model found</h3>
-		
 														<div className="absolute bottom-0 left-4 right-4">
 														<h1 className="p-4 text-3xl title text-center font-semibold max-w-[200px] flex justify-center mx-auto">Explore our model library</h1> 
 															<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
@@ -494,6 +510,7 @@ export default function Convert() {
 										{file ? file.name : "Select your audio."}
 									</p>
 									<input
+										ref={inputFileRef}
 										disabled={uploaded}
 										type="file"
 										accept="audio/*"
@@ -501,16 +518,6 @@ export default function Convert() {
 										onChange={handleFileChange}
 									/>
 								</div>
-								{file && !uploaded && (
-									<button
-										type="button"
-										onClick={handleUpload}
-										disabled={uploaded}
-										className="w-full border border-white/10 rounded-xl py-2 h-full enabled:hover:bg-[#111111]/20 slow disabled:opacity-50"
-									>
-										Upload
-									</button>
-								)}
 								{uploaded || status.includes("successfully") ? (
 									<button
 										type="button"
@@ -833,10 +840,15 @@ export default function Convert() {
 											First upload your audio!
 										</p>
 									)}
+									{!currentModel && uploaded && (
+										<p className="absolute left-0 right-0 bottom-full mb-4 text-xs text-red-400 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+											Select a model!
+										</p>
+									)}
 									<button
 										className="min-h-12 w-full bg-white disabled:opacity-60 text-black rounded-xl h-full enabled:hover:bg-white/80 slow"
 										type="button"
-										disabled={!!status || !uploaded}
+										disabled={!!status || !uploaded || !currentModel}
 										onClick={convert}
 									>
 										Convert
