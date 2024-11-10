@@ -28,7 +28,7 @@ export const TitleBar = () => {
 			style={{ zIndex: 200 }}
 			data-tauri-drag-region
 		>
-			<div className="flex justify-end items-center px-2">
+			<div className="flex justify-end items-center px-2" data-tauri-drag-region>
 			{window.location.pathname !== "/first-time" &&
 			window.location.pathname !== "/pretraineds" &&
 			window.location.pathname !== "/os-not-supported" && 

@@ -3,13 +3,16 @@ import { useEffect, useState } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
-import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Header from "./components/layout/header";
 import { TitleBar } from "./components/layout/titlebar";
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import { ConvertProvider } from "./components/convert/conversion-context";
 import { open } from "@tauri-apps/plugin-shell";
+import { supabase } from "./utils/database";
+import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
+
 
 // Pages
 import Home from "./pages/home";
@@ -18,17 +21,14 @@ import DownloadPretraineds from "./pages/install/pretraineds";
 import Models from "./pages/models/models";
 import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
-import { supabase } from "./utils/database";
 import Login from "./pages/login/login";
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
+import React from "react";
 
 function App() {
 	const [updateAvailable, setUpdateAvailable] = useState(false);
-	const [authPort, setAuthPort] = useState<number | undefined>();
-	const [logged, setLogged] = useState(false);
 
+	const navigate = useNavigate();
 	const location = useLocation();
-	const {pathname} = location;
 
 	// get server port
 	async function getServerPort() {
@@ -163,54 +163,14 @@ function App() {
 				console.log("Beta access not granted");
 				window.location.href = "/beta-access";
 			}
-		} 
+		} else {
+			if (window.location.pathname !== '/login') {
+				navigate('/login')
+			}
+		}
 		}
 	};
 
-	async function stopOAuthServer(port: number) {
-		try {
-		  await cancel(port);
-		} catch (error) {
-		  console.error('Error stopping OAuth server:', error);
-		}
-	  }
-
-	async function startOAuthServer() {
-		if (authPort) return;
-		if (logged) return;
-		const port = await start({response: 'You can now close this window and return to the application.'});
-		setAuthPort(port);
-		console.log(`OAuth server started on port ${port}`);
-	
-		// Set up listeners for OAuth results
-		await onUrl((url) => {
-		console.log('Received OAuth URL:', url);
-		setTimeout(() => {
-			stopOAuthServer(port);
-		}, 120000);
-		setLogged(true);
-		setSessionData(url);
-		});
-	
-		// Initiate your OAuth flow here
-		// ...
-	  }
-
-	async function setSessionData(url: string) {
-		supabase?.auth.setSession({
-			access_token: url.split('access_token=')[1].split('&')[0],
-			refresh_token: url.split('refresh_token=')[1].split('&')[0]
-		})
-		.then(({ data, error }) => {
-			if (error) {
-				console.error('Error setting session:', error);
-				return;
-			}
-			if (data) {
-				window.location.reload();
-			}
-		})
-	}
 
 	// remove contextmenu
 	useEffect(() => {
@@ -260,7 +220,6 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
-			startOAuthServer();
 			checkRVC();
 			checkUpdates();
 		}
@@ -273,16 +232,17 @@ function App() {
 	}, []);
 
 	const shouldShowHeader = !(
-		pathname === "/first-time" ||
-		pathname === "/pretraineds" ||
-		pathname === "/os-not-supported" ||
-		pathname === "/beta-access" ||
-		pathname === "/login"
+		location.pathname === "/first-time" ||
+		location.pathname === "/pretraineds" ||
+		location.pathname === "/os-not-supported" ||
+		location.pathname === "/beta-access" ||
+		location.pathname === "/login"
 	  );
 
 	return (
 		<ConvertProvider>
-				{updateAvailable && window.location.pathname !== "/first-time" && (
+			<React.StrictMode>
+				{updateAvailable && location.pathname !== "/first-time" && (
 					<a
 						href="/first-time"
 						className="hover:bg-black/20 slow absolute left-4 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
@@ -293,7 +253,7 @@ function App() {
 				)}
 				<TitleBar />
 				<div className="flex w-screen h-screen gap-0">
-					{shouldShowHeader && <Header />}
+					{shouldShowHeader && <Header  />}
 					<Routes>
 						<Route index path="/" element={<Home />} />
 						<Route path="*" element={<NotFound />} />
@@ -304,9 +264,10 @@ function App() {
 						<Route path="/pretraineds" element={<DownloadPretraineds />} />
 						<Route path="/os-not-supported" element={<OSNotSupported />} />
 						<Route path="/beta-access" element={<BetaAccess />} />
-						<Route path="/login" element={<Login authPort={authPort} />} />
+						<Route path="/login" element={<Login />} />
 					</Routes>
 				</div>
+				</React.StrictMode>
 		</ConvertProvider>
 	);
 }

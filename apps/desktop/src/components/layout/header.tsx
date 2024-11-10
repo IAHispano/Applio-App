@@ -230,10 +230,6 @@ export default function Sidebar() {
 					setUserInfo(data);
 				}
 			})
-		} else {
-			if (window.location.pathname !== '/login') {
-				navigate('/login');
-			}
 		}
 	}
 
@@ -242,7 +238,7 @@ export default function Sidebar() {
 
 	const logout = async () => {
 		await supabase?.auth.signOut();
-		window.location.reload();
+		navigate(0);
 	};
 
 	return (

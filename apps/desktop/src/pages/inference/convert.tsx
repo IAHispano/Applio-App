@@ -293,7 +293,7 @@ export default function Convert() {
 
 	useEffect(() => {
 		async function getPreviewModels() {
-			const { data, error } = await supabase?.from("models").select("*").limit(10).order("id", { ascending: false }) || { data: null, error: null };
+			const { data, error } = await supabase?.from("models").select("*").limit(4).order("id", { ascending: false }) || { data: null, error: null };
 			if (data) {
 				console.log('models', data)
 				setPreviewModels(data);
@@ -322,24 +322,28 @@ export default function Convert() {
 											{currentModel ? decodeURIComponent(currentModel.name) : ""}
 										</p>
 										<div className="w-full h-full gap-2">
-											<div className="flex justify-between items-center my-auto h-full gap-2 p-4 overflow-hidden">
+											<div className="flex justify-between items-center my-auto h-full gap-2 overflow-hidden">
 												{!currentModel && (
-													<div className="flex flex-col z-50">
-													<p className="text-neutral-300 text-xs text-center">No model found</p>
-													<div className="flex flex-col justify-center items-center w-full h-full z-50">
-													<div className="-mb-2.5 flex flex-col gap-4">
-													<h1 className="text-3xl font-semibold title text-center px-4 mt-8">Explore our model library</h1>
-													<div className="flex overflow-auto gap-4 flex-col justify-start p-4 pt-6 mt-auto bg-[#111111]/50 w-full h-[40svh] rounded-t-xl">
-													{previewModels.length > 0 && previewModels.map((item: any) => (
-														<Link to="/models" key={item.id}>
-														<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
-														<h1 className="font-medium title text-sm">{item.name}</h1>
+													<div className="absolute rounded-xl w-full h-full">
+														<h3 className="text-neutral-400 text-xs text-center mt-2">No model found</h3>
+		
+														<div className="absolute bottom-0 left-4 right-4">
+														<h1 className="p-4 text-3xl title text-center font-semibold max-w-[200px] flex justify-center mx-auto">Explore our model library</h1> 
+															<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
+															<div className="flex flex-col gap-2 p-4">
+															{previewModels.length > 0 && previewModels.map((item: any) => (
+																<Link to="/models" key={item.id}>
+																<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
+																<h1 className="font-medium title text-sm max-w-sm truncate">{item.name}</h1>
+																</div>
+																</Link>
+															))}
+															<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
+															<h1 className="font-medium title text-sm max-w-sm truncate">And more...</h1>
+															</div>
+															</div>
+															</div>
 														</div>
-														</Link>
-													))}
-													</div>
-													</div>
-													</div>
 													</div>
 												)}
 												{currentModel && (

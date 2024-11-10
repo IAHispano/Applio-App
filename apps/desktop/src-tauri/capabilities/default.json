@@ -22,5 +22,5 @@
     "store:default",
     "oauth:allow-start",
     "oauth:allow-cancel"
-    ]
+  ]
 }
