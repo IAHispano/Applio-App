@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
+import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
 import Header from "./components/layout/header";
 import { TitleBar } from "./components/layout/titlebar";
 import { invoke } from "@tauri-apps/api/core";
@@ -19,9 +19,16 @@ import Models from "./pages/models/models";
 import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
 import { supabase } from "./utils/database";
+import Login from "./pages/login/login";
+import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 
 function App() {
 	const [updateAvailable, setUpdateAvailable] = useState(false);
+	const [authPort, setAuthPort] = useState<number | undefined>();
+	const [logged, setLogged] = useState(false);
+
+	const location = useLocation();
+	const {pathname} = location;
 
 	// get server port
 	async function getServerPort() {
@@ -150,15 +157,60 @@ function App() {
 		const session = await supabase?.auth.getSession();
 		if (session && session.data.session) {
 			const { data, error } = await supabase?.from("profiles").select("*").eq("auth_id", session.data.session.user.id).single() || { data: null, error: null };
-			if (data && data.tester) {
+			if (data || data.tester) {
 				console.log("Beta access granted");
 			} else {
 				console.log("Beta access not granted");
 				window.location.href = "/beta-access";
 			}
-		}
+		} 
 		}
 	};
+
+	async function stopOAuthServer(port: number) {
+		try {
+		  await cancel(port);
+		} catch (error) {
+		  console.error('Error stopping OAuth server:', error);
+		}
+	  }
+
+	async function startOAuthServer() {
+		if (authPort) return;
+		if (logged) return;
+		const port = await start({response: 'You can now close this window and return to the application.'});
+		setAuthPort(port);
+		console.log(`OAuth server started on port ${port}`);
+	
+		// Set up listeners for OAuth results
+		await onUrl((url) => {
+		console.log('Received OAuth URL:', url);
+		setTimeout(() => {
+			stopOAuthServer(port);
+		}, 120000);
+		setLogged(true);
+		setSessionData(url);
+		});
+	
+		// Initiate your OAuth flow here
+		// ...
+	  }
+
+	async function setSessionData(url: string) {
+		supabase?.auth.setSession({
+			access_token: url.split('access_token=')[1].split('&')[0],
+			refresh_token: url.split('refresh_token=')[1].split('&')[0]
+		})
+		.then(({ data, error }) => {
+			if (error) {
+				console.error('Error setting session:', error);
+				return;
+			}
+			if (data) {
+				window.location.reload();
+			}
+		})
+	}
 
 	// remove contextmenu
 	useEffect(() => {
@@ -208,20 +260,28 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
+			startOAuthServer();
+			checkRVC();
+			checkUpdates();
 		}
 	}, []);
 
 	// set window effect, check if rvc exists and check for rvc updates
 	useEffect(() => {
 		setWindowEffect();
-		checkRVC();
-		checkUpdates();
 		checkBetaAccess();
 	}, []);
 
+	const shouldShowHeader = !(
+		pathname === "/first-time" ||
+		pathname === "/pretraineds" ||
+		pathname === "/os-not-supported" ||
+		pathname === "/beta-access" ||
+		pathname === "/login"
+	  );
+
 	return (
 		<ConvertProvider>
-			<Router>
 				{updateAvailable && window.location.pathname !== "/first-time" && (
 					<a
 						href="/first-time"
@@ -233,10 +293,7 @@ function App() {
 				)}
 				<TitleBar />
 				<div className="flex w-screen h-screen gap-0">
-					{window.location.pathname !== "/first-time" &&
-						window.location.pathname !== "/pretraineds" &&
-						window.location.pathname !== "/os-not-supported" && 
-						window.location.pathname !== "/beta-access" && <Header />}
+					{shouldShowHeader && <Header />}
 					<Routes>
 						<Route index path="/" element={<Home />} />
 						<Route path="*" element={<NotFound />} />
@@ -247,9 +304,9 @@ function App() {
 						<Route path="/pretraineds" element={<DownloadPretraineds />} />
 						<Route path="/os-not-supported" element={<OSNotSupported />} />
 						<Route path="/beta-access" element={<BetaAccess />} />
+						<Route path="/login" element={<Login authPort={authPort} />} />
 					</Routes>
 				</div>
-			</Router>
 		</ConvertProvider>
 	);
 }

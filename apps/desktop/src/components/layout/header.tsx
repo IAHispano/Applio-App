@@ -1,11 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useConvertContext } from "../convert/conversion-context";
 import { supabase } from "../../utils/database";
-import type { Provider } from "@supabase/supabase-js";
-import { open } from "@tauri-apps/plugin-shell";
-import { invoke } from "@tauri-apps/api/core";
-import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 
 export const GitHubIcon = () => {
 	return (
@@ -197,9 +193,9 @@ const icons = {
 export default function Sidebar() {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const {info} = useConvertContext();
-	
+	const navigate = useNavigate();
+
 	const [userInfo, setUserInfo] = useState<any>();
-	const [authPort, setAuthPort] = useState<any>();
 
 	const menuItems = [
 		{ icon: "Home", label: "Home", to: "/" },
@@ -212,70 +208,6 @@ export default function Sidebar() {
 		setIsExpanded(!isExpanded);
 		localStorage.setItem("sidebar-expanded", `${!isExpanded}`);
 	};
-
-	
-	async function stopOAuthServer(port: number) {
-		try {
-		  await cancel(port);
-		} catch (error) {
-		  console.error('Error stopping OAuth server:', error);
-		}
-	  }
-
-	async function startOAuthServer() {
-		if (authPort) return;
-		const port = await start();
-		setAuthPort(port);
-		console.log(`OAuth server started on port ${port}`);
-	
-		// Set up listeners for OAuth results
-		await onUrl((url) => {
-		console.log('Received OAuth URL:', url);
-		setTimeout(() => {
-			stopOAuthServer(port);
-		}, 120000);
-		setSessionData(url);
-		});
-	
-		// Initiate your OAuth flow here
-		// ...
-	  }
-
-	async function setSessionData(url: string) {
-		supabase?.auth.setSession({
-			access_token: url.split('access_token=')[1].split('&')[0],
-			refresh_token: url.split('refresh_token=')[1].split('&')[0]
-		})
-		.then(({ data, error }) => {
-			if (error) {
-				console.error('Error setting session:', error);
-				return;
-			}
-			if (data) {
-			}
-		})
-	}
-
-	const handleLogin = async (provider: string) => {
-		if (provider && authPort) {
-		const data = await supabase?.auth.signInWithOAuth({provider: provider as Provider, options: { skipBrowserRedirect: true, redirectTo: `http://localhost:${authPort}` }});
-		if (data?.data.url) {
-			open(data.data.url);
-		} else {
-			alert(data?.error?.message);
-		}
-		}  else {
-			alert("Error: OAuth server not found, please report error.");
-		}
-	};
-
-	// start oauth server
-	useEffect(() => {
-		const initialized = localStorage.getItem("appInitialized");
-		if (!initialized) {
-			startOAuthServer();
-		}
-	}, []);
 
 	useEffect(() => {
 		const expanded = localStorage.getItem("sidebar-expanded");
@@ -299,12 +231,19 @@ export default function Sidebar() {
 				}
 			})
 		} else {
-			window.location.href = "/login";
+			if (window.location.pathname !== '/login') {
+				navigate('/login');
+			}
 		}
 	}
 
 	getUser();
 	}, []);
+
+	const logout = async () => {
+		await supabase?.auth.signOut();
+		window.location.reload();
+	};
 
 	return (
 		<div
@@ -370,7 +309,7 @@ export default function Sidebar() {
 				{isExpanded && (
 					<>
 					{userInfo ? (
-					<div className="flex items-center space-x-3 px-4 py-3 bg-[#111111]/20 rounded-lg">
+					<div className="flex items-center space-x-3 px-4 py-3 bg-[#111111]/20 rounded-lg" onClick={logout}>
 						<img
 							src={userInfo.avatar_url}
 							alt="User avatar"
@@ -382,20 +321,9 @@ export default function Sidebar() {
 						</div>
 					</div>
 					): (
-						<>
-						<h3 className="text-neutral-300 text-xs text-center">Login with</h3>
-						<div className="w-full grid grid-cols-3 gap-1">
-						<button className="w-full h-full rounded-xl bg-neutral-700 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200" onClick={() => handleLogin("github")}>
-						<GitHubIcon />
-						</button>
-						<button className="w-full h-full rounded-xl bg-neutral-700 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200" onClick={() => handleLogin("discord")}>
-						<DiscordIcon />
-						</button>
-						<button className="w-full h-full rounded-xl bg-neutral-700 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200" onClick={() => handleLogin("google")}>
-						<GoogleIcon />
-						</button>
-						</div>
-						</>
+						<Link to="/login" className="w-full h-full rounded-xl bg-neutral-700 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200">
+						Login
+						</Link>
 					)}
 					</>
 				)}

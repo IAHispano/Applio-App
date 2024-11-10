@@ -179,7 +179,7 @@ export default function Convert() {
 
 		const port = await getServerPort();
 		try {
-			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}`;
+			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}&name=${encodeURIComponent(currentModel.name || currentModel.id)}`;
 			const eventSource = new EventSource(url);
 			console.log(url);
 			eventSource.onmessage = (event) => {
@@ -331,8 +331,8 @@ export default function Convert() {
 													<h1 className="text-3xl font-semibold title text-center px-4 mt-8">Explore our model library</h1>
 													<div className="flex overflow-auto gap-4 flex-col justify-start p-4 pt-6 mt-auto bg-[#111111]/50 w-full h-[40svh] rounded-t-xl">
 													{previewModels.length > 0 && previewModels.map((item: any) => (
-														<Link to="/models">
-														<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow" key={item.id}>
+														<Link to="/models" key={item.id}>
+														<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
 														<h1 className="font-medium title text-sm">{item.name}</h1>
 														</div>
 														</Link>
