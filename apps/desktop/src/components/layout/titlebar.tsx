@@ -28,7 +28,7 @@ export const TitleBar = () => {
 			style={{ zIndex: 200 }}
 			data-tauri-drag-region
 		>
-			<div className="flex justify-end items-center px-2" data-tauri-drag-region>
+			<div className="flex justify-between items-center px-2" data-tauri-drag-region>
 			{window.location.pathname !== "/first-time" &&
 			window.location.pathname !== "/pretraineds" &&
 			window.location.pathname !== "/os-not-supported" && 
@@ -76,6 +76,7 @@ export const TitleBar = () => {
 				</button>
 			</div>
 			)}
+			<p className="text-sm title font-semibold text-center text-neutral-300 flex mx-auto w-full" data-tauri-drag-region>Applio</p>
 			<div className="justify-end flex gap-4" data-tauri-drag-region>
 				<button
 					type="button"
