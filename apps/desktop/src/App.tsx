@@ -9,6 +9,7 @@ import { TitleBar } from "./components/layout/titlebar";
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import { ConvertProvider } from "./components/convert/conversion-context";
+import { open } from "@tauri-apps/plugin-shell";
 
 // Pages
 import Home from "./pages/home";
@@ -17,6 +18,7 @@ import DownloadPretraineds from "./pages/install/pretraineds";
 import Models from "./pages/models/models";
 import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
+import { supabase } from "./utils/database";
 
 function App() {
 	const [updateAvailable, setUpdateAvailable] = useState(false);
@@ -145,6 +147,23 @@ function App() {
 			setUpdateAvailable(true);
 		}
 	};
+	
+	// check if user has access to beta
+	const checkBetaAccess = async () => {
+		if (window.location.pathname === "/beta-access") return;
+		const user = await supabase?.auth.getSession();
+		if (user) {
+			const {data, error} = await supabase?.from("profiles").select("*").eq("auth_id", user.data.session?.user.id).single();
+			if (data && data.beta_access) {
+				console.log("Beta access granted");
+			} else {
+				console.log("Beta access not granted");
+				window.location.href = "/beta-access";
+			}
+		} else {
+			console.log("User not logged in");
+		}
+	};
 
 	// remove contextmenu
 	useEffect(() => {
@@ -202,6 +221,7 @@ function App() {
 		setWindowEffect();
 		checkRVC();
 		checkUpdates();
+		checkBetaAccess();
 	}, []);
 
 	return (
@@ -220,7 +240,8 @@ function App() {
 				<div className="flex w-screen h-screen gap-0">
 					{window.location.pathname !== "/first-time" &&
 						window.location.pathname !== "/pretraineds" &&
-						window.location.pathname !== "/os-not-supported" && <Header />}
+						window.location.pathname !== "/os-not-supported" && 
+						window.location.pathname !== "/beta-access" && <Header />}
 					<Routes>
 						<Route index path="/" element={<Home />} />
 						<Route path="*" element={<NotFound />} />
@@ -230,6 +251,7 @@ function App() {
 						<Route path="/convert" element={<Convert />} />
 						<Route path="/pretraineds" element={<DownloadPretraineds />} />
 						<Route path="/os-not-supported" element={<OSNotSupported />} />
+						<Route path="/beta-access" element={<BetaAccess />} />
 					</Routes>
 				</div>
 			</Router>
@@ -261,6 +283,18 @@ function OSNotSupported() {
 			</div>
 		</main>
 	);
+}
+
+function BetaAccess() {
+	return (
+		<div className="absolute inset-0 bg-black">
+		<div className="flex flex-col gap-2 justify-center items-center w-screen h-screen"> 
+		<p className="text-3xl font-semibold title">Applio is still in development</p>
+		<p className="text-sm max-w-sm text-center text-neutral-300">Interested in trying it out? Join our <a onClick={() => open('https://applio.org/products/app')} className="cursor-pointer underline text-neutral-200 hover:text-white slow">waitlist</a> to receive an invitation and be among the first to explore Applio.</p>
+		<p className="text-sm max-w-sm text-center text-neutral-300">If you're already a beta tester, please contact us at <a href="mailto:contact@applio.app" className="cursor-pointer underline text-neutral-200 hover:text-white slow">contact@applio.app</a> for access.</p>
+		</div>
+		</div>
+	)
 }
 
 export default App;
