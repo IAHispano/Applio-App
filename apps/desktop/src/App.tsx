@@ -153,10 +153,11 @@ function App() {
 		if (window.location.pathname === "/beta-access") return;
 		const user = await supabase?.auth.getSession();
 		if (user) {
-			const {data, error} = await supabase?.from("profiles").select("*").eq("auth_id", user.data.session?.user.id).single();
-			if (data && data.beta_access) {
+			const { data, error } = await supabase?.from("profiles").select("*").eq("auth_id", user.data.session?.user.id).single() || { data: null, error: null };
+			if (data && data.tester) {
 				console.log("Beta access granted");
 			} else {
+				console.log("Beta access error", error);
 				console.log("Beta access not granted");
 				window.location.href = "/beta-access";
 			}
