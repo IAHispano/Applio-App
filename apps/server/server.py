@@ -433,7 +433,7 @@ def upload_audio():
     return {'message': 'File uploaded successfully', 'file_path': file_path}, 200
 
 # convert
-def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune, cleanaudio, exportformat):
+def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune, cleanaudio, exportformat, name):
     unique_id = str(uuid.uuid4())
     output_path = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
     os.makedirs(output_path, exist_ok=True)
@@ -484,6 +484,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
         finished_time = datetime.now().isoformat()
         conversion_info = {
             "id": unique_id,
+            "model_name": name,
             "converted_at": finished_time,
             "audio_input": input_path,
             "audio_output": audio_path,
@@ -524,6 +525,29 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
     except Exception as e:
         yield f'data: Error running conversion: {str(e)}\n\n'
         logging.error(remove_ansi_escape_sequences(f"Error running conversion: {str(e)}"))
+
+# get inferences
+def fetch_inferences():
+    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+
+    if not os.path.exists(json_logs_dir):
+        return "No inferences found"
+
+    json_files = [file for file in os.listdir(json_logs_dir) if file.endswith('.json')]
+
+    if not json_files:
+        return "No inferences found"
+
+    inferences = []
+    for file in json_files:
+            with open(os.path.join(json_logs_dir, file), 'r') as f:
+                try:
+                    data = json.load(f)
+                    inferences.append(data)
+                except json.JSONDecodeError:
+                    return f"Error reading {file}: Invalid JSON format"
+
+    return inferences
 
 # stop server
 def shutdown_server():
@@ -622,12 +646,20 @@ def convert_audio():
     autotune = request.args.get('autotune')
     cleanaudio = request.args.get('cleanaudio')
     exportformat = request.args.get('exportformat')
+    name = request.args.get('name')
     logging.info(remove_ansi_escape_sequences('Getting conversion info...'))
     if not input_path or not pth_path or not index_path or not pitch:
         logging.error(remove_ansi_escape_sequences("Error: arguments missing."))
         return Response("Error: arguments missing", status=400)
     
-    return Response(convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune, cleanaudio, exportformat), content_type='text/event-stream')
+    return Response(convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune, cleanaudio, exportformat, name), content_type='text/event-stream')
+
+@app.route('/get-inferences', methods=['GET'])
+def get_inferences():
+    logging.info(remove_ansi_escape_sequences("Getting inferences..."))
+    inferences = fetch_inferences()
+    
+    return jsonify(inferences), 200
 
 @app.route('/audio', methods=["GET"])
 def get_audio():
