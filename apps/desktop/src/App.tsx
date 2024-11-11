@@ -164,7 +164,7 @@ function App() {
 				window.location.href = "/beta-access";
 			}
 		} else {
-			if (window.location.pathname !== '/login' && window.location.pathname !== '/first-time') {
+			if (window.location.pathname !== '/login' && window.location.pathname !== '/first-time' && window.location.pathname !== "/pretraineds") {
 				navigate('/login')
 			}
 		}
