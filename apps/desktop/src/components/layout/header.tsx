@@ -187,6 +187,9 @@ const icons = {
 			<line className="st0" x1="28" y1="6" x2="28" y2="6" />
 		</g>
 	</svg>
+	),
+	Update: (
+		<svg className="w-5 h-5 opacity-70" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 20.8201C15.426 22.392 8.574 22.392 2 20.8201" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11.9492 2V16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M16.8996 11.8L13.3796 15.4099C13.2011 15.5978 12.9863 15.7476 12.7482 15.8499C12.5101 15.9521 12.2538 16.0046 11.9946 16.0046C11.7355 16.0046 11.4791 15.9521 11.241 15.8499C11.0029 15.7476 10.7881 15.5978 10.6096 15.4099L7.09961 11.8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
 	)
 };
 
@@ -264,6 +267,10 @@ export default function Sidebar() {
 				</ul>
 			</nav>
 			<div className="mt-auto flex flex-col gap-2">
+				<Link to="/first-time" className={`mb-4 p-2 ${isExpanded ? "px-4 w-full text-center justify-center " : ""} flex m-auto rounded-full bg-neutral-700/50 hover:bg-neutral-700/20 border border-white/10 shadow-xl shadow-white/10 hover:saturate-200 slow transition-colors duration-200`}	>
+					{!isExpanded && icons.Update}	
+					{isExpanded && <span className="text-sm text-neutral-300">Update available!</span>}
+				</Link>
 				{!isExpanded && info && (
 					<Link
 						to="/convert"
