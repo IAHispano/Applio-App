@@ -5,7 +5,8 @@ async function checkFirstRun(): Promise<boolean> {
 		const store = await Store.load("firstRun");
 		const isFirstRun = await store.get("firstRun");
 
-		if (isFirstRun === null) {
+		console.log("isFirstRun:", isFirstRun);
+		if (isFirstRun === null || isFirstRun === undefined) {
 			await store.set("firstRun", true);
 			await store.save();
 			return true;
