@@ -190,6 +190,9 @@ const icons = {
 	),
 	Update: (
 		<svg className="w-5 h-5 opacity-70" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M22 20.8201C15.426 22.392 8.574 22.392 2 20.8201" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M11.9492 2V16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> <path d="M16.8996 11.8L13.3796 15.4099C13.2011 15.5978 12.9863 15.7476 12.7482 15.8499C12.5101 15.9521 12.2538 16.0046 11.9946 16.0046C11.7355 16.0046 11.4791 15.9521 11.241 15.8499C11.0029 15.7476 10.7881 15.5978 10.6096 15.4099L7.09961 11.8" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path> </g></svg>
+	),
+	Library: (
+		<svg className="w-6 h-6 opacity-60" fill="#ffffff" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M6,23H18a3,3,0,0,0,3-3V4a3,3,0,0,0-3-3H6A3,3,0,0,0,3,4V20A3,3,0,0,0,6,23ZM19,9.5v5h-.132L17.9,12.553a1,1,0,0,0-1.79.894l.527,1.053H15V12a1,1,0,0,0-2,0v2.5H12V13a1,1,0,0,0-2,0v1.5H5v-5ZM18,21H14V19a1,1,0,0,0-2,0v2H11V19a1,1,0,0,0-2,0v2H8V20a1,1,0,0,0-2,0v1a1,1,0,0,1-1-1V16.5H19V20A1,1,0,0,1,18,21ZM6,3H18a1,1,0,0,1,1,1V7.5H14.868L13.9,5.553a1,1,0,1,0-1.79.894L12.632,7.5H11V5A1,1,0,0,0,9,5V7.5H8V6A1,1,0,0,0,6,6V7.5H5V4A1,1,0,0,1,6,3Z"></path></g></svg>
 	)
 };
 
@@ -205,7 +208,8 @@ export default function Sidebar() {
 		{ icon: "Home", label: "Home", to: "/" },
 		{ icon: "Models", label: "Models", to: "/models" },
 		{ icon: "Convert", label: "Convert", to: "/convert" },
-		{ icon: "Settings", label: "Settings", to: "/settings" },
+		{ icon: "Library", label: "Library", to: "/inferences" },
+		{ icon: "Settings", label: "Settings", to: "/settings" }
 	];
 
 	const handleClick = () => {

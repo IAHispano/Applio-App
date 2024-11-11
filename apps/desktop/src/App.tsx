@@ -1,5 +1,5 @@
 import "./App.css";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
@@ -21,7 +21,7 @@ import Models from "./pages/models/models";
 import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
 import Login from "./pages/login/login";
-import React from "react";
+import InferencesLibrary from "./pages/inference/library";
 
 function App() {
 	const navigate = useNavigate();
@@ -255,6 +255,7 @@ function App() {
 						<Route path="/os-not-supported" element={<OSNotSupported />} />
 						<Route path="/beta-access" element={<BetaAccess />} />
 						<Route path="/login" element={<Login />} />
+						<Route path="/inferences" element={<InferencesLibrary />} />
 					</Routes>
 				</div>
 		</ConvertProvider>
