@@ -179,7 +179,8 @@ export default function Models() {
 
 	return (
 		<div className="grid h-screen w-screen">
-			{dropdownOpen && (
+		<main className="flex flex-col items-center justify-start mt-10 mb-4 px-4 w-full overflow-auto">
+		{dropdownOpen && (
 				<div className="absolute inset-0 bg-[#111111]/80 backdrop-blur-2xl backdrop-filter w-screen h-full overflow-hidden" style={{zIndex: 250}}>
 					<TitleBar />
 					<div className="w-full h-full flex justify-center items-center">
@@ -227,7 +228,7 @@ export default function Models() {
 					</div>
 				</div>
 			)}
-			<div className="mt-10 mx-4 border border-white/10 rounded-xl p-4 h-full flex flex-col gap-4"> 
+			<div className="border border-white/10 rounded-xl p-4 w-full h-full flex flex-col gap-4 overflow-auto"> 
 			<div className="bg-[#111111]/20 rounded-xl w-full p-4 flex gap-4">
 			<button type="button" onClick={() => setMode("explore")} className={`px-4 py-1 rounded-xl ${mode === "explore" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Explore</button>
 			<button type="button" onClick={() => setMode("import")} className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}>Import</button>
@@ -374,6 +375,7 @@ export default function Models() {
 				</>
 			)}
 			</div>
-		</div>
+		</main>
+	</div>
 	);
 }
