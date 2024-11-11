@@ -24,8 +24,6 @@ import Login from "./pages/login/login";
 import React from "react";
 
 function App() {
-	const [updateAvailable, setUpdateAvailable] = useState(false);
-
 	const navigate = useNavigate();
 	const location = useLocation();
 
@@ -126,10 +124,10 @@ function App() {
 			eventSource.onmessage = (event) => {
 				console.log(event.data);
 				if (event.data.includes("up to date")) {
-					setUpdateAvailable(false);
+					localStorage.removeItem("update")
 					eventSource.close();
 				} else {
-					setUpdateAvailable(true);
+					localStorage.setItem("update", "true")
 					eventSource.close();
 				}
 			};
@@ -145,10 +143,13 @@ function App() {
 		const response = await fetch(`http://localhost:${port}/check-rvc`);
 		const data = await response.json();
 		console.log(data);
-		if (!data.exists) {
-			setUpdateAvailable(true);
+		if (data.exists === 'False') { 
+			localStorage.setItem("update", "true")
+		} else {
+			localStorage.removeItem("update")
 		}
 	};
+	
 	
 	// check if user has access to beta
 	const checkBetaAccess = async () => {
@@ -163,7 +164,7 @@ function App() {
 				window.location.href = "/beta-access";
 			}
 		} else {
-			if (window.location.pathname !== '/login') {
+			if (window.location.pathname !== '/login' && window.location.pathname !== '/first-time') {
 				navigate('/login')
 			}
 		}
@@ -219,8 +220,8 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
-			checkRVC();
 			checkUpdates();
+			checkRVC();
 		}
 	}, []);
 
@@ -240,16 +241,6 @@ function App() {
 
 	return (
 		<ConvertProvider>
-			<React.StrictMode>
-				{updateAvailable && location.pathname !== "/first-time" && (
-					<a
-						href="/first-time"
-						className="hover:bg-black/20 slow absolute left-4 top-2 w-fit p-2 px-4 shadow-lg shadow-green-500/10 h-fit border border-white/20 rounded-xl"
-						style={{ zIndex: 300 }}
-					>
-						<p className="text-xs">Update available!</p>
-					</a>
-				)}
 				<TitleBar />
 				<div className="flex w-screen h-screen gap-0">
 					{shouldShowHeader && <Header  />}
@@ -266,7 +257,6 @@ function App() {
 						<Route path="/login" element={<Login />} />
 					</Routes>
 				</div>
-				</React.StrictMode>
 		</ConvertProvider>
 	);
 }
