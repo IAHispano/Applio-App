@@ -29,6 +29,7 @@ export default function DownloadPretraineds() {
 						setInfo("Finishing....");
 						setStatus("Installing... please wait...");
 						window.location.href = "/";
+						localStorage.removeItem("update")
 					}
 				};
 
