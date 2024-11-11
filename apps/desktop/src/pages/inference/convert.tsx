@@ -369,10 +369,10 @@ export default function Convert() {
 													</div>
 												)}
 												{currentModel && (
-													<>
+													<div className="m-auto flex gap-4 justify-center items-center">
 														<button
 															type="button"
-															className="mx-4 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
+															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
 															style={{zIndex: 500}}
 															onClick={prevModel}
 															disabled={currentIndex === 0}
@@ -408,7 +408,7 @@ export default function Convert() {
 														</ul>
 														<button
 															type="button"
-															className="mx-4 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
+															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
 															style={{zIndex: 500}}
 															onClick={nextModel}
 															disabled={currentIndex === models.length - 1}
@@ -428,7 +428,7 @@ export default function Convert() {
 																/>
 															</svg>
 														</button>
-													</>
+													</div>
 												)}
 											</div>
 										</div>
