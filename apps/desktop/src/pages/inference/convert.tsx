@@ -4,6 +4,7 @@ import { useConvertContext } from "../../components/convert/conversion-context";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../utils/database";
+import Loading from "../../components/convert/loading";
 
 export default function Convert() {
 	const {
@@ -52,6 +53,7 @@ export default function Convert() {
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
 
+	const [loading, setLoading] = useState(true);	
 	const [previewModels, setPreviewModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>("");
 	const inputFileRef = useRef<HTMLInputElement | null>(null);
@@ -100,8 +102,10 @@ export default function Convert() {
 				if (response.ok) {
 					const models = await response.json();
 					setModels(models);
+					setLoading(false);
 				} else {
 					console.error("Error fetching models:", response.statusText);
+					setLoading(false);
 				}
 			} catch (error) {
 				console.error("Fetch error:", error);
@@ -335,6 +339,8 @@ export default function Convert() {
 										ref={divRef}
 										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-30"
 									/>
+									{loading && <div className="w-full h-full flex justify-center items-center"><Loading /></div>}
+									{!loading && (
 									<div className="w-full h-full flex flex-col py-2">
 										<p className="text-center text-neutral-200 mt-2 text-xl max-w-xl mx-4 truncate z-50">
 											{currentModel ? decodeURIComponent(currentModel.name) : ""}
@@ -343,8 +349,8 @@ export default function Convert() {
 											<div className="flex justify-between items-center my-auto h-full gap-2 overflow-hidden">
 												{!currentModel && (
 													<div className="absolute rounded-xl w-full h-full">
-														<div className="absolute bottom-0 left-4 right-4">
-														<h1 className="p-4 text-3xl title text-center font-semibold max-w-[200px] flex justify-center mx-auto">Explore our model library</h1> 
+														<div className="absolute bottom-0 xl:left-8 xl:right-8 left-4 right-4">
+														<h1 className="p-4 text-3xl title text-center font-semibold xl:max-w-5xl max-w-[200px] flex justify-center mx-auto">Explore our model library</h1> 
 															<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
 															<div className="flex flex-col gap-2 p-4">
 															{previewModels.length > 0 && previewModels.map((item: any) => (
@@ -366,7 +372,7 @@ export default function Convert() {
 													<>
 														<button
 															type="button"
-															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
+															className="mx-4 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
 															style={{zIndex: 500}}
 															onClick={prevModel}
 															disabled={currentIndex === 0}
@@ -402,7 +408,7 @@ export default function Convert() {
 														</ul>
 														<button
 															type="button"
-															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
+															className="mx-4 bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
 															style={{zIndex: 500}}
 															onClick={nextModel}
 															disabled={currentIndex === models.length - 1}
@@ -436,6 +442,7 @@ export default function Convert() {
 											</p>
 										)}
 									</div>
+									)}
 								</div>
 								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
 									<div
