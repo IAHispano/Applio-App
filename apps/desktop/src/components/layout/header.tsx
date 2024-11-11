@@ -195,6 +195,7 @@ const icons = {
 
 export default function Sidebar() {
 	const [isExpanded, setIsExpanded] = useState(false);
+	const [updateAvailable, setUpdateAvailable] = useState(false);
 	const {info} = useConvertContext();
 	const navigate = useNavigate();
 
@@ -244,6 +245,21 @@ export default function Sidebar() {
 		navigate(0);
 	};
 
+	useEffect(() => {
+		async function checkUpdates() {
+			const update = localStorage.getItem("update")
+			console.log('update?', update)
+			if (update) {
+				setUpdateAvailable(true);
+			} else {
+				setUpdateAvailable(false);
+			}
+
+		}
+
+		checkUpdates();
+	}, []);
+
 	return (
 		<div
 			className={`flex flex-col mt-10 bg-[#111111]/10 border border-white/10 text-gray-100 p-4 m-4 mr-0 rounded-xl transition-all duration-300 ease-in-out ${
@@ -267,10 +283,12 @@ export default function Sidebar() {
 				</ul>
 			</nav>
 			<div className="mt-auto flex flex-col gap-2">
+				{updateAvailable && 
 				<Link to="/first-time" className={`mb-4 p-2 ${isExpanded ? "px-4 w-full text-center justify-center " : ""} flex m-auto rounded-full bg-neutral-700/50 hover:bg-neutral-700/20 border border-white/10 shadow-xl shadow-white/10 hover:saturate-200 slow transition-colors duration-200`}	>
 					{!isExpanded && icons.Update}	
 					{isExpanded && <span className="text-sm text-neutral-300">Update available!</span>}
 				</Link>
+				}
 				{!isExpanded && info && (
 					<Link
 						to="/convert"
