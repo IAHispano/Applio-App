@@ -354,7 +354,7 @@ export default function Convert() {
 															<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
 															<div className="flex flex-col gap-2 p-4">
 															{previewModels.length > 0 && previewModels.map((item: any) => (
-																<Link to="/models" key={item.id}>
+																<Link to={`/models?search=${item.name}`} key={item.id}>
 																<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
 																<h1 className="font-medium title text-sm max-w-sm truncate">{item.name}</h1>
 																</div>

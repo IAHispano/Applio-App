@@ -3,6 +3,7 @@ import { supabase } from "../../utils/database";
 import { invoke } from "@tauri-apps/api/core";
 import { TitleBar } from "../../components/layout/titlebar";
 import { open } from "@tauri-apps/plugin-shell";
+import { useSearchParams } from "react-router-dom";
 
 export default function Models() {
 	const [value, setValue] = useState("");
@@ -16,6 +17,7 @@ export default function Models() {
 	const [url, setUrl] = useState("");
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>();
+	const [searchParams] = useSearchParams();
 	
 
 	useEffect(() => {
@@ -176,6 +178,11 @@ export default function Models() {
 			console.error("Error deleting model:", error);
 		}
 	};
+
+	useEffect(() => {
+		const searchValue = searchParams.get("search");
+		if (searchValue) setValue(searchValue);
+	}, []);
 
 	return (
 		<div className="grid h-screen w-screen">
