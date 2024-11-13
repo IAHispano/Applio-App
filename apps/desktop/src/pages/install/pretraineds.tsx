@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import Background1 from "../../components/svg/background1";
+import { useNavigate } from "react-router-dom";
 
 export default function DownloadPretraineds() {
 	const [status, setStatus] = useState("Starting...");
 	const [info, setInfo] = useState("Downloading...");
+
+	const navigate = useNavigate();
 
 	// get server port
 	async function getServerPort() {
@@ -28,7 +31,7 @@ export default function DownloadPretraineds() {
 						eventSource.close();
 						setInfo("Finishing....");
 						setStatus("Installing... please wait...");
-						window.location.href = "/";
+						navigate("/")
 						localStorage.removeItem("update")
 					}
 				};

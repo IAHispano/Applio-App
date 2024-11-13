@@ -4,11 +4,14 @@ import { supabase } from "../../utils/database";
 import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useRef, useState } from "react";
 import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
 	const [authPort, setAuthPort] = useState<number | undefined>();
 	const [logged, setLogged] = useState(false);
-	const isServerStarted = useRef(false); // Cambia a useRef
+	const isServerStarted = useRef(false); 
+
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		async function startServer() {
@@ -89,7 +92,7 @@ export default function Login() {
 		async function getUser() {
 			const user = await supabase?.auth.getSession();
 			if (user?.data.session) {
-				window.location.href = "/";
+				navigate('/')
 			}
 		}
 

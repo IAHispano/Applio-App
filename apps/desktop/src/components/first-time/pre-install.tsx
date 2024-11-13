@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import Background1 from "../svg/background1";
 import { invoke } from "@tauri-apps/api/core";
+import { useNavigate } from "react-router-dom";
 
 export default function PreInstall() {
 	const [status, setStatus] = useState("Starting...");
 	const [info, setInfo] = useState("Downloading...");
+
+	const navigate = useNavigate();
 
 	async function getServerPort() {
 		const port = await invoke("get_port");
@@ -34,7 +37,7 @@ export default function PreInstall() {
 							"You already have the latest version installed. Please wait...",
 						);
 						setStatus("Completed");
-						window.location.href = "/";
+						navigate('/')
 					}
 
 					if (event.data.includes("Installing collected packages:")) {
@@ -54,7 +57,7 @@ export default function PreInstall() {
 					if (event.data.includes("RVC CLI has been installed successfully")) {
 						setInfo("Finishing...");
 						setStatus("Finishing RVC installation... please wait...");
-						window.location.href = "/pretraineds";
+						navigate('/pretraineds')
 						eventSource.close();
 					}
 				};
