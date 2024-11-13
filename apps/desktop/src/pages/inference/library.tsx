@@ -2,11 +2,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useState } from "react";
 import Loading from "../../components/convert/loading";
+import { useNavigate } from "react-router-dom";
 
 export default function InferencesLibrary() {
   const [inferences, setInferences] = useState<any[]>([]);
   const [openInferenceId, setOpenInferenceId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [value, setValue] = useState("")
+  const navigate = useNavigate();
 
   async function getServerPort() {
     const port = await invoke("get_port");
@@ -60,6 +63,32 @@ export default function InferencesLibrary() {
     }
   };
 
+  const deleteAllInferences = async () => {
+    try {
+      const port = await getServerPort()
+      const response = await fetch(`http://localhost:${port}/delete-all-inferences`)
+      if (response.ok) {
+        const data = await response.json();
+        if (data.status === 'success') {
+          console.log(data);
+          navigate(0)
+        } else {
+          console.error("Error deleting all inferences:", data.message);
+        }
+      } else {
+        console.error("Error deleting all inferences:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error deleting all inferences:", error);
+    }
+  };
+
+  const filteredData = value
+  ? inferences.filter(inference =>
+      inference.model_name.toLowerCase().includes(value.toLowerCase())
+    )
+  : inferences;
+
   return (
   <div className="grid h-screen w-screen">
     <main className="flex flex-col items-center justify-start mt-10 mb-4 px-4 w-full overflow-auto">
@@ -73,8 +102,18 @@ export default function InferencesLibrary() {
               <h1 className="text-center text-sm text-neutral-400">No inferences found</h1>
             </div>
         ): (
-          <>
-          {inferences.map((inference: { id: number; model_name: string; converted_at: string; indexRate: number; filterRadius: number; autotune: boolean; cleanaudio: boolean; exportformat: string; audio_output: string }) => (
+          <div className="flex flex-col items-center w-full h-full gap-4">
+          <div className="grid grid-cols-6 gap-4 w-full">
+          <input
+              type="text"
+              className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
+              placeholder="Search..."
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+            <button onClick={deleteAllInferences} className="col-span-1 rounded-xl bg-[#111111]/20 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow" type="button">Delete all inferences</button>
+          </div>
+          {filteredData.map((inference: { id: number; model_name: string; converted_at: string; indexRate: number; filterRadius: number; autotune: boolean; cleanaudio: boolean; exportformat: string; audio_output: string }) => (
             <div
               key={inference.id}
               className="flex flex-col items-center mx-auto gap-2 w-full border border-white/10 rounded-xl p-4 bg-neutral-700/50"
@@ -155,7 +194,7 @@ export default function InferencesLibrary() {
               )}
             </div>
           ))}
-        </>
+        </div>
         )}
         </>
       )}

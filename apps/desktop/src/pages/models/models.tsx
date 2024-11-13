@@ -3,7 +3,7 @@ import { supabase } from "../../utils/database";
 import { invoke } from "@tauri-apps/api/core";
 import { TitleBar } from "../../components/layout/titlebar";
 import { open } from "@tauri-apps/plugin-shell";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 export default function Models() {
 	const [value, setValue] = useState("");
@@ -18,6 +18,9 @@ export default function Models() {
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>();
 	const [searchParams] = useSearchParams();
+	const [myModelsValue, setMyModelsValue] = useState("")
+
+	const navigate = useNavigate();
 	
 
 	useEffect(() => {
@@ -178,6 +181,33 @@ export default function Models() {
 			console.error("Error deleting model:", error);
 		}
 	};
+
+	const deleteAllModels = async () => {
+		try {
+		  const port = await getServerPort()
+		  const response = await fetch(`http://localhost:${port}/delete-all-models`)
+		  if (response.ok) {
+			const data = await response.json();
+			if (data.status === 'success') {
+			  console.log(data);
+			  navigate(0)
+			} else {
+			  console.error("Error deleting all inferences:", data.message);
+			}
+		  } else {
+			console.error("Error deleting all inferences:", response.statusText);
+		  }
+		} catch (error) {
+		  console.error("Error deleting all inferences:", error);
+		}
+	  };
+
+	  const filteredData = myModelsValue
+	  ? downloadedModels.filter(downloadedModels =>
+		  downloadedModels.name.toLowerCase().includes(myModelsValue.toLowerCase())
+		)
+	  : downloadedModels;
+	
 
 	useEffect(() => {
 		const searchValue = searchParams.get("search");
@@ -340,9 +370,22 @@ export default function Models() {
 						<div className="flex flex-col items-center justify-center w-full h-full mb-12">
 							<h1 className="text-center text-sm text-neutral-400">No models found</h1>
 						</div>
-					)}
+				)}
+				
+				{!loading && downloadedModels.length > 0 && (
+				<div className="grid grid-cols-6 gap-4 w-full">
+				<input
+					type="text"
+					className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
+					placeholder="Search..."
+					value={myModelsValue}
+					onChange={(e) => setMyModelsValue(e.target.value)}
+					/>
+					<button onClick={deleteAllModels} className="col-span-1 rounded-xl bg-[#111111]/20 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow" type="button">Delete all models</button>
+				</div>
+				)}
 				<div className="w-full grid grid-cols-3 gap-4">
-					{downloadedModels.map((item: { id: string; name: string, downloaded_at: string, model_folder_path: string }) => (
+					{filteredData.map((item: { id: string; name: string, downloaded_at: string, model_folder_path: string }) => (
 						<div key={item.id} className="w-full h-full min-h-[15svh] text-left rounded-xl focus:outline-none bg-[#111111]/20 p-4 flex flex-col items-start justify-start">
 							<div className="flex justify-between w-full items-center">
 							<h1 className="text-center text-neutral-300 font-semibold title truncate max-w-[200px]">{decodeURIComponent(item.name)}</h1>
