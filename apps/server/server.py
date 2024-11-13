@@ -412,6 +412,32 @@ def delete_folder(id):
     return {"status": "success", "message": f"The file {json_file} and folder {folder_path} have been deleted."}
 
 
+# delete inference audio
+def delete_inference_audio(id):
+    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+    json_file = os.path.join(json_logs_dir, f"{id}.json")
+    
+    if not os.path.exists(json_file):
+        logging.info(f"The file {json_file} does not exist.")
+        return {"status": "error", "message": f"The file {json_file} does not exist."}
+    
+    with open(json_file, 'r') as file:
+        data = json.load(file)
+    
+    folder_path = data.get("audio_output")
+    if not folder_path:
+        logging.info("Path not found in the JSON.")
+        return {"status": "error", "message": "Path not found in the JSON."}
+    
+    if os.path.exists(folder_path):
+        os.remove(folder_path)
+        logging.info(f"The folder {folder_path} has been deleted.")
+    else:
+        logging.info(f"The folder {folder_path} does not exist.")
+    
+    os.remove(json_file)
+    logging.info(f"The file {json_file} has been deleted.")
+    return {"status": "success", "message": f"The file {json_file} and folder {folder_path} have been deleted."}
 
 # upload audio
 def upload_audio():
@@ -586,6 +612,16 @@ def delete_model():
     result = delete_folder(model_id)
     return jsonify(result)
 
+@app.route('/delete-inference', methods=['GET'])
+def delete_inference():
+    model_id = request.args.get('id')
+    
+    if not model_id:
+        return jsonify({"status": "error", "message": "Inference ID is required"}), 400
+    
+    result = delete_inference_audio(model_id)
+    return jsonify(result)
+
 @app.get('/check-rvc')
 def check_rvc_repo():
     logging.info("Checking for RVC repository...")
@@ -668,12 +704,6 @@ def get_audio():
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else find_available_port()
-    launched_from_tauri = "--from-tauri" in sys.argv
-
-    if launched_from_tauri and not is_admin():
-        params = f'{port} ' + ' '.join([f'"{arg}"' for arg in sys.argv[1:]])
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, params, None, 1)
-        sys.exit(0)
 
     print(f"Server started at: http://127.0.0.1:{port}")
     logging.info(remove_ansi_escape_sequences(f"Server started at: http://127.0.0.1:{port}"))
