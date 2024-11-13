@@ -385,7 +385,7 @@ def get_models():
     return json_files
 
 # delete model
-def delete_folder(id):
+def delete_model_json(id):
     json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
     json_file = os.path.join(json_logs_dir, f"{id}.json")
     
@@ -410,6 +410,38 @@ def delete_folder(id):
     os.remove(json_file)
     logging.info(f"The file {json_file} has been deleted.")
     return {"status": "success", "message": f"The file {json_file} and folder {folder_path} have been deleted."}
+
+# delete all models
+def delete_models_folder():
+    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+
+    if os.path.exists(json_logs_dir):
+        with open(json_logs_dir, 'r') as file:
+            try:
+                data = json.load(file)
+                folder_path = data.get('model_folder_path', [])
+
+                if not folder_path:
+                    logging.info("Path not found in the JSON.")
+                    return {"status": "error", "message": "Path not found in the JSON."}
+            
+                if os.path.exists(folder_path):
+                    shutil.rmtree(folder_path)
+                    logging.info(f"The folder {folder_path} has been deleted.")
+                else:
+                    logging.info(f"The folder {folder_path} does not exist.")
+
+                os.remove(json_logs_dir)
+                logging.info(f"The file {json_logs_dir} has been deleted.")
+
+                return {"status": "success", "message": f"The folder {folder_path} has been deleted."}
+            
+            except Exception as e:
+                logging.error(f"Error: {e}")
+                return {"status": "error", "message": f"Error: {e}"}
+    else:
+        logging.info(f"The folder {json_logs_dir} does not exist.")
+        return {"status": "error", "message": f"The folder {json_logs_dir} does not exist."}
 
 
 # delete inference audio
@@ -438,6 +470,21 @@ def delete_inference_audio(id):
     os.remove(json_file)
     logging.info(f"The file {json_file} has been deleted.")
     return {"status": "success", "message": f"The file {json_file} and folder {folder_path} have been deleted."}
+
+# delete all inferences results
+def delete_inferences_folder():
+    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+    audios_dir = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
+    os.makedirs(json_logs_dir, exist_ok=True)
+    os.makedirs(audios_dir, exist_ok=True)
+
+    shutil.rmtree(json_logs_dir)
+    logging.info(f"The folder {json_logs_dir} has been deleted.")
+
+    shutil.rmtree(audios_dir)
+    logging.info(f"The folder {audios_dir} has been deleted.")
+
+    return {"status": "success", "message": "All inferences results have been deleted."}
 
 # upload audio
 def upload_audio():
@@ -609,7 +656,12 @@ def delete_model():
     if not model_id:
         return jsonify({"status": "error", "message": "Model ID is required"}), 400
     
-    result = delete_folder(model_id)
+    result = delete_model_json(model_id)
+    return jsonify(result)
+
+@app.route('/delete-all-models', methods=['GET'])
+def delete_all_models():
+    result = delete_models_folder()
     return jsonify(result)
 
 @app.route('/delete-inference', methods=['GET'])
@@ -620,6 +672,11 @@ def delete_inference():
         return jsonify({"status": "error", "message": "Inference ID is required"}), 400
     
     result = delete_inference_audio(model_id)
+    return jsonify(result)
+
+@app.route('/delete-all-inferences', methods=['GET'])
+def delete_all_inferences():
+    result = delete_inferences_folder()
     return jsonify(result)
 
 @app.get('/check-rvc')
