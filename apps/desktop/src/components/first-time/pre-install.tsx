@@ -60,11 +60,15 @@ export default function PreInstall() {
 				};
 
 				eventSource.onerror = (err) => {
-					console.log(info);
-					console.error("Error with event source:", err);
-					eventSource.close();
-					setStatus("");
-					setInfo("We detected an error. Please try again later.");
+					if (info !== "Error during extraction.") { 
+						console.log(info);
+						console.error("Error with event source:", err);
+						eventSource.close();
+						setStatus("");
+						setInfo("We detected an error. Please try again later.");
+					} else {
+						setInfo("An error was detected. If installation proceeds, you may ignore it.");
+					}
 				};
 
 				// Clean up
