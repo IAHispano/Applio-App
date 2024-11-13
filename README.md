@@ -7,11 +7,15 @@
 ## Features
 - [x] Simple integrated installation
 - [x] Applio models support
+- [x] Custom models support
+- [x] My models section
 - [x] RVC Auto-Update
 - [x] Installer
 - [x] Discord Presence integration
 - [x] Conversion capabilities
-- [ ] Converted audios section
+- [x] Converted audios section
+- [x] Window personalization
+- [x] Authentication with applio.org
 - [ ] App Auto-Update
 - [ ] Model Training
 - [ ] Translations
