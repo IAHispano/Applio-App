@@ -100,7 +100,9 @@ export default function Settings() {
 	}
 
 	const RGBAtoRGB = (rgba: string) => {
-		const match = rgba.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/);
+		const match = rgba.match(
+			/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/,
+		);
 		if (match) {
 			return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
 		}
@@ -115,7 +117,10 @@ export default function Settings() {
 		const effect = await store.get("effect");
 
 		if (!background) {
-			await store.set("backgroundColor", `rgba(17, 17, 17, ${effect ? 0.5 : 1})`);
+			await store.set(
+				"backgroundColor",
+				`rgba(17, 17, 17, ${effect ? 0.5 : 1})`,
+			);
 			await store.save();
 		}
 
@@ -127,11 +132,15 @@ export default function Settings() {
 					if (effect) {
 						await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
 					} else {
-						document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+						document.documentElement.style.backgroundColor = background
+							? RGBAtoRGB(background as string)
+							: "";
 					}
 				}
 			} else {
-				document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+				document.documentElement.style.backgroundColor = background
+					? RGBAtoRGB(background as string)
+					: "";
 			}
 		}
 
@@ -144,7 +153,7 @@ export default function Settings() {
 		await store.save();
 
 		setEffect(haveEffect);
-		console.log('effect', haveEffect);
+		console.log("effect", haveEffect);
 
 		if (haveEffect) {
 			setWindowEffect();
@@ -198,42 +207,51 @@ export default function Settings() {
 							<h2 className="text-lg font-medium mt-4">Personalization</h2>
 							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 							<div className="items-center w-full justify-between flex">
-												<div>
-											    <p className="text-neutral-200 font-medium">Window effect</p>
-												<p className="text-xs text-neutral-400">This will apply an acrylic effect to the application window when you select a background colour, only available in Windows 11.</p>
-												</div>
-												<label className="flex items-center cursor-pointer relative">
-													<input
-														checked={effect}
-														onChange={(e) => setHaveEffect(e.target.checked)}
-														type="checkbox"
-														className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-														id="check"
-													/>
-													<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-														<svg
-															xmlns="http://www.w3.org/2000/svg"
-															className="h-3.5 w-3.5"
-															viewBox="0 0 20 20"
-															fill="currentColor"
-															stroke="currentColor"
-															strokeWidth="1"
-															aria-label="Checkmark"
-															aria-hidden="true"
-														>
-															<path
-																fill-rule="evenodd"
-																d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-																clip-rule="evenodd"
-															/>
-														</svg>
-													</span>
-												</label>
-										</div>
-							<div className="flex justify-between w-full items-center mt-6"> 
 								<div>
-								<p className="text-sm text-neutral-200 font-medium">Background</p>
-								<p className="text-xs text-neutral-400">This will apply a background colour to the application window.</p>
+									<p className="text-neutral-200 font-medium">Window effect</p>
+									<p className="text-xs text-neutral-400">
+										This will apply an acrylic effect to the application window
+										when you select a background colour, only available in
+										Windows 11.
+									</p>
+								</div>
+								<label className="flex items-center cursor-pointer relative">
+									<input
+										checked={effect}
+										onChange={(e) => setHaveEffect(e.target.checked)}
+										type="checkbox"
+										className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+										id="check"
+									/>
+									<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											className="h-3.5 w-3.5"
+											viewBox="0 0 20 20"
+											fill="currentColor"
+											stroke="currentColor"
+											strokeWidth="1"
+											aria-label="Checkmark"
+											aria-hidden="true"
+										>
+											<path
+												fill-rule="evenodd"
+												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+									</span>
+								</label>
+							</div>
+							<div className="flex justify-between w-full items-center mt-6">
+								<div>
+									<p className="text-sm text-neutral-200 font-medium">
+										Background
+									</p>
+									<p className="text-xs text-neutral-400">
+										This will apply a background colour to the application
+										window.
+									</p>
 								</div>
 								<div className="flex items-center gap-3 mt-4">
 									{predefinedColors.map((color) => (
@@ -255,14 +273,14 @@ export default function Settings() {
 										/>
 										<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
 											<svg
-                                                aria-hidden="true"
+												aria-hidden="true"
 												className="w-4 h-4"
 												viewBox="0 0 24 24"
 												fill="none"
 												xmlns="http://www.w3.org/2000/svg"
 												stroke="#ffffff"
 											>
-												<g id="SVGRepo_bgCarrier" stroke-width="0" /> 
+												<g id="SVGRepo_bgCarrier" stroke-width="0" />
 												<g
 													id="SVGRepo_tracerCarrier"
 													stroke-linecap="round"

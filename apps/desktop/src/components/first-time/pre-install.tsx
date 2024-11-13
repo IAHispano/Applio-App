@@ -37,7 +37,7 @@ export default function PreInstall() {
 							"You already have the latest version installed. Please wait...",
 						);
 						setStatus("Completed");
-						navigate('/')
+						navigate("/");
 					}
 
 					if (event.data.includes("Installing collected packages:")) {
@@ -57,20 +57,22 @@ export default function PreInstall() {
 					if (event.data.includes("RVC CLI has been installed successfully")) {
 						setInfo("Finishing...");
 						setStatus("Finishing RVC installation... please wait...");
-						navigate('/pretraineds')
+						navigate("/pretraineds");
 						eventSource.close();
 					}
 				};
 
 				eventSource.onerror = (err) => {
-					if (info !== "Error during extraction.") { 
+					if (info !== "Error during extraction.") {
 						console.log(info);
 						console.error("Error with event source:", err);
 						eventSource.close();
 						setStatus("");
 						setInfo("We detected an error. Please try again later.");
 					} else {
-						setInfo("An error was detected. If installation proceeds, you may ignore it.");
+						setInfo(
+							"An error was detected. If installation proceeds, you may ignore it.",
+						);
 					}
 				};
 

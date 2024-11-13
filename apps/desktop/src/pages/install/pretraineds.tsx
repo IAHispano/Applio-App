@@ -31,8 +31,8 @@ export default function DownloadPretraineds() {
 						eventSource.close();
 						setInfo("Finishing....");
 						setStatus("Installing... please wait...");
-						navigate("/")
-						localStorage.removeItem("update")
+						navigate("/");
+						localStorage.removeItem("update");
 					}
 				};
 

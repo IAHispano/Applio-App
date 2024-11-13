@@ -53,7 +53,7 @@ export default function Convert() {
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
 
-	const [loading, setLoading] = useState(true);	
+	const [loading, setLoading] = useState(true);
 	const [previewModels, setPreviewModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>("");
 	const inputFileRef = useRef<HTMLInputElement | null>(null);
@@ -143,46 +143,45 @@ export default function Convert() {
 		const selectedFile = e.target.files?.[0];
 		if (selectedFile) {
 			setFile(selectedFile);
-			console.log("File selected:", selectedFile);  
+			console.log("File selected:", selectedFile);
 		}
 	};
 
 	useEffect(() => {
 		if (file) {
-			handleUpload(); 
+			handleUpload();
 		}
 	}, [file]);
-	
+
 	const handleUpload = async () => {
 		if (!file) {
 			console.error("No file selected");
 			return;
 		}
-	
+
 		const formData = new FormData();
 		formData.append("audio", file);
-	
+
 		try {
 			const port = await getServerPort();
-			console.log("Server port:", port);  
+			console.log("Server port:", port);
 			const response = await fetch(`http://localhost:${port}/upload`, {
 				method: "POST",
 				body: formData,
 			});
-	
+
 			if (!response.ok) {
 				throw new Error("Error uploading file");
 			}
-	
+
 			const data = await response.json();
-			console.log("Upload response:", data); 
+			console.log("Upload response:", data);
 			setUploaded(true);
 			setInput(data[0].file_path);
 		} catch (error) {
-			console.error("Upload error:", error);  
+			console.error("Upload error:", error);
 		}
 	};
-	
 
 	const convert = async () => {
 		const startingTime = performance.now();
@@ -298,26 +297,30 @@ export default function Convert() {
 		setUploaded(false);
 		setFile(null);
 		if (inputFileRef.current) {
-			inputFileRef.current.value = '';
+			inputFileRef.current.value = "";
 		}
 	};
 
 	const divRef = useRef<HTMLDivElement | null>(null);
 	useEffect(() => {
 		const generateGradient = () => {
-		  if (divRef.current) {
-			divRef.current.style.background = `linear-gradient(${Math.floor(Math.random() * 360)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}))`;
-		  }
+			if (divRef.current) {
+				divRef.current.style.background = `linear-gradient(${Math.floor(Math.random() * 360)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}))`;
+			}
 		};
-	
+
 		generateGradient();
-	  }, [pth]);
+	}, [pth]);
 
 	useEffect(() => {
 		async function getPreviewModels() {
-			const { data, error } = await supabase?.from("models").select("*").limit(4).order("id", { ascending: false }) || { data: null, error: null };
+			const { data, error } = (await supabase
+				?.from("models")
+				.select("*")
+				.limit(4)
+				.order("id", { ascending: false })) || { data: null, error: null };
 			if (data) {
-				console.log('models', data)
+				console.log("models", data);
 				setPreviewModels(data);
 			} else {
 				console.error("Error fetching preview models:", error);
@@ -339,114 +342,149 @@ export default function Convert() {
 										ref={divRef}
 										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-30"
 									/>
-									{loading && <div className="w-full h-full flex justify-center items-center"><Loading /></div>}
+									{loading && (
+										<div className="w-full h-full flex justify-center items-center">
+											<Loading />
+										</div>
+									)}
 									{!loading && (
-									<div className="w-full h-full flex flex-col py-2">
-										<p className="text-center text-neutral-200 mt-2 text-xl max-w-xl mx-4 truncate z-50">
-											{currentModel ? decodeURIComponent(currentModel.name) : ""}
-										</p>
-										<div className="w-full h-full gap-2">
-											<div className="flex justify-between items-center my-auto h-full gap-2 overflow-hidden">
-												{!currentModel && (
-													<div className="absolute rounded-xl w-full h-full">
-														<div className="absolute bottom-0 xl:left-8 xl:right-8 left-4 right-4">
-														<h1 className="p-4 text-3xl title text-center font-semibold xl:max-w-5xl max-w-[200px] flex justify-center mx-auto">Explore our model library</h1> 
-															<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
-															<div className="flex flex-col gap-2 p-4">
-															{previewModels.length > 0 && previewModels.map((item: any) => (
-																<Link to={`/models?search=${item.name}`} key={item.id}>
-																<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
-																<h1 className="font-medium title text-sm max-w-sm truncate">{item.name}</h1>
+										<div className="w-full h-full flex flex-col py-2">
+											<p className="text-center text-neutral-200 mt-2 text-xl max-w-xl mx-4 truncate z-50">
+												{currentModel
+													? decodeURIComponent(currentModel.name)
+													: ""}
+											</p>
+											<div className="w-full h-full gap-2">
+												<div className="flex justify-between items-center my-auto h-full gap-2 overflow-hidden">
+													{!currentModel && (
+														<div className="absolute rounded-xl w-full h-full">
+															<div className="absolute bottom-0 xl:left-8 xl:right-8 left-4 right-4">
+																<h1 className="p-4 text-3xl title text-center font-semibold xl:max-w-5xl max-w-[200px] flex justify-center mx-auto">
+																	Explore our model library
+																</h1>
+																<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
+																	<div className="flex flex-col gap-2 p-4">
+																		{previewModels.length > 0 &&
+																			previewModels.map((item: any) => (
+																				<Link
+																					to={`/models?search=${item.name}`}
+																					key={item.id}
+																				>
+																					<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
+																						<h1 className="font-medium title text-sm max-w-sm truncate">
+																							{item.name}
+																						</h1>
+																					</div>
+																				</Link>
+																			))}
+																		<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
+																			<h1 className="font-medium title text-sm max-w-sm truncate">
+																				And more...
+																			</h1>
+																		</div>
+																	</div>
 																</div>
-																</Link>
-															))}
-															<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
-															<h1 className="font-medium title text-sm max-w-sm truncate">And more...</h1>
-															</div>
-															</div>
 															</div>
 														</div>
-													</div>
-												)}
-												{currentModel && (
-													<div className="m-auto flex gap-4 justify-center items-center">
-														<button
-															type="button"
-															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
-															style={{zIndex: 500}}
-															onClick={prevModel}
-															disabled={currentIndex === 0}
-														>
-															<svg
-																className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
-																viewBox="0 0 24 24"
-																fill="none"
-																xmlns="http://www.w3.org/2000/svg"
-																aria-hidden="true"
+													)}
+													{currentModel && (
+														<div className="m-auto flex gap-4 justify-center items-center">
+															<button
+																type="button"
+																className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
+																style={{ zIndex: 500 }}
+																onClick={prevModel}
+																disabled={currentIndex === 0}
 															>
-																<path
-																	fillRule="evenodd"
-																	clipRule="evenodd"
-																	d="M15.7071 4.29289C16.0976 4.68342 16.0976 5.31658 15.7071 5.70711L9.41421 12L15.7071 18.2929C16.0976 18.6834 16.0976 19.3166 15.7071 19.7071C15.3166 20.0976 14.6834 20.0976 14.2929 19.7071L7.29289 12.7071C7.10536 12.5196 7 12.2652 7 12C7 11.7348 7.10536 11.4804 7.29289 11.2929L14.2929 4.29289C14.6834 3.90237 15.3166 3.90237 15.7071 4.29289Z"
-																	fill="#ffffff"
-																/>
-															</svg>
-														</button>
-														<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4 z-50">
-															{currentModel.epochs && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-																{currentModel ? currentModel.epochs : "Undefined"} epochs
-															</li>}
-															{currentModel.algorithm && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-																{currentModel ? currentModel.algorithm : "Undefined algorithm"}
-															</li>}
-															{currentModel.author && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-																{currentModel ? currentModel.author : "Undefined author"}
-															</li>}
-															{currentModel.from && <li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
-																{currentModel ? currentModel.from : "Undefined server"}
-															</li>}
-														</ul>
-														<button
-															type="button"
-															className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
-															style={{zIndex: 500}}
-															onClick={nextModel}
-															disabled={currentIndex === models.length - 1}
-														>
-															<svg
-																className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
-																viewBox="0 0 24 24"
-																fill="none"
-																xmlns="http://www.w3.org/2000/svg"
-																aria-hidden="true"
+																<svg
+																	className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+																	viewBox="0 0 24 24"
+																	fill="none"
+																	xmlns="http://www.w3.org/2000/svg"
+																	aria-hidden="true"
+																>
+																	<path
+																		fillRule="evenodd"
+																		clipRule="evenodd"
+																		d="M15.7071 4.29289C16.0976 4.68342 16.0976 5.31658 15.7071 5.70711L9.41421 12L15.7071 18.2929C16.0976 18.6834 16.0976 19.3166 15.7071 19.7071C15.3166 20.0976 14.6834 20.0976 14.2929 19.7071L7.29289 12.7071C7.10536 12.5196 7 12.2652 7 12C7 11.7348 7.10536 11.4804 7.29289 11.2929L14.2929 4.29289C14.6834 3.90237 15.3166 3.90237 15.7071 4.29289Z"
+																		fill="#ffffff"
+																	/>
+																</svg>
+															</button>
+															<ul className="noise rounded-xl gap-1 flex flex-col w-full text-center mx-4 z-50">
+																{currentModel.epochs && (
+																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																		{currentModel
+																			? currentModel.epochs
+																			: "Undefined"}{" "}
+																		epochs
+																	</li>
+																)}
+																{currentModel.algorithm && (
+																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																		{currentModel
+																			? currentModel.algorithm
+																			: "Undefined algorithm"}
+																	</li>
+																)}
+																{currentModel.author && (
+																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																		{currentModel
+																			? currentModel.author
+																			: "Undefined author"}
+																	</li>
+																)}
+																{currentModel.from && (
+																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
+																		{currentModel
+																			? currentModel.from
+																			: "Undefined server"}
+																	</li>
+																)}
+															</ul>
+															<button
+																type="button"
+																className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
+																style={{ zIndex: 500 }}
+																onClick={nextModel}
+																disabled={currentIndex === models.length - 1}
 															>
-																<path
-																	fillRule="evenodd"
-																	clipRule="evenodd"
-																	d="M8.29289 4.29289C8.68342 3.90237 9.31658 3.90237 9.70711 4.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L9.70711 19.7071C9.31658 20.0976 8.68342 20.0976 8.29289 19.7071C7.90237 19.3166 7.90237 18.6834 8.29289 18.2929L14.5858 12L8.29289 5.70711C7.90237 5.31658 7.90237 4.68342 8.29289 4.29289Z"
-																	fill="#ffffff"
-																/>
-															</svg>
-														</button>
-													</div>
-												)}
+																<svg
+																	className="w-6 h-6 max-md:w-3 max-md:h-3 opacity-60"
+																	viewBox="0 0 24 24"
+																	fill="none"
+																	xmlns="http://www.w3.org/2000/svg"
+																	aria-hidden="true"
+																>
+																	<path
+																		fillRule="evenodd"
+																		clipRule="evenodd"
+																		d="M8.29289 4.29289C8.68342 3.90237 9.31658 3.90237 9.70711 4.29289L16.7071 11.2929C17.0976 11.6834 17.0976 12.3166 16.7071 12.7071L9.70711 19.7071C9.31658 20.0976 8.68342 20.0976 8.29289 19.7071C7.90237 19.3166 7.90237 18.6834 8.29289 18.2929L14.5858 12L8.29289 5.70711C7.90237 5.31658 7.90237 4.68342 8.29289 4.29289Z"
+																		fill="#ffffff"
+																	/>
+																</svg>
+															</button>
+														</div>
+													)}
+												</div>
 											</div>
+											{currentModel && (
+												<p className="text-center text-neutral-300 text-xs z-50">
+													Download more models{" "}
+													<Link
+														to="/models"
+														className="text-white hover:underline"
+													>
+														here
+													</Link>
+													.
+												</p>
+											)}
 										</div>
-										{currentModel && (
-											<p className="text-center text-neutral-300 text-xs z-50">
-												Download more models{" "}
-												<Link to="/models" className="text-white hover:underline">
-													here
-												</Link>
-												.
-											</p>
-										)}
-									</div>
 									)}
 								</div>
 								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
-									<div
-										className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40"/>
+									<div className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40" />
 									{uploaded ? (
 										<svg
 											className="w-16 h-16 opacity-60"
@@ -831,7 +869,7 @@ export default function Convert() {
 														strokeWidth="2"
 														strokeLinecap="round"
 														strokeLinejoin="round"
-														className="w-6 h-6" 
+														className="w-6 h-6"
 														aria-hidden="true"
 													>
 														<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />

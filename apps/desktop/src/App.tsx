@@ -12,7 +12,6 @@ import { ConvertProvider } from "./components/convert/conversion-context";
 import { open } from "@tauri-apps/plugin-shell";
 import { supabase } from "./utils/database";
 
-
 // Pages
 import Home from "./pages/home";
 import FirstTime from "./pages/install/first-time";
@@ -51,7 +50,9 @@ function App() {
 
 	// convert rgba to rgb
 	const RGBAtoRGB = (rgba: string) => {
-		const match = rgba.match(/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/);
+		const match = rgba.match(
+			/^rgba\((\d+),\s*(\d+),\s*(\d+),\s*(\d+(?:\.\d+)?)\)$/,
+		);
 		if (match) {
 			return `rgb(${match[1]}, ${match[2]}, ${match[3]})`;
 		}
@@ -67,7 +68,10 @@ function App() {
 		const effect = await store.get("effect");
 
 		if (!background) {
-			await store.set("backgroundColor", `rgba(42, 43, 42, ${effect ? 0.5 : 1})`);
+			await store.set(
+				"backgroundColor",
+				`rgba(42, 43, 42, ${effect ? 0.5 : 1})`,
+			);
 			await store.save();
 		}
 
@@ -80,14 +84,17 @@ function App() {
 					if (effect) {
 						await getCurrentWindow().setEffects({ effects: [Effect.Acrylic] });
 					} else {
-						document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+						document.documentElement.style.backgroundColor = background
+							? RGBAtoRGB(background as string)
+							: "";
 					}
 				}
 			} else {
-				document.documentElement.style.backgroundColor = background ? RGBAtoRGB(background as string) : '';
+				document.documentElement.style.backgroundColor = background
+					? RGBAtoRGB(background as string)
+					: "";
 			}
 		}
-
 	}
 
 	// initialize discord rpc
@@ -124,10 +131,10 @@ function App() {
 			eventSource.onmessage = (event) => {
 				console.log(event.data);
 				if (event.data.includes("up to date")) {
-					localStorage.removeItem("update")
+					localStorage.removeItem("update");
 					eventSource.close();
 				} else {
-					localStorage.setItem("update", "true")
+					localStorage.setItem("update", "true");
 					eventSource.close();
 				}
 			};
@@ -143,34 +150,40 @@ function App() {
 		const response = await fetch(`http://localhost:${port}/check-rvc`);
 		const data = await response.json();
 		console.log(data);
-		if (data.exists === 'False') { 
-			localStorage.setItem("update", "true")
+		if (data.exists === "False") {
+			localStorage.setItem("update", "true");
 		} else {
-			localStorage.removeItem("update")
-		}
-	};
-	
-	
-	// check if user has access to beta
-	const checkBetaAccess = async () => {
-		if (window.location.pathname !== "/beta-access") {
-		const session = await supabase?.auth.getSession();
-		if (session && session.data.session) {
-			const { data } = await supabase?.from("profiles").select("*").eq("auth_id", session.data.session.user.id).single() || { data: null, error: null };
-			if (data || data.tester) {
-				console.log("Beta access granted");
-			} else {
-				console.log("Beta access not granted");
-				window.location.href = "/beta-access";
-			}
-		} else {
-			if (window.location.pathname !== '/login' && window.location.pathname !== '/first-time' && window.location.pathname !== "/pretraineds") {
-				navigate('/login')
-			}
-		}
+			localStorage.removeItem("update");
 		}
 	};
 
+	// check if user has access to beta
+	const checkBetaAccess = async () => {
+		if (window.location.pathname !== "/beta-access") {
+			const session = await supabase?.auth.getSession();
+			if (session && session.data.session) {
+				const { data } = (await supabase
+					?.from("profiles")
+					.select("*")
+					.eq("auth_id", session.data.session.user.id)
+					.single()) || { data: null, error: null };
+				if (data || data.tester) {
+					console.log("Beta access granted");
+				} else {
+					console.log("Beta access not granted");
+					window.location.href = "/beta-access";
+				}
+			} else {
+				if (
+					window.location.pathname !== "/login" &&
+					window.location.pathname !== "/first-time" &&
+					window.location.pathname !== "/pretraineds"
+				) {
+					navigate("/login");
+				}
+			}
+		}
+	};
 
 	// remove contextmenu
 	useEffect(() => {
@@ -237,27 +250,27 @@ function App() {
 		location.pathname === "/os-not-supported" ||
 		location.pathname === "/beta-access" ||
 		location.pathname === "/login"
-	  );
+	);
 
 	return (
 		<ConvertProvider>
-				<TitleBar />
-				<div className="flex w-screen h-screen gap-0">
-					{shouldShowHeader && <Header  />}
-					<Routes>
-						<Route index path="/" element={<Home />} />
-						<Route path="*" element={<NotFound />} />
-						<Route path="/first-time" element={<FirstTime />} />
-						<Route path="/models" element={<Models />} />
-						<Route path="/settings" element={<Settings />} />
-						<Route path="/convert" element={<Convert />} />
-						<Route path="/pretraineds" element={<DownloadPretraineds />} />
-						<Route path="/os-not-supported" element={<OSNotSupported />} />
-						<Route path="/beta-access" element={<BetaAccess />} />
-						<Route path="/login" element={<Login />} />
-						<Route path="/inferences" element={<InferencesLibrary />} />
-					</Routes>
-				</div>
+			<TitleBar />
+			<div className="flex w-screen h-screen gap-0">
+				{shouldShowHeader && <Header />}
+				<Routes>
+					<Route index path="/" element={<Home />} />
+					<Route path="*" element={<NotFound />} />
+					<Route path="/first-time" element={<FirstTime />} />
+					<Route path="/models" element={<Models />} />
+					<Route path="/settings" element={<Settings />} />
+					<Route path="/convert" element={<Convert />} />
+					<Route path="/pretraineds" element={<DownloadPretraineds />} />
+					<Route path="/os-not-supported" element={<OSNotSupported />} />
+					<Route path="/beta-access" element={<BetaAccess />} />
+					<Route path="/login" element={<Login />} />
+					<Route path="/inferences" element={<InferencesLibrary />} />
+				</Routes>
+			</div>
 		</ConvertProvider>
 	);
 }
@@ -291,13 +304,33 @@ function OSNotSupported() {
 function BetaAccess() {
 	return (
 		<div className="absolute inset-0 bg-black">
-		<div className="flex flex-col gap-2 justify-center items-center w-screen h-screen"> 
-		<p className="text-3xl font-semibold title">Applio is still in development</p>
-		<p className="text-sm max-w-sm text-center text-neutral-300">Interested in trying it out? Join our <a onClick={() => open('https://applio.org/products/app')} className="cursor-pointer underline text-neutral-200 hover:text-white slow">waitlist</a> to receive an invitation and be among the first to explore Applio.</p>
-		<p className="text-sm max-w-sm text-center text-neutral-300">If you're already a beta tester, please contact us at <a href="mailto:contact@applio.app" className="cursor-pointer underline text-neutral-200 hover:text-white slow">contact@applio.app</a> for access.</p>
+			<div className="flex flex-col gap-2 justify-center items-center w-screen h-screen">
+				<p className="text-3xl font-semibold title">
+					Applio is still in development
+				</p>
+				<p className="text-sm max-w-sm text-center text-neutral-300">
+					Interested in trying it out? Join our{" "}
+					<a
+						onClick={() => open("https://applio.org/products/app")}
+						className="cursor-pointer underline text-neutral-200 hover:text-white slow"
+					>
+						waitlist
+					</a>{" "}
+					to receive an invitation and be among the first to explore Applio.
+				</p>
+				<p className="text-sm max-w-sm text-center text-neutral-300">
+					If you're already a beta tester, please contact us at{" "}
+					<a
+						href="mailto:contact@applio.app"
+						className="cursor-pointer underline text-neutral-200 hover:text-white slow"
+					>
+						contact@applio.app
+					</a>{" "}
+					for access.
+				</p>
+			</div>
 		</div>
-		</div>
-	)
+	);
 }
 
 export default App;
