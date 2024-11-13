@@ -293,7 +293,7 @@ export default function Sidebar() {
 					{isExpanded && <span className="text-sm text-neutral-300">Update available!</span>}
 				</Link>
 				}
-				{!isExpanded && info && (
+				{!isExpanded && !info.includes("completed") && !info.includes("error") && info && (
 					<Link
 						to="/convert"
 						className={`p-2 ${isExpanded ? "justify-start items-start" : "justify-center items-center"} flex m-auto rounded-full bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200`}	
