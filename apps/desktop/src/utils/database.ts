@@ -23,7 +23,7 @@ if (!apiKey || !apiUrl) {
 		}
 
 		const validUrl = new URL(apiUrl);
-		supabase = createClient(validUrl.toString(), apiKey);
+		supabase = createClient(validUrl.toString(), apiKey, {auth: {persistSession: true}});
 		console.log("Supabase client initialized successfully");
 	} catch (error) {
 		console.error("Error initializing Supabase client:");
