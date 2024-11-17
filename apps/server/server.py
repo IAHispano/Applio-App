@@ -161,6 +161,10 @@ def handle_exception(e):
 
     return {"error": "Unexpected error occurred."}, 500
 
+@app.before_request
+def log_request_info():
+    logging.info(f"Request: {request.method} {request.url}")
+
 # remove ANSI from logs
 def remove_ansi_escape_sequences(log_line):
     ansi_escape = re.compile(r'(?:\x1B[@-_][0-?]*[ -/]*[@-~])')
@@ -774,6 +778,10 @@ def shutdown():
     threading.Timer(1.0, shutdown_server).start() 
     
     return response, 200 
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204 
 
 @app.get('/send-data')
 def send_data_route():
