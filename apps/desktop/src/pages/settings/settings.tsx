@@ -271,7 +271,7 @@ export default function Settings() {
 					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10">
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
 							<h1 className="text-xl font-bold title">Settings</h1>
-							<div className="flex flex-col gap-4 w-full">
+							<div className="flex flex-col gap-4 w-full h-full">
 							{/* Privacy */}
 							<div>
 							<h2 className="text-lg font-medium mt-4">Privacy</h2>
@@ -446,7 +446,8 @@ export default function Settings() {
 									Check updates
 								</button>
 							</div>
-							<div className="flex justify-end items-end mt-auto ml-auto flex-col">
+						</div>
+						<div className="flex justify-end items-end mt-auto ml-auto flex-col">
 								<p className="text-neutral-400 text-xs">v{appVersion}</p>
 								<p className="text-neutral-400 text-xs">tauri-{tauriVersion}</p>
 								<p className="text-neutral-400 text-xs">
@@ -454,7 +455,6 @@ export default function Settings() {
 								</p>
 								<p className="text-neutral-400 text-xs">{deviceId || "Undefined device ID"}</p>
 							</div>
-						</div>
 						</div>
 					</div>
 					</div>
