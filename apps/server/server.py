@@ -17,10 +17,13 @@ import uuid
 import ctypes
 import socket
 import shutil
+import traceback
 from urllib.parse import unquote
+from dotenv import load_dotenv
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
+load_dotenv()
 
 # define logs
 log_directory = os.path.abspath(os.path.join(os.getcwd(), 'logs'))
@@ -37,11 +40,131 @@ logging.basicConfig(filename=log_file,
 logging.getLogger('flask').setLevel(logging.ERROR)
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
+# gerenate unique id for device based on IP address
+def generate_device_id():
+    return str(uuid.uuid4())
+
+# get device id from request
+def get_device_id():
+    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+
+    if os.path.exists(device_id_file):
+        with open(device_id_file, 'r') as file:
+            try:
+                data = json.load(file)
+                return data.get('device_id')
+            except json.JSONDecodeError as e:
+                print(f"Error reading {device_id_file}: {e}")
+                return None
+    else:
+        device_id = generate_device_id()
+        data = {"device_id": device_id, "send_data": False}
+        with open(device_id_file, 'w') as file:
+            json.dump(data, file, indent=4)
+        
+        return device_id
+    
+# set if device should send data
+def set_send_data(value):
+    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+    if os.path.exists(device_id_file):
+        with open(device_id_file, 'r') as file:
+            try:
+                data = json.load(file)
+                data['send_data'] = bool(value)
+                with open(device_id_file, 'w') as file:
+                    json.dump(data, file, indent=4)
+                return {'success': True}  
+            except json.JSONDecodeError as e:
+                print(f"Error reading {device_id_file}: {e}")
+                return {'success': False, 'error': str(e)}
+    else:
+        logging.error(f"Device ID file {device_id_file} does not exist.")
+        return {'success': False, 'error': 'File not found'}
+
+    
+# get if device should send data
+def get_send_data():
+    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+    if os.path.exists(device_id_file):
+        with open(device_id_file, 'r') as file:
+            try:
+                data = json.load(file)
+                return {'send_data': bool(data.get('send_data', False))} 
+            except json.JSONDecodeError as e:
+                print(f"Error reading {device_id_file}: {e}")
+                return {'send_data': False, 'error': str(e)}
+    else:
+        logging.error(f"Device ID file {device_id_file} does not exist.")
+        return {'send_data': False, 'error': 'File not found'}
+    
+# send logs to cloud
+def send_logs(error_message):
+    WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
+    device_id = get_device_id()
+    current_time = datetime.utcnow().isoformat()
+
+    def extract_exception(error_message):
+        match = re.match(r'(Traceback.*?)(Exception:.*)', error_message, re.DOTALL)
+        if match:
+            return match.group(1).strip(), match.group(2).strip()
+        return error_message, ""
+
+    traceback, exception_message = extract_exception(error_message)
+
+    exception_message = re.sub(r'^Exception:\s*', '', exception_message)
+
+    def sanitize_paths(match):
+        return os.path.basename(match.group(0))
+
+    privated_traceback = re.sub(r'[A-Za-z]:[\\/][^\s]+', sanitize_paths, traceback)
+
+    send_data = get_send_data().get('send_data', False)
+    if not send_data:
+        logging.debug("send_data is False or not set. Logs will not be sent.")
+        return 
+
+    if WEBHOOK_URL:
+        embed = {
+            "embeds": [
+                {
+                    "title": "Server Error Occurred",
+                    "color": 16711680,
+                    "fields": [
+                        {"name": "Error Traceback", "value": privated_traceback[:2000], "inline": False},
+                        {"name": "Exception Message", "value": exception_message[:2000], "inline": False},
+                        {"name": "Device ID", "value": device_id, "inline": True}
+                    ],
+                    "timestamp": current_time
+                }
+            ]
+        }
+
+        try:
+            response = requests.post(WEBHOOK_URL, json=embed)
+            if response.status_code != 204:
+                logging.error(f"Failed to send log to Discord: {response.text}")
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Error sending logs: {str(e)}")
+            handle_exception(e)
+    else:
+        logging.error("WEBHOOK_URL not set")
+
+# capture exceptions
+@app.errorhandler(Exception)
+def handle_exception(e):
+    error_message = traceback.format_exc()
+    logging.error(error_message)
+    send_logs(error_message)
+
+    return {"error": "Unexpected error occurred."}, 500
+
 # remove ANSI from logs
 def remove_ansi_escape_sequences(log_line):
     ansi_escape = re.compile(r'(?:\x1B[@-_][0-?]*[ -/]*[@-~])')
     return ansi_escape.sub('', log_line)
 
+# find available port (if not provided as argument)
 def find_available_port():
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))  
@@ -63,10 +186,10 @@ def get_latest_commit_hash():
         return {"commit_hash": commit_data['sha']}
     
     except HTTPError as http_err:
-        return {"error": f"HTTP error occurred: {http_err}"}
+        handle_exception(http_err)
     
     except Exception as err:
-        return {"error": f"An error occurred: {err}"}
+        handle_exception(err)
 
 
 # save last commit hash to version.json
@@ -164,12 +287,15 @@ def downloadRepo():
     except requests.RequestException as e:
         logging.error(remove_ansi_escape_sequences(f"Error downloading RVC repository from GitHub: {str(e)}"))
         yield 'data: Error downloading RVC repository from GitHub.\n\n'
-    except zipfile.BadZipFile:
+        handle_exception(e)
+    except zipfile.BadZipFile as e:
         logging.error(remove_ansi_escape_sequences("Error: Bad ZIP file"))
         yield 'data: Error: Bad ZIP file.\n\n'
+        handle_exception(e)
     except OSError as e:
         logging.error(remove_ansi_escape_sequences(f"Error during extraction: {str(e)}"))
         yield 'data: Error during extraction.\n\n'
+        handle_exception(e)
 
 def downloadPretraineds():
     bat_file_path = os.path.join(os.path.abspath(os.path.join(os.getcwd(), 'rvc')))
@@ -206,6 +332,7 @@ def downloadPretraineds():
         
     except Exception as e:
         yield f'data: Error running installation: {str(e)}\n\n'
+        handle_exception(e)
 
 # run RVC installation
 def runInstallation():
@@ -238,6 +365,7 @@ def runInstallation():
     except Exception as e:
         yield f'data: Error running installation: {str(e)}\n\n'
         logging.error(remove_ansi_escape_sequences(f"Error running installation: {str(e)}"))
+        handle_exception(e)
 
 # get latest downloaded model
 def get_latest_files(directory):
@@ -294,7 +422,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
             if "error" in line.lower():
                 yield 'data: Error detected during download process. Stopping execution.\n\n'
                 logging.error("Error detected in download process.")
-                return 
+                raise Exception(f"Error detected in download process: {line.lower()}")
 
         process.stdout.close()
         process.kill()
@@ -303,7 +431,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
             error_message = process.stderr.read()
             logging.error(f"Error downloading model: {error_message}")
             yield 'data: Error downloading model.\n\n'
-            return 
+            raise Exception(f"Error downloading model: {error_message}")
 
         logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'rvc', 'logs'))
         logging.info(f"Logs directory: {logs_dir}")
@@ -313,7 +441,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         if not model_files or not model_files.get("pth") or not model_files.get("index"):
             yield 'data: Error: No .pth or .index file found in the logs folder.\n\n'
             logging.error(remove_ansi_escape_sequences("No .pth or .index file found in the logs folder."))
-            return
+            raise Exception("No .pth or .index file found in the logs folder.")
 
         model_folder_path = os.path.dirname(model_files["pth"])
         file_name = os.path.splitext(os.path.basename(model_files["pth"]))[0]
@@ -345,7 +473,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         except OSError as e:
             logging.error(f"Error creating directory {json_logs_dir}: {str(e)}")
             yield f'data: Error creating directory {json_logs_dir}: {str(e)}\n\n'
-            return
+            handle_exception(e)
 
         log_file_path = os.path.join(json_logs_dir, f'{model_id}.json')
         logging.info(f"Saving model info to: {log_file_path}")
@@ -360,9 +488,10 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         logging.info(remove_ansi_escape_sequences("Model downloaded successfully."))
 
     except Exception as e:
-        yield f'data: Error running download: {str(e)}\n\n'
-        logging.error(remove_ansi_escape_sequences(f"Error running download: {str(e)}"))
-
+        error_message = str(e)
+        logging.error(f"Error running download: {error_message}")
+        handle_exception(e)
+        yield f'data: Error running download: {error_message}\n\n'
 
 
 # get models
@@ -380,7 +509,8 @@ def get_models():
                     content = json.load(json_file) 
                     json_files.append(content) 
                 except json.JSONDecodeError as e:
-                    print(f"error reading {file_name}: {e}")
+                    logging.error(f"error reading {file_name}: {e}")
+                    handle_exception(e)
 
     return json_files
 
@@ -438,7 +568,7 @@ def delete_models_folder():
             
             except Exception as e:
                 logging.error(f"Error: {e}")
-                return {"status": "error", "message": f"Error: {e}"}
+                handle_exception(e)
     else:
         logging.info(f"The folder {json_logs_dir} does not exist.")
         return {"status": "error", "message": f"The folder {json_logs_dir} does not exist."}
@@ -460,6 +590,7 @@ def delete_inference_audio(id):
     if not folder_path:
         logging.info("Path not found in the JSON.")
         return {"status": "error", "message": "Path not found in the JSON."}
+    
     
     if os.path.exists(folder_path):
         os.remove(folder_path)
@@ -583,7 +714,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
         except OSError as e:
             logging.error(f"Error creating directory {json_logs_dir}: {str(e)}")
             yield f'data: Error creating directory {json_logs_dir}: {str(e)}\n\n'
-            return
+            handle_exception(e)
 
         log_file_path = os.path.join(json_logs_dir, f'{unique_id}.json')
         logging.info(f"Saving conversion info to: {log_file_path}")
@@ -598,6 +729,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
     except Exception as e:
         yield f'data: Error running conversion: {str(e)}\n\n'
         logging.error(remove_ansi_escape_sequences(f"Error running conversion: {str(e)}"))
+        handle_exception(e)
 
 # get inferences
 def fetch_inferences():
@@ -617,8 +749,8 @@ def fetch_inferences():
                 try:
                     data = json.load(f)
                     inferences.append(data)
-                except json.JSONDecodeError:
-                    return f"Error reading {file}: Invalid JSON format"
+                except json.JSONDecodeError as e:
+                    handle_exception(e)
 
     return inferences
 
@@ -640,6 +772,21 @@ def shutdown():
     threading.Timer(1.0, shutdown_server).start() 
     
     return response, 200 
+
+@app.get('/send-data')
+def send_data_route():
+    should_send = request.args.get('send')
+    if should_send in ['true', 'false']:
+        result = set_send_data(should_send == 'true') 
+        return jsonify(result), 200
+    else:
+        result = get_send_data()
+        return jsonify(result), 200
+    
+@app.get('/device-id')
+def get_device_id_route():
+    device_id = get_device_id()
+    return jsonify({'device_id': device_id}), 200
 
 @app.get('/get-latest-models')
 def get_latest_models():
@@ -761,7 +908,7 @@ def get_audio():
 
 if __name__ == "__main__":
     port = int(sys.argv[1]) if len(sys.argv) > 1 else find_available_port()
-
+    
     print(f"Server started at: http://127.0.0.1:{port}")
     logging.info(remove_ansi_escape_sequences(f"Server started at: http://127.0.0.1:{port}"))
     app.run(port=port, host='0.0.0.0', debug=False)

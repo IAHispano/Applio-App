@@ -12,6 +12,8 @@ export default function Settings() {
 	const [systemVersion, setSystemVersion] = useState("");
 	const [backgroundColor, setBackgroundColor] = useState("");
 	const [effect, setEffect] = useState(false);
+	const [sendData, setSendData] = useState(false);
+	const [deviceId, setDeviceId] = useState("");
 
 	// get server port
 	async function getServerPort() {
@@ -162,6 +164,69 @@ export default function Settings() {
 		}
 	}
 
+	async function getSendData() {
+		try {
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/send-data`);
+			if (response.ok) {
+				const data = await response.json();
+				console.log('data', data);
+				if (data.error) {
+					console.error('Error from server:', data.error);
+					setSendData(false);
+				} else {
+					setSendData(data.send_data);
+				}
+			} else {
+				console.error('Failed to fetch data from server');
+				setSendData(false);
+			}
+		} catch (error) {
+			console.error('Error fetching send data:', error);
+			setSendData(false);
+		}
+	}
+	
+	async function handleSendData(value: boolean) {
+		try {
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/send-data?send=${value}`);
+			if (response.ok) {
+				const data = await response.json();
+				console.log('response from handleSendData', data);
+				if (data.success === false) {
+					console.error('Error setting send data:', data.error);
+				} else {
+					setSendData(value);
+				}
+			} else {
+				console.error('Failed to set send data on server');
+			}
+		} catch (error) {
+			console.error('Error in handleSendData:', error);
+		}
+	}
+
+	async function getDeviceId() {
+		try {
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/device-id`);
+			if (response.ok) {
+				const data = await response.json();
+				if (data.error) {
+					console.error('Error from server:', data.error);
+				} else {
+					setDeviceId(data.device_id);
+				}
+			} else {
+				console.error('Failed to fetch data from server');
+			}
+		} catch (error) {
+			console.error('Error fetching device id:', error);
+		}
+	}
+	
+	
 	useEffect(() => {
 		async function getBackground() {
 			const store = await Store.load("settings.json");
@@ -186,6 +251,8 @@ export default function Settings() {
 
 		getEffect();
 		getBackground();
+		getSendData();
+		getDeviceId();
 	}, []);
 
 	const predefinedColors = [
@@ -204,6 +271,49 @@ export default function Settings() {
 					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10">
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
 							<h1 className="text-xl font-bold title">Settings</h1>
+							<div className="flex flex-col gap-4 w-full">
+							{/* Privacy */}
+							<div>
+							<h2 className="text-lg font-medium mt-4">Privacy</h2>
+							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
+							<div className="items-center w-full justify-between flex">
+								<div>
+									<p className="text-neutral-200 font-medium">Send data anonymously</p>
+									<p className="text-xs text-neutral-400 max-w-3xl">
+										This sends anonymous data to the server to help enhance the app. No personal information is ever included—only system details are shared. Sensitive information is never collected or transmitted.
+									</p>
+								</div>
+								<label className="flex items-center cursor-pointer relative">
+									<input
+										checked={sendData}
+										onChange={(e) => handleSendData(e.target.checked)}
+										type="checkbox"
+										className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+										id="check"
+									/>
+									<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+										<svg
+											xmlns="http://www.w3.org/2000/svg"
+											className="h-3.5 w-3.5"
+											viewBox="0 0 20 20"
+											fill="currentColor"
+											stroke="currentColor"
+											strokeWidth="1"
+											aria-label="Checkmark"
+											aria-hidden="true"
+										>
+											<path
+												fill-rule="evenodd"
+												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+												clip-rule="evenodd"
+											/>
+										</svg>
+									</span>
+								</label>
+							</div>
+							</div>
+							{/* Personalization */}
+							<div>
 							<h2 className="text-lg font-medium mt-4">Personalization</h2>
 							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 							<div className="items-center w-full justify-between flex">
@@ -301,7 +411,10 @@ export default function Settings() {
 									</div>
 								</div>
 							</div>
-							<h2 className="text-lg font-medium mt-4">Developer</h2>
+							</div>
+							{/* Other */}
+							<div>
+							<h2 className="text-lg font-medium mt-4">Other</h2>
 							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 							<div className="flex gap-2">
 								<a
@@ -339,8 +452,11 @@ export default function Settings() {
 								<p className="text-neutral-400 text-xs">
 									{system}-{systemVersion}
 								</p>
+								<p className="text-neutral-400 text-xs">{deviceId || "Undefined device ID"}</p>
 							</div>
 						</div>
+						</div>
+					</div>
 					</div>
 				</div>
 			</main>
