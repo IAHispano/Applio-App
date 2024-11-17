@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useState } from "react";
 import { supabase } from "../../utils/database";
 import Loading from "../../components/convert/loading";
+import { AudioVisualizer } from "react-audio-visualize";
 
 export default function Convert() {
 	const {
@@ -52,6 +53,7 @@ export default function Convert() {
 		setExportFormat,
 	} = useConvertContext();
 	const audioRef = useRef<HTMLAudioElement>(null);
+	const visualizerRef = useRef<HTMLCanvasElement | null>(null);
 
 	const [loading, setLoading] = useState(true);
 	const [previewModels, setPreviewModels] = useState<any>([]);
@@ -114,6 +116,8 @@ export default function Convert() {
 
 		getLocalModels();
 	}, []);
+
+	console.log('output', output);
 
 	useEffect(() => {
 		if (models[currentIndex] && models[currentIndex].model_index_file) {
@@ -274,7 +278,7 @@ export default function Convert() {
 				throw new Error("Error getting audio");
 			}
 			const audioBlob = await response.blob();
-			setOutput(URL.createObjectURL(audioBlob));
+			setOutput(audioBlob);
 		} catch (error) {
 			console.error("Error:", error);
 		}
@@ -872,21 +876,26 @@ export default function Convert() {
 													)}
 												</button>
 											</div>
-											<div className="w-full flex items-center gap-4">
-												<div className="relative w-full h-[10svh] rounded-r-xl bg-white/10 overflow-hidden">
-													<div
-														className="absolute top-0 left-0 h-full bg-white transition-all duration-300 ease-in-out"
-														style={{ width: `${progress}%` }}
-													/>
-												</div>
+											<div className="aspect-video w-full max-w-full max-h-[10svh] overflow-hidden flex items-center gap-4">
+												<AudioVisualizer 
+												ref={visualizerRef}
+												blob={output}
+												width={500}
+        										height={500}
+												barWidth={1}
+												gap={6}
+												barColor="#22aa68"
+												style={{ height: "8svh", width: "100%", aspectRatio: "16 / 9" }}
+												/>
 											</div>
+											{/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
 											<audio
 												ref={audioRef}
 												className="hidden"
 												onPlay={() => setIsPlaying(true)}
 												onPause={() => setIsPlaying(false)}
 											>
-												<source src={output} type="audio/wav" />
+												<source src={URL.createObjectURL(output)} type="audio/wav" />
 											</audio>
 										</div>
 										{convertedAudio && (
