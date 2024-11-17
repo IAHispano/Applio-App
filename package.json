@@ -2,8 +2,8 @@
   "name": "applio-app-monorepo",
   "private": true,
   "scripts": {
-    "build": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
-    "build:server": "cd apps/server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
+    "build": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
+    "build:server": "cd apps/server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
     "server": "cd apps/server && env\\Scripts\\activate && call ./env/scripts/activate.bat && python server.py",
     "dev": "turbo dev",
     "lint": "turbo lint",

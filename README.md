@@ -56,14 +56,15 @@
     pnpm tauri dev
     ```
 ### **Build Applio App**
+  ##### For build you need to copy .env file from root to apps/server folder.
   ##### This will **generate a `build` folder** with a `server.exe` file and `applio-app.exe`. Insert the `server` file inside a folder named `python` and run applio-app.exe.
     ```bash
-    pnpm build:{your operating system (windows/macos)}
+    pnpm build
     ```
 ### **Run the server**
   ##### This will open **only the server** so you can make changes only in the backend.
     ```bash
-    pnpm server:{your operating system (windows/macos)}
+    pnpm run server
     ```
 
 ## Roadmap
