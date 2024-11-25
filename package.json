@@ -9,6 +9,7 @@
     "lint": "turbo lint",
     "desktop": "pnpm --filter desktop --",
     "tauri": "dotenv -- pnpm desktop tauri",
+    "installer": "dotenv -- pnpm --filter installer --",
     "format": "pnpm desktop format --write"
   },
   "devDependencies": {
