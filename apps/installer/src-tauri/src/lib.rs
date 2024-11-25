@@ -53,10 +53,10 @@ fn download_zip(
     fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
 
     match extract_zip(&output_path, &extract_dir) {
-        Ok(_) => Ok(format!(
-            "downloaded at: {}",
-            extract_dir
-        )),
+        Ok(_) => {
+            fs::remove_file(&output_path).map_err(|e| e.to_string())?;
+            Ok(format!("downloaded at: {}", extract_dir))
+        },
         Err(e) => Err(format!("unzip error: {}", e)),
     }
 }

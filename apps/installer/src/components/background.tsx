@@ -36,8 +36,8 @@ const Background: React.FC = () => {
       vy: number
 
       constructor() {
-        this.x = Math.random() * canvas.width
-        this.y = Math.random() * canvas.height
+        this.x = canvas ? Math.random() * canvas.width : 0
+        this.y = canvas ? Math.random() * canvas.height : 0
         this.radius = Math.random() * 200 + 100
         this.color = colors[Math.floor(Math.random() * colors.length)]
         this.vx = Math.random() * 2 - 1
@@ -48,8 +48,8 @@ const Background: React.FC = () => {
         this.x += this.vx
         this.y += this.vy
 
-        if (this.x < 0 || this.x > canvas.width) this.vx *= -1
-        if (this.y < 0 || this.y > canvas.height) this.vy *= -1
+        if (canvas && (this.x < 0 || this.x > canvas.width)) this.vx *= -1
+        if (canvas && (this.y < 0 || this.y > canvas.height)) this.vy *= -1
       }
 
       draw() {
