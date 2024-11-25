@@ -9,7 +9,7 @@ export default function Titlebar() {
   return (
     <div className="absolute top-0 right-0 select-none overflow-hidden p-2 pt-3 w-full z-50 bg-gradient-to-b from-[#1c1c1c]/50 to-transparent" data-tauri-drag-region>
     <div className="flex justify-between items-center m-auto px-2" data-tauri-drag-region>
-    <p className="text-xs text-neutral-400 title font-medium">Installing <span className="font-semibold">Applio App</span></p>
+    <p className="text-xs text-neutral-400 title font-medium"><span className="font-semibold">Applio App</span> | Installer</p>
     <button
         onClick={close}
         type="button"

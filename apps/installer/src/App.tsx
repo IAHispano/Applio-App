@@ -55,7 +55,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#1c1c1c]/70 w-screen h-screen">
+    <div className="bg-[#1c1c1c]/90 w-screen h-screen">
       <Titlebar />
       <Background />
       <div className="absolute w-screen h-screen">
@@ -65,11 +65,11 @@ const App: React.FC = () => {
         <Route path="/install" element={<Install />} />
       </Routes>
       </div>
-      <div className="absolute bottom-4 right-4 flex items-center gap-2">
+      <div className="absolute bottom-3 right-4 flex items-center gap-2">
         <button
           onClick={handleAudio}
           type="button"
-          className="slow hover:text-white"
+          className='p-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm w-fit rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400'
         >
           {isPlaying ? (
             <svg
