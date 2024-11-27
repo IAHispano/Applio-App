@@ -71,10 +71,20 @@
 [![APP Roadmap](https://i.imgur.com/LMqCMBV.png)](https://applio.org/products/app)
 
 ## Screenshoots
-[![APP Home Section](https://i.imgur.com/zYiobES.png)](https://applio.org/products/app)
-[![APP Inference Section](https://i.imgur.com/03aNl2r.png)](https://applio.org/products/app)
-[![APP Models Section](https://i.imgur.com/Cfx1I5U.png)](https://applio.org/products/app)
-[![APP Settings Section](https://i.imgur.com/sA3cgOf.png)](https://applio.org/products/app)
+
+### **Installer**
+[![Installer Home Section](https://i.imgur.com/q0rJh6G.png)](https://applio.org/products/app)
+[![Installer Path Section](https://i.imgur.com/HLSJ2Eu.png)](https://applio.org/products/app)
+[![Installer Install Section](https://i.imgur.com/e1WKWi9.png)](https://applio.org/products/app)
+[![Installer Success Section](https://i.imgur.com/Rfb6zHe.png)](https://applio.org/products/app)
+
+### **App**
+[![APP Home Section](https://i.imgur.com/DvjHl5r.png)](https://applio.org/products/app)
+[![APP Inference Section](https://i.imgur.com/dOpurov.png)](https://applio.org/products/app)
+[![APP Audios Section](https://i.imgur.com/8gDuE0z.png)](https://applio.org/products/app)
+[![APP Models Section](https://i.imgur.com/dN68rWm.png)](https://applio.org/products/app)
+[![APP Settings Section](https://i.imgur.com/H2KEaQu.png)](https://applio.org/products/app)
+
 ###### <p align="center">*Pre-release images. Final product may vary*</p>
 
 ## Contributing
