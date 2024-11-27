@@ -35,7 +35,6 @@ fn start_server(port: u16) -> io::Result<Child> {
 
     let child = Command::new(server_path)
         .arg(port.to_string())
-        .arg("--from-tauri")
         .spawn() 
         .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to start server: {}", e)))?;
 
