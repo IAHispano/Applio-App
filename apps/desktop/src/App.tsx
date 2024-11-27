@@ -200,16 +200,21 @@ function App() {
 
 	// stop server on close request
 	useEffect(() => {
-		const handleCloseRequested = async (event: any) => {
+		const handleCloseRequested = async (event: React.MouseEvent) => {
 			event.preventDefault();
 			const port = await getServerPort();
-			const response = await fetch(`http://localhost:${port}/stop`);
-			localStorage.removeItem("appInitialized");
+			try {
+				const response = await fetch(`http://localhost:${port}/stop`);
+				localStorage.removeItem("appInitialized");
 
-			if (!response.ok) {
-				alert("Error, please report on GitHub");
-			} else {
-				console.log("Server shutting down...");
+				if (!response.ok) {
+					console.error("Failed to stop server, please report on GitHub");
+					alert("Error, please report on GitHub");
+				} else {
+					console.log("Server shutting down...");
+					getCurrentWindow().destroy();
+				}
+			} catch (error) {
 				getCurrentWindow().destroy();
 			}
 		};

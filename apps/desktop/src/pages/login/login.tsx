@@ -34,6 +34,7 @@ export default function Login() {
 	async function stopOAuthServer(port: number) {
 		try {
 			await cancel(port);
+			localStorage.removeItem("authPort");
 			console.log("OAuth server stopped");
 		} catch (error) {
 			console.error("Error stopping OAuth server:", error);
@@ -41,13 +42,16 @@ export default function Login() {
 	}
 
 	async function startOAuthServer() {
-		if (logged || authPort) return;
+		if (logged || authPort || localStorage.getItem("authPort")) return;
 
 		try {
 			const port = await start({
 				response:
 					"You can now close this window and return to the application.",
 			});
+			if (port) {
+				localStorage.setItem("authPort", port.toString());
+			}
 			console.log(`OAuth server started on port ${port}`);
 
 			await onUrl((url) => {
