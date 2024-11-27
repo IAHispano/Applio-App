@@ -7,6 +7,8 @@ export default function Install() {
     const [value, setValue] = useState<number>(0)
     const [error, setError] = useState<boolean>(false)
     const [success, setSuccess] = useState<boolean>(false)
+    const [shouldShortcut, setShouldShortcut] = useState<boolean>(true)
+    const [dir, setDir] = useState<string>('')
 
     const getLastVersion = async () => {
         const repoUrl = "https://huggingface.co/api/models/bygimenez/applio-app";
@@ -57,34 +59,53 @@ export default function Install() {
 
     useEffect(() => {
         const downloadApp = async () => {
+            localStorage.getItem('shortcut') === 'false' && setShouldShortcut(false)
+            const setdir = localStorage.getItem('dir')
+    
+            console.log('setdir', setdir)
+    
             try {
                 const url = await getLastVersion()
                 const token = import.meta.env.VITE_HF_TOKEN
-                const actual_dir = await invoke('get_actual_dir')
-                console.log('actual_dir', actual_dir)
-                const result = await invoke('download_zip', {
-                    url: url,
-                    outputPath: `${actual_dir}/applio-app.zip`,
-                    token: token,
-                })
-                console.log(result)
-                if (typeof result === 'string' && result.includes('error')) {
-                    setError(true)
-                    console.error(result)
+    
+                if (!setdir) {
+                    const actual_dir = await invoke('get_actual_dir')
+                    if (!actual_dir) {
+                        throw new Error('actual_dir is null')
+                    }
+                    setDir(actual_dir as string)
+                } else {
+                    setDir(setdir as string)
                 }
-                if (typeof result === 'string' && result.includes('downloaded')) {
-                    setSuccess(true)
+    
+                if (dir) {
+                    const result = await invoke('download_zip', {
+                        url: url,
+                        outputPath: `${dir}/applio-app.zip`,
+                        token: token,
+                        shortcut: shouldShortcut,
+                    })
+    
+                    console.log(result)
+    
+                    if (typeof result === 'string' && result.includes('error')) {
+                        setError(true)
+                        console.error(result)
+                    }
+                    if (typeof result === 'string' && result.includes('downloaded')) {
+                        setSuccess(true)
+                    }
+                    console.log(url)
                 }
-                console.log(url)
             } catch (error) {
                 setError(true)
                 console.error('error', error)
             }
         }
-        
+    
         downloadApp()
-    }, [invoke]) 
-
+    }, [dir, invoke]) 
+    
     useEffect(() => {
         const unlisten = listen("download-progress", (event) => {
           const progressValue = event.payload as number;

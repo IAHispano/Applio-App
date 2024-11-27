@@ -1,16 +1,20 @@
 use reqwest::blocking::{Client, Response};
 use reqwest::header::{HeaderMap, AUTHORIZATION};
+use std::env;
 use std::fs::{self, File};
 use std::io::{BufReader, Read, Write};
+use std::path::Path;
+use std::process::Command;
+use tauri::Emitter;
 use zip::read::ZipArchive;
-use tauri::Emitter; 
-use std::env;
+use std::thread;
 
 #[tauri::command]
 fn download_zip(
     url: String,
     output_path: String,
     token: String,
+    shortcut: bool,
     window: tauri::Window,
 ) -> Result<String, String> {
     let mut headers = HeaderMap::new();
@@ -30,7 +34,7 @@ fn download_zip(
     let total_size = response.content_length().unwrap_or(0);
     let mut reader = BufReader::new(response);
     let mut file = File::create(&output_path).map_err(|e| e.to_string())?;
- 
+
     let mut buffer = vec![0; 8192];
     let mut downloaded: u64 = 0;
 
@@ -51,12 +55,34 @@ fn download_zip(
 
     let extract_dir = output_path.replace(".zip", "");
     fs::create_dir_all(&extract_dir).map_err(|e| e.to_string())?;
+    let target_path = format!(r"{}\applio-app.exe", extract_dir);
 
     match extract_zip(&output_path, &extract_dir) {
         Ok(_) => {
+            println!("shortcut: {}", shortcut);
+            if shortcut == true {
+                let desktop_shortcut_path = format!(r"{}\Desktop\Applio App.lnk", env::var("USERPROFILE").unwrap());
+                let start_menu_shortcut_path = r"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Applio App.lnk";
+
+                println!("Desktop_shortcut_path: {}", desktop_shortcut_path);
+                println!("Start_menu_shortcut_path: {}", start_menu_shortcut_path);
+
+                create_shortcut_async(
+                    target_path.clone(),
+                    desktop_shortcut_path.to_string(),
+                    Some("Lightweight interface for fast interaction with AI-driven voice cloning technology".to_string())
+                );
+            
+                create_shortcut_async(
+                    target_path.clone(),
+                    start_menu_shortcut_path.to_string(),
+                    Some("Lightweight interface for fast interaction with AI-driven voice cloning technology".to_string())
+                );
+            }
+
             fs::remove_file(&output_path).map_err(|e| e.to_string())?;
             Ok(format!("downloaded at: {}", extract_dir))
-        },
+        }
         Err(e) => Err(format!("unzip error: {}", e)),
     }
 }
@@ -83,6 +109,52 @@ fn extract_zip(zip_path: &str, output_dir: &str) -> Result<(), String> {
     Ok(())
 }
 
+fn create_shortcut_async(
+    target_path: String,
+    shortcut_path: String,
+    description: Option<String>,
+) {
+    thread::spawn(move || {
+        if let Err(e) = create_shortcut(&target_path, &shortcut_path, description.as_deref()) {
+            eprintln!("Error creating shortcut: {}", e);
+        }
+    });
+}
+
+fn create_shortcut(
+    target_path: &str,
+    shortcut_path: &str,
+    description: Option<&str>,
+) -> std::io::Result<()> {
+    if let Some(parent) = Path::new(shortcut_path).parent() {
+        fs::create_dir_all(parent)?;
+    }
+    
+    let mut powershell_cmd = Command::new("powershell");
+    powershell_cmd.arg("-WindowStyle").arg("Hidden");
+    powershell_cmd.arg("-Command").arg(format!(
+        "$WshShell = New-Object -ComObject WScript.Shell; \
+         $Shortcut = $WshShell.CreateShortcut('{}'); \
+         $Shortcut.TargetPath = '{}'; {}
+         $Shortcut.Save()",
+        shortcut_path,
+        target_path,
+        description.map_or(String::new(), |desc| format!(
+            "$Shortcut.Description = '{}'; ",
+            desc
+        ))
+    ));
+
+    let output = powershell_cmd.output()?;
+    if !output.status.success() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            String::from_utf8_lossy(&output.stderr),
+        ));
+    }
+    Ok(())
+}
+
 #[tauri::command]
 fn get_actual_dir() -> Result<String, String> {
     let actual_dir = env::current_dir().map_err(|e| e.to_string())?;
@@ -92,7 +164,9 @@ fn get_actual_dir() -> Result<String, String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![download_zip, get_actual_dir])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
