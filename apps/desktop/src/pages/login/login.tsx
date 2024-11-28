@@ -42,19 +42,19 @@ export default function Login() {
 	}
 
 	async function startOAuthServer() {
-		if (logged || authPort || localStorage.getItem("authPort")) return;
+		if (logged || authPort || localStorage.getItem("authPort") || localStorage.getItem("logged")) return;
 
 		try {
 			const port = await start({
 				response:
 					"You can now close this window and return to the application.",
 			});
-			if (port) {
-				localStorage.setItem("authPort", port.toString());
-			}
 			console.log(`OAuth server started on port ${port}`);
+			localStorage.setItem("authPort", port.toString());
 
 			await onUrl((url) => {
+				localStorage.removeItem("authPort");
+				localStorage.setItem("logged", "true");
 				console.log("Received OAuth URL:", url);
 				setLogged(true);
 				setSessionData(url);
@@ -63,6 +63,8 @@ export default function Login() {
 			return port;
 		} catch (error) {
 			console.error("Error starting OAuth server:", error);
+			localStorage.removeItem("authPort");
+			localStorage.removeItem("logged");
 		}
 	}
 

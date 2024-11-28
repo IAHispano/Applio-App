@@ -366,6 +366,8 @@ export default function Sidebar() {
 
 	const logout = async () => {
 		await supabase?.auth.signOut();
+		localStorage.removeItem("logged")
+		localStorage.removeItem("authPort")
 		navigate(0);
 	};
 

@@ -25,6 +25,7 @@ import InferencesLibrary from "./pages/inference/library";
 function App() {
 	const navigate = useNavigate();
 	const location = useLocation();
+	const { pathname } = location;
 
 	// get server port
 	async function getServerPort() {
@@ -167,7 +168,7 @@ function App() {
 					.select("*")
 					.eq("auth_id", session.data.session.user.id)
 					.single()) || { data: null, error: null };
-				if (data || data.tester) {
+				if (data && data.tester === true) {
 					console.log("Beta access granted");
 				} else {
 					console.log("Beta access not granted");
@@ -206,6 +207,8 @@ function App() {
 			try {
 				const response = await fetch(`http://localhost:${port}/stop`);
 				localStorage.removeItem("appInitialized");
+				localStorage.removeItem("logged");
+				localStorage.removeItem("authPort");
 
 				if (!response.ok) {
 					console.error("Failed to stop server, please report on GitHub");
@@ -247,7 +250,7 @@ function App() {
 	useEffect(() => {
 		setWindowEffect();
 		checkBetaAccess();
-	}, []);
+	}, [pathname]);
 
 	const shouldShowHeader = !(
 		location.pathname === "/first-time" ||
@@ -308,33 +311,44 @@ function OSNotSupported() {
 
 function BetaAccess() {
 	return (
-		<div className="absolute inset-0 bg-black">
-			<div className="flex flex-col gap-2 justify-center items-center w-screen h-screen">
-				<p className="text-3xl font-semibold title">
-					Applio is still in development
-				</p>
-				<p className="text-sm max-w-sm text-center text-neutral-300">
-					Interested in trying it out? Join our{" "}
-					<a
-						onClick={() => open("https://applio.org/products/app")}
-						className="cursor-pointer underline text-neutral-200 hover:text-white slow"
-					>
-						waitlist
-					</a>{" "}
-					to receive an invitation and be among the first to explore Applio.
-				</p>
-				<p className="text-sm max-w-sm text-center text-neutral-300">
-					If you're already a beta tester, please contact us at{" "}
-					<a
-						href="mailto:contact@applio.app"
-						className="cursor-pointer underline text-neutral-200 hover:text-white slow"
-					>
-						contact@applio.app
-					</a>{" "}
-					for access.
-				</p>
-			</div>
-		</div>
+			<section className="absolute inset-0 bg-black flex flex-col gap-4 justify-center items-center w-screen h-screen">
+			<h1 className="text-3xl font-semibold title text-center text-white">
+				Applio is still in development
+			</h1>
+			<p className="text-sm max-w-sm text-pretty text-center text-neutral-300">
+				Interested in trying it out? Join our{" "}
+				<a
+				href="https://applio.org/products/app"
+				target="_blank"
+				rel="noopener noreferrer"
+				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
+				>
+				waitlist
+				</a>{" "}
+				to receive an invitation or join at{" "}
+				<a
+				href="https://ko-fi.com/iahispano/tiers"
+				target="_blank"
+				rel="noopener noreferrer"
+				className="underline text-neutral-200 cursor-pointer hover:text-white transition-all"
+				>
+				our Supporters
+				</a>{" "}
+				for instant access.
+			</p>
+			<p className="text-sm max-w-sm text-balance text-center text-neutral-300">
+				If you're already a beta tester, please contact us at{" "}
+				<a
+				href="https://applio.org/discord"
+				target="_blank"
+				rel="noopener noreferrer"
+				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
+				>
+				our Discord
+				</a>{" "}
+				for access.
+			</p>
+			</section>
 	);
 }
 
