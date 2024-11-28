@@ -41,7 +41,6 @@ export default function Convert() {
 		setAutotune,
 		isPlaying,
 		setIsPlaying,
-		progress,
 		setProgress,
 		convertedAudio,
 		setConvertedAudio,
@@ -297,7 +296,7 @@ export default function Convert() {
 		setIndexRate(0.3);
 		setFilterRadius(3);
 		setAutotune(false);
-		setOutput("");
+		setOutput(undefined);
 		setUploaded(false);
 		setFile(null);
 		if (inputFileRef.current) {

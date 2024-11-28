@@ -21,8 +21,8 @@ interface ConvertContextType {
 	setPth: React.Dispatch<React.SetStateAction<string>>;
 	index: string;
 	setIndex: React.Dispatch<React.SetStateAction<string>>;
-	output: Blob;
-	setOutput: React.Dispatch<React.SetStateAction<Blob>>;
+	output: Blob | undefined;
+	setOutput: React.Dispatch<React.SetStateAction<Blob | undefined>>;
 	pitch: number;
 	setPitch: React.Dispatch<React.SetStateAction<number>>;
 	indexRate: number;
@@ -64,7 +64,7 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 	const [input, setInput] = useState("");
 	const [pth, setPth] = useState("");
 	const [index, setIndex] = useState("");
-	const [output, setOutput] = useState<Blob>();
+	const [output, setOutput] = useState<Blob | undefined>();
 	const [pitch, setPitch] = useState<number>(0);
 	const [indexRate, setIndexRate] = useState(0.3);
 	const [filterRadius, setFilterRadius] = useState(3);

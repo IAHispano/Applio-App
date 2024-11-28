@@ -1,7 +1,7 @@
 import "./App.css";
 import { useEffect } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
-import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
+import { CloseRequestedEvent, Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Header from "./components/layout/header";
@@ -9,7 +9,6 @@ import { TitleBar } from "./components/layout/titlebar";
 import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import { ConvertProvider } from "./components/convert/conversion-context";
-import { open } from "@tauri-apps/plugin-shell";
 import { supabase } from "./utils/database";
 
 // Pages
@@ -21,6 +20,7 @@ import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
 import Login from "./pages/login/login";
 import InferencesLibrary from "./pages/inference/library";
+import { open } from "@tauri-apps/plugin-shell";
 
 function App() {
 	const navigate = useNavigate();
@@ -224,8 +224,8 @@ function App() {
 
 		const currentWindow = getCurrentWindow();
 
-		const unlisten = currentWindow.onCloseRequested((event) => {
-			handleCloseRequested(event);
+		const unlisten = currentWindow.onCloseRequested((event: CloseRequestedEvent) => {
+			handleCloseRequested(event as unknown as React.MouseEvent);
 		});
 
 		return () => {
@@ -318,8 +318,7 @@ function BetaAccess() {
 			<p className="text-sm max-w-sm text-pretty text-center text-neutral-300">
 				Interested in trying it out? Join our{" "}
 				<a
-				href="https://applio.org/products/app"
-				target="_blank"
+				onClick={() => open("https://applio.org/products/app")}
 				rel="noopener noreferrer"
 				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
 				>
@@ -327,8 +326,7 @@ function BetaAccess() {
 				</a>{" "}
 				to receive an invitation or join at{" "}
 				<a
-				href="https://ko-fi.com/iahispano/tiers"
-				target="_blank"
+				onClick={() => open("https://ko-fi.com/iahispano/tiers")}
 				rel="noopener noreferrer"
 				className="underline text-neutral-200 cursor-pointer hover:text-white transition-all"
 				>
@@ -339,8 +337,7 @@ function BetaAccess() {
 			<p className="text-sm max-w-sm text-balance text-center text-neutral-300">
 				If you're already a beta tester, please contact us at{" "}
 				<a
-				href="https://applio.org/discord"
-				target="_blank"
+				onClick={() => open("https://applio.org/discord")}
 				rel="noopener noreferrer"
 				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
 				>
