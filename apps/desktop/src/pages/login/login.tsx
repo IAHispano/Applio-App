@@ -101,7 +101,7 @@ export default function Login() {
 				alert(response.error.message);
 			} else {
 				console.error("Unexpected response:", response);
-				alert("An unexpected error occurred. Please try again.");
+				alert(`An unexpected error occurred: ${response}`);
 			}
 		} else {
 			alert("Error: OAuth server not found, please report error.");
