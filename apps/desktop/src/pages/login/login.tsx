@@ -12,29 +12,15 @@ import { useNavigate } from "react-router-dom";
 
 export default function Login() {
 	const [authPort, setAuthPort] = useState<number | undefined>();
-	const [logged, setLogged] = useState(false);
-	const isServerStarted = useRef(false);
-
 	const navigate = useNavigate();
 
 	useEffect(() => {
-		async function startServer() {
-			if (authPort || isServerStarted.current) return;
-			isServerStarted.current = true;
-
-			const port = await startOAuthServer();
-			if (port) {
-				setAuthPort(port);
-			}
-		}
-
-		startServer();
-	}, [authPort]);
+		startOAuthServer();
+	}, []);
 
 	async function stopOAuthServer(port: number) {
 		try {
 			await cancel(port);
-			localStorage.removeItem("authPort");
 			console.log("OAuth server stopped");
 		} catch (error) {
 			console.error("Error stopping OAuth server:", error);
@@ -42,7 +28,7 @@ export default function Login() {
 	}
 
 	async function startOAuthServer() {
-		if (logged || authPort || localStorage.getItem("authPort") || localStorage.getItem("logged")) return;
+		if (authPort) return;
 
 		try {
 			const port = await start({
@@ -50,21 +36,18 @@ export default function Login() {
 					"You can now close this window and return to the application.",
 			});
 			console.log(`OAuth server started on port ${port}`);
-			localStorage.setItem("authPort", port.toString());
+			if (port) {
+				setAuthPort(port);
+			}
 
 			await onUrl((url) => {
-				localStorage.removeItem("authPort");
-				localStorage.setItem("logged", "true");
 				console.log("Received OAuth URL:", url);
-				setLogged(true);
 				setSessionData(url);
 			});
 
 			return port;
 		} catch (error) {
 			console.error("Error starting OAuth server:", error);
-			localStorage.removeItem("authPort");
-			localStorage.removeItem("logged");
 		}
 	}
 
@@ -104,7 +87,7 @@ export default function Login() {
 				alert(`An unexpected error occurred: ${response}`);
 			}
 		} else {
-			alert("Error: OAuth server not found, please report error.");
+			alert("Error: Login not found, please try again.");
 		}
 	};
 

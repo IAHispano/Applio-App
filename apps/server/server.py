@@ -185,14 +185,10 @@ def get_latest_commit_hash():
         response.raise_for_status() 
 
         if response.status_code == 403 and "X-RateLimit-Remaining" in response.headers and response.headers["X-RateLimit-Remaining"] == "0":
-            reset_time = response.headers.get("X-RateLimit-Reset")
             return None
 
         commit_data = response.json()
         return {"commit_hash": commit_data['sha']}
-    
-    except HTTPError as http_err:
-        handle_exception(http_err)
     
     except Exception as err:
         handle_exception(err)

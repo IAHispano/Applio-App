@@ -122,9 +122,9 @@ function App() {
 		}
 	};
 
-	// check rvc updates
-	const checkUpdates = async () => {
-		if (window.location.pathname === "/") {
+		// check rvc updates
+		const checkUpdates = async () => {
+			localStorage.setItem("checkUpdate", "true");
 			const port = await getServerPort();
 			const eventSource = new EventSource(
 				`http://localhost:${port}/check-update`,
@@ -142,21 +142,21 @@ function App() {
 			return () => {
 				eventSource.close();
 			};
-		}
-	};
-
-	// check if rvc is installed
-	const checkRVC = async () => {
-		const port = await getServerPort();
-		const response = await fetch(`http://localhost:${port}/check-rvc`);
-		const data = await response.json();
-		console.log(data);
-		if (data.exists === "False") {
-			localStorage.setItem("update", "true");
-		} else {
-			localStorage.removeItem("update");
-		}
-	};
+		};
+	
+		// check if rvc is installed
+		const checkRVC = async () => {
+			localStorage.setItem("checkRVC", "true");
+			const port = await getServerPort();
+			const response = await fetch(`http://localhost:${port}/check-rvc`);
+			const data = await response.json();
+			console.log(data);
+			if (data.exists === "False") {
+				localStorage.setItem("update", "true");
+			} else {
+				localStorage.removeItem("update");
+			}
+		};
 
 	// check if user has access to beta
 	const checkBetaAccess = async () => {
@@ -213,6 +213,7 @@ function App() {
 				if (!response.ok) {
 					console.error("Failed to stop server, please report on GitHub");
 					alert("Error, please report on GitHub");
+					getCurrentWindow().destroy();
 				} else {
 					console.log("Server shutting down...");
 					getCurrentWindow().destroy();
@@ -241,8 +242,8 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
-			checkUpdates();
 			checkRVC();
+			checkUpdates();
 		}
 	}, []);
 
