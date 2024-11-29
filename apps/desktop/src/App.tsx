@@ -124,6 +124,8 @@ function App() {
 
 		// check rvc updates
 		const checkUpdates = async () => {
+			if (localStorage.getItem("checkUpdate")) return;
+
 			localStorage.setItem("checkUpdate", "true");
 			const port = await getServerPort();
 			const eventSource = new EventSource(
@@ -146,6 +148,8 @@ function App() {
 	
 		// check if rvc is installed
 		const checkRVC = async () => {
+			if (localStorage.getItem("checkRVC")) return;
+
 			localStorage.setItem("checkRVC", "true");
 			const port = await getServerPort();
 			const response = await fetch(`http://localhost:${port}/check-rvc`);
@@ -207,8 +211,8 @@ function App() {
 			try {
 				const response = await fetch(`http://localhost:${port}/stop`);
 				localStorage.removeItem("appInitialized");
-				localStorage.removeItem("logged");
-				localStorage.removeItem("authPort");
+				localStorage.removeItem("checkUpdate");
+				localStorage.removeItem("checkRVC");
 
 				if (!response.ok) {
 					console.error("Failed to stop server, please report on GitHub");
@@ -242,8 +246,10 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
-			checkRVC();
-			checkUpdates();
+			if (!localStorage.getItem("checkUpdate") && !localStorage.getItem("checkRVC")) {
+				checkRVC();
+				checkUpdates();
+			}
 		}
 	}, []);
 
