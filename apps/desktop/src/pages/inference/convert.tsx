@@ -433,14 +433,14 @@ export default function Convert() {
 																{currentModel.author && (
 																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 																		{currentModel
-																			? currentModel.author
+																			? encodeURIComponent(currentModel.author)
 																			: "Undefined author"}
 																	</li>
 																)}
 																{currentModel.from && (
 																	<li className="text-sm max-md:text-xs text-neutral-200 bg-black/40 border border-white/10 px-4 py-1 rounded-xl">
 																		{currentModel
-																			? currentModel.from
+																			? encodeURIComponent(currentModel.from)
 																			: "Undefined server"}
 																	</li>
 																)}
