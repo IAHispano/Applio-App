@@ -6,7 +6,7 @@ import {
 } from "../../components/layout/header";
 import { supabase } from "../../utils/database";
 import { open } from "@tauri-apps/plugin-shell";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { cancel, onUrl, start } from "@fabianlars/tauri-plugin-oauth";
 import { useNavigate } from "react-router-dom";
 
