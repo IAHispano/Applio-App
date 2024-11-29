@@ -122,45 +122,46 @@ function App() {
 		}
 	};
 
-		// check rvc updates
-		const checkUpdates = async () => {
-			if (localStorage.getItem("checkUpdate")) return;
-
-			localStorage.setItem("checkUpdate", "true");
-			const port = await getServerPort();
-			const eventSource = new EventSource(
-				`http://localhost:${port}/check-update`,
-			);
-			eventSource.onmessage = (event) => {
-				console.log(event.data);
-				if (event.data.includes("up to date")) {
-					localStorage.removeItem("update");
-					eventSource.close();
-				} else {
-					localStorage.setItem("update", "true");
-					eventSource.close();
-				}
-			};
-			return () => {
-				eventSource.close();
-			};
-		};
-	
-		// check if rvc is installed
-		const checkRVC = async () => {
-			if (localStorage.getItem("checkRVC")) return;
-
-			localStorage.setItem("checkRVC", "true");
-			const port = await getServerPort();
-			const response = await fetch(`http://localhost:${port}/check-rvc`);
-			const data = await response.json();
-			console.log(data);
-			if (data.exists === "False") {
-				localStorage.setItem("update", "true");
-			} else {
+	// check rvc updates
+	const checkUpdates = async () => {
+		if (localStorage.getItem("checkUpdate") === null) {
+		console.log('checkUpdates', localStorage.getItem("checkUpdate"));
+		localStorage.setItem("checkUpdate", "true");
+		const port = await getServerPort();
+		const eventSource = new EventSource(
+			`http://localhost:${port}/check-update`,
+		);
+		eventSource.onmessage = (event) => {
+			console.log(event.data);
+			if (event.data.includes("up to date")) {
 				localStorage.removeItem("update");
+				eventSource.close();
+			} else {
+				localStorage.setItem("update", "true");
+				eventSource.close();
 			}
 		};
+		return () => {
+			eventSource.close();
+		};
+	}
+	};
+	
+	// check if rvc is installed
+	const checkRVC = async () => {
+		if (localStorage.getItem("checkRVC") === null) {
+		localStorage.setItem("checkRVC", "true");
+		const port = await getServerPort();
+		const response = await fetch(`http://localhost:${port}/check-rvc`);
+		const data = await response.json();
+		console.log(data);
+		if (data.exists === "False") {
+			localStorage.setItem("update", "true");
+		} else {
+			localStorage.removeItem("update");
+		}
+		}
+	};
 
 	// check if user has access to beta
 	const checkBetaAccess = async () => {
@@ -246,10 +247,6 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
-			if (!localStorage.getItem("checkUpdate") && !localStorage.getItem("checkRVC")) {
-				checkRVC();
-				checkUpdates();
-			}
 		}
 	}, []);
 
@@ -257,6 +254,8 @@ function App() {
 	useEffect(() => {
 		setWindowEffect();
 		checkBetaAccess();
+		checkRVC();
+		checkUpdates();
 	}, [pathname]);
 
 	const shouldShowHeader = !(
