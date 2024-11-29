@@ -20,7 +20,6 @@ import shutil
 import traceback
 from urllib.parse import unquote
 from dotenv import load_dotenv
-import hwid
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -43,8 +42,7 @@ logging.getLogger('werkzeug').setLevel(logging.ERROR)
 
 # gerenate unique id for device based on IP address
 def generate_device_id():
-    device_id = hwid.get_hwid()
-    return device_id
+    return hex(uuid.getnode())
 
 # get device id from request
 def get_device_id():

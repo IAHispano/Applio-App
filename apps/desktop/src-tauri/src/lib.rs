@@ -11,12 +11,16 @@ use tauri::State;
 
 fn get_server_path() -> io::Result<PathBuf> {
     let base_dir = std::env::current_dir()?;
-    println!("{:?}", base_dir);
-    Ok(if cfg!(dev) {
-        base_dir.join("python").join("server.exe")
-    } else {
-        base_dir.join("python").join("server.exe")
-    })
+    println!("Current directory: {:?}", base_dir);
+
+    let server_path = base_dir.join("python").join("server.exe");
+    println!("Server path: {:?}", server_path);
+
+    if !server_path.exists() {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "Server executable not found"));
+    }
+
+    Ok(server_path)
 }
 
 fn find_available_port() -> Option<u16> {
@@ -35,8 +39,11 @@ fn start_server(port: u16) -> io::Result<Child> {
 
     let child = Command::new(server_path)
         .arg(port.to_string())
-        .spawn() 
-        .map_err(|e| io::Error::new(io::ErrorKind::Other, format!("Failed to start server: {}", e)))?;
+        .spawn()
+        .map_err(|e| {
+            eprintln!("Error spawning server process: {}", e);
+            e
+        })?;
 
     println!("Initializing server on port {}...", port);
     Ok(child)

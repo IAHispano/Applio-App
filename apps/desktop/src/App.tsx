@@ -149,8 +149,7 @@ function App() {
 	
 	// check if rvc is installed
 	const checkRVC = async () => {
-		if (localStorage.getItem("checkRVC") === null) {
-		localStorage.setItem("checkRVC", "true");
+		localStorage.removeItem("update");
 		const port = await getServerPort();
 		const response = await fetch(`http://localhost:${port}/check-rvc`);
 		const data = await response.json();
@@ -159,7 +158,6 @@ function App() {
 			localStorage.setItem("update", "true");
 		} else {
 			localStorage.removeItem("update");
-		}
 		}
 	};
 
@@ -213,7 +211,6 @@ function App() {
 				const response = await fetch(`http://localhost:${port}/stop`);
 				localStorage.removeItem("appInitialized");
 				localStorage.removeItem("checkUpdate");
-				localStorage.removeItem("checkRVC");
 
 				if (!response.ok) {
 					console.error("Failed to stop server, please report on GitHub");
