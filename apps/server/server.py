@@ -462,6 +462,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         }
 
         json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+        os.makedirs(json_logs_dir, exist_ok=True)
         logging.info(f"Attempting to create directory: {json_logs_dir}")
 
         try:
