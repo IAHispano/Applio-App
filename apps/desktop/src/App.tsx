@@ -124,9 +124,6 @@ function App() {
 
 	// check rvc updates
 	const checkUpdates = async () => {
-		if (localStorage.getItem("checkUpdate") === null) {
-		console.log('checkUpdates', localStorage.getItem("checkUpdate"));
-		localStorage.setItem("checkUpdate", "true");
 		const port = await getServerPort();
 		const eventSource = new EventSource(
 			`http://localhost:${port}/check-update`,
@@ -144,7 +141,6 @@ function App() {
 		return () => {
 			eventSource.close();
 		};
-	}
 	};
 	
 	// check if rvc is installed
@@ -210,7 +206,6 @@ function App() {
 			try {
 				const response = await fetch(`http://localhost:${port}/stop`);
 				localStorage.removeItem("appInitialized");
-				localStorage.removeItem("checkUpdate");
 
 				if (!response.ok) {
 					console.error("Failed to stop server, please report on GitHub");
