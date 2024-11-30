@@ -21,6 +21,7 @@
     "shell:default",
     "store:default",
     "oauth:allow-start",
-    "oauth:allow-cancel"
+    "oauth:allow-cancel",
+    "dialog:default"
   ]
 }

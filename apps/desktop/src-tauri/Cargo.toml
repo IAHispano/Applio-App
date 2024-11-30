@@ -24,4 +24,5 @@ tauri-plugin-store = "2.1.0"
 tauri-plugin-os = "2.0.0-rc"
 declarative-discord-rich-presence = { git = "https://github.com/KPidS/declarative-discord-rich-presence" }
 reqwest = "0.12.8"
+tauri-plugin-dialog = "2"
 
