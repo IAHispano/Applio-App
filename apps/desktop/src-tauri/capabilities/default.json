@@ -1,27 +1,25 @@
 {
-  "$schema": "../gen/schemas/desktop-schema.json",
-  "identifier": "default",
-  "description": "Capability for the main window",
-  "windows": [
-    "main"
-  ],
-  "permissions": [
-    "core:default",
-    "core:window:allow-maximize",
-    "core:window:allow-minimize",
-    "core:window:allow-close",
-    "core:window:allow-unmaximize",
-    "core:window:allow-start-dragging",
-    "core:window:allow-set-effects",
-    "core:window:allow-destroy",
-    "store:default",
-    "store:allow-get",
-    "store:allow-set",
-    "shell:allow-open",
-    "shell:default",
-    "store:default",
-    "oauth:allow-start",
-    "oauth:allow-cancel",
-    "dialog:default"
-  ]
+	"$schema": "../gen/schemas/desktop-schema.json",
+	"identifier": "default",
+	"description": "Capability for the main window",
+	"windows": ["main"],
+	"permissions": [
+		"core:default",
+		"core:window:allow-maximize",
+		"core:window:allow-minimize",
+		"core:window:allow-close",
+		"core:window:allow-unmaximize",
+		"core:window:allow-start-dragging",
+		"core:window:allow-set-effects",
+		"core:window:allow-destroy",
+		"store:default",
+		"store:allow-get",
+		"store:allow-set",
+		"shell:allow-open",
+		"shell:default",
+		"store:default",
+		"oauth:allow-start",
+		"oauth:allow-cancel",
+		"dialog:default"
+	]
 }

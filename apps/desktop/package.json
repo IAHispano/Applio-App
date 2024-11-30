@@ -1,39 +1,37 @@
 {
-  "name": "desktop",
-  "private": true,
-  "version": "0.1.5",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
-    "tauri": "tauri",
-    "format": "biome format"
-  },
-  "dependencies": {
-    "@fabianlars/tauri-plugin-oauth": "2",
-    "@supabase/supabase-js": "^2.45.6",
-    "@tauri-apps/api": ">=2.1.1",
-    "@tauri-apps/plugin-dialog": "~2",
-    "@tauri-apps/plugin-os": "~2.0.0",
-    "@tauri-apps/plugin-shell": "2.0.1",
-    "@tauri-apps/plugin-store": "2.1.0",
-    "framer-motion": "^11.11.9",
-    "react": "^18.3.1",
-    "react-audio-visualize": "^1.2.0",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.26.2"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
-    "@tauri-apps/cli": ">=2.1.0",
-    "@types/react": "^18.3.12",
-    "@types/react-dom": "^18.3.1",
-    "@vitejs/plugin-react": "^4.3.3",
-    "autoprefixer": "^10.4.20",
-    "postcss": "^8.4.47",
-    "tailwindcss": "^3.4.14",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.10"
-  }
+	"name": "desktop",
+	"private": true,
+	"version": "0.1.5",
+	"type": "module",
+	"scripts": {
+		"dev": "vite",
+		"build": "tsc && vite build",
+		"preview": "vite preview",
+		"tauri": "tauri"
+	},
+	"dependencies": {
+		"@fabianlars/tauri-plugin-oauth": "2",
+		"@supabase/supabase-js": "^2.45.6",
+		"@tauri-apps/api": ">=2.1.1",
+		"@tauri-apps/plugin-dialog": "~2",
+		"@tauri-apps/plugin-os": "~2.0.0",
+		"@tauri-apps/plugin-shell": "2.0.1",
+		"@tauri-apps/plugin-store": "2.1.0",
+		"framer-motion": "^11.11.9",
+		"react": "^18.3.1",
+		"react-audio-visualize": "^1.2.0",
+		"react-dom": "^18.3.1",
+		"react-router-dom": "^6.26.2"
+	},
+	"devDependencies": {
+		"@tauri-apps/cli": ">=2.1.0",
+		"@types/react": "^18.3.12",
+		"@types/react-dom": "^18.3.1",
+		"@vitejs/plugin-react": "^4.3.3",
+		"autoprefixer": "^10.4.20",
+		"postcss": "^8.4.47",
+		"tailwindcss": "^3.4.14",
+		"typescript": "^5.6.3",
+		"vite": "^5.4.10"
+	}
 }

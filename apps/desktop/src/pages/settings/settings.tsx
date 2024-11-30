@@ -170,40 +170,42 @@ export default function Settings() {
 			const response = await fetch(`http://localhost:${port}/send-data`);
 			if (response.ok) {
 				const data = await response.json();
-				console.log('data', data);
+				console.log("data", data);
 				if (data.error) {
-					console.error('Error from server:', data.error);
+					console.error("Error from server:", data.error);
 					setSendData(false);
 				} else {
 					setSendData(data.send_data);
 				}
 			} else {
-				console.error('Failed to fetch data from server');
+				console.error("Failed to fetch data from server");
 				setSendData(false);
 			}
 		} catch (error) {
-			console.error('Error fetching send data:', error);
+			console.error("Error fetching send data:", error);
 			setSendData(false);
 		}
 	}
-	
+
 	async function handleSendData(value: boolean) {
 		try {
 			const port = await getServerPort();
-			const response = await fetch(`http://localhost:${port}/send-data?send=${value}`);
+			const response = await fetch(
+				`http://localhost:${port}/send-data?send=${value}`,
+			);
 			if (response.ok) {
 				const data = await response.json();
-				console.log('response from handleSendData', data);
+				console.log("response from handleSendData", data);
 				if (data.success === false) {
-					console.error('Error setting send data:', data.error);
+					console.error("Error setting send data:", data.error);
 				} else {
 					setSendData(value);
 				}
 			} else {
-				console.error('Failed to set send data on server');
+				console.error("Failed to set send data on server");
 			}
 		} catch (error) {
-			console.error('Error in handleSendData:', error);
+			console.error("Error in handleSendData:", error);
 		}
 	}
 
@@ -214,19 +216,18 @@ export default function Settings() {
 			if (response.ok) {
 				const data = await response.json();
 				if (data.error) {
-					console.error('Error from server:', data.error);
+					console.error("Error from server:", data.error);
 				} else {
 					setDeviceId(data.device_id);
 				}
 			} else {
-				console.error('Failed to fetch data from server');
+				console.error("Failed to fetch data from server");
 			}
 		} catch (error) {
-			console.error('Error fetching device id:', error);
+			console.error("Error fetching device id:", error);
 		}
 	}
-	
-	
+
 	useEffect(() => {
 		async function getBackground() {
 			const store = await Store.load("settings.json");
@@ -272,191 +273,204 @@ export default function Settings() {
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
 							<h1 className="text-xl font-bold title">Settings</h1>
 							<div className="flex flex-col gap-4 w-full h-full">
-							{/* Privacy */}
-							<div>
-							<h2 className="text-lg font-medium mt-4">Privacy</h2>
-							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
-							<div className="items-center w-full justify-between flex">
+								{/* Privacy */}
 								<div>
-									<p className="text-neutral-200 font-medium">Send data anonymously</p>
-									<p className="text-xs text-neutral-400 max-w-3xl">
-										This sends anonymous data to the server to help enhance the app. No personal information is ever included—only system details are shared. Sensitive information is never collected or transmitted.
-									</p>
-								</div>
-								<label className="flex items-center cursor-pointer relative">
-									<input
-										checked={sendData}
-										onChange={(e) => handleSendData(e.target.checked)}
-										type="checkbox"
-										className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-										id="check"
-									/>
-									<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className="h-3.5 w-3.5"
-											viewBox="0 0 20 20"
-											fill="currentColor"
-											stroke="currentColor"
-											strokeWidth="1"
-											aria-label="Checkmark"
-											aria-hidden="true"
-										>
-											<path
-												fill-rule="evenodd"
-												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-												clip-rule="evenodd"
+									<h2 className="text-lg font-medium mt-4">Privacy</h2>
+									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
+									<div className="items-center w-full justify-between flex">
+										<div>
+											<p className="text-neutral-200 font-medium">
+												Send data anonymously
+											</p>
+											<p className="text-xs text-neutral-400 max-w-3xl">
+												This sends anonymous data to the server to help enhance
+												the app. No personal information is ever included—only
+												system details are shared. Sensitive information is
+												never collected or transmitted.
+											</p>
+										</div>
+										<label className="flex items-center cursor-pointer relative">
+											<input
+												checked={sendData}
+												onChange={(e) => handleSendData(e.target.checked)}
+												type="checkbox"
+												className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+												id="check"
 											/>
-										</svg>
-									</span>
-								</label>
-							</div>
-							</div>
-							{/* Personalization */}
-							<div>
-							<h2 className="text-lg font-medium mt-4">Personalization</h2>
-							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
-							<div className="items-center w-full justify-between flex">
-								<div>
-									<p className="text-neutral-200 font-medium">Window effect</p>
-									<p className="text-xs text-neutral-400">
-										This will apply an acrylic effect to the application window
-										when you select a background colour, only available in
-										Windows 11.
-									</p>
-								</div>
-								<label className="flex items-center cursor-pointer relative">
-									<input
-										checked={effect}
-										onChange={(e) => setHaveEffect(e.target.checked)}
-										type="checkbox"
-										className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-										id="check"
-									/>
-									<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-										<svg
-											xmlns="http://www.w3.org/2000/svg"
-											className="h-3.5 w-3.5"
-											viewBox="0 0 20 20"
-											fill="currentColor"
-											stroke="currentColor"
-											strokeWidth="1"
-											aria-label="Checkmark"
-											aria-hidden="true"
-										>
-											<path
-												fill-rule="evenodd"
-												d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-												clip-rule="evenodd"
-											/>
-										</svg>
-									</span>
-								</label>
-							</div>
-							<div className="flex justify-between w-full items-center mt-6">
-								<div>
-									<p className="text-sm text-neutral-200 font-medium">
-										Background
-									</p>
-									<p className="text-xs text-neutral-400">
-										This will apply a background colour to the application
-										window.
-									</p>
-								</div>
-								<div className="flex items-center gap-3 mt-4">
-									{predefinedColors.map((color) => (
-										<button
-											type="button"
-											key={color}
-											style={{ backgroundColor: color }}
-											className="w-10 h-10 rounded-full border-2 border-white/20 focus:outline-none transition transform hover:scale-105 shadow-md"
-											onClick={() => changeBackgroundColor(color)}
-										/>
-									))}
-
-									<div className="relative flex items-center">
-										<input
-											type="color"
-											value={backgroundColor}
-											onChange={(e) => changeBackgroundColor(e.target.value)}
-											className={`w-10 h-10 cursor-pointer rounded-full border-2 border-white/20 focus:outline-none bg-[${backgroundColor}] appearance-none`}
-										/>
-										<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
-											<svg
-												aria-hidden="true"
-												className="w-4 h-4"
-												viewBox="0 0 24 24"
-												fill="none"
-												xmlns="http://www.w3.org/2000/svg"
-												stroke="#ffffff"
-											>
-												<g id="SVGRepo_bgCarrier" stroke-width="0" />
-												<g
-													id="SVGRepo_tracerCarrier"
-													stroke-linecap="round"
-													stroke-linejoin="round"
-												/>
-												<g id="SVGRepo_iconCarrier">
-													{" "}
+											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-3.5 w-3.5"
+													viewBox="0 0 20 20"
+													fill="currentColor"
+													stroke="currentColor"
+													strokeWidth="1"
+													aria-label="Checkmark"
+													aria-hidden="true"
+												>
 													<path
-														d="M4 12H20M12 4V20"
-														stroke="#ffffff"
-														stroke-width="2"
-														stroke-linecap="round"
-														stroke-linejoin="round"
-													/>{" "}
-												</g>
-											</svg>
-										</span>
+														fill-rule="evenodd"
+														d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+														clip-rule="evenodd"
+													/>
+												</svg>
+											</span>
+										</label>
 									</div>
 								</div>
-							</div>
-							</div>
-							{/* Other */}
-							<div>
-							<h2 className="text-lg font-medium mt-4">Other</h2>
-							<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
-							<div className="flex gap-2">
-								<a
-									href="/first-time"
-									type="button"
-									className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
-								>
-									Install RVC
-								</a>
-								<a
-									href="/pretraineds"
-									type="button"
-									className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
-								>
-									Download pretraineds
-								</a>
-								<button
-									onClick={handleTestBackend}
-									type="button"
-									className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
-								>
-									Test backend
-								</button>
-								<button
-									onClick={checkUpdates}
-									type="button"
-									className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
-								>
-									Check updates
-								</button>
+								{/* Personalization */}
+								<div>
+									<h2 className="text-lg font-medium mt-4">Personalization</h2>
+									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
+									<div className="items-center w-full justify-between flex">
+										<div>
+											<p className="text-neutral-200 font-medium">
+												Window effect
+											</p>
+											<p className="text-xs text-neutral-400">
+												This will apply an acrylic effect to the application
+												window when you select a background colour, only
+												available in Windows 11.
+											</p>
+										</div>
+										<label className="flex items-center cursor-pointer relative">
+											<input
+												checked={effect}
+												onChange={(e) => setHaveEffect(e.target.checked)}
+												type="checkbox"
+												className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+												id="check"
+											/>
+											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+												<svg
+													xmlns="http://www.w3.org/2000/svg"
+													className="h-3.5 w-3.5"
+													viewBox="0 0 20 20"
+													fill="currentColor"
+													stroke="currentColor"
+													strokeWidth="1"
+													aria-label="Checkmark"
+													aria-hidden="true"
+												>
+													<path
+														fill-rule="evenodd"
+														d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+														clip-rule="evenodd"
+													/>
+												</svg>
+											</span>
+										</label>
+									</div>
+									<div className="flex justify-between w-full items-center mt-6">
+										<div>
+											<p className="text-sm text-neutral-200 font-medium">
+												Background
+											</p>
+											<p className="text-xs text-neutral-400">
+												This will apply a background colour to the application
+												window.
+											</p>
+										</div>
+										<div className="flex items-center gap-3 mt-4">
+											{predefinedColors.map((color) => (
+												<button
+													type="button"
+													key={color}
+													style={{ backgroundColor: color }}
+													className="w-10 h-10 rounded-full border-2 border-white/20 focus:outline-none transition transform hover:scale-105 shadow-md"
+													onClick={() => changeBackgroundColor(color)}
+												/>
+											))}
+
+											<div className="relative flex items-center">
+												<input
+													type="color"
+													value={backgroundColor}
+													onChange={(e) =>
+														changeBackgroundColor(e.target.value)
+													}
+													className={`w-10 h-10 cursor-pointer rounded-full border-2 border-white/20 focus:outline-none bg-[${backgroundColor}] appearance-none`}
+												/>
+												<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
+													<svg
+														aria-hidden="true"
+														className="w-4 h-4"
+														viewBox="0 0 24 24"
+														fill="none"
+														xmlns="http://www.w3.org/2000/svg"
+														stroke="#ffffff"
+													>
+														<g id="SVGRepo_bgCarrier" stroke-width="0" />
+														<g
+															id="SVGRepo_tracerCarrier"
+															stroke-linecap="round"
+															stroke-linejoin="round"
+														/>
+														<g id="SVGRepo_iconCarrier">
+															{" "}
+															<path
+																d="M4 12H20M12 4V20"
+																stroke="#ffffff"
+																stroke-width="2"
+																stroke-linecap="round"
+																stroke-linejoin="round"
+															/>{" "}
+														</g>
+													</svg>
+												</span>
+											</div>
+										</div>
+									</div>
+								</div>
+								{/* Other */}
+								<div>
+									<h2 className="text-lg font-medium mt-4">Other</h2>
+									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
+									<div className="flex gap-2">
+										<a
+											href="/first-time"
+											type="button"
+											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+										>
+											Install RVC
+										</a>
+										<a
+											href="/pretraineds"
+											type="button"
+											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+										>
+											Download pretraineds
+										</a>
+										<button
+											onClick={handleTestBackend}
+											type="button"
+											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+										>
+											Test backend
+										</button>
+										<button
+											onClick={checkUpdates}
+											type="button"
+											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+										>
+											Check updates
+										</button>
+									</div>
+								</div>
+								<div className="flex justify-end items-end mt-auto ml-auto flex-col">
+									<p className="text-neutral-400 text-xs">v{appVersion}</p>
+									<p className="text-neutral-400 text-xs">
+										tauri-{tauriVersion}
+									</p>
+									<p className="text-neutral-400 text-xs">
+										{deviceId || "Undefined device ID"}
+									</p>
+									<p className="text-neutral-400 text-xs">
+										{system}-{systemVersion}
+									</p>
+								</div>
 							</div>
 						</div>
-						<div className="flex justify-end items-end mt-auto ml-auto flex-col">
-								<p className="text-neutral-400 text-xs">v{appVersion}</p>
-								<p className="text-neutral-400 text-xs">tauri-{tauriVersion}</p>
-								<p className="text-neutral-400 text-xs">{deviceId || "Undefined device ID"}</p>
-								<p className="text-neutral-400 text-xs">
-									{system}-{systemVersion}
-								</p>
-							</div>
-						</div>
-					</div>
 					</div>
 				</div>
 			</main>

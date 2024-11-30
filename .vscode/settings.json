@@ -1,12 +1,8 @@
 {
-  "eslint.workingDirectories": [
-    {
-      "mode": "auto"
-    }
-  ],
-  "conventionalCommits.scopes": [
-    "desktop",
-    "server",
-    "installer"
-  ]
+	"eslint.workingDirectories": [
+		{
+			"mode": "auto"
+		}
+	],
+	"conventionalCommits.scopes": ["desktop", "server", "installer"]
 }

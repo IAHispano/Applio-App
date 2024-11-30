@@ -1,27 +1,28 @@
 {
-  "name": "applio-app-monorepo",
-  "private": true,
-  "scripts": {
-    "build": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
-    "build:server": "cd apps/server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
-    "server": "cd apps/server && env\\Scripts\\activate && call ./env/scripts/activate.bat && python server.py",
-    "dev": "turbo dev",
-    "lint": "turbo lint",
-    "desktop": "pnpm --filter desktop --",
-    "tauri": "dotenv -- pnpm desktop tauri",
-    "installer": "dotenv -- pnpm --filter installer --",
-    "format": "pnpm desktop format --write"
-  },
-  "devDependencies": {
-    "turbo": "^2.2.3",
-    "typescript": "^5.6.3"
-  },
-  "packageManager": "pnpm@9.12.2",
-  "engines": {
-    "node": ">=18"
-  },
-  "dependencies": {
-    "dotenv": "^16.4.5",
-    "dotenv-cli": "github:motdotla/dotenv-cli"
-  }
+	"name": "applio-app-monorepo",
+	"private": true,
+	"scripts": {
+		"build": "cd apps/desktop && pnpm tauri build && copy src-tauri\\target\\release\\applio-app.exe ..\\..\\build\\applio-app.exe && cd ..\\server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
+		"build:server": "cd apps/server && call ./env/scripts/activate.bat && pyinstaller --onefile --icon=logo.ico --noconsole --add-data \".env;.\" server.py && copy dist\\server.exe ..\\..\\build\\server.exe && call ./env/scripts/deactivate.bat",
+		"server": "cd apps/server && env\\Scripts\\activate && call ./env/scripts/activate.bat && python server.py",
+		"dev": "turbo dev",
+		"lint": "turbo lint",
+		"desktop": "pnpm --filter desktop --",
+		"tauri": "dotenv -- pnpm desktop tauri",
+		"installer": "dotenv -- pnpm --filter installer --",
+		"format": "pnpm biome format --write ."
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^1.9.4",
+		"turbo": "^2.2.3",
+		"typescript": "^5.6.3"
+	},
+	"packageManager": "pnpm@9.12.2",
+	"engines": {
+		"node": ">=18"
+	},
+	"dependencies": {
+		"dotenv": "^16.4.5",
+		"dotenv-cli": "github:motdotla/dotenv-cli"
+	}
 }

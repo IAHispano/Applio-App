@@ -228,25 +228,28 @@ export default function Models() {
 	const handleImportModel = async (modelPath: string) => {
 		const id = crypto.randomUUID();
 		const port = await getServerPort();
-	
+
 		setDropdownOpen(true);
 		setInfo("Starting...");
 		setStatus("Sending request...");
-	
+
 		try {
-			const response = await fetch(`http://localhost:${port}/import-model?path=${encodeURIComponent(modelPath)}&id=${encodeURIComponent(id)}`, {
-				method: "GET",
-				headers: {
-					"Content-Type": "application/json",
+			const response = await fetch(
+				`http://localhost:${port}/import-model?path=${encodeURIComponent(modelPath)}&id=${encodeURIComponent(id)}`,
+				{
+					method: "GET",
+					headers: {
+						"Content-Type": "application/json",
+					},
 				},
-			});
+			);
 			setInfo("Importing...");
 			setStatus("Importing model...");
 			const data = await response.json();
 
 			setInfo("Finishing...");
 			setStatus("Imported successfully");
-			
+
 			if (data.status === "success") {
 				setInfo("Imported successfully");
 				setStatus("Imported successfully");
@@ -261,14 +264,13 @@ export default function Models() {
 			console.error("Error:", err);
 		}
 	};
-	
 
 	const handleImportModelFile = async () => {
 		const file = await dialogOpen({
 			directory: true,
 			multiple: false,
 		});
-		
+
 		setFilePath(file);
 	};
 
@@ -321,7 +323,9 @@ export default function Models() {
 											{status}
 										</div>
 									)}
-									{(info === "Downloaded" || info === "Imported successfully" || error) && (
+									{(info === "Downloaded" ||
+										info === "Imported successfully" ||
+										error) && (
 										<button
 											type="button"
 											className="flex justify-end ml-auto px-6 py-1.5 bg-white text-black rounded-xl text-sm"
@@ -474,21 +478,33 @@ export default function Models() {
 								</button>
 							)}
 							<div className="mt-12 w-full flex flex-col gap-4 p-1">
-								<h2 className="text-neutral-200">Import from your local machine</h2>
-								<div className='flex gap-4 w-full'>
-								<button onClick={() => handleImportModelFile()} className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm" type="button"> 
-								{filePath ? ( <p className="text-sm text-neutral-300">{filePath}</p>) : (<p className="text-sm text-neutral-300">No file selected</p>)}
-								</button>
-								{filePath && (
+								<h2 className="text-neutral-200">
+									Import from your local machine
+								</h2>
+								<div className="flex gap-4 w-full">
 									<button
-										onClick={() => handleImportModel(filePath)}
-										className="w-fit px-8 rounded-xl focus:outline-none bg-neutral-600/50 text-neutral-200 text-sm"
+										onClick={() => handleImportModelFile()}
+										className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm"
 										type="button"
 									>
-										Import
+										{filePath ? (
+											<p className="text-sm text-neutral-300">{filePath}</p>
+										) : (
+											<p className="text-sm text-neutral-300">
+												No file selected
+											</p>
+										)}
 									</button>
-								)}
-							</div>
+									{filePath && (
+										<button
+											onClick={() => handleImportModel(filePath)}
+											className="w-fit px-8 rounded-xl focus:outline-none bg-neutral-600/50 text-neutral-200 text-sm"
+											type="button"
+										>
+											Import
+										</button>
+									)}
+								</div>
 							</div>
 						</div>
 					)}

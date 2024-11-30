@@ -1,7 +1,11 @@
 import "./App.css";
 import { useEffect } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
-import { CloseRequestedEvent, Effect, getCurrentWindow } from "@tauri-apps/api/window";
+import {
+	CloseRequestedEvent,
+	Effect,
+	getCurrentWindow,
+} from "@tauri-apps/api/window";
 import { isFirstRun, setNotFirstRun } from "./scripts/isFirstTime";
 import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import Header from "./components/layout/header";
@@ -147,7 +151,7 @@ function App() {
 			eventSource.close();
 		};
 	};
-	
+
 	// check if rvc is installed
 	const checkRVC = async () => {
 		localStorage.removeItem("update");
@@ -227,9 +231,11 @@ function App() {
 
 		const currentWindow = getCurrentWindow();
 
-		const unlisten = currentWindow.onCloseRequested((event: CloseRequestedEvent) => {
-			handleCloseRequested(event as unknown as React.MouseEvent);
-		});
+		const unlisten = currentWindow.onCloseRequested(
+			(event: CloseRequestedEvent) => {
+				handleCloseRequested(event as unknown as React.MouseEvent);
+			},
+		);
 
 		return () => {
 			unlisten.then((fn) => fn());
@@ -314,41 +320,41 @@ function OSNotSupported() {
 
 function BetaAccess() {
 	return (
-			<section className="absolute inset-0 bg-black flex flex-col gap-4 justify-center items-center w-screen h-screen">
+		<section className="absolute inset-0 bg-black flex flex-col gap-4 justify-center items-center w-screen h-screen">
 			<h1 className="text-3xl font-semibold title text-center text-white">
 				Applio is still in development
 			</h1>
 			<p className="text-sm max-w-sm text-pretty text-center text-neutral-300">
 				Interested in trying it out? Join our{" "}
 				<a
-				onClick={() => open("https://applio.org/products/app")}
-				rel="noopener noreferrer"
-				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
+					onClick={() => open("https://applio.org/products/app")}
+					rel="noopener noreferrer"
+					className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
 				>
-				waitlist
+					waitlist
 				</a>{" "}
 				to receive an invitation or join at{" "}
 				<a
-				onClick={() => open("https://ko-fi.com/iahispano/tiers")}
-				rel="noopener noreferrer"
-				className="underline text-neutral-200 cursor-pointer hover:text-white transition-all"
+					onClick={() => open("https://ko-fi.com/iahispano/tiers")}
+					rel="noopener noreferrer"
+					className="underline text-neutral-200 cursor-pointer hover:text-white transition-all"
 				>
-				our Supporters
+					our Supporters
 				</a>{" "}
 				for instant access.
 			</p>
 			<p className="text-sm max-w-sm text-balance text-center text-neutral-300">
 				If you're already a beta tester, please contact us at{" "}
 				<a
-				onClick={() => open("https://applio.org/discord")}
-				rel="noopener noreferrer"
-				className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
+					onClick={() => open("https://applio.org/discord")}
+					rel="noopener noreferrer"
+					className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
 				>
-				our Discord
+					our Discord
 				</a>{" "}
 				for access.
 			</p>
-			</section>
+		</section>
 	);
 }
 

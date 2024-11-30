@@ -116,7 +116,7 @@ export default function Convert() {
 		getLocalModels();
 	}, []);
 
-	console.log('output', output);
+	console.log("output", output);
 
 	useEffect(() => {
 		if (models[currentIndex] && models[currentIndex].model_index_file) {
@@ -490,35 +490,59 @@ export default function Convert() {
 									<div className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40" />
 									{uploaded ? (
 										<>
-										<button onClick={handleReset} type="button" style={{zIndex: 100}} className="cursor-pointer absolute right-4 rounded-xl top-4 hover:bg-neutral-800 slow bg-neutral-800/80 p-4">
-										<svg className="w-4 h-4 opacity-60" fill="#ffffff" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M960 0v213.333c411.627 0 746.667 334.934 746.667 746.667S1371.627 1706.667 960 1706.667 213.333 1371.733 213.333 960c0-197.013 78.4-382.507 213.334-520.747v254.08H640V106.667H53.333V320h191.04C88.64 494.08 0 720.96 0 960c0 529.28 430.613 960 960 960s960-430.72 960-960S1489.387 0 960 0" fill-rule="evenodd"></path> </g></svg>
-										</button>
-										<svg
-											className="w-16 h-16 opacity-60"
-											viewBox="0 0 24 24"
-											fill="none"
-											xmlns="http://www.w3.org/2000/svg"
-											aria-hidden="true"
-										>
-											<g id="SVGRepo_bgCarrier" strokeWidth="0" />
-											<g
-												id="SVGRepo_tracerCarrier"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											/>
-											<g id="SVGRepo_iconCarrier">
-												<g id="Interface / Check">
-													<path
-														id="Vector"
-														d="M6 12L10.2426 16.2426L18.727 7.75732"
-														stroke="#ffffff"
-														strokeWidth="2"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-													/>
+											<button
+												onClick={handleReset}
+												type="button"
+												style={{ zIndex: 100 }}
+												className="cursor-pointer absolute right-4 rounded-xl top-4 hover:bg-neutral-800 slow bg-neutral-800/80 p-4"
+											>
+												<svg
+													className="w-4 h-4 opacity-60"
+													fill="#ffffff"
+													viewBox="0 0 1920 1920"
+													xmlns="http://www.w3.org/2000/svg"
+												>
+													<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+													<g
+														id="SVGRepo_tracerCarrier"
+														stroke-linecap="round"
+														stroke-linejoin="round"
+													></g>
+													<g id="SVGRepo_iconCarrier">
+														{" "}
+														<path
+															d="M960 0v213.333c411.627 0 746.667 334.934 746.667 746.667S1371.627 1706.667 960 1706.667 213.333 1371.733 213.333 960c0-197.013 78.4-382.507 213.334-520.747v254.08H640V106.667H53.333V320h191.04C88.64 494.08 0 720.96 0 960c0 529.28 430.613 960 960 960s960-430.72 960-960S1489.387 0 960 0"
+															fill-rule="evenodd"
+														></path>{" "}
+													</g>
+												</svg>
+											</button>
+											<svg
+												className="w-16 h-16 opacity-60"
+												viewBox="0 0 24 24"
+												fill="none"
+												xmlns="http://www.w3.org/2000/svg"
+												aria-hidden="true"
+											>
+												<g id="SVGRepo_bgCarrier" strokeWidth="0" />
+												<g
+													id="SVGRepo_tracerCarrier"
+													strokeLinecap="round"
+													strokeLinejoin="round"
+												/>
+												<g id="SVGRepo_iconCarrier">
+													<g id="Interface / Check">
+														<path
+															id="Vector"
+															d="M6 12L10.2426 16.2426L18.727 7.75732"
+															stroke="#ffffff"
+															strokeWidth="2"
+															strokeLinecap="round"
+															strokeLinejoin="round"
+														/>
+													</g>
 												</g>
-											</g>
-										</svg>
+											</svg>
 										</>
 									) : (
 										<svg
@@ -579,20 +603,20 @@ export default function Convert() {
 											Pitch
 										</h2>
 										<div className="flex gap-0 justify-center items-center">
-										<input
-											type="number"
-											value={pitch}
-											onChange={(e) => {
-												let value = Number.parseFloat(e.target.value);
-												if (value < -24) value = -24;
-												if (value > 24) value = 24;
-												setPitch(value);
-											}}
-											step="0.1"
-											min="-24"
-											max="24"
-											className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-										/>
+											<input
+												type="number"
+												value={pitch}
+												onChange={(e) => {
+													let value = Number.parseFloat(e.target.value);
+													if (value < -24) value = -24;
+													if (value > 24) value = 24;
+													setPitch(value);
+												}}
+												step="0.1"
+												min="-24"
+												max="24"
+												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
+											/>
 											<input
 												value={pitch}
 												onChange={(e) => setPitch(Number(e.target.value))}
@@ -613,20 +637,20 @@ export default function Convert() {
 											Index Rate
 										</h2>
 										<div className="flex gap-2 justify-center items-center">
-										<input
-											type="number"
-											value={indexRate}
-											onChange={(e) => {
-												let value = Number.parseFloat(e.target.value);
-												if (value < 0) value = 0;
-												if (value > 1) value = 1;
-												setIndexRate(value);
-											}}
-											step="0.01"
-											min="0.0"
-											max="1.0"
-											className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-										/>
+											<input
+												type="number"
+												value={indexRate}
+												onChange={(e) => {
+													let value = Number.parseFloat(e.target.value);
+													if (value < 0) value = 0;
+													if (value > 1) value = 1;
+													setIndexRate(value);
+												}}
+												step="0.01"
+												min="0.0"
+												max="1.0"
+												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
+											/>
 											<input
 												value={indexRate}
 												onChange={(e) => setIndexRate(Number(e.target.value))}
@@ -650,20 +674,20 @@ export default function Convert() {
 											Filter Radius
 										</h2>
 										<div className="flex gap-2 justify-center items-center">
-										<input
-											type="number"
-											value={filterRadius}
-											onChange={(e) => {
-												let value = Number.parseFloat(e.target.value);
-												if (value < 0) value = 0;
-												if (value > 10) value = 10;
-												setFilterRadius(value);
-											}}
-											step="1"
-											min="0"
-											max="10"
-											className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-										/>
+											<input
+												type="number"
+												value={filterRadius}
+												onChange={(e) => {
+													let value = Number.parseFloat(e.target.value);
+													if (value < 0) value = 0;
+													if (value > 10) value = 10;
+													setFilterRadius(value);
+												}}
+												step="1"
+												min="0"
+												max="10"
+												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
+											/>
 											<input
 												value={filterRadius}
 												onChange={(e) =>
@@ -876,15 +900,19 @@ export default function Convert() {
 												</button>
 											</div>
 											<div className="aspect-video w-full max-w-full max-h-[10svh] overflow-hidden flex items-center gap-4">
-												<AudioVisualizer 
-												ref={visualizerRef}
-												blob={output}
-												width={500}
-        										height={500}
-												barWidth={1}
-												gap={6}
-												barColor="#22aa68"
-												style={{ height: "8svh", width: "100%", aspectRatio: "16 / 9" }}
+												<AudioVisualizer
+													ref={visualizerRef}
+													blob={output}
+													width={500}
+													height={500}
+													barWidth={1}
+													gap={6}
+													barColor="#22aa68"
+													style={{
+														height: "8svh",
+														width: "100%",
+														aspectRatio: "16 / 9",
+													}}
 												/>
 											</div>
 											{/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
@@ -894,7 +922,10 @@ export default function Convert() {
 												onPlay={() => setIsPlaying(true)}
 												onPause={() => setIsPlaying(false)}
 											>
-												<source src={URL.createObjectURL(output)} type="audio/wav" />
+												<source
+													src={URL.createObjectURL(output)}
+													type="audio/wav"
+												/>
 											</audio>
 										</div>
 										{convertedAudio && (

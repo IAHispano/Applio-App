@@ -15,6 +15,9 @@ importers:
         specifier: github:motdotla/dotenv-cli
         version: https://codeload.github.com/motdotla/dotenv-cli/tar.gz/1480f6b162841926affb626910ba86138294f5ef
     devDependencies:
+      '@biomejs/biome':
+        specifier: ^1.9.4
+        version: 1.9.4
       turbo:
         specifier: ^2.2.3
         version: 2.2.3

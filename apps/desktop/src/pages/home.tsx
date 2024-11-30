@@ -28,18 +28,22 @@ export default function Home() {
 
 		getColor();
 	}, []);
-	
 
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-10 mb-4 px-4 w-full overflow-auto">
-			<div className="w-full h-full flex flex-col gap-4 overflow-auto">
-			<div className="grid grid-cols-3 grid-rows-3 gap-4 w-full h-full">
-				<div className="w-full h-full rounded-xl noise row-span-3 col-span-3 flex justify-center items-center relative" style={{background: `radial-gradient(150% 150% at 50% 10%, #111111A3 40%, ${backgroundColor} 100%)`,}}>
-				 <h1 className="text-[100px] font-bold title">Applio</h1>
+				<div className="w-full h-full flex flex-col gap-4 overflow-auto">
+					<div className="grid grid-cols-3 grid-rows-3 gap-4 w-full h-full">
+						<div
+							className="w-full h-full rounded-xl noise row-span-3 col-span-3 flex justify-center items-center relative"
+							style={{
+								background: `radial-gradient(150% 150% at 50% 10%, #111111A3 40%, ${backgroundColor} 100%)`,
+							}}
+						>
+							<h1 className="text-[100px] font-bold title">Applio</h1>
+						</div>
+					</div>
 				</div>
-			</div>
-			</div>
 			</main>
 		</div>
 	);
