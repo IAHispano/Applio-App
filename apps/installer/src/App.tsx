@@ -12,6 +12,7 @@ const App: React.FC = () => {
 	const [isPlaying, setIsPlaying] = useState<boolean>(true);
 	const [currentPosition, setCurrentPosition] = useState<number>(0);
 	const soundRef = useRef<Howl | null>(null);
+	const hasInitialized = useRef<boolean>(false);
 
 	useEffect(() => {
 		soundRef.current = new Howl({
@@ -20,12 +21,16 @@ const App: React.FC = () => {
 			loop: true,
 			autoplay: true,
 			onplay: () => {
-				soundRef.current?.seek(2.5);
+				if (!hasInitialized.current) {
+					soundRef.current?.seek(2.5);
+					hasInitialized.current = true;
+				}
 			},
 		});
 
 		return () => {
 			soundRef.current?.stop();
+			soundRef.current = null;
 		};
 	}, []);
 
@@ -33,9 +38,8 @@ const App: React.FC = () => {
 		if (soundRef.current) {
 			soundRef.current.seek(currentPosition);
 			soundRef.current.play();
-			soundRef.current.volume(0.1);
 			setIsPlaying(true);
-			console.log("audio playing");
+			console.log("Audio playing from:", currentPosition);
 		}
 	};
 
@@ -45,7 +49,7 @@ const App: React.FC = () => {
 			setCurrentPosition(position);
 			soundRef.current.stop();
 			setIsPlaying(false);
-			console.log("audio stopped at position:", position);
+			console.log("Audio stopped at position:", position);
 		}
 	};
 
@@ -76,6 +80,7 @@ const App: React.FC = () => {
 					onClick={handleAudio}
 					type="button"
 					className="w-8 h-8 items-center flex justify-center bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					aria-label="Play/Pause audio"
 				>
 					{isPlaying ? (
 						<svg
