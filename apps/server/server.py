@@ -231,7 +231,7 @@ def is_admin():
         return False
     
 def RVC_repository_exists():
-    repository_exists = os.path.exists(os.path.join(sys.executable, '..', 'rvc'))
+    repository_exists = os.path.exists(os.path.join(os.path.dirname(sys.executable), '..', 'rvc'))
     logging.info(f"RVC repository exists: {repository_exists}")
     return str(repository_exists)
 
@@ -349,7 +349,7 @@ def runInstallation():
             text=True,
             bufsize=1,
             shell=True,
-            cwd=os.path.abspath(os.path.join(os.getcwd(), 'rvc'))
+            cwd=os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc'))
         )
 
         for line in process.stdout:
@@ -494,6 +494,75 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
         handle_exception(e)
         yield f'data: Error running download: {error_message}\n\n'
 
+# import local model
+def import_model():
+    model_path = request.args.get('path')
+    model_id = request.args.get('id')
+
+    if not model_path:
+        return {"status": "error", "message": "Model path is required"}, 400
+
+    if not os.path.exists(model_path):
+        return {"status": "error", "message": "Model path does not exist"}, 400
+    
+    rvc_models_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc', 'logs'))
+    logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models'))
+    os.makedirs(logs_dir, exist_ok=True)
+
+    model_folder_name = os.path.basename(model_path.rstrip(os.sep))
+    dest_model_path = os.path.join(rvc_models_dir, model_folder_name)
+
+    try:
+        shutil.copytree(model_path, dest_model_path)
+        logging.info(f"Model imported successfully on: {dest_model_path}")
+    except Exception as e:
+        logging.error(f"Error importing model: {str(e)}")
+        return {"status": "error", "message": f"Error importing model: {str(e)}"}, 500
+
+    model_files = {"pth": None, "index": None}
+    for root, _, files in os.walk(dest_model_path):
+        for file in files:
+            if file.endswith(".pth"):
+                model_files["pth"] = os.path.join(root, file)
+            elif file.endswith(".index"):
+                model_files["index"] = os.path.join(root, file)
+        if model_files["pth"] and model_files["index"]:
+            break
+
+    if not model_files["pth"] or not model_files["index"]:
+        missing_files = []
+        if not model_files["pth"]:
+            missing_files.append(".pth")
+        if not model_files["index"]:
+            missing_files.append(".index")
+        return {
+            "status": "error",
+            "message": f"Missing required files: {', '.join(missing_files)}"
+        }, 400
+
+    model_info = {
+        "id": model_id,
+        "downloaded_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "name": model_folder_name,
+        "model_folder_path": dest_model_path,
+        "model_pth_file": model_files["pth"],
+        "model_index_file": model_files["index"]
+    }
+    json_file_path = os.path.join(logs_dir, f"{model_id}.json")
+
+    try:
+        with open(json_file_path, 'w') as json_file:
+            json.dump(model_info, json_file, indent=4)
+            logging.info(f"Model info saved in {json_file_path}.")
+    except Exception as e:
+        logging.error(f"Error saving model info: {str(e)}")
+        return {"status": "error", "message": f"Error saving model info: {str(e)}"}, 500
+
+    return {
+        "status": "success",
+        "message": f"Model imported successfully to {dest_model_path}",
+        "model_info": model_info
+    }, 200
 
 # get models
 def get_models():
@@ -835,6 +904,7 @@ def delete_all_inferences():
 def check_rvc_repo():
     logging.info("Checking for RVC repository...")
     exists = RVC_repository_exists() 
+    logging.info(f"RVC repository exists: {exists}")
     return jsonify({"exists": exists}) 
 
 @app.route('/pre-install', methods=['GET'])
@@ -865,6 +935,10 @@ def download_model():
         return Response("Error: model link argument is missing.", status=400)
     
     return Response(downloadModel(model_link, model_id, model_epochs, model_algorithm, model_name, author, server), content_type='text/event-stream')
+
+@app.route('/import-model', methods=['GET'])
+def import_model_route():
+    return import_model()
 
 @app.route('/get-models', methods=['GET'])
 def get_all_models():

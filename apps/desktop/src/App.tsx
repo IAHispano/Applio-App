@@ -137,6 +137,11 @@ function App() {
 				localStorage.setItem("update", "true");
 				eventSource.close();
 			}
+
+			if (event.data.includes("rate limit")) {
+				localStorage.setItem("update", "false");
+				eventSource.close();
+			}
 		};
 		return () => {
 			eventSource.close();
@@ -239,6 +244,8 @@ function App() {
 			checkIfDev();
 			initializeDiscordRpc();
 			checkFirstRun();
+			checkRVC();
+			checkUpdates();
 		}
 	}, []);
 
@@ -246,8 +253,6 @@ function App() {
 	useEffect(() => {
 		setWindowEffect();
 		checkBetaAccess();
-		checkRVC();
-		checkUpdates();
 	}, [pathname]);
 
 	const shouldShowHeader = !(

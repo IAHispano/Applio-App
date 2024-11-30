@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import { supabase } from "../../utils/database";
 import { invoke } from "@tauri-apps/api/core";
 import { TitleBar } from "../../components/layout/titlebar";
 import { open } from "@tauri-apps/plugin-shell";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 
 export default function Models() {
 	const [value, setValue] = useState("");
@@ -19,6 +20,7 @@ export default function Models() {
 	const [modelName, setModelName] = useState<string>();
 	const [searchParams] = useSearchParams();
 	const [myModelsValue, setMyModelsValue] = useState("");
+	const [filePath, setFilePath] = useState<string | null>("");
 
 	const navigate = useNavigate();
 
@@ -223,6 +225,53 @@ export default function Models() {
 		if (searchValue) setValue(searchValue);
 	}, []);
 
+	const handleImportModel = async (modelPath: string) => {
+		const id = crypto.randomUUID();
+		const port = await getServerPort();
+	
+		setDropdownOpen(true);
+		setInfo("Starting...");
+		setStatus("Sending request...");
+	
+		try {
+			const response = await fetch(`http://localhost:${port}/import-model?path=${encodeURIComponent(modelPath)}&id=${encodeURIComponent(id)}`, {
+				method: "GET",
+				headers: {
+					"Content-Type": "application/json",
+				},
+			});
+			setInfo("Importing...");
+			setStatus("Importing model...");
+			const data = await response.json();
+
+			setInfo("Finishing...");
+			setStatus("Imported successfully");
+			
+			if (data.status === "success") {
+				setInfo("Imported successfully");
+				setStatus("Imported successfully");
+				setFilePath("");
+			} else {
+				setError(true);
+				setInfo("Error");
+				setStatus(data.message);
+			}
+		} catch (err) {
+			setError(true);
+			console.error("Error:", err);
+		}
+	};
+	
+
+	const handleImportModelFile = async () => {
+		const file = await dialogOpen({
+			directory: true,
+			multiple: false,
+		});
+		
+		setFilePath(file);
+	};
+
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-10 mb-4 px-4 w-full overflow-auto">
@@ -236,7 +285,7 @@ export default function Models() {
 							<div className="w-full max-w-2xl h-fit min-h-[10svh]  border border-white/10 bg-[#2a2b2a] shadow-2xl shadow-white/10 rounded-xl p-4 flex flex-col">
 								<div className="flex mb-auto justify-start items-start">
 									<h1 className="text-xl truncate max-w-2xl">
-										Downloading{" "}
+										{info === "Downloading" ? "Downloading" : "Importing"}{" "}
 										{modelName && (
 											<span className="font-medium title">{modelName}</span>
 										)}
@@ -252,9 +301,13 @@ export default function Models() {
 														? "20%"
 														: info === "Downloading"
 															? "50%"
-															: info === "Downloaded" || info === "Error"
+															: info === "Downloaded"
 																? "100%"
-																: "0%",
+																: info === "Importing"
+																	? "50%"
+																	: info === "Imported successfully"
+																		? "100%"
+																		: "0%",
 											}}
 										/>
 									</div>
@@ -268,7 +321,7 @@ export default function Models() {
 											{status}
 										</div>
 									)}
-									{(info === "Downloaded" || error) && (
+									{(info === "Downloaded" || info === "Imported successfully" || error) && (
 										<button
 											type="button"
 											className="flex justify-end ml-auto px-6 py-1.5 bg-white text-black rounded-xl text-sm"
@@ -400,7 +453,8 @@ export default function Models() {
 						</div>
 					)}
 					{mode === "import" && (
-						<div className="w-full h-full flex flex-col items-center gap-2">
+						<div className="w-full h-full flex flex-col gap-4">
+							<h2 className="text-neutral-200">Download from URL</h2>
 							<div className="flex flex-col w-full">
 								<input
 									required
@@ -419,6 +473,23 @@ export default function Models() {
 									Import
 								</button>
 							)}
+							<div className="mt-12 w-full flex flex-col gap-4 p-1">
+								<h2 className="text-neutral-200">Import from your local machine</h2>
+								<div className='flex gap-4 w-full'>
+								<button onClick={() => handleImportModelFile()} className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm" type="button"> 
+								{filePath ? ( <p className="text-sm text-neutral-300">{filePath}</p>) : (<p className="text-sm text-neutral-300">No file selected</p>)}
+								</button>
+								{filePath && (
+									<button
+										onClick={() => handleImportModel(filePath)}
+										className="w-fit px-8 rounded-xl focus:outline-none bg-neutral-600/50 text-neutral-200 text-sm"
+										type="button"
+									>
+										Import
+									</button>
+								)}
+							</div>
+							</div>
 						</div>
 					)}
 					{mode === "downloaded" && (

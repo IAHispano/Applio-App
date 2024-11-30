@@ -450,10 +450,10 @@ export default function Settings() {
 						<div className="flex justify-end items-end mt-auto ml-auto flex-col">
 								<p className="text-neutral-400 text-xs">v{appVersion}</p>
 								<p className="text-neutral-400 text-xs">tauri-{tauriVersion}</p>
+								<p className="text-neutral-400 text-xs">{deviceId || "Undefined device ID"}</p>
 								<p className="text-neutral-400 text-xs">
 									{system}-{systemVersion}
 								</p>
-								<p className="text-neutral-400 text-xs">{deviceId || "Undefined device ID"}</p>
 							</div>
 						</div>
 					</div>
