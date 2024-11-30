@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../../utils/database";
 import { invoke } from "@tauri-apps/api/core";
 import { TitleBar } from "../../components/layout/titlebar";
