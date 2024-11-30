@@ -26,7 +26,7 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 load_dotenv()
 
 # define logs
-log_directory = os.path.abspath(os.path.join(os.getcwd(), 'logs'))
+log_directory = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs'))
 log_file = os.path.join(log_directory, 'server_log.log')
 
 # create log directory if it doesn't exist
@@ -46,7 +46,7 @@ def generate_device_id():
 
 # get device id from request
 def get_device_id():
-    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+    device_id_file = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'device_id.json'))
 
     if os.path.exists(device_id_file):
         with open(device_id_file, 'r') as file:
@@ -66,7 +66,7 @@ def get_device_id():
     
 # set if device should send data
 def set_send_data(value):
-    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+    device_id_file = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'device_id.json'))
     if os.path.exists(device_id_file):
         with open(device_id_file, 'r') as file:
             try:
@@ -85,7 +85,7 @@ def set_send_data(value):
     
 # get if device should send data
 def get_send_data():
-    device_id_file = os.path.abspath(os.path.join(log_directory, 'device_id.json'))
+    device_id_file = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'device_id.json'))
     if os.path.exists(device_id_file):
         with open(device_id_file, 'r') as file:
             try:
@@ -198,7 +198,7 @@ def save_commit_info(commit_hash):
         logging.info("No commit hash to save due to an error or rate limit.")
         return
 
-    version_file_path = os.path.abspath(os.path.join(os.getcwd(), 'version.json'))
+    version_file_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'version.json'))
     logging.info(f"Saving commit {commit_hash} to {version_file_path}")
     with open(version_file_path, 'w') as version_file:
         json.dump({'commit_hash': commit_hash}, version_file)
@@ -206,7 +206,7 @@ def save_commit_info(commit_hash):
 
 # load last commit hash from version.json
 def load_commit_info():
-    version_file_path = os.path.abspath(os.path.join(os.getcwd(), 'version.json'))
+    version_file_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'version.json'))
     logging.info(f"Loading commit info from {version_file_path}")
     if not os.path.exists(version_file_path):
         logging.info("No commit info found.")
@@ -231,13 +231,13 @@ def is_admin():
         return False
     
 def RVC_repository_exists():
-    repository_exists = os.path.exists(os.path.join(os.getcwd(), 'rvc'))
+    repository_exists = os.path.exists(os.path.join(sys.executable, '..', 'rvc'))
     logging.info(f"RVC repository exists: {repository_exists}")
     return str(repository_exists)
 
 # download RVC repository from GitHub and extract it
 def downloadRepo():
-    extraction_path = os.path.abspath(os.path.join(os.getcwd()))
+    extraction_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..'))
     new_folder_name = os.path.join(extraction_path, 'rvc')
 
     latest_commit_hash = get_latest_commit_hash()
@@ -298,7 +298,7 @@ def downloadRepo():
         handle_exception(e)
 
 def downloadPretraineds():
-    bat_file_path = os.path.join(os.path.abspath(os.path.join(os.getcwd(), 'rvc')))
+    bat_file_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc'))
     command = [os.path.join("env", "python.exe"), "rvc_cli.py", "prerequisites"]
     
     logging.info(f'command: {command}')
@@ -336,7 +336,7 @@ def downloadPretraineds():
 
 # run RVC installation
 def runInstallation():
-    bat_file_path = os.path.join(os.path.abspath(os.path.join(os.getcwd(), 'rvc')), 'install.bat')
+    bat_file_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc', 'install.bat'))
 
     yield 'data: Starting installation...\n\n'
     logging.info(remove_ansi_escape_sequences("Starting installation..."))
@@ -396,7 +396,7 @@ def get_latest_files(directory):
 # download model
 def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name, author, server):
     command = [os.path.join("env", "python.exe"), "rvc_cli.py", "download", "--model_link", f'"{unquote(modelLink)}"']
-    command_path = os.path.abspath(os.path.join(os.getcwd(), 'rvc'))
+    command_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc'))
 
     logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
     logging.info(remove_ansi_escape_sequences(f"command_path: {command_path}"))
@@ -461,7 +461,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
             "model_index_file": model_files["index"]
         }
 
-        json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+        json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models'))
         os.makedirs(json_logs_dir, exist_ok=True)
         logging.info(f"Attempting to create directory: {json_logs_dir}")
 
@@ -476,7 +476,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
             yield f'data: Error creating directory {json_logs_dir}: {str(e)}\n\n'
             handle_exception(e)
 
-        log_file_path = os.path.join(json_logs_dir, f'{model_id}.json')
+        log_file_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models', f'{model_id}.json'))
         logging.info(f"Saving model info to: {log_file_path}")
 
         with open(log_file_path, 'w') as log_file:
@@ -497,7 +497,7 @@ def downloadModel(modelLink, model_id, model_epochs, model_algorithm, model_name
 
 # get models
 def get_models():
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models'))
 
     json_files = []
 
@@ -517,7 +517,7 @@ def get_models():
 
 # delete model
 def delete_model_json(id):
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models'))
     json_file = os.path.join(json_logs_dir, f"{id}.json")
     
     if not os.path.exists(json_file):
@@ -544,7 +544,7 @@ def delete_model_json(id):
 
 # delete all models
 def delete_models_folder():
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'models'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'models'))
 
     if os.path.exists(json_logs_dir):
         with open(json_logs_dir, 'r') as file:
@@ -577,7 +577,7 @@ def delete_models_folder():
 
 # delete inference audio
 def delete_inference_audio(id):
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'inference'))
     json_file = os.path.join(json_logs_dir, f"{id}.json")
     
     if not os.path.exists(json_file):
@@ -605,8 +605,8 @@ def delete_inference_audio(id):
 
 # delete all inferences results
 def delete_inferences_folder():
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
-    audios_dir = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'inference'))
+    audios_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'audios', 'output'))
     os.makedirs(json_logs_dir, exist_ok=True)
     os.makedirs(audios_dir, exist_ok=True)
 
@@ -620,7 +620,7 @@ def delete_inferences_folder():
 
 # upload audio
 def upload_audio():
-    audios_dir = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'input'))
+    audios_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'audios', 'input'))
 
     os.makedirs(audios_dir, exist_ok=True)
 
@@ -640,7 +640,7 @@ def upload_audio():
 # convert
 def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, autotune, cleanaudio, exportformat, name):
     unique_id = str(uuid.uuid4())
-    output_path = os.path.abspath(os.path.join(os.getcwd(), 'audios', 'output'))
+    output_path = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'audios', 'output'))
     os.makedirs(output_path, exist_ok=True)
     audio_path = os.path.join(output_path, f'{unique_id}.{exportformat}')
 
@@ -703,7 +703,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
             "exportformat": exportformat
         }
 
-        json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+        json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'inference'))
         logging.info(f"Attempting to create directory: {json_logs_dir}")
 
         try:
@@ -734,7 +734,7 @@ def convert(input_path, pth_path, index_path, pitch, indexRate, filterRadius, au
 
 # get inferences
 def fetch_inferences():
-    json_logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'logs', 'inference'))
+    json_logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'logs', 'inference'))
 
     if not os.path.exists(json_logs_dir):
         return "No inferences found"
@@ -796,7 +796,7 @@ def get_device_id_route():
 @app.get('/get-latest-models')
 def get_latest_models():
     logging.info("Getting latest models...")
-    logs_dir = os.path.abspath(os.path.join(os.getcwd(), 'rvc', 'logs'))
+    logs_dir = os.path.abspath(os.path.join(os.path.dirname(sys.executable), '..', 'rvc', 'logs'))
     models = get_latest_files(logs_dir)
     
     return jsonify(models), 200
