@@ -106,7 +106,7 @@ export default function SelectPath() {
 				<button
 					onClick={() => navigate("/install")}
 					type="button"
-					className="p-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm w-fit rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					className="w-8 h-8 flex justify-center items-center bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

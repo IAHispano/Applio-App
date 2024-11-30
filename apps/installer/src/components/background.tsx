@@ -91,7 +91,7 @@ const Background: React.FC = () => {
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			transition={{ duration: 3, delay: 3.5 }}
+			transition={{ duration: 3, delay: 2 }}
 			className="absolute w-full h-full overflow-hidden"
 		>
 			<canvas

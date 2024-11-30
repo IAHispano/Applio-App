@@ -10,8 +10,8 @@ export default function Home() {
 				<div className="absolute inset-0 flex items-center justify-center">
 					<motion.div
 						initial={{ opacity: 0, marginBottom: 0 }}
-						animate={{ opacity: 1, marginBottom: 48 }}
-						transition={{ duration: 1.8, delay: 4 }}
+						animate={{ opacity: 1, marginBottom: 32 }}
+						transition={{ duration: 1.8, delay: 3 }}
 						className="flex flex-col justify-center items-center gap-4"
 					>
 						<h1 className="text-neutral-200 text-6xl font-semibold title">
@@ -20,10 +20,10 @@ export default function Home() {
 						<motion.div
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
-							transition={{ duration: 1.5, delay: 5.5 }}
+							transition={{ duration: 1.5, delay: 3.5 }}
 							className="flex items-center gap-6 flex-col"
 						>
-							<p className="text-neutral-400 text-md font-medium title">
+							<p className="text-neutral-400 text-md font-medium title text-pretty max-w-sm text-center">
 								Lightweight interface for fast interaction with AI-driven voice
 								cloning technology
 							</p>
@@ -78,7 +78,7 @@ export default function Home() {
 				<button
 					onClick={() => navigate("/select-path")}
 					type="button"
-					className="p-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm w-fit rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					className="w-8 h-8 flex justify-center items-center bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

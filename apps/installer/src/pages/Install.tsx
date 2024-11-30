@@ -9,6 +9,7 @@ export default function Install() {
 	const [success, setSuccess] = useState<boolean>(false);
 	const [shouldShortcut, setShouldShortcut] = useState<boolean>(true);
 	const [dir, setDir] = useState<string>("");
+	const [version, setVersion] = useState<string>("");
 
 	const getLastVersion = async () => {
 		const repoUrl = "https://huggingface.co/api/models/bygimenez/applio-app";
@@ -51,6 +52,7 @@ export default function Install() {
 		}
 
 		const latestZip = zipFiles[0];
+		setVersion(latestZip.name);
 		console.log(`version most recent: ${latestZip.name}`);
 
 		const url = `https://huggingface.co/bygimenez/applio-app/resolve/main/${latestZip.name}`;
@@ -149,19 +151,20 @@ export default function Install() {
 							</div>
 						</motion.div>
 					)}
-					<div className="h-fit flex flex-col justify-end items-start gap-4 w-full pb-16 px-10 pt-4">
+					<div className="h-fit flex flex-col justify-end items-start gap-2 w-full pb-12 px-10 pt-4">
 						<h2 className="text-neutral-200 text-2xl font-semibold title">
 							Installing...{" "}
 							<span className="text-neutral-400 text-sm font-sans">
 								({Math.round(value)}%)
 							</span>
 						</h2>
-						<div className="w-full bg-neutral-700/60 rounded-lg overflow-hidden border border-white/10">
+						<div className="w-full bg-neutral-700/60 rounded-lg overflow-hidden border border-white/10 mt-2">
 							<div
 								className="bg-neutral-300 h-2 rounded-lg"
 								style={{ width: `${value}%` }}
 							/>
 						</div>
+						{version && (<p className="text-[10px] text-right mx-auto w-full text-neutral-400">Installing {version}</p>)}
 					</div>
 				</div>
 			</div>
