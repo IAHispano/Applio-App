@@ -33,6 +33,7 @@ export default function Home() {
 									target="_blank"
 									rel="noopener noreferrer"
 									className="hover:opacity-80 transition-opacity duration-300"
+									aria-label="Join Applio Discord"
 								>
 									<svg
 										viewBox="0 0 256 199"
@@ -53,6 +54,7 @@ export default function Home() {
 									target="_blank"
 									rel="noopener noreferrer"
 									className="hover:opacity-80 transition-opacity duration-300"
+									aria-label="Visit Applio GitHub"
 								>
 									<svg
 										viewBox="0 0 256 250"
@@ -79,6 +81,7 @@ export default function Home() {
 					onClick={() => navigate("/select-path")}
 					type="button"
 					className="w-8 h-8 flex justify-center items-center bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					aria-label="Go to next step"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
