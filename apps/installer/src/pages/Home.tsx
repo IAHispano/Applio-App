@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 
 export default function Home() {
 	const navigate = useNavigate();
@@ -73,14 +73,25 @@ export default function Home() {
 			</div>
 			<div className="absolute bottom-3 right-4 flex flex-col items-center group">
 				<p className="text-neutral-400 absolute text-xs text-balance text-end bottom-10 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-					Proceed with the installation
+					Next
 				</p>
 				<button
 					onClick={() => navigate("/select-path")}
 					type="button"
-					className="px-6 py-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm w-fit rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					className="p-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm w-fit rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
 				>
-					Next
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						className="w-5 h-5"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
+					>
+						<path d="m9 18 6-6-6-6" />
+					</svg>
 				</button>
 			</div>
 		</main>

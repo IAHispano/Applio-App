@@ -1,12 +1,12 @@
-import type React from "react";
-import { Routes, Route } from "react-router-dom";
-import Home from "./pages/Home";
-import Titlebar from "./components/titlebar";
-import { useEffect, useRef, useState } from "react";
 import { Howl } from "howler";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
+import { Route, Routes } from "react-router-dom";
 import Background from "./components/background";
-import SelectPath from "./pages/Select-Path";
+import Titlebar from "./components/titlebar";
+import Home from "./pages/Home";
 import Install from "./pages/Install";
+import SelectPath from "./pages/Select-Path";
 
 const App: React.FC = () => {
 	const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -65,7 +65,10 @@ const App: React.FC = () => {
 					<Route path="/install" element={<Install />} />
 				</Routes>
 			</div>
-			<div className="absolute bottom-3 left-4 flex items-center gap-2">
+			<div className="absolute bottom-3 left-4 flex flex-col items-center group">
+				<p className="text-neutral-400 absolute text-xs text-balance text-end bottom-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+					{isPlaying ? "Pause" : "Play"}
+				</p>
 				<button
 					onClick={handleAudio}
 					type="button"
@@ -75,29 +78,31 @@ const App: React.FC = () => {
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
-							fill="#ffffff"
 							className="w-5 h-5"
-							aria-hidden="true"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
 						>
-							<path
-								fillRule="evenodd"
-								d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z"
-								clipRule="evenodd"
-							/>
+							<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+							<path d="M16 9a5 5 0 0 1 0 6" />
+							<path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
 						</svg>
 					) : (
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
-							fill="#ffffff"
 							className="w-5 h-5"
-							aria-hidden="true"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth="2"
+							strokeLinecap="round"
+							strokeLinejoin="round"
 						>
-							<path
-								fillRule="evenodd"
-								d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z"
-								clipRule="evenodd"
-							/>
+							<path d="M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z" />
+							<line x1="22" x2="16" y1="9" y2="15" />
+							<line x1="16" x2="22" y1="9" y2="15" />
 						</svg>
 					)}
 				</button>
