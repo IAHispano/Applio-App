@@ -1,107 +1,106 @@
-'use client'
+"use client";
 
-import type React from 'react'
-import { useEffect, useRef } from 'react'
-import { motion } from 'motion/react'
+import type React from "react";
+import { useEffect, useRef } from "react";
+import { motion } from "motion/react";
 
 const Background: React.FC = () => {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+	const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
+	useEffect(() => {
+		const canvas = canvasRef.current;
+		if (!canvas) return;
 
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
+		const ctx = canvas.getContext("2d");
+		if (!ctx) return;
 
-    let animationFrameId: number
+		let animationFrameId: number;
 
-    const resizeCanvas = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
+		const resizeCanvas = () => {
+			canvas.width = window.innerWidth;
+			canvas.height = window.innerHeight;
+		};
 
-    window.addEventListener('resize', resizeCanvas)
-    resizeCanvas()
+		window.addEventListener("resize", resizeCanvas);
+		resizeCanvas();
 
-    const colors = ["#0f5038", "#123729", "#181b18", "#161817"]
-    const blobs: Blob[] = []
+		const colors = ["#0f5038", "#123729", "#181b18", "#161817"];
+		const blobs: Blob[] = [];
 
-    class Blob {
-      x: number
-      y: number
-      radius: number
-      color: string
-      vx: number
-      vy: number
+		class Blob {
+			x: number;
+			y: number;
+			radius: number;
+			color: string;
+			vx: number;
+			vy: number;
 
-      constructor() {
-        this.x = canvas ? Math.random() * canvas.width : 0
-        this.y = canvas ? Math.random() * canvas.height : 0
-        this.radius = Math.random() * 200 + 100
-        this.color = colors[Math.floor(Math.random() * colors.length)]
-        this.vx = Math.random() * 2 - 1
-        this.vy = Math.random() * 2 - 1
-      }
+			constructor() {
+				this.x = canvas ? Math.random() * canvas.width : 0;
+				this.y = canvas ? Math.random() * canvas.height : 0;
+				this.radius = Math.random() * 200 + 100;
+				this.color = colors[Math.floor(Math.random() * colors.length)];
+				this.vx = Math.random() * 2 - 1;
+				this.vy = Math.random() * 2 - 1;
+			}
 
-      update() {
-        this.x += this.vx
-        this.y += this.vy
+			update() {
+				this.x += this.vx;
+				this.y += this.vy;
 
-        if (canvas && (this.x < 0 || this.x > canvas.width)) this.vx *= -1
-        if (canvas && (this.y < 0 || this.y > canvas.height)) this.vy *= -1
-      }
+				if (canvas && (this.x < 0 || this.x > canvas.width)) this.vx *= -1;
+				if (canvas && (this.y < 0 || this.y > canvas.height)) this.vy *= -1;
+			}
 
-      draw() {
-        if (!ctx) return
-        ctx.beginPath()
-        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
-        ctx.fillStyle = this.color
-        ctx.fill()
-      }
-    }
+			draw() {
+				if (!ctx) return;
+				ctx.beginPath();
+				ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+				ctx.fillStyle = this.color;
+				ctx.fill();
+			}
+		}
 
-    for (let i = 0; i < 5; i++) {
-      blobs.push(new Blob())
-    }
+		for (let i = 0; i < 5; i++) {
+			blobs.push(new Blob());
+		}
 
-    const animate = () => {
-      if (!ctx) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+		const animate = () => {
+			if (!ctx) return;
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      blobs.forEach((blob) => {
-        blob.update()
-        blob.draw()
-      })
+			blobs.forEach((blob) => {
+				blob.update();
+				blob.draw();
+			});
 
-      ctx.globalCompositeOperation = 'screen'
+			ctx.globalCompositeOperation = "screen";
 
-      animationFrameId = requestAnimationFrame(animate)
-    }
+			animationFrameId = requestAnimationFrame(animate);
+		};
 
-    animate()
+		animate();
 
-    return () => {
-      window.removeEventListener('resize', resizeCanvas)
-      cancelAnimationFrame(animationFrameId)
-    }
-  }, [])
+		return () => {
+			window.removeEventListener("resize", resizeCanvas);
+			cancelAnimationFrame(animationFrameId);
+		};
+	}, []);
 
-  return (
-  <motion.div 
-    initial={{ opacity: 0 }} 
-    animate={{ opacity: 1 }} 
-    transition={{ duration: 3, delay: 3.5 }} 
-    className="absolute w-full h-full overflow-hidden"
-  >
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full"
-      style={{ filter: 'blur(80px)' }}
-    />
-  </motion.div>
-  )
-}
+	return (
+		<motion.div
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1 }}
+			transition={{ duration: 3, delay: 3.5 }}
+			className="absolute w-full h-full overflow-hidden"
+		>
+			<canvas
+				ref={canvasRef}
+				className="absolute inset-0 w-full h-full"
+				style={{ filter: "blur(80px)" }}
+			/>
+		</motion.div>
+	);
+};
 
-export default Background
-
+export default Background;
