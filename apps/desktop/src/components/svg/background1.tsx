@@ -14,7 +14,7 @@ export default function Background1() {
 					x2="1643"
 					y2="152.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -24,7 +24,7 @@ export default function Background1() {
 					x2="1643"
 					y2="231.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -34,7 +34,7 @@ export default function Background1() {
 					x2="1643"
 					y2="921.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -44,7 +44,7 @@ export default function Background1() {
 					x2="1643"
 					y2="851.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -54,7 +54,7 @@ export default function Background1() {
 					x2="1643"
 					y2="792.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -64,7 +64,7 @@ export default function Background1() {
 					x2="430"
 					y2="922.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
@@ -74,35 +74,35 @@ export default function Background1() {
 					x2="1482"
 					y2="922.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
-				<path d="M471.5 152.5L571 235.5" stroke="white" stroke-width="2" />
+				<path d="M471.5 152.5L571 235.5" stroke="white" strokeWidth="2" />
 			</g>
 			<g opacity="0.1">
 				<path
 					d="M462.5 788.5L276 892M632 788.5L467 926.5M762.5 787.5L661.5 926.5M878 787.5L817.5 925"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
 				<path
 					d="M1443 787L1644.5 904.5M1281.5 787L1445.5 924M1149.5 788L1249.5 926.5M1051 787.5L1097 927.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
 				<path
 					d="M663.5 153L726.5 240M817 152L855.5 238M1095.5 152L1068 238M1248 153L1186 238M1447 153L1347 237.5M1644.5 171.5L1479.5 268.5"
 					stroke="white"
-					stroke-width="2"
+					strokeWidth="2"
 				/>
 			</g>
 			<g opacity="0.1">
-				<path d="M273 181L440 274" stroke="white" stroke-width="2" />
+				<path d="M273 181L440 274" stroke="white" strokeWidth="2" />
 			</g>
 			<g opacity="0.25" filter="url(#filter0_f_99_4595)">
 				<ellipse

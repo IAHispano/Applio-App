@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
-import { supabase } from "../../utils/database";
 import { invoke } from "@tauri-apps/api/core";
-import { TitleBar } from "../../components/layout/titlebar";
-import { open } from "@tauri-apps/plugin-shell";
-import { useNavigate, useSearchParams } from "react-router-dom";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import { open } from "@tauri-apps/plugin-shell";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { TitleBar } from "../../components/layout/titlebar";
+import { supabase } from "../../utils/database";
 
 export default function Models() {
 	const [value, setValue] = useState("");
@@ -235,7 +235,9 @@ export default function Models() {
 
 		try {
 			const response = await fetch(
-				`http://localhost:${port}/import-model?path=${encodeURIComponent(modelPath)}&id=${encodeURIComponent(id)}`,
+				`http://localhost:${port}/import-model?path=${encodeURIComponent(
+					modelPath,
+				)}&id=${encodeURIComponent(id)}`,
 				{
 					method: "GET",
 					headers: {
@@ -296,7 +298,9 @@ export default function Models() {
 								<div className="mt-auto flex justify-end items-start flex-col gap-4 w-full">
 									<div className="w-full flex rounded-full h-2 my-4 shadow-lg shadow-white/10 bg-[#111111]/80">
 										<div
-											className={`h-2.5 rounded-full ${error ? "bg-red-500/30" : "bg-green-500"}`}
+											className={`h-2.5 rounded-full ${
+												error ? "bg-red-500/30" : "bg-green-500"
+											}`}
 											style={{
 												width:
 													info === "Starting..."
@@ -344,21 +348,27 @@ export default function Models() {
 						<button
 							type="button"
 							onClick={() => setMode("explore")}
-							className={`px-4 py-1 rounded-xl ${mode === "explore" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}
+							className={`px-4 py-1 rounded-xl ${
+								mode === "explore" ? "bg-white/10 " : ""
+							} border border-white/[0.05] text-sm text-neutral-300`}
 						>
 							Explore
 						</button>
 						<button
 							type="button"
 							onClick={() => setMode("import")}
-							className={`px-4 py-1 rounded-xl ${mode === "import" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}
+							className={`px-4 py-1 rounded-xl ${
+								mode === "import" ? "bg-white/10 " : ""
+							} border border-white/[0.05] text-sm text-neutral-300`}
 						>
 							Import
 						</button>
 						<button
 							type="button"
 							onClick={() => setMode("downloaded")}
-							className={`justify-end ml-auto px-4 py-1 rounded-xl ${mode === "downloaded" ? "bg-white/10 " : ""} border border-white/[0.05] text-sm text-neutral-300`}
+							className={`justify-end ml-auto px-4 py-1 rounded-xl ${
+								mode === "downloaded" ? "bg-white/10 " : ""
+							} border border-white/[0.05] text-sm text-neutral-300`}
 						>
 							My models
 						</button>
@@ -584,34 +594,34 @@ export default function Models() {
 															fill="none"
 															xmlns="http://www.w3.org/2000/svg"
 														>
-															<g id="SVGRepo_bgCarrier" stroke-width="0" />
+															<g id="SVGRepo_bgCarrier" strokeWidth="0" />
 															<g
 																id="SVGRepo_tracerCarrier"
-																stroke-linecap="round"
-																stroke-linejoin="round"
+																strokeLinecap="round"
+																strokeLinejoin="round"
 															/>
 															<g id="SVGRepo_iconCarrier">
 																{" "}
 																<path
 																	d="M4 7H20"
 																	stroke="#ffffff"
-																	stroke-width="2"
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
+																	strokeWidth="2"
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
 																/>{" "}
 																<path
 																	d="M6 7V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V7"
 																	stroke="#ffffff"
-																	stroke-width="2"
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
+																	strokeWidth="2"
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
 																/>{" "}
 																<path
 																	d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
 																	stroke="#ffffff"
-																	stroke-width="2"
-																	stroke-linecap="round"
-																	stroke-linejoin="round"
+																	strokeWidth="2"
+																	strokeLinecap="round"
+																	strokeLinejoin="round"
 																/>{" "}
 															</g>
 														</svg>

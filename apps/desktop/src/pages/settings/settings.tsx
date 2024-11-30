@@ -1,9 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
-import { useEffect, useState } from "react";
-import { Store } from "@tauri-apps/plugin-store";
-import { platform, version } from "@tauri-apps/plugin-os";
 import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
+import { invoke } from "@tauri-apps/api/core";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
+import { platform, version } from "@tauri-apps/plugin-os";
+import { Store } from "@tauri-apps/plugin-store";
+import { useEffect, useState } from "react";
 
 export default function Settings() {
 	const [appVersion, setAppVersion] = useState("");
@@ -72,7 +72,9 @@ export default function Settings() {
 		const g = Number.parseInt(parts[2]);
 		const b = Number.parseInt(parts[3]);
 
-		const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+		const hex = `#${((1 << 24) + (r << 16) + (g << 8) + b)
+			.toString(16)
+			.slice(1)}`;
 		return hex;
 	}
 
@@ -400,20 +402,20 @@ export default function Settings() {
 														xmlns="http://www.w3.org/2000/svg"
 														stroke="#ffffff"
 													>
-														<g id="SVGRepo_bgCarrier" stroke-width="0" />
+														<g id="SVGRepo_bgCarrier" strokeWidth="0" />
 														<g
 															id="SVGRepo_tracerCarrier"
-															stroke-linecap="round"
-															stroke-linejoin="round"
+															strokeLinecap="round"
+															strokeLinejoin="round"
 														/>
 														<g id="SVGRepo_iconCarrier">
 															{" "}
 															<path
 																d="M4 12H20M12 4V20"
 																stroke="#ffffff"
-																stroke-width="2"
-																stroke-linecap="round"
-																stroke-linejoin="round"
+																strokeWidth="2"
+																strokeLinecap="round"
+																strokeLinejoin="round"
 															/>{" "}
 														</g>
 													</svg>

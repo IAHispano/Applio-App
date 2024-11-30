@@ -1,11 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useRef, useEffect } from "react";
-import { useConvertContext } from "../../components/convert/conversion-context";
-import { Link } from "react-router-dom";
-import { useState } from "react";
-import { supabase } from "../../utils/database";
-import Loading from "../../components/convert/loading";
+import { useEffect, useRef, useState } from "react";
 import { AudioVisualizer } from "react-audio-visualize";
+import { Link } from "react-router-dom";
+import { useConvertContext } from "../../components/convert/conversion-context";
+import Loading from "../../components/convert/loading";
+import { supabase } from "../../utils/database";
 
 export default function Convert() {
 	const {
@@ -200,7 +199,21 @@ export default function Convert() {
 
 		const port = await getServerPort();
 		try {
-			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(input)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(index)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(indexRate)}&filterRadius=${encodeURIComponent(filterRadius)}&autotune=${encodeURIComponent(autotune)}&cleanaudio=${encodeURIComponent(cleanAudio)}&exportformat=${encodeURIComponent(exportFormat)}&name=${encodeURIComponent(modelName)}`;
+			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(
+				input,
+			)}&pth=${encodeURIComponent(pth)}&index=${encodeURIComponent(
+				index,
+			)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(
+				indexRate,
+			)}&filterRadius=${encodeURIComponent(
+				filterRadius,
+			)}&autotune=${encodeURIComponent(
+				autotune,
+			)}&cleanaudio=${encodeURIComponent(
+				cleanAudio,
+			)}&exportformat=${encodeURIComponent(
+				exportFormat,
+			)}&name=${encodeURIComponent(modelName)}`;
 			const eventSource = new EventSource(url);
 			console.log(url);
 			eventSource.onmessage = (event) => {
@@ -271,7 +284,9 @@ export default function Convert() {
 		const port = await getServerPort();
 		try {
 			const response = await fetch(
-				`http://localhost:${port}/audio?path=${encodeURIComponent(transformedPath)}`,
+				`http://localhost:${port}/audio?path=${encodeURIComponent(
+					transformedPath,
+				)}`,
 			);
 			if (!response.ok) {
 				throw new Error("Error getting audio");
@@ -308,7 +323,15 @@ export default function Convert() {
 	useEffect(() => {
 		const generateGradient = () => {
 			if (divRef.current) {
-				divRef.current.style.background = `linear-gradient(${Math.floor(Math.random() * 360)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(Math.random() * 256)}))`;
+				divRef.current.style.background = `linear-gradient(${Math.floor(
+					Math.random() * 360,
+				)}deg, rgb(${Math.floor(Math.random() * 256)}, ${Math.floor(
+					Math.random() * 256,
+				)}, ${Math.floor(Math.random() * 256)}), rgb(${Math.floor(
+					Math.random() * 256,
+				)}, ${Math.floor(Math.random() * 256)}, ${Math.floor(
+					Math.random() * 256,
+				)}))`;
 			}
 		};
 
@@ -502,11 +525,11 @@ export default function Convert() {
 													viewBox="0 0 1920 1920"
 													xmlns="http://www.w3.org/2000/svg"
 												>
-													<g id="SVGRepo_bgCarrier" stroke-width="0"></g>
+													<g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
 													<g
 														id="SVGRepo_tracerCarrier"
-														stroke-linecap="round"
-														stroke-linejoin="round"
+														strokeLinecap="round"
+														strokeLinejoin="round"
 													></g>
 													<g id="SVGRepo_iconCarrier">
 														{" "}
@@ -829,7 +852,9 @@ export default function Convert() {
 								</div>
 								{(status || info) && (
 									<div
-										className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 flex justify-between items-center ${error ? "bg-red-500/10" : ""}`}
+										className={`min-h-fit w-full h-full border border-white/20 rounded-xl p-4 flex justify-between items-center ${
+											error ? "bg-red-500/10" : ""
+										}`}
 									>
 										<div>
 											<p className="font-medium">{info}</p>
