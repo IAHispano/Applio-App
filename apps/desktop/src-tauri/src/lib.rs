@@ -8,20 +8,47 @@ use std::path::PathBuf;
 use std::io;
 use std::net::TcpListener;
 use tauri::State;
+use std::io::{Write, Read};
 
 fn get_server_path() -> io::Result<PathBuf> {
-    let base_dir = std::env::current_dir()?;
-    println!("Current directory: {:?}", base_dir);
+    let base_dir: PathBuf;
 
-    let server_path = base_dir.join("python").join("server.exe");
+    if cfg!(debug_assertions) {
+        base_dir = std::env::current_dir()?;
+    } else {
+        base_dir = std::env::current_exe()?.parent()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Executable has no parent directory"))?
+            .to_path_buf();
+    }
+
+    println!("Base directory: {:?}", base_dir);
+
+    let python_dir = base_dir.join("python");
+    println!("Python directory: {:?}", python_dir);
+    let server_path = python_dir.join("server.exe");
     println!("Server path: {:?}", server_path);
 
     if !server_path.exists() {
-        return Err(io::Error::new(io::ErrorKind::NotFound, "Server executable not found"));
+        let log_file = base_dir.join("error.txt");
+        println!("Creating logs: {:?}", log_file);
+
+        let mut file = std::fs::File::create(&log_file)?;
+        writeln!(file, "ERROR: Server not found. Cannot run.")?;
+        writeln!(file, "Server path: {}", server_path.display())?;
+
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "Server not found. See error tree in {}. A log file has been created called '{}'",
+                base_dir.display(),
+                log_file.display()
+            ),
+        ));
     }
 
     Ok(server_path)
 }
+
 
 fn find_available_port() -> Option<u16> {
     if let Ok(listener) = TcpListener::bind("127.0.0.1:0") {
@@ -34,19 +61,38 @@ fn find_available_port() -> Option<u16> {
 
 fn start_server(port: u16) -> io::Result<Child> {
     let server_path = get_server_path()?;
-
     println!("Project root: {:?}", server_path);
-
-    let child = Command::new(server_path)
+    
+    let mut child = Command::new(&server_path)
         .arg(port.to_string())
+        .stdout(std::process::Stdio::inherit())
+        .stderr(std::process::Stdio::inherit())
         .spawn()
         .map_err(|e| {
             eprintln!("Error spawning server process: {}", e);
+            eprintln!("Path used: {:?}", server_path);
+            eprintln!("Error details: {:?}", e);
             e
         })?;
-
+    
     println!("Initializing server on port {}...", port);
-    Ok(child)
+    
+    std::thread::sleep(std::time::Duration::from_secs(1));
+    
+    match child.try_wait() {
+        Ok(Some(status)) => {
+            eprintln!("Server process exited immediately with status: {}", status);
+            Err(io::Error::new(io::ErrorKind::Other, "Server exited immediately"))
+        },
+        Ok(None) => {
+            println!("Server process running successfully");
+            Ok(child)
+        },
+        Err(e) => {
+            eprintln!("Error checking server process: {}", e);
+            Err(e)
+        }
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
