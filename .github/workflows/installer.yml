@@ -40,7 +40,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: /apps/installer
+          projectPath: ./apps/installer
           tagName: installer-v__VERSION__ # the action automatically replaces __VERSION__ with the app version.
           releaseName: 'Applio App Installer v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
