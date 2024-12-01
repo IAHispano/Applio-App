@@ -3,7 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 
-const ErrorSection = () => (
+const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 	<motion.div
 		initial={{ opacity: 0 }}
 		animate={{ opacity: 1 }}
@@ -17,18 +17,71 @@ const ErrorSection = () => (
 				steps to resolve the issue:
 			</p>
 			<ul className="text-neutral-300 text-sm space-y-2 mb-4">
-				<li>• Verify your internet connection.</li>
-				<li>• Ensure the installation directory is accessible.</li>
-				<li>
-					• If the issue persists, try again later or reach out for assistance.
+				<li className="flex items-center">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						className="w-4 h-4 mr-2 text-neutral-400"
+					>
+						<path d="M12 20h.01" />
+						<path d="M2 8.82a15 15 0 0 1 20 0" />
+						<path d="M5 12.859a10 10 0 0 1 14 0" />
+						<path d="M8.5 16.429a5 5 0 0 1 7 0" />
+					</svg>
+					Verify your internet connection.
+				</li>
+				<li className="flex items-center">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						className="w-4 h-4 mr-2 text-neutral-400"
+					>
+						<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+					</svg>
+					Ensure the installation directory is accessible.
+				</li>
+				<li className="flex items-center">
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 24 24"
+						fill="none"
+						stroke="currentColor"
+						stroke-width="2"
+						stroke-linecap="round"
+						stroke-linejoin="round"
+						className="w-4 h-4 mr-2 text-neutral-400"
+					>
+						<circle cx="12" cy="12" r="10" />
+						<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+						<path d="M12 17h.01" />
+					</svg>
+					If the issue persists, try again later or reach out for assistance.
 				</li>
 			</ul>
-			<div className="flex justify-end w-full">
+
+			<p className="text-neutral-300 font-semibold text-md">Error Details:</p>
+			<pre
+				className="text-neutral-400 text-sm mb-4 cursor-pointer"
+				onClick={() => navigator.clipboard.writeText(errorMessage)}
+			>
+				{errorMessage}
+			</pre>
+			<div className="flex justify-end w-full gap-2">
 				<a
 					href="https://applio.org/discord"
 					target="_blank"
 					rel="noopener noreferrer"
-					className="w-fit px-4 py-2 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					className="w-fit px-2 py-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
 				>
 					Contact Support
 				</a>
@@ -76,6 +129,7 @@ export default function Install() {
 	const [shouldShortcut, setShouldShortcut] = useState<boolean>(true);
 	const [dir, setDir] = useState<string>("");
 	const [version, setVersion] = useState<string>("");
+	const [errorMessage, setErrorMessage] = useState<string>("");
 
 	const getLastVersion = async () => {
 		const repoUrl = "https://huggingface.co/api/models/bygimenez/applio-app";
@@ -89,7 +143,8 @@ export default function Install() {
 
 		if (!response.ok) {
 			setError(true);
-			throw new Error(`error getting version: ${response.status}`);
+			setErrorMessage(`Error getting version: ${response.status}`);
+			throw new Error(`Error getting version: ${response.status}`);
 		}
 
 		const data = await response.json();
@@ -114,12 +169,13 @@ export default function Install() {
 
 		if (zipFiles.length === 0) {
 			setError(true);
-			throw new Error("no version found");
+			setErrorMessage("No version found");
+			throw new Error("No version found");
 		}
 
 		const latestZip = zipFiles[0];
 		setVersion(latestZip.name);
-		console.log(`version most recent: ${latestZip.name}`);
+		console.log(`Most recent version: ${latestZip.name}`);
 
 		const url = `https://huggingface.co/bygimenez/applio-app/resolve/main/${latestZip.name}`;
 		return url;
@@ -139,7 +195,9 @@ export default function Install() {
 				if (!setdir) {
 					const actual_dir = await invoke("get_actual_dir");
 					if (!actual_dir) {
-						throw new Error("actual_dir is null");
+						setError(true);
+						setErrorMessage("Actual directory is null");
+						throw new Error("Actual directory is null");
 					}
 					setDir(actual_dir as string);
 				} else {
@@ -158,6 +216,7 @@ export default function Install() {
 
 					if (typeof result === "string" && result.includes("error")) {
 						setError(true);
+						setErrorMessage(result);
 						console.error(result);
 					}
 					if (typeof result === "string" && result.includes("downloaded")) {
@@ -167,7 +226,8 @@ export default function Install() {
 				}
 			} catch (error) {
 				setError(true);
-				console.error("error", error);
+				setErrorMessage(`${error}`);
+				console.error("Error:", error);
 			}
 		};
 
@@ -202,7 +262,7 @@ export default function Install() {
 				<div className="flex flex-col justify-end items-end p-4 h-full">
 					{error ? (
 						<>
-							<ErrorSection />
+							<ErrorSection errorMessage={errorMessage} />
 							<InstallationProgress value={value} isError={true} />
 						</>
 					) : (
