@@ -47,8 +47,8 @@ jobs:
           pnpm install --filter=installer --frozen-lockfile --prefer-offline
 
       - name: Build Installer
-        env: ${{ secrets.VITE_HF_TOKEN }}
-          
+        env:
+          VITE_HF_TOKEN: ${{ secrets.VITE_HF_TOKEN }}
         run: pnpm installer tauri build
 
       - name: Create GitHub Release
