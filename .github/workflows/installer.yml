@@ -1,47 +1,74 @@
 name: "Installer"
 on: workflow_dispatch
+
 jobs:
   build-windows:
     runs-on: windows-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Setup Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.pnpm-store
+            **/node_modules
+            **/target
+          key: ${{ runner.os }}-pnpm-rust-${{ hashFiles('**/pnpm-lock.yaml', '**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-rust-
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4.0.0
-      
+        with:
+          version: latest 
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: pnpm
-      
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-      
-      - name: Install Node.js dependencies
-        run: pnpm install --filter=installer
-      
-      - name: Build installer
-        run: pnpm build:installer
-      
-      - name: Create Release Directory
-        run: mkdir release
-      
-      - name: Copy Build Artifacts
+
+      - name: Install Node.js Dependencies
         run: |
-          Copy-Item "build\*" -Destination "release\" -Recurse
-      
+          pnpm install --filter=installer --frozen-lockfile --prefer-offline
+
+      - name: Build Installer
+        run: pnpm installer tauri build
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir release
+          xcopy /E /I "D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\\installer-applio-app.exe" "release"
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: release\*
-      
+
+      - name: Get Package Version
+        id: package-version
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
             release\*
           tag_name: installer-${{ steps.package-version.outputs.VERSION }}
           name: Installer v${{ steps.package-version.outputs.VERSION }}
-          body: Windows installer for version ${{ steps.package-version.outputs.VERSION }}
+          body: |
+            Windows installer for Applio App version ${{ steps.package-version.outputs.VERSION }}      
+ 
