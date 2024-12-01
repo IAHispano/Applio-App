@@ -93,7 +93,7 @@ fn extract_zip(zip_path: &str, output_dir: &str) -> Result<(), String> {
 
     for i in 0..archive.len() {
         let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-        let outpath = std::path::Path::new(output_dir).join(file.sanitized_name());
+        let outpath = std::path::Path::new(output_dir).join(file.mangled_name());
 
         if file.name().ends_with('/') {
             fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
