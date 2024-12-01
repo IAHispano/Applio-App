@@ -1,49 +1,47 @@
-name: Installer
-on: workflow_dispatch 
-
+name: "Installer"
+on: workflow_dispatch
 jobs:
-  build:
-    permissions:
-      contents: write
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: 'windows-latest'
-            args: ''
-
-    runs-on: ${{ matrix.platform }}
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
 
-      - name: Setup node
+      - name: Setup PNPM
+        uses: pnpm/action-setup@v4.0.0
+      
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'pnpm' # Set this to npm, yarn or pnpm.
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable 
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
-      - name: Install frontend dependencies
+          cache: pnpm
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install Node.js dependencies
         run: pnpm install --filter=installer
-
-      - uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Build installer
+        run: pnpm build:installer
+      
+      - name: Create Release Directory
+        run: mkdir release
+      
+      - name: Copy Build Artifacts
+        run: |
+          Copy-Item "build\*" -Destination "release\" -Recurse
+      
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          projectPath: ./apps/installer
-          tagName: installer-v__VERSION__ # the action automatically replaces __VERSION__ with the app version.
-          releaseName: 'Installer v__VERSION__'
-          releaseBody: '## How to update? 1. Delete the current Applio App folder from your system. 2. Run the installer again to complete the update.'
-          releaseDraft: true
-          prerelease: true
-          args: ${{ matrix.args }}
+          name: windows-installer
+          path: release\*
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release\*
+          tag_name: installer-${{ steps.package-version.outputs.VERSION }}
+          name: Installer v${{ steps.package-version.outputs.VERSION }}
+          body: Windows installer for version ${{ steps.package-version.outputs.VERSION }}
