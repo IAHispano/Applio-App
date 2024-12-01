@@ -54,5 +54,7 @@ jobs:
             D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\Applio-App-Installer.exe
           tag_name: installer-v${{ github.event.inputs.version }}
           name: Installer v${{ github.event.inputs.version }}
+          prerelease: true
+          generate_release_notes: true
           body: |
             Windows installer for Applio App version ${{ github.event.inputs.version }}
