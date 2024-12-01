@@ -10,7 +10,7 @@ jobs:
       matrix:
         include:
           - platform: 'windows-latest'
-            args: ''
+            args: '--no-bundle'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -42,8 +42,8 @@ jobs:
         with:
           projectPath: ./apps/installer
           tagName: installer-v__VERSION__ # the action automatically replaces __VERSION__ with the app version.
-          releaseName: 'Applio App Installer v__VERSION__'
-          releaseBody: 'See the assets to download this version and install.'
+          releaseName: 'Installer v__VERSION__'
+          releaseBody: '## How to update? 1. Delete the current Applio App folder from your system. 2. Run the installer again to complete the update.'
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
