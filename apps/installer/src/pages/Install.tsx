@@ -3,6 +3,72 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 
+const ErrorSection = () => (
+	<motion.div
+		initial={{ opacity: 0 }}
+		animate={{ opacity: 1 }}
+		transition={{ duration: 0.2 }}
+		className="h-fit flex flex-col justify-start items-start gap-4 w-full pt-16 px-8"
+	>
+		<div className="bg-red-500/40 backdrop-filter backdrop-blur-3xl border border-white/10 w-full p-6 rounded-lg shadow-lg">
+			<h2 className="text-neutral-300 font-semibold text-lg">Error Detected</h2>
+			<p className="text-neutral-400 text-sm mb-4">
+				Something went wrong during installation. Please check the following
+				steps to resolve the issue:
+			</p>
+			<ul className="text-neutral-300 text-sm space-y-2 mb-4">
+				<li>• Verify your internet connection.</li>
+				<li>• Ensure the installation directory is accessible.</li>
+				<li>
+					• If the issue persists, try again later or reach out for assistance.
+				</li>
+			</ul>
+			<div className="flex justify-end w-full">
+				<a
+					href="https://applio.org/discord"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="w-fit px-4 py-2 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+				>
+					Contact Support
+				</a>
+			</div>
+		</div>
+	</motion.div>
+);
+
+const InstallationProgress = ({
+	value,
+	version,
+	isError,
+}: {
+	value: number;
+	version?: string;
+	isError: boolean;
+}) => (
+	<div className="h-fit flex flex-col justify-end items-start gap-2 w-full pb-12 px-10 pt-4">
+		<h2 className="text-neutral-200 text-2xl font-semibold title">
+			{isError ? "Stopped" : "Installing..."}{" "}
+			<span className="text-neutral-400 text-sm font-sans">
+				({Math.round(value)}%)
+			</span>
+		</h2>
+		<div className="backdrop-filter backdrop-blur-3xl border border-white/10 w-full mt-2 rounded-lg shadow-lg">
+			<div
+				className={`h-2 rounded-lg  ${
+					isError ? "bg-red-500/40" : "bg-neutral-300"
+				}`}
+				style={{ width: isError ? "100%" : `${value}%` }}
+			/>
+		</div>
+		{version && !isError && (
+			<p className="text-[10px] text-right mx-auto w-full text-neutral-400">
+				Installing {version}
+			</p>
+		)}
+	</div>
+);
+
 export default function Install() {
 	const [value, setValue] = useState<number>(0);
 	const [error, setError] = useState<boolean>(false);
@@ -132,44 +198,20 @@ export default function Install() {
 						</h2>
 					</div>
 				)}
+
 				<div className="flex flex-col justify-end items-end p-4 h-full">
-					{error && (
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							transition={{ duration: 0.2 }}
-							className="h-fit flex flex-col justify-end items-start gap-4 w-full pt-16 px-8"
-						>
-							<div className="bg-red-500/20 backdrop-filter backdrop-blur-3xl border border-white/10 w-full p-4 rounded-lg">
-								<h2 className="text-neutral-300 font-semibold title text-sm">
-									Error detected
-								</h2>
-								<h3 className="text-neutral-400 text-xs">
-									We encountered an error during the installation process.
-									Please try again later.
-								</h3>
-							</div>
-						</motion.div>
+					{error ? (
+						<>
+							<ErrorSection />
+							<InstallationProgress value={value} isError={true} />
+						</>
+					) : (
+						<InstallationProgress
+							value={value}
+							version={version}
+							isError={false}
+						/>
 					)}
-					<div className="h-fit flex flex-col justify-end items-start gap-2 w-full pb-12 px-10 pt-4">
-						<h2 className="text-neutral-200 text-2xl font-semibold title">
-							Installing...{" "}
-							<span className="text-neutral-400 text-sm font-sans">
-								({Math.round(value)}%)
-							</span>
-						</h2>
-						<div className="w-full bg-neutral-700/60 rounded-lg overflow-hidden border border-white/10 mt-2">
-							<div
-								className="bg-neutral-300 h-2 rounded-lg"
-								style={{ width: `${value}%` }}
-							/>
-						</div>
-						{version && (
-							<p className="text-[10px] text-right mx-auto w-full text-neutral-400">
-								Installing {version}
-							</p>
-						)}
-					</div>
 				</div>
 			</div>
 		</main>
