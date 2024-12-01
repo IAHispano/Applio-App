@@ -4,6 +4,8 @@ on: workflow_dispatch
 jobs:
   build-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout Repository
@@ -41,17 +43,6 @@ jobs:
       - name: Build Installer
         run: pnpm installer tauri build
 
-      - name: Prepare Release Artifacts
-        run: |
-          mkdir release
-          xcopy /E /I "D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\\installer-applio-app.exe" "release"
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-installer
-          path: release\*
-
       - name: Get Package Version
         id: package-version
         run: |
@@ -64,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
-            release\*
+            D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe
           tag_name: installer-${{ steps.package-version.outputs.VERSION }}
           name: Installer v${{ steps.package-version.outputs.VERSION }}
           body: |
