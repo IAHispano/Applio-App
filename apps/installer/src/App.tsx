@@ -62,7 +62,7 @@ const App: React.FC = () => {
 	};
 
 	return (
-		<div className="bg-[#1c1c1c]/90 w-screen h-screen">
+		<div className="bg-[#1c1c1c]/95 w-screen h-screen">
 			<Titlebar />
 			<Background />
 			<div className="absolute w-screen h-screen">

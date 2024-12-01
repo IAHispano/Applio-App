@@ -8,11 +8,20 @@ export default function SelectPath() {
 	const [value, setValue] = useState("");
 	const navigate = useNavigate();
 	const [shortcut, setShortcut] = useState(true);
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		const getActualDir = async () => {
-			const dir = await invoke("get_actual_dir");
-			setValue(dir as string);
+			setLoading(true);
+			try {
+				const dir = await invoke("get_actual_dir");
+				setValue(dir as string);
+			} catch (err) {
+				setError("Failed to fetch the directory.");
+			} finally {
+				setLoading(false);
+			}
 		};
 
 		const dir = localStorage.getItem("dir");
@@ -25,14 +34,23 @@ export default function SelectPath() {
 	}, []);
 
 	const handleChange = async () => {
-		const dir = await open({
-			directory: true,
-			multiple: false,
-		});
+		setLoading(true);
+		try {
+			const dir = await open({
+				directory: true,
+				multiple: false,
+			});
 
-		if (dir) {
-			localStorage.setItem("dir", dir);
-			setValue(dir);
+			if (dir) {
+				localStorage.setItem("dir", dir);
+				setValue(dir);
+			} else {
+				setError("No directory selected.");
+			}
+		} catch (err) {
+			setError("Failed to open the directory.");
+		} finally {
+			setLoading(false);
 		}
 	};
 
@@ -47,24 +65,34 @@ export default function SelectPath() {
 			transition={{ duration: 1 }}
 			className="flex justify-center items-center p-4 w-full h-full m-auto"
 		>
-			<div className="w-full h-full flex flex-col max-w-2xl mt-auto justify-end pb-24 text-neutral-300 gap-2">
-				<h1 className="text-xl font-semibold">Installation path</h1>
-				<div className="w-full flex gap-4">
+			<div className="w-full h-full flex flex-col max-w-2xl mt-auto justify-end pb-28 text-neutral-300 gap-2">
+				<h1 className="text-xl font-semibold">Installation Path</h1>
+				<p className="text-neutral-300 text-xs font-semilight">
+					A new folder will be created in the selected directory.
+				</p>
+
+				<div className="w-full flex gap-3 mt-2">
 					<input
 						value={value}
-						placeholder="Loading..."
+						placeholder={loading ? "Loading..." : "Select a directory"}
 						readOnly
-						className="shadow w-full cursor-default appearance-none rounded-lg px-4 py-1 bg-neutral-800/60 text-sm text-neutral-300 focus:outline-none"
+						className="shadow w-full cursor-default appearance-none px-4 py-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl duration-400 focus:outline-none disabled:cursor-not-allowed"
+						aria-label="Selected directory"
 					/>
 					<button
 						type="button"
 						onClick={handleChange}
-						className="w-fit text-sm px-4 py-1 rounded-xl bg-neutral-800/80 hover:bg-neutral-700/80 transition-all duration-200 border border-neutral-600/10 shadow"
+						disabled={loading}
+						className="w-fit px-4 py-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+						aria-label="Change installation directory"
 					>
-						Change
+						{loading ? "Loading..." : "Change"}
 					</button>
 				</div>
-				<div className="flex  gap-4 p-1 items-center w-full">
+
+				{error && <p className="text-red-500 text-xs mt-2">{error}</p>}
+
+				<div className="flex gap-2 p-1 items-center w-full">
 					<h2 className="text-neutral-300 text-xs font-medium">
 						Create shortcut
 					</h2>
@@ -76,6 +104,7 @@ export default function SelectPath() {
 								type="checkbox"
 								className="peer h-4 w-4 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
 								id="check"
+								aria-label="Create a shortcut"
 							/>
 							<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
 								<svg
@@ -107,6 +136,7 @@ export default function SelectPath() {
 					onClick={() => navigate("/install")}
 					type="button"
 					className="w-8 h-8 flex justify-center items-center bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					aria-label="Go to installation"
 				>
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

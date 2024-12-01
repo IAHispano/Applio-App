@@ -164,7 +164,11 @@ export default function Install() {
 								style={{ width: `${value}%` }}
 							/>
 						</div>
-						{version && (<p className="text-[10px] text-right mx-auto w-full text-neutral-400">Installing {version}</p>)}
+						{version && (
+							<p className="text-[10px] text-right mx-auto w-full text-neutral-400">
+								Installing {version}
+							</p>
+						)}
 					</div>
 				</div>
 			</div>
