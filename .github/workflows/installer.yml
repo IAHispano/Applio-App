@@ -42,9 +42,9 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install Node.js Dependencies
+      - name: Install frontend Dependencies
         run: |
-          pnpm install --filter=installer --frozen-lockfile --prefer-offline --prod
+          pnpm install --filter=installer --frozen-lockfile --prefer-offline
 
       - name: Build Installer
         run: pnpm installer tauri build
