@@ -44,14 +44,14 @@ jobs:
         run: pnpm installer tauri build
       - name: Rename Installer
         run: |
-          Rename-Item -Path "D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\\installer-applio-app.exe" -NewName "Applio App Installer.exe"
+          Rename-Item -Path "D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe" -NewName "Applio App Installer.exe"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
-            D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\\Applio App Installer.exe
+            D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\Applio App Installer.exe
           tag_name: installer-v${{ github.event.inputs.version }}
           name: Installer v${{ github.event.inputs.version }}
           body: |
