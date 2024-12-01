@@ -15,6 +15,9 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set working directory
+        run: cd ./apps/installer
       
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -31,13 +34,15 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: './apps/installer/src-tauri -> target'
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: pnpm install
 
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          projectPath: ./apps/installer
           tagName: installer-v__VERSION__ # the action automatically replaces __VERSION__ with the app version.
           releaseName: 'Applio App Installer v__VERSION__'
           releaseBody: 'See the assets to download this version and install.'
