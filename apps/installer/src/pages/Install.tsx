@@ -132,7 +132,7 @@ export default function Install() {
 	const [errorMessage, setErrorMessage] = useState<string>("");
 
 	const getLastVersion = async () => {
-		const repoUrl = "https://huggingface.co/api/models/bygimenez/applio-app";
+		const repoUrl = "https://huggingface.co/api/models/iahispano/applio-app";
 		const token = import.meta.env.VITE_HF_TOKEN;
 
 		const response = await fetch(repoUrl, {
@@ -177,7 +177,7 @@ export default function Install() {
 		setVersion(latestZip.name);
 		console.log(`Most recent version: ${latestZip.name}`);
 
-		const url = `https://huggingface.co/bygimenez/applio-app/resolve/main/${latestZip.name}`;
+		const url = `https://huggingface.co/iahispano/applio-app/resolve/main/${latestZip.name}`;
 		return url;
 	};
 
