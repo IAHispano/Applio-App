@@ -15,17 +15,17 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
 
-      - name: setup node
+      - name: Setup node
         uses: actions/setup-node@v4
         with:
           node-version: lts/*
           cache: 'pnpm' # Set this to npm, yarn or pnpm.
 
-      - name: install pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: install Rust stable
+      - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable 
 
       - name: Rust cache
