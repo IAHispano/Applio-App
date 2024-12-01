@@ -1,26 +1,14 @@
 name: "Installer"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version of the installer"
+        required: true
+        default: "0.0.0"
 
 jobs:
-  bump-version:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    outputs:
-      new_version: ${{ steps.bump_version.outputs.new_version }}
-    steps:
-      - uses: actions/checkout@v4
-      - name: Bump version and push tag
-        id: bump_version
-        uses: anothrNick/github-tag-action@1.67.0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
-          INITIAL_VERSION: ${{ github.event.inputs.version }}
-
   build-windows:
-    needs: bump-version
     runs-on: windows-latest
     permissions:
       contents: write
@@ -65,9 +53,9 @@ jobs:
         with:
           files: |
             D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\Applio-App-Installer.exe
-          tag_name: ${{ needs.bump-version.outputs.new_version }}
-          name: Installer ${{ needs.bump-version.outputs.new_version }}
+          tag_name: installer-${{ github.event.inputs.version }}
+          name: Installer ${{ github.event.inputs.version }}
           prerelease: true
           generate_release_notes: true
           body: |
-            Windows installer for Applio App version ${{ needs.bump-version.outputs.new_version }}
+            Windows installer for Applio App version ${{ github.event.inputs.version }}
