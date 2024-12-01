@@ -47,6 +47,8 @@ jobs:
           pnpm install --filter=installer --frozen-lockfile --prefer-offline
 
       - name: Build Installer
+        env: ${{ secrets.VITE_HF_TOKEN }}
+          
         run: pnpm installer tauri build
 
       - name: Create GitHub Release
@@ -56,7 +58,7 @@ jobs:
         with:
           files: |
             D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe
-          tag_name: i-${{ github.event.inputs.version }}
+          tag_name: installer-v${{ github.event.inputs.version }}
           name: Installer v${{ github.event.inputs.version }}
           body: |
             Windows installer for Applio App version ${{ github.event.inputs.version }}   
