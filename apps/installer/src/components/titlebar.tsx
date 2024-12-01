@@ -70,7 +70,7 @@ export default function Titlebar() {
 							</button>
 							<button
 								onClick={confirmClose}
-								className="px-4 py-1 text-sm flex justify-center items-center bg-[#f24e1e]/80 border border-[#f24e1e]/60 text-white rounded-lg hover:bg-[#f24e1e]/90 transition-all duration-300"
+								className="px-4 py-1 text-sm flex justify-center items-center bg-[#f24e1e]/20 border border-[#f24e1e]/20 text-white rounded-lg hover:bg-[#f24e1e]/30 transition-all duration-300"
 							>
 								Confirm
 							</button>

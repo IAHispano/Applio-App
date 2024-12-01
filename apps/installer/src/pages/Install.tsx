@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
+import { open } from "@tauri-apps/plugin-shell";
 
 const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 	<motion.div
@@ -10,7 +11,7 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 		transition={{ duration: 0.2 }}
 		className="h-fit flex flex-col justify-start items-start gap-4 w-full pt-16 px-8"
 	>
-		<div className="bg-red-500/40 backdrop-filter backdrop-blur-3xl border border-white/10 w-full p-6 rounded-lg shadow-lg">
+		<div className="bg-red-700/20 backdrop-filter backdrop-blur-xl border border-white/10 w-full p-6 rounded-lg shadow-lg">
 			<h2 className="text-neutral-300 font-semibold text-lg">Error Detected</h2>
 			<p className="text-neutral-400 text-sm mb-4">
 				Something went wrong during installation. Please check the following
@@ -78,10 +79,8 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 			</pre>
 			<div className="flex justify-end w-full gap-2">
 				<a
-					href="https://applio.org/discord"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="w-fit px-2 py-1 bg-[#1c1c1c]/50 border border-white/10 text-neutral-300 text-sm rounded-xl hover:bg-[#1c1c1c]/30 transition-all duration-400"
+					onClick={() => open("https://applio.org/discord", "_blank")}
+					className="w-fit py-1 bg-[#1c1c1c]/50 border cursor-pointer border-white/10 text-neutral-300 text-sm rounded-xl px-3 hover:bg-[#1c1c1c]/70 transition-all duration-300"
 				>
 					Contact Support
 				</a>
