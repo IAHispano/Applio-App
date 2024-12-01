@@ -1,5 +1,11 @@
 name: "Installer"
-on: workflow_dispatch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version of the installer"
+        required: true
+        default: "0.1.0"
 
 jobs:
   build-windows:
@@ -30,7 +36,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: lts/*
+          node-version: 18
           cache: pnpm
 
       - name: Setup Rust
@@ -38,16 +44,10 @@ jobs:
 
       - name: Install Node.js Dependencies
         run: |
-          pnpm install --filter=installer --frozen-lockfile --prefer-offline
+          pnpm install --filter=installer --frozen-lockfile --prefer-offline --prod
 
       - name: Build Installer
         run: pnpm installer tauri build
-
-      - name: Get Package Version
-        id: package-version
-        run: |
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -56,8 +56,8 @@ jobs:
         with:
           files: |
             D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe
-          tag_name: installer-${{ steps.package-version.outputs.VERSION }}
-          name: Installer v${{ steps.package-version.outputs.VERSION }}
+          tag_name: i-${{ github.event.inputs.version }}
+          name: Installer v${{ github.event.inputs.version }}
           body: |
-            Windows installer for Applio App version ${{ steps.package-version.outputs.VERSION }}      
+            Windows installer for Applio App version ${{ github.event.inputs.version }}   
  
