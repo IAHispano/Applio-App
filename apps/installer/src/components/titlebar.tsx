@@ -26,22 +26,23 @@ export default function Titlebar() {
 				className="flex justify-between items-center m-auto px-2"
 				data-tauri-drag-region
 			>
-				<p className="text-sm text-neutral-400 title font-semilight">
+				<p className="text-sm text-neutral-400 title font-semilight flex mx-auto w-full">
 					Applio App Installer
 				</p>
+
 				<button onClick={openModal} type="button">
 					<svg
+						className="text-neutral-400 slow duration-200 hover:text-white"
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 24 24"
 						width={18}
 						height={18}
 						fill={"none"}
 						aria-hidden="true"
-						className="text-neutral-400 slow hover:text-white"
 					>
 						<path
 							d="M19.0005 4.99988L5.00045 18.9999M5.00045 4.99988L19.0005 18.9999"
-							stroke="#ffffffa3"
+							stroke="currentColor"
 							strokeWidth="1.5"
 							strokeLinecap="round"
 							strokeLinejoin="round"

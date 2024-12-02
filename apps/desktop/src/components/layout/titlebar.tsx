@@ -45,7 +45,7 @@ export const TitleBar = () => {
 								<svg
 									width={14}
 									height={14}
-									className="text-neutral-400 slow hover:text-white"
+									className="text-neutral-400 slow duration-200 hover:text-white"
 									fill="#ffffff"
 									viewBox="0 0 24 24"
 									xmlns="http://www.w3.org/2000/svg"
@@ -65,7 +65,7 @@ export const TitleBar = () => {
 								<svg
 									width={18}
 									height={18}
-									className="text-neutral-400 slow hover:text-white"
+									className="text-neutral-400 slow duration-200 hover:text-white"
 									viewBox="0 0 24 24"
 									fill="none"
 									xmlns="http://www.w3.org/2000/svg"
@@ -83,7 +83,7 @@ export const TitleBar = () => {
 								<svg
 									width={18}
 									height={18}
-									className="text-neutral-400 slow hover:text-white"
+									className="text-neutral-400 slow duration-200 hover:text-white"
 									viewBox="0 0 24 24"
 									fill="none"
 									xmlns="http://www.w3.org/2000/svg"
@@ -108,7 +108,7 @@ export const TitleBar = () => {
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
-							className="text-neutral-400 slow hover:text-white"
+							className="text-neutral-400 slow duration-200 hover:text-white"
 							width={18}
 							height={18}
 							fill={"none"}
@@ -127,7 +127,7 @@ export const TitleBar = () => {
 					<button onClick={maximize} type="button">
 						{maximized === false ? (
 							<svg
-								className="text-neutral-400 slow hover:text-white"
+								className="text-neutral-400 slow duration-200 hover:text-white"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 								width="14"
@@ -146,7 +146,7 @@ export const TitleBar = () => {
 							</svg>
 						) : (
 							<svg
-								className="text-neutral-400 slow hover:text-white"
+								className="text-neutral-400 slow duration-200 hover:text-white"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 								width="14"
@@ -168,7 +168,7 @@ export const TitleBar = () => {
 					{/* close button */}
 					<button onClick={close} type="button">
 						<svg
-							className="text-neutral-400 slow hover:text-white"
+							className="text-neutral-400 slow duration-200 hover:text-white"
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
 							width={18}
