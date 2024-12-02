@@ -111,11 +111,8 @@ export const TitleBar = () => {
 							</button>
 						</div>
 					)}
-				<p
-					className="text-sm title font-semibold text-center text-neutral-300 flex mx-auto w-full"
-					data-tauri-drag-region
-				>
-					Applio
+				<p className="text-sm text-neutral-400 title font-semilight flex mx-auto w-full">
+					Applio App
 				</p>
 				<div className="justify-end flex gap-4" data-tauri-drag-region>
 					<button

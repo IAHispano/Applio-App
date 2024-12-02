@@ -4,14 +4,14 @@ import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
 
 export default function PreInstall() {
-	const [status, setStatus] = useState("Starting...");
-	const [info, setInfo] = useState("Downloading...");
+	const [status, setStatus] = useState("Initializing...");
+	const [info, setInfo] = useState("Preparing to download...");
 
 	const navigate = useNavigate();
 
 	async function getServerPort() {
 		const port = await invoke("get_port");
-		console.log("port", port);
+		console.log("Server port:", port);
 		return port;
 	}
 
@@ -24,24 +24,22 @@ export default function PreInstall() {
 				);
 
 				eventSource.onmessage = (event) => {
-					console.log(event.data);
+					console.log("Event Data:", event.data);
 					setStatus(event.data);
 
 					if (event.data.includes("RVC repository downloaded successfully.")) {
-						setInfo("Installing....");
-						setStatus("Installing... please wait...");
+						setInfo("Installing components...");
+						setStatus("Installation in progress. Please wait...");
 					}
 
 					if (event.data.includes("already exists")) {
-						setInfo(
-							"You already have the latest version installed. Please wait...",
-						);
-						setStatus("Completed");
+						setInfo("The latest version is already installed. Redirecting...");
+						setStatus("Installation complete.");
 						navigate("/");
 					}
 
 					if (event.data.includes("Installing collected packages:")) {
-						setInfo("Please wait... this may take a while.");
+						setInfo("This process may take a few moments. Thank you for waiting.");
 					}
 
 					if (
@@ -50,13 +48,13 @@ export default function PreInstall() {
 						)
 					) {
 						eventSource.close();
-						setStatus("You already have the latest version installed.");
-						setInfo("No updates available");
+						setStatus("You are already on the latest version.");
+						setInfo("No updates are needed at this time.");
 					}
 
 					if (event.data.includes("RVC CLI has been installed successfully")) {
-						setInfo("Finishing...");
-						setStatus("Finishing RVC installation... please wait...");
+						setInfo("Finalizing installation...");
+						setStatus("Installation is almost done. Please hold on...");
 						navigate("/pretraineds");
 						eventSource.close();
 					}
@@ -64,14 +62,13 @@ export default function PreInstall() {
 
 				eventSource.onerror = (err) => {
 					if (info !== "Error during extraction.") {
-						console.log(info);
-						console.error("Error with event source:", err);
+						console.error("EventSource Error:", err);
 						eventSource.close();
 						setStatus("");
-						setInfo("We detected an error. Please try again later.");
+						setInfo("An unexpected error occurred. Please try again later.");
 					} else {
 						setInfo(
-							"An error was detected. If installation proceeds, you may ignore it.",
+							"An error was detected. If the installation proceeds, it can be ignored.",
 						);
 					}
 				};
@@ -81,11 +78,8 @@ export default function PreInstall() {
 					eventSource.close();
 				};
 			} catch (error) {
-				console.error(
-					"Failed to get the server port or connect to EventSource:",
-					error,
-				);
-				setInfo("An error occurred while initializing. Please try again.");
+				console.error("Failed to initialize installation:", error);
+				setInfo("Unable to start the installation process. Please try again.");
 			}
 		};
 
@@ -100,10 +94,10 @@ export default function PreInstall() {
 			<div className="absolute inset-0 mt-auto flex z-50">
 				<div className="z-50 flex flex-col w-full justify-center items-center mx-auto">
 					<h1 className="font-bold text-4xl lg:text-5xl xl:text-6xl title">
-						Welcome to Applio
+						Applio App
 					</h1>
 					<p className="text-white/80 text-sm mt-1">
-						We need to install some more data to complete the installation.
+						We are setting up the necessary files to complete your installation.
 					</p>
 					<div className="flex flex-col justify-center items-center mx-auto w-full gap-2 my-4">
 						{status && (
@@ -121,12 +115,12 @@ export default function PreInstall() {
 								{info}
 							</span>
 						)}
-						{info.includes("No updates available") && (
+						{info.includes("No updates are needed at this time.") && (
 							<a
 								href="/"
 								className="text-sm rounded-xl px-4 py-1 mt-4 bg-white text-black border border-white/10"
 							>
-								Return
+								Return to Home
 							</a>
 						)}
 					</div>

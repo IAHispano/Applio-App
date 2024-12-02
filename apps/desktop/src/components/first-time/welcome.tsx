@@ -8,30 +8,29 @@ export default function Welcome(props: PreInstallProps) {
 	return (
 		<section className="absolute inset-0 w-screen h-screen z-50 overflow-hidden bg-[#111111]">
 			<Background0 />
-			<div className="absolute inset-0 mt-auto flex z-50">
-				<div className="flex flex-col items-center justify-center m-auto rounded-xl h-fit w-full max-w-xl py-3 bg-neutral-400/20">
-					<h1 className="text-5xl max-xl:text-4xl font-bold z-50 mt-6 mb-2 title">
-						Alpha release
+			<div className="absolute inset-0 flex items-center justify-center">
+				<div className="flex flex-col items-center justify-center bg-neutral-700/40 rounded-xl p-8 max-w-lg w-full">
+					<h1 className="text-3xl font-bold text-white mb-4 title">
+						Welcome to Applio App
 					</h1>
-					<p className="text-justify max-xl:max-w-[380px] max-w-[500px] text-sm text-neutral-300">
-						We are delighted that you are trying Applio APP. As with any initial
-						release, this version may contain bugs. We ask that you please
-						report any problems you encounter via our discord. Your help will
-						contribute to improving the user experience so that more people can
-						use Applio for free.
+					<p className="text-base text-neutral-300 text-center leading-relaxed max-w-md">
+						Thank you for exploring the Alpha release of Applio App. Please note
+						that this early version might have some bugs. We would greatly
+						appreciate your feedback—report any issues via our Discord. Together,
+						we can make Applio App better for everyone.
 					</p>
 					<button
 						type="button"
-						className="rounded-xl bg-white text-black font-semibold px-8 py-2 mt-[5svh] hover:bg-white/80 slow"
+						className="mt-8 px-6 py-3 text-sm font-semibold text-black bg-white rounded-lg shadow-lg hover:bg-gray-200 transition duration-300"
 						onClick={props.next}
+						aria-label="Proceed to the next step"
 					>
-						Next
+						Get Started
 					</button>
 				</div>
 			</div>
-
-			<p className="text-white/60 text-xs text-center absolute bottom-12 inset-x-0">
-				Copyright © 2024 Applio.
+			<p className="absolute bottom-8 inset-x-0 text-xs text-center text-white/70">
+				© 2024 Applio. All rights reserved.
 			</p>
 		</section>
 	);

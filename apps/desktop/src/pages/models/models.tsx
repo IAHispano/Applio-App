@@ -438,11 +438,11 @@ export default function Models() {
 												key={item.id}
 												aria-label={`Download model ${item.name}`}
 											>
-												<h1 className="font-semibold title text-neutral-200 text-lg">
+												<h1 className="font-semibold title text-neutral-200 text-lg line-clamp-2">
 													{item.name}
 												</h1>
 												<p className="text-xs">
-													created by {item.author_username} at
+													by {item.author_username} at
 													<span className="pl-1">
 														{new Date(item.created_at).toLocaleDateString(
 															"en-US",
@@ -455,14 +455,14 @@ export default function Models() {
 													</span>
 												</p>
 												<div className="justify-end flex mt-auto gap-2">
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm">
-														{item.epochs} epochs
+													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
+														{item.epochs} Epochs
 													</p>
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm">
+													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
 														{item.algorithm}
 													</p>
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm">
-														{item.likes} likes
+													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
+														{item.likes} Likes
 													</p>
 												</div>
 											</button>
