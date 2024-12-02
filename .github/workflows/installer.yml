@@ -5,20 +5,18 @@ on:
       version:
         description: "Version of the installer"
         required: true
-        default: "0.1.0"
+        default: "0.0.0"
 
 jobs:
   build-windows:
     runs-on: windows-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
       - name: Setup Cache
         uses: actions/cache@v4
         with:
@@ -29,37 +27,35 @@ jobs:
           key: ${{ runner.os }}-pnpm-rust-${{ hashFiles('**/pnpm-lock.yaml', '**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-rust-
-
       - name: Setup PNPM
         uses: pnpm/action-setup@v4.0.0
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 18
           cache: pnpm
-
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
       - name: Install frontend Dependencies
         run: |
           pnpm install --filter=installer --frozen-lockfile --prefer-offline
-
       - name: Build Installer
-        env: ${{ secrets.VITE_HF_TOKEN }}
-          
+        env:
+          VITE_HF_TOKEN: ${{ secrets.VITE_HF_TOKEN }}
         run: pnpm installer tauri build
-
+      - name: Rename Installer
+        run: |
+          Rename-Item -Path "D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe" -NewName "Applio-App-Installer.exe"
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: |
-            D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\installer-applio-app.exe
-          tag_name: installer-v${{ github.event.inputs.version }}
-          name: Installer v${{ github.event.inputs.version }}
+            D:\\a\\Applio-App\\Applio-App\\apps\\installer\\src-tauri\\target\\release\Applio-App-Installer.exe
+          tag_name: installer-${{ github.event.inputs.version }}
+          name: Installer ${{ github.event.inputs.version }}
+          prerelease: true
+          generate_release_notes: true
           body: |
-            Windows installer for Applio App version ${{ github.event.inputs.version }}   
- 
+            Windows installer for Applio App version ${{ github.event.inputs.version }}
