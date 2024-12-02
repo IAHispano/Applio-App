@@ -29,11 +29,7 @@ export default function Titlebar() {
 				<p className="text-sm text-neutral-400 title font-semilight">
 					Applio App Installer
 				</p>
-				<button
-					onClick={openModal}
-					type="button"
-					className="slow hover:text-white"
-				>
+				<button onClick={openModal} type="button">
 					<svg
 						xmlns="http://www.w3.org/2000/svg"
 						viewBox="0 0 24 24"
@@ -41,6 +37,7 @@ export default function Titlebar() {
 						height={18}
 						fill={"none"}
 						aria-hidden="true"
+						className="text-neutral-400 slow hover:text-white"
 					>
 						<path
 							d="M19.0005 4.99988L5.00045 18.9999M5.00045 4.99988L19.0005 18.9999"

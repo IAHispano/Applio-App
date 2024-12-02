@@ -39,7 +39,9 @@ export default function PreInstall() {
 					}
 
 					if (event.data.includes("Installing collected packages:")) {
-						setInfo("This process may take a few moments. Thank you for waiting.");
+						setInfo(
+							"This process may take a few moments. Thank you for waiting.",
+						);
 					}
 
 					if (

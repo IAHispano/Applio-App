@@ -41,15 +41,11 @@ export const TitleBar = () => {
 							className="justify-start ml-auto w-full gap-2 flex px-2"
 							data-tauri-drag-region
 						>
-							<button
-								type="button"
-								onClick={() => window.location.reload()}
-								className="slow hover:text-white"
-							>
+							<button type="button" onClick={() => window.location.reload()}>
 								<svg
 									width={14}
 									height={14}
-									className="opacity-70 hover:opacity-100 slow"
+									className="text-neutral-400 slow hover:text-white"
 									fill="#ffffff"
 									viewBox="0 0 24 24"
 									xmlns="http://www.w3.org/2000/svg"
@@ -65,15 +61,11 @@ export const TitleBar = () => {
 									</g>
 								</svg>
 							</button>
-							<button
-								type="button"
-								onClick={() => history.back()}
-								className="slow hover:text-white"
-							>
+							<button type="button" onClick={() => history.back()}>
 								<svg
-									className="opacity-70 hover:opacity-100 slow"
 									width={18}
 									height={18}
+									className="text-neutral-400 slow hover:text-white"
 									viewBox="0 0 24 24"
 									fill="none"
 									xmlns="http://www.w3.org/2000/svg"
@@ -87,15 +79,11 @@ export const TitleBar = () => {
 									/>
 								</svg>
 							</button>
-							<button
-								type="button"
-								onClick={() => history.forward()}
-								className="slow hover:text-white"
-							>
+							<button type="button" onClick={() => history.forward()}>
 								<svg
-									className="opacity-70 hover:opacity-100 slow"
 									width={18}
 									height={18}
+									className="text-neutral-400 slow hover:text-white"
 									viewBox="0 0 24 24"
 									fill="none"
 									xmlns="http://www.w3.org/2000/svg"
@@ -115,14 +103,12 @@ export const TitleBar = () => {
 					Applio App
 				</p>
 				<div className="justify-end flex gap-4" data-tauri-drag-region>
-					<button
-						type="button"
-						onClick={minimized}
-						className="slow hover:text-white"
-					>
+					{/* minimized button */}
+					<button type="button" onClick={minimized} className="">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
+							className="text-neutral-400 slow hover:text-white"
 							width={18}
 							height={18}
 							fill={"none"}
@@ -137,13 +123,11 @@ export const TitleBar = () => {
 							/>
 						</svg>
 					</button>
-					<button
-						onClick={maximize}
-						type="button"
-						className="slow hover:text-white"
-					>
+					{/* maximize button */}
+					<button onClick={maximize} type="button">
 						{maximized === false ? (
 							<svg
+								className="text-neutral-400 slow hover:text-white"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 								width="14"
@@ -162,6 +146,7 @@ export const TitleBar = () => {
 							</svg>
 						) : (
 							<svg
+								className="text-neutral-400 slow hover:text-white"
 								aria-hidden="true"
 								xmlns="http://www.w3.org/2000/svg"
 								width="14"
@@ -180,12 +165,10 @@ export const TitleBar = () => {
 							</svg>
 						)}
 					</button>
-					<button
-						onClick={close}
-						type="button"
-						className="slow hover:text-white"
-					>
+					{/* close button */}
+					<button onClick={close} type="button">
 						<svg
+							className="text-neutral-400 slow hover:text-white"
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 24 24"
 							width={18}

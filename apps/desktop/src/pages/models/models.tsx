@@ -501,7 +501,7 @@ export default function Models() {
 								</h2>
 								<div className="flex gap-4 w-full">
 									<button
-										aria-label="Import model locally" 
+										aria-label="Import model locally"
 										onClick={() => handleImportModelFile()}
 										className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm"
 										type="button"

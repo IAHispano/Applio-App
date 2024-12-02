@@ -319,7 +319,6 @@ function OSNotSupported() {
 }
 
 function BetaAccess() {
-
 	const handleLogout = async () => {
 		await supabase?.auth.signOut();
 		window.location.href = "/";
@@ -364,7 +363,14 @@ function BetaAccess() {
 				for access.
 			</p>
 
-			<button type="button" aria-label="Logout from your Applio Account" className="mt-4 text-xs text-neutral-400 px-4 py-2 rounded-xl border border-white/10 hover:text-neutral-300 slow" onClick={handleLogout}>Logout</button>
+			<button
+				type="button"
+				aria-label="Logout from your Applio Account"
+				className="mt-4 text-xs text-neutral-400 px-4 py-2 rounded-xl border border-white/10 hover:text-neutral-300 slow"
+				onClick={handleLogout}
+			>
+				Logout
+			</button>
 		</section>
 	);
 }

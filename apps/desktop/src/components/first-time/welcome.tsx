@@ -16,8 +16,8 @@ export default function Welcome(props: PreInstallProps) {
 					<p className="text-base text-neutral-300 text-center leading-relaxed max-w-md">
 						Thank you for exploring the Alpha release of Applio App. Please note
 						that this early version might have some bugs. We would greatly
-						appreciate your feedback—report any issues via our Discord. Together,
-						we can make Applio App better for everyone.
+						appreciate your feedback—report any issues via our Discord.
+						Together, we can make Applio App better for everyone.
 					</p>
 					<button
 						type="button"
