@@ -116,6 +116,7 @@ export default function Login() {
 					<p className="text-sm text-neutral-300">Continue with</p>
 					<div className="w-full grid grid-cols-3 gap-4">
 						<button
+							aria-label="Login with GitHub"
 							type="button"
 							className="w-full h-full rounded-xl bg-neutral-700/80 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200"
 							onClick={() => handleLogin("github")}
@@ -123,6 +124,7 @@ export default function Login() {
 							<GitHubIcon />
 						</button>
 						<button
+							aria-label="Login with Discord"
 							type="button"
 							className="w-full h-full rounded-xl bg-neutral-700/80 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200"
 							onClick={() => handleLogin("discord")}
@@ -130,6 +132,7 @@ export default function Login() {
 							<DiscordIcon />
 						</button>
 						<button
+							aria-label="Login with Google"
 							type="button"
 							className="w-full h-full rounded-xl bg-neutral-700/80 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200"
 							onClick={() => handleLogin("google")}

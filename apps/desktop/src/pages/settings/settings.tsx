@@ -298,6 +298,7 @@ export default function Settings() {
 												type="checkbox"
 												className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
 												id="check"
+												aria-label="Check for activate option to send data anonymously"
 											/>
 											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
 												<svg
@@ -342,6 +343,7 @@ export default function Settings() {
 												type="checkbox"
 												className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
 												id="check"
+												aria-label="Check for activate option to apply acrylic effect to the application window"
 											/>
 											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
 												<svg
@@ -381,6 +383,7 @@ export default function Settings() {
 													style={{ backgroundColor: color }}
 													className="w-10 h-10 rounded-full border-2 border-white/20 focus:outline-none transition transform hover:scale-105 shadow-md"
 													onClick={() => changeBackgroundColor(color)}
+													aria-label="Change background color to predefined color"
 												/>
 											))}
 
@@ -392,6 +395,7 @@ export default function Settings() {
 														changeBackgroundColor(e.target.value)
 													}
 													className={`w-10 h-10 cursor-pointer rounded-full border-2 border-white/20 focus:outline-none bg-[${backgroundColor}] appearance-none`}
+													aria-label="Change background color to custom color"
 												/>
 												<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
 													<svg
@@ -433,6 +437,7 @@ export default function Settings() {
 											href="/first-time"
 											type="button"
 											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+											aria-label="Re-Install RVC"
 										>
 											Install RVC
 										</a>
@@ -440,6 +445,7 @@ export default function Settings() {
 											href="/pretraineds"
 											type="button"
 											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+											aria-label="Re-install pretraineds"
 										>
 											Download pretraineds
 										</a>
@@ -447,6 +453,7 @@ export default function Settings() {
 											onClick={handleTestBackend}
 											type="button"
 											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+											aria-label="Test backend"
 										>
 											Test backend
 										</button>
@@ -454,6 +461,7 @@ export default function Settings() {
 											onClick={checkUpdates}
 											type="button"
 											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+											aria-label="Check for updates"
 										>
 											Check updates
 										</button>

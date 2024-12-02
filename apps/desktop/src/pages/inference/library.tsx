@@ -111,6 +111,7 @@ export default function InferencesLibrary() {
 								<div className="flex flex-col items-center w-full h-full gap-4">
 									<div className="grid grid-cols-6 gap-4 w-full">
 										<input
+											aria-label="Search for inferences"
 											type="text"
 											className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
 											placeholder="Search..."
@@ -118,6 +119,7 @@ export default function InferencesLibrary() {
 											onChange={(e) => setValue(e.target.value)}
 										/>
 										<button
+											aria-label="Delete all inferences"
 											onClick={deleteAllInferences}
 											className="col-span-1 rounded-xl bg-[#111111]/20 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
 											type="button"
@@ -164,6 +166,7 @@ export default function InferencesLibrary() {
 														</p>
 													</div>
 													<button
+														aria-label="Open inference details"
 														type="button"
 														className="rounded-lg border border-white/10 text-black p-2 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
 														onClick={() => toggleDropdown(inference.id)}
@@ -207,6 +210,7 @@ export default function InferencesLibrary() {
 														)}
 													</button>
 													<button
+														aria-label="Open converted audio"
 														type="button"
 														className="rounded-lg border border-white/10 text-black p-3 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
 														onClick={() =>
@@ -228,6 +232,7 @@ export default function InferencesLibrary() {
 														</svg>
 													</button>
 													<button
+														aria-label="Delete inference"
 														type="button"
 														className="rounded-lg border border-white/10 text-black p-3 flex items-center justify-center hover:bg-red-700/20 hover:shadow-xl hover:shadow-red-700/10 slow"
 														onClick={() => deleteInference(inference.id)}

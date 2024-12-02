@@ -416,6 +416,7 @@ export default function Convert() {
 													{currentModel && (
 														<div className="m-auto flex gap-4 justify-center items-center">
 															<button
+																aria-label="Previous model"
 																type="button"
 																className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 slow disabled:opacity-60 border border-white/10 p-2 rounded-full z-50"
 																style={{ zIndex: 500 }}
@@ -469,6 +470,7 @@ export default function Convert() {
 																)}
 															</ul>
 															<button
+																aria-label="Next model"
 																type="button"
 																className="bg-white/10 hover:bg-white/20 disabled:hover:bg-white/10 disabled:opacity-60 slow border border-white/10 p-2 rounded-full"
 																style={{ zIndex: 500 }}
@@ -500,6 +502,7 @@ export default function Convert() {
 													<Link
 														to="/models"
 														className="text-white hover:underline"
+														aria-label="Go to models page"
 													>
 														here
 													</Link>
@@ -514,6 +517,7 @@ export default function Convert() {
 									{uploaded ? (
 										<>
 											<button
+												aria-label="Reset conversion"
 												onClick={handleReset}
 												type="button"
 												style={{ zIndex: 100 }}
@@ -616,6 +620,7 @@ export default function Convert() {
 										accept="audio/*"
 										className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed"
 										onChange={handleFileChange}
+										aria-label="Select your audio"
 									/>
 								</div>
 							</div>
@@ -627,6 +632,7 @@ export default function Convert() {
 										</h2>
 										<div className="flex gap-0 justify-center items-center">
 											<input
+												aria-label="Set pitch"
 												type="number"
 												value={pitch}
 												onChange={(e) => {
@@ -641,6 +647,7 @@ export default function Convert() {
 												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
 											/>
 											<input
+												aria-label="Set pitch"
 												value={pitch}
 												onChange={(e) => setPitch(Number(e.target.value))}
 												type="range"
@@ -661,6 +668,7 @@ export default function Convert() {
 										</h2>
 										<div className="flex gap-2 justify-center items-center">
 											<input
+												aria-label="Set index rate"
 												type="number"
 												value={indexRate}
 												onChange={(e) => {
@@ -675,6 +683,7 @@ export default function Convert() {
 												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
 											/>
 											<input
+												aria-label="Set index rate"
 												value={indexRate}
 												onChange={(e) => setIndexRate(Number(e.target.value))}
 												type="range"
@@ -698,6 +707,7 @@ export default function Convert() {
 										</h2>
 										<div className="flex gap-2 justify-center items-center">
 											<input
+												aria-label="Set filter radius"
 												type="number"
 												value={filterRadius}
 												onChange={(e) => {
@@ -712,6 +722,7 @@ export default function Convert() {
 												className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
 											/>
 											<input
+												aria-label="Set filter radius"
 												value={filterRadius}
 												onChange={(e) =>
 													setFilterRadius(Number(e.target.value))
@@ -737,6 +748,7 @@ export default function Convert() {
 											<div className="inline-flex items-center">
 												<label className="flex items-center cursor-pointer relative">
 													<input
+														aria-label="Set autotune"
 														checked={autotune}
 														onChange={(e) => setAutotune(e.target.checked)}
 														type="checkbox"
@@ -777,6 +789,7 @@ export default function Convert() {
 											<div className="inline-flex items-center">
 												<label className="flex items-center cursor-pointer relative">
 													<input
+														aria-label="Set clean audio"
 														checked={cleanAudio}
 														onChange={(e) => setCleanAudio(e.target.checked)}
 														type="checkbox"
@@ -817,6 +830,7 @@ export default function Convert() {
 											<div className="inline-flex items-center">
 												<label className="flex items-center cursor-pointer relative">
 													<select
+														aria-label="Set export format"
 														defaultValue={exportFormat}
 														onChange={(e) => setExportFormat(e.target.value)}
 														className="h-8 w-fit flex items-center justify-center text-end px-4 cursor-pointer transition-all appearance-none rounded-lg shadow-sm hover:shadow-md border border-slate-300 bg-white text-slate-700 focus:outline-none focus:border-slate-400"
@@ -867,6 +881,7 @@ export default function Convert() {
 												<p className="text-neutral-400 text-xs mt-1">
 													Maybe you have done something wrong?{" "}
 													<button
+														aria-label="Check the docs"
 														className="text-neutral-300 hover:underline"
 														type="button"
 														onClick={openDocs}
@@ -892,6 +907,7 @@ export default function Convert() {
 													type="button"
 													className="w-full h-full"
 													onClick={togglePlayPause}
+													aria-label="Toggle play/pause"
 												>
 													{isPlaying ? (
 														<svg
@@ -926,6 +942,7 @@ export default function Convert() {
 											</div>
 											<div className="aspect-video w-full max-w-full max-h-[10svh] overflow-hidden flex items-center gap-4">
 												<AudioVisualizer
+													aria-label="Audio visualizer"
 													ref={visualizerRef}
 													blob={output}
 													width={500}
@@ -956,6 +973,7 @@ export default function Convert() {
 										{convertedAudio && (
 											<div className="flex flex-col gap-2 h-full">
 												<button
+													aria-label="Open converted audio"
 													className="border border-white/20 px-5 rounded-lg w-fit h-full flex items-center justify-center"
 													type="button"
 													onClick={() => downloadAudio(convertedAudio)}
@@ -990,6 +1008,7 @@ export default function Convert() {
 										</p>
 									)}
 									<button
+										aria-label="Convert audio"
 										className="min-h-12 w-full bg-white disabled:opacity-60 text-black rounded-xl h-full enabled:hover:bg-white/80 slow"
 										type="button"
 										disabled={!!status || !uploaded || !currentModel}

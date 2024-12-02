@@ -334,6 +334,7 @@ export default function Models() {
 											type="button"
 											className="flex justify-end ml-auto px-6 py-1.5 bg-white text-black rounded-xl text-sm"
 											onClick={() => setDropdownOpen(false)}
+											aria-label="Close modal"
 										>
 											Close
 										</button>
@@ -347,6 +348,7 @@ export default function Models() {
 					<div className="bg-[#111111]/20 rounded-xl w-full p-4 flex gap-4">
 						<button
 							type="button"
+							aria-label="Change to explore models page"
 							onClick={() => setMode("explore")}
 							className={`px-4 py-1 rounded-xl ${
 								mode === "explore" ? "bg-white/10 " : ""
@@ -356,6 +358,7 @@ export default function Models() {
 						</button>
 						<button
 							type="button"
+							aria-label="Change to import models page"
 							onClick={() => setMode("import")}
 							className={`px-4 py-1 rounded-xl ${
 								mode === "import" ? "bg-white/10 " : ""
@@ -365,6 +368,7 @@ export default function Models() {
 						</button>
 						<button
 							type="button"
+							aria-label="Change to downloaded models page"
 							onClick={() => setMode("downloaded")}
 							className={`justify-end ml-auto px-4 py-1 rounded-xl ${
 								mode === "downloaded" ? "bg-white/10 " : ""
@@ -390,6 +394,7 @@ export default function Models() {
 								placeholder="Search..."
 								value={value}
 								onChange={(e) => setValue(e.target.value)}
+								aria-label="Search for models"
 							/>
 							<div className="w-full mt-6">
 								{!loading && data === null && (
@@ -431,6 +436,7 @@ export default function Models() {
 												type="button"
 												className="w-full h-full min-h-[20svh] text-left rounded-xl focus:outline-none bg-[#111111]/20 p-4 hover:bg-[#111111]/30 slow flex flex-col items-start justify-start"
 												key={item.id}
+												aria-label={`Download model ${item.name}`}
 											>
 												<h1 className="font-semibold title text-neutral-200 text-lg">
 													{item.name}
@@ -471,6 +477,7 @@ export default function Models() {
 							<h2 className="text-neutral-200">Download from URL</h2>
 							<div className="flex flex-col w-full">
 								<input
+									aria-label="Enter URL to download model from"
 									required
 									onChange={(e) => setUrl(e.target.value)}
 									className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
@@ -480,6 +487,7 @@ export default function Models() {
 							</div>
 							{url && (
 								<button
+									aria-label="Download model from URL"
 									onClick={() => downloadModel(url)}
 									className="w-fit justify-end ml-auto mt-12 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow"
 									type="button"
@@ -493,6 +501,7 @@ export default function Models() {
 								</h2>
 								<div className="flex gap-4 w-full">
 									<button
+										aria-label="Import model locally" 
 										onClick={() => handleImportModelFile()}
 										className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm"
 										type="button"
@@ -507,6 +516,7 @@ export default function Models() {
 									</button>
 									{filePath && (
 										<button
+											aria-label="Load model locally "
 											onClick={() => handleImportModel(filePath)}
 											className="w-fit px-8 rounded-xl focus:outline-none bg-neutral-600/50 text-neutral-200 text-sm"
 											type="button"
@@ -536,11 +546,13 @@ export default function Models() {
 										placeholder="Search..."
 										value={myModelsValue}
 										onChange={(e) => setMyModelsValue(e.target.value)}
+										aria-label="Search for downloaded models"
 									/>
 									<button
 										onClick={deleteAllModels}
 										className="col-span-1 rounded-xl bg-[#111111]/20 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
 										type="button"
+										aria-label="Delete all downloaded models"
 									>
 										Delete all models
 									</button>
@@ -567,6 +579,7 @@ export default function Models() {
 														className="rounded-xl bg-neutral-800/60 border border-white/10 p-2 hover:bg-neutral-700 slow hover:shadow-xl hover:shadow-neutral-700 text-sm"
 														type="button"
 														onClick={() => open(item.model_folder_path)}
+														aria-label="Open model folder"
 													>
 														<svg
 															xmlns="http://www.w3.org/2000/svg"
@@ -586,6 +599,7 @@ export default function Models() {
 														type="button"
 														className="rounded-xl bg-neutral-800/60 border border-white/10 p-2 hover:bg-red-500/20 hover:shadow-xl hover:shadow-red-500/20 text-sm text-white slow"
 														onClick={() => deleteModel(item.id)}
+														aria-label={`Delete model ${item.name}`}
 													>
 														<svg
 															className="w-4 h-4 opacity-70"

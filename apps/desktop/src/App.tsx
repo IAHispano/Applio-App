@@ -319,6 +319,12 @@ function OSNotSupported() {
 }
 
 function BetaAccess() {
+
+	const handleLogout = async () => {
+		await supabase?.auth.signOut();
+		window.location.href = "/";
+	};
+
 	return (
 		<section className="absolute inset-0 bg-black flex flex-col gap-4 justify-center items-center w-screen h-screen">
 			<h1 className="text-3xl font-semibold title text-center text-white">
@@ -327,6 +333,7 @@ function BetaAccess() {
 			<p className="text-sm max-w-sm text-pretty text-center text-neutral-300">
 				Interested in trying it out? Join our{" "}
 				<a
+					aria-label="Open our waitlist for request access"
 					onClick={() => open("https://applio.org/products/app")}
 					rel="noopener noreferrer"
 					className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
@@ -335,6 +342,7 @@ function BetaAccess() {
 				</a>{" "}
 				to receive an invitation or join at{" "}
 				<a
+					aria-label="Open our Supporters page for instant access"
 					onClick={() => open("https://ko-fi.com/iahispano/tiers")}
 					rel="noopener noreferrer"
 					className="underline text-neutral-200 cursor-pointer hover:text-white transition-all"
@@ -346,6 +354,7 @@ function BetaAccess() {
 			<p className="text-sm max-w-sm text-balance text-center text-neutral-300">
 				If you're already a beta tester, please contact us at{" "}
 				<a
+					aria-label="Open our Discord for request access"
 					onClick={() => open("https://applio.org/discord")}
 					rel="noopener noreferrer"
 					className="cursor-pointer underline text-neutral-200 hover:text-white transition-all"
@@ -354,6 +363,8 @@ function BetaAccess() {
 				</a>{" "}
 				for access.
 			</p>
+
+			<button type="button" aria-label="Logout from your Applio Account" className="mt-4 text-xs text-neutral-400 px-4 py-2 rounded-xl border border-white/10 hover:text-neutral-300 slow" onClick={handleLogout}>Logout</button>
 		</section>
 	);
 }
