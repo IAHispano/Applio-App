@@ -1,0 +1,34 @@
+name: Upload Latest Release to Discord
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  upload_release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Get the latest release info
+      id: release
+      run: |
+        release_info=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest)
+        echo "Release info: $release_info"
+        echo "RELEASE_NAME=$(echo $release_info | jq -r '.name')" >> $GITHUB_ENV
+        echo "RELEASE_TAG=$(echo $release_info | jq -r '.tag_name')" >> $GITHUB_ENV
+        echo "RELEASE_URL=$(echo $release_info | jq -r '.html_url')" >> $GITHUB_ENV
+        echo "ASSET_URL=$(echo $release_info | jq -r '.assets[0].browser_download_url')" >> $GITHUB_ENV
+
+    - name: Upload to Discord
+      uses: Ilshidur/action-discord@v1
+      with:
+        webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        message: |
+          A new release has been published!
+          **Name**: ${{ env.RELEASE_NAME }}
+          **Tag**: ${{ env.RELEASE_TAG }}
+          [Release Link](${{ env.RELEASE_URL }})
+        file: ${{ env.ASSET_URL }}
