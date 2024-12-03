@@ -82,7 +82,6 @@ jobs:
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           message: |
             A new release has been published!
             **Name**: ${{ env.RELEASE_NAME }}
