@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/database";
 import { useConvertContext } from "../convert/conversion-context";
 
@@ -322,6 +322,7 @@ export default function Sidebar() {
 	const [updateAvailable, setUpdateAvailable] = useState(false);
 	const { info } = useConvertContext();
 	const navigate = useNavigate();
+	const {pathname} = useLocation();
 
 	const [userInfo, setUserInfo] = useState<any>();
 
@@ -379,7 +380,6 @@ export default function Sidebar() {
 	useEffect(() => {
 		async function checkUpdates() {
 			const update = localStorage.getItem("update");
-			console.log("update?", update);
 			if (update) {
 				setUpdateAvailable(true);
 			} else {
@@ -388,7 +388,7 @@ export default function Sidebar() {
 		}
 
 		checkUpdates();
-	}, []);
+	}, [pathname]);
 
 	return (
 		<div

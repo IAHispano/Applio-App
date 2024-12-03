@@ -154,14 +154,15 @@ function App() {
 
 	// check if rvc is installed
 	const checkRVC = async () => {
-		localStorage.removeItem("update");
 		const port = await getServerPort();
 		const response = await fetch(`http://localhost:${port}/check-rvc`);
 		const data = await response.json();
 		console.log(data);
-		if (data.exists === "False") {
+		if (data.exists === false) {
+			console.log("RVC not installed");
 			localStorage.setItem("update", "true");
 		} else {
+			console.log("RVC installed");
 			localStorage.removeItem("update");
 		}
 	};
