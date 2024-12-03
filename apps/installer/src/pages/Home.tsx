@@ -1,8 +1,26 @@
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
 
 export default function Home() {
 	const navigate = useNavigate();
+
+	const features = [
+		"A lightweight interface for fast interaction with AI-driven voice cloning technology ",
+		"High-quality voice synthesis with natural speech in multiple languages.",
+		"An intuitive design for quick access to powerful tools and features.",
+		"Customizable settings to personalize the app to your preferences.",
+	];
+
+	const [currentFeatureIndex, setCurrentFeatureIndex] = useState(0);
+
+	useEffect(() => {
+		const interval = setInterval(() => {
+			setCurrentFeatureIndex((prevIndex) => (prevIndex + 1) % features.length);
+		}, 10000);
+
+		return () => clearInterval(interval);
+	}, [features.length]);
 
 	return (
 		<main className="min-h-screen min-w-screen overflow-hidden">
@@ -12,21 +30,35 @@ export default function Home() {
 						initial={{ opacity: 0, marginBottom: 0 }}
 						animate={{ opacity: 1, marginBottom: 32 }}
 						transition={{ duration: 1.8, delay: 3 }}
-						className="flex flex-col justify-center items-center gap-4"
+						className="flex flex-col justify-center items-center gap-3"
 					>
-						<h1 className="text-neutral-200 text-6xl font-semibold title">
-							Applio App
-						</h1>
+						<motion.div
+							initial={{ opacity: 0, y: 50 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ duration: 2, ease: "easeInOut" }}
+							className="flex flex-col justify-center items-center gap-3"
+						>
+							<h1 className="text-neutral-200 text-6xl font-semibold title">
+								Applio App
+							</h1>
+						</motion.div>
+
 						<motion.div
 							initial={{ opacity: 0 }}
 							animate={{ opacity: 1 }}
 							transition={{ duration: 1.5, delay: 3.5 }}
-							className="flex items-center gap-6 flex-col"
+							className="flex items-center gap-3 flex-col"
 						>
-							<p className="text-neutral-400 text-md font-medium title text-pretty max-w-sm text-center">
-								Lightweight interface for fast interaction with AI-driven voice
-								cloning technology
-							</p>
+							<motion.p
+								key={currentFeatureIndex}
+								initial={{ opacity: 0, y: 10 }}
+								animate={{ opacity: 1, y: 0 }}
+								exit={{ opacity: 0, y: -10 }}
+								transition={{ duration: 0.8 }}
+								className="text-neutral-400 text-md font-medium title text-pretty max-w-sm text-center"
+							>
+								{features[currentFeatureIndex]}
+							</motion.p>
 							<div className="flex gap-6">
 								<a
 									href="https://applio.org/discord"
