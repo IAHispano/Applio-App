@@ -26,7 +26,7 @@ export default function Titlebar() {
 				className="flex justify-between items-center m-auto px-2"
 				data-tauri-drag-region
 			>
-				<p className="text-sm text-neutral-400 title font-semilight flex mx-auto w-full">
+				<p className="text-sm text-neutral-400 title font-medium flex mx-auto w-full">
 					Applio App Installer
 				</p>
 

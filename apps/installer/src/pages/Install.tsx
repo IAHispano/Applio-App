@@ -3,6 +3,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { open } from "@tauri-apps/plugin-shell";
+import { getCurrentWindow as getCurrent } from "@tauri-apps/api/window";
 
 const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 	<motion.div
@@ -12,10 +13,12 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 		className="h-fit flex flex-col justify-start items-start gap-4 w-full pt-16 px-8"
 	>
 		<div className="bg-red-700/20 backdrop-filter backdrop-blur-xl border border-white/10 w-full p-6 rounded-lg shadow-lg">
-			<h2 className="text-neutral-300 font-semibold text-lg">Error Detected</h2>
+			<h2 className="text-neutral-300 font-semibold text-lg">
+				Installation Error
+			</h2>
 			<p className="text-neutral-400 text-sm mb-4">
-				Something went wrong during installation. Please check the following
-				steps to resolve the issue:
+				An error occurred during installation. Please follow these steps to
+				troubleshoot:
 			</p>
 			<ul className="text-neutral-300 text-sm space-y-2 mb-4">
 				<li className="flex items-center">
@@ -24,9 +27,9 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
 						className="w-4 h-4 mr-2 text-neutral-400"
 					>
 						<path d="M12 20h.01" />
@@ -34,7 +37,7 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 						<path d="M5 12.859a10 10 0 0 1 14 0" />
 						<path d="M8.5 16.429a5 5 0 0 1 7 0" />
 					</svg>
-					Verify your internet connection.
+					Check your internet connection.
 				</li>
 				<li className="flex items-center">
 					<svg
@@ -42,14 +45,14 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
 						className="w-4 h-4 mr-2 text-neutral-400"
 					>
 						<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
 					</svg>
-					Ensure the installation directory is accessible.
+					Ensure the installation directory is writable.
 				</li>
 				<li className="flex items-center">
 					<svg
@@ -57,16 +60,16 @@ const ErrorSection = ({ errorMessage }: { errorMessage: string }) => (
 						viewBox="0 0 24 24"
 						fill="none"
 						stroke="currentColor"
-						stroke-width="2"
-						stroke-linecap="round"
-						stroke-linejoin="round"
+						strokeWidth="2"
+						strokeLinecap="round"
+						strokeLinejoin="round"
 						className="w-4 h-4 mr-2 text-neutral-400"
 					>
 						<circle cx="12" cy="12" r="10" />
 						<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
 						<path d="M12 17h.01" />
 					</svg>
-					If the issue persists, try again later or reach out for assistance.
+					If unresolved, retry later or contact support.
 				</li>
 			</ul>
 
@@ -100,7 +103,7 @@ const InstallationProgress = ({
 }) => (
 	<div className="h-fit flex flex-col justify-end items-start gap-2 w-full pb-12 px-10 pt-4">
 		<h2 className="text-neutral-200 text-2xl font-semibold title">
-			{isError ? "Stopped" : "Installing..."}{" "}
+			{isError ? "Installation Stopped" : "Installing..."}{" "}
 			<span className="text-neutral-400 text-sm font-sans">
 				({Math.round(value)}%)
 			</span>
@@ -129,6 +132,16 @@ export default function Install() {
 	const [dir, setDir] = useState<string>("");
 	const [version, setVersion] = useState<string>("");
 	const [errorMessage, setErrorMessage] = useState<string>("");
+
+	useEffect(() => {
+		if (success) {
+			const timer = setTimeout(async () => {
+				await getCurrent().close();
+			}, 10000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [success]);
 
 	const getLastVersion = async () => {
 		const repoUrl = "https://huggingface.co/api/models/iahispano/applio-app";
@@ -250,10 +263,11 @@ export default function Install() {
 				{success && (
 					<div className="w-full h-full flex flex-col justify-center items-center">
 						<h1 className="text-3xl text-white title font-semibold">
-							Successfully installed!
+							Installation Successful!
 						</h1>
-						<h2 className="text-neutral-300 max-w-sm text-sm text-balance text-center">
-							You can now close this window and start using Applio App.
+						<h2 className="text-neutral-300 max-w-sm text-sm text-center">
+							You can now close this window. It will automatically close in 10
+							seconds.
 						</h2>
 					</div>
 				)}
