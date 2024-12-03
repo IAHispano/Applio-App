@@ -65,6 +65,7 @@ export default function PreInstall() {
 				eventSource.onerror = (err) => {
 					if (info !== "Error during extraction.") {
 						console.error("EventSource Error:", err);
+						console.error("Error target:", err.target);
 						eventSource.close();
 						setStatus("");
 						setInfo("An unexpected error occurred. Please try again later.");

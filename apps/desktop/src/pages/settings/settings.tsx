@@ -14,6 +14,7 @@ export default function Settings() {
 	const [effect, setEffect] = useState(false);
 	const [sendData, setSendData] = useState(false);
 	const [deviceId, setDeviceId] = useState("");
+	const [deleteRVC, setDeleteRVC] = useState(false);
 
 	// get server port
 	async function getServerPort() {
@@ -267,6 +268,19 @@ export default function Settings() {
 		"#615600",
 	];
 
+	const handleDeleteRVC = async () => {
+		try {
+			const port = await getServerPort()
+			const response = await fetch(`http://localhost:${port}/delete-rvc`);
+			if (response.status === 204) {
+				setDeleteRVC(true);
+			}
+			console.log(response.status);
+		} catch (error) {
+			console.error("Error deleting RVC:", error);
+		}
+	};
+
 	return (
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-end justify-end mt-6 w-full overflow-auto">
@@ -433,6 +447,15 @@ export default function Settings() {
 									<h2 className="text-lg font-medium mt-4">Other</h2>
 									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 									<div className="flex gap-2">
+										<button
+										 onClick={handleDeleteRVC}
+										 disabled={deleteRVC}
+										 type="button"
+										 className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+										 aria-label="Delete RVC"
+										>
+											{ deleteRVC ? "Delete RVC Successfully" : "Delete RVC" }
+										</button>
 										<a
 											href="/first-time"
 											type="button"
