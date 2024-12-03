@@ -1,4 +1,4 @@
-name: Upload Latest Release to Discord
+name: Upload release
 
 on:
   release:
