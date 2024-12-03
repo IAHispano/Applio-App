@@ -108,19 +108,22 @@ const InstallationProgress = ({
 				({Math.round(value)}%)
 			</span>
 		</h2>
-		<div className="backdrop-filter backdrop-blur-3xl border border-white/10 w-full mt-2 rounded-lg shadow-lg">
+		<div className="backdrop-filter backdrop-blur-3xl border border-white/10 w-full mt-2 rounded-lg shadow-lg relative">
+			{version && !isError && (
+				<p
+					className="text-[10px] w-full text-neutral-400 absolute top-[-22px] opacity-0 transition-opacity duration-200"
+					style={{ opacity: value > 0 ? 1 : 0 }}
+				>
+					{version}
+				</p>
+			)}
 			<div
-				className={`h-2 rounded-lg  ${
+				className={`h-2 rounded-lg ${
 					isError ? "bg-red-500/40" : "bg-neutral-300"
 				}`}
 				style={{ width: isError ? "100%" : `${value}%` }}
 			/>
 		</div>
-		{version && !isError && (
-			<p className="text-[10px] text-right mx-auto w-full text-neutral-400">
-				Installing {version}
-			</p>
-		)}
 	</div>
 );
 
@@ -132,14 +135,21 @@ export default function Install() {
 	const [dir, setDir] = useState<string>("");
 	const [version, setVersion] = useState<string>("");
 	const [errorMessage, setErrorMessage] = useState<string>("");
+	const [timeLeft, setTimeLeft] = useState<number>(10);
 
 	useEffect(() => {
 		if (success) {
-			const timer = setTimeout(async () => {
-				await getCurrent().close();
-			}, 10000);
+			const interval = setInterval(() => {
+				setTimeLeft((prev) => {
+					if (prev <= 1) {
+						clearInterval(interval);
+						getCurrent().close();
+					}
+					return prev - 1;
+				});
+			}, 1000);
 
-			return () => clearTimeout(timer);
+			return () => clearInterval(interval);
 		}
 	}, [success]);
 
@@ -261,13 +271,13 @@ export default function Install() {
 		<main className="min-h-screen min-w-screen overflow-hidden">
 			<div className="w-full h-[100svh] overflow-hidden">
 				{success && (
-					<div className="w-full h-full flex flex-col justify-center items-center">
-						<h1 className="text-3xl text-white title font-semibold">
+					<div className="w-full h-full flex flex-col justify-center items-center gap-2 px-4 text-center">
+						<h1 className="text-3xl font-semibold text-white title">
 							Installation Successful!
 						</h1>
-						<h2 className="text-neutral-300 max-w-sm text-sm text-center">
-							You can now close this window. It will automatically close in 10
-							seconds.
+						<h2 className="text-sm text-neutral-300 max-w-md leading-relaxed">
+							You can now close this window. It will automatically close in{" "}
+							{timeLeft} {timeLeft === 1 ? "second!" : "seconds."}
 						</h2>
 					</div>
 				)}
