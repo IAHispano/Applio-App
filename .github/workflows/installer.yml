@@ -79,6 +79,8 @@ jobs:
 
       - name: Upload to Discord
         uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           message: |
