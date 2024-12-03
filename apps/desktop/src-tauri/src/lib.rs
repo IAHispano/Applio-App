@@ -3,7 +3,7 @@
 use declarative_discord_rich_presence::activity::Activity;
 use declarative_discord_rich_presence::{activity, DeclarativeDiscordIpcClient};
 use std::io;
-use std::io::{Read, Write};
+use std::io::{Write};
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command};
