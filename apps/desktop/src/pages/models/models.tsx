@@ -377,15 +377,6 @@ export default function Models() {
 							My models
 						</button>
 					</div>
-					{/* huggingface warning */}
-					<div className="w-full rounded-xl p-4 bg-orange-500/10">
-						<h1>Warning</h1>
-						<p className="text-xs text-neutral-400">
-							We are aware of a problem with models coming from HuggingFace, we
-							are working on fixing it. As a workaround you can manually install
-							those models that give error.
-						</p>
-					</div>
 					{mode === "explore" && (
 						<div>
 							<input

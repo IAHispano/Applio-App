@@ -2,7 +2,7 @@ import "./App.css";
 import { useEffect } from "react";
 import { platform, type, version } from "@tauri-apps/plugin-os";
 import {
-	CloseRequestedEvent,
+	type CloseRequestedEvent,
 	Effect,
 	getCurrentWindow,
 } from "@tauri-apps/api/window";
@@ -14,6 +14,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Store } from "@tauri-apps/plugin-store";
 import { ConvertProvider } from "./components/convert/conversion-context";
 import { supabase } from "./utils/database";
+import { open } from "@tauri-apps/plugin-shell";
 
 // Pages
 import Home from "./pages/home";
@@ -24,7 +25,6 @@ import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
 import Login from "./pages/login/login";
 import InferencesLibrary from "./pages/inference/library";
-import { open } from "@tauri-apps/plugin-shell";
 
 function App() {
 	const navigate = useNavigate();

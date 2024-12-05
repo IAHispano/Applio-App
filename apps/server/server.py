@@ -485,7 +485,7 @@ def downloadModel(
         "rvc_cli.py",
         "download",
         "--model_link",
-        f'"{unquote(modelLink)}"',
+        f'{unquote(modelLink)}',
     ]
 
     logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
