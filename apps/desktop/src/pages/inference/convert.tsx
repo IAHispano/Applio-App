@@ -6,6 +6,7 @@ import { useConvertContext } from "../../components/convert/conversion-context";
 import Loading from "../../components/convert/loading";
 import { supabase } from "../../utils/database";
 import { open } from "@tauri-apps/plugin-dialog";
+import RecordRTC, { RecordRTCPromisesHandler } from 'recordrtc';
 
 export default function Convert() {
 	const {
@@ -57,7 +58,71 @@ export default function Convert() {
 	const [loading, setLoading] = useState(true);
 	const [previewModels, setPreviewModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>("");
+	const [audioSection, setAudioSection] = useState("");
 	const inputFileRef = useRef<HTMLInputElement | null>(null);
+
+	const [recording, setRecording] = useState<boolean>(false);
+	const [audioUrl, setAudioUrl] = useState<string | null>(null);
+	const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
+	const [recorder, setRecorder] = useState<RecordRTCPromisesHandler | null>(null);
+  
+	const startRecording = async () => {
+	  try {
+		const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		const audioRecorder = new RecordRTCPromisesHandler(stream, {
+		  type: "audio",
+		});
+  
+		await audioRecorder.startRecording();
+		setRecorder(audioRecorder);
+		setRecording(true);
+	  } catch (error) {
+		console.error("Error starting recording:", error);
+	  }
+	};
+  
+	const stopRecording = async () => {
+	  if (!recorder) return;
+  
+	  try {
+		await recorder.stopRecording();
+		const audioBlob = await recorder.getBlob();
+		setAudioBlob(audioBlob);
+		const audioUrl = URL.createObjectURL(audioBlob);
+		setAudioUrl(audioUrl);
+  
+		console.log("Audio URL:", audioUrl);
+		uploadAudio(audioBlob);
+	  } catch (error) {
+		console.error("Error stopping recording:", error);
+	  } finally {
+		setRecording(false);
+	  }
+	};
+  
+	const uploadAudio = async (audioBlob: Blob) => {
+		try {
+		  const port = await getServerPort();
+		  const response = await fetch(`http://localhost:${port}/upload-input`, {
+			method: "POST",
+			headers: {
+			  "Content-Type": "application/octet-stream", 
+			},
+			body: audioBlob, 
+		  });
+	  
+		  if (response.ok) {
+			const result = await response.json();
+			setAudioUrl(result.file_path);
+			console.log("Audio uploaded successfully:", result);
+		  } else {
+			console.error("Error uploading audio:", response.statusText);
+		  }
+		} catch (error) {
+		  console.error("Upload failed:", error);
+		}
+	  };
+	  
 
 	const togglePlayPause = () => {
 		if (audioRef.current) {
@@ -115,8 +180,6 @@ export default function Convert() {
 
 		getLocalModels();
 	}, []);
-
-	console.log("output", output);
 
 	useEffect(() => {
 		if (models[currentIndex] && models[currentIndex].model_index_file) {
@@ -318,6 +381,8 @@ export default function Convert() {
 		if (inputFileRef.current) {
 			inputFileRef.current.value = "";
 		}
+		setAudioUrl(null);
+		setAudioBlob(null);
 	};
 
 	const divRef = useRef<HTMLDivElement | null>(null);
@@ -515,36 +580,38 @@ export default function Convert() {
 								</div>
 								<div className="enabled:hover:opactiy-100 relative border border-white/10 h-full w-full rounded-xl p-4 slow flex flex-col gap-2 justify-center items-center">
 									<div className="absolute w-full h-full rounded-xl backdrop-blur-3xl backdrop-filter noise opacity-40" />
-									{uploaded ? (
+									<div className="absolute top-4 left-4 bg-neutral-800/50 rounded-xl overflow-hidden" style={{zIndex: 100}}>
+									<div className="flex divide-x divide-white/10">
+											<button
+											aria-label="Import audio"
+											type="button"
+											onClick={() => setAudioSection("import")}
+											className="z-50 p-2 px-4 hover:bg-white/10 transition-colors duration-200 ease-in-out"
+											>
+											<svg aria-hidden="true" className="w-4 h-4" fill="#ffffff" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0" /><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" /><g id="SVGRepo_iconCarrier"> <path d="m807.186 686.592 272.864 272.864H0v112.94h1080.05l-272.864 272.978 79.736 79.849 409.296-409.183-409.296-409.184-79.736 79.736ZM1870.419 434.69l-329.221-329.11C1509.688 74.07 1465.979 56 1421.48 56H451.773v730.612h112.94V168.941h790.584v451.762h451.762v1129.405H564.714v-508.233h-112.94v621.173H1920V554.52c0-45.176-17.619-87.754-49.58-119.83Zm-402.181-242.37 315.443 315.442h-315.443V192.319Z" fill-rule="evenodd" /></g></svg>
+											</button>
+											<button
+											aria-label="Record audio"
+											type="button"
+											onClick={() => setAudioSection("record")}
+											className="p-2 px-3.5 hover:bg-white/10 transition-colors duration-200 ease-in-out"
+											>
+											<svg className="w-6 h-6 opacity-80" fill="#ffffff" viewBox="-9.5 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <title>record</title> <path d="M2.656 11.25v-2.969c0-1.906 1.719-3.5 3.906-3.5 2.156 0 3.906 1.594 3.906 3.5v2.969h-7.813zM13.188 11.438v5.969c-1.281 3.5-5.063 4.031-5.063 4.031v3.969h4.156v1.781h-11.438v-1.781h4.188v-3.969s-3.75-0.531-5.031-4.031v-5.969l1.531-0.719v5.438s0.469 3.656 5.031 3.656 5.094-3.656 5.094-3.656v-5.438zM10.469 12.281v2.688c0 1.906-1.75 3.5-3.906 3.5-2.188 0-3.906-1.594-3.906-3.5v-2.688h7.813z"></path> </g></svg>
+											</button>
+									</div>
+									</div>
+									{uploaded || audioUrl ? (
 										<>
 											<button
 												aria-label="Reset conversion"
 												onClick={handleReset}
 												type="button"
 												style={{ zIndex: 100 }}
-												className="cursor-pointer absolute right-4 rounded-xl top-4 hover:bg-neutral-800 slow bg-neutral-800/80 p-4"
+												className="cursor-pointer absolute right-4 rounded-xl top-4 hover:bg-neutral-800 slow bg-neutral-800/80 p-3"
 											>
-												<svg
-													className="w-4 h-4 opacity-60"
-													fill="#ffffff"
-													viewBox="0 0 1920 1920"
-													xmlns="http://www.w3.org/2000/svg"
-												>
-													<g id="SVGRepo_bgCarrier" strokeWidth="0"></g>
-													<g
-														id="SVGRepo_tracerCarrier"
-														strokeLinecap="round"
-														strokeLinejoin="round"
-													></g>
-													<g id="SVGRepo_iconCarrier">
-														{" "}
-														<path
-															d="M960 0v213.333c411.627 0 746.667 334.934 746.667 746.667S1371.627 1706.667 960 1706.667 213.333 1371.733 213.333 960c0-197.013 78.4-382.507 213.334-520.747v254.08H640V106.667H53.333V320h191.04C88.64 494.08 0 720.96 0 960c0 529.28 430.613 960 960 960s960-430.72 960-960S1489.387 0 960 0"
-															fill-rule="evenodd"
-														></path>{" "}
-													</g>
-												</svg>
+												<svg className="w-4 h-4 opacity-60" fill="#ffffff" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" strokeWidth="0"/><g id="SVGRepo_tracerCarrier" strokeLinecap="round" strokeLinejoin="round"/><g id="SVGRepo_iconCarrier"><path d="M960 0v213.333c411.627 0 746.667 334.934 746.667 746.667S1371.627 1706.667 960 1706.667 213.333 1371.733 213.333 960c0-197.013 78.4-382.507 213.334-520.747v254.08H640V106.667H53.333V320h191.04C88.64 494.08 0 720.96 0 960c0 529.28 430.613 960 960 960s960-430.72 960-960S1489.387 0 960 0" fill-rule="evenodd"/></g></svg>
 											</button>
+											{!audioUrl && (
 											<svg
 												className="w-16 h-16 opacity-60"
 												viewBox="0 0 24 24"
@@ -571,58 +638,116 @@ export default function Convert() {
 													</g>
 												</g>
 											</svg>
+											)}
 										</>
 									) : (
-										<svg
-											className="w-16 h-16 opacity-80 z-50"
-											viewBox="0 0 24 24"
-											fill="none"
-											xmlns="http://www.w3.org/2000/svg"
-											aria-hidden="true"
-										>
-											<g id="SVGRepo_bgCarrier" strokeWidth="0" />
-											<g
-												id="SVGRepo_tracerCarrier"
-												strokeLinecap="round"
-												strokeLinejoin="round"
-											/>
-											<g id="SVGRepo_iconCarrier">
-												<path
-													d="M22 20.8201C15.426 22.392 8.574 22.392 2 20.8201"
-													stroke="#ffffff"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-												<path
-													d="M12.0508 16V2"
-													stroke="#ffffff"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-												<path
-													d="M7.09961 6.21997L10.6096 2.60986C10.7895 2.42449 11.0048 2.27715 11.2427 2.17651C11.4806 2.07588 11.7363 2.02417 11.9946 2.02417C12.2529 2.02417 12.5086 2.07588 12.7465 2.17651C12.9844 2.27715 13.1997 2.42449 13.3796 2.60986L16.8996 6.21997"
-													stroke="#ffffff"
-													strokeWidth="1.5"
-													strokeLinecap="round"
-													strokeLinejoin="round"
-												/>
-											</g>
-										</svg>
+										<>
+										{audioSection === "import" ? (
+											<svg aria-hidden="true" className="w-12 h-12" fill="#ffffff" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0" /><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round" /><g id="SVGRepo_iconCarrier"> <path d="m807.186 686.592 272.864 272.864H0v112.94h1080.05l-272.864 272.978 79.736 79.849 409.296-409.183-409.296-409.184-79.736 79.736ZM1870.419 434.69l-329.221-329.11C1509.688 74.07 1465.979 56 1421.48 56H451.773v730.612h112.94V168.941h790.584v451.762h451.762v1129.405H564.714v-508.233h-112.94v621.173H1920V554.52c0-45.176-17.619-87.754-49.58-119.83Zm-402.181-242.37 315.443 315.442h-315.443V192.319Z" fill-rule="evenodd" /></g></svg>
+											
+										) : (
+											<>
+											{!audioUrl && (
+											<svg className="w-16 h-16 opacity-80" fill="#ffffff" viewBox="-9.5 0 32 32" version="1.1" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <title>record</title> <path d="M2.656 11.25v-2.969c0-1.906 1.719-3.5 3.906-3.5 2.156 0 3.906 1.594 3.906 3.5v2.969h-7.813zM13.188 11.438v5.969c-1.281 3.5-5.063 4.031-5.063 4.031v3.969h4.156v1.781h-11.438v-1.781h4.188v-3.969s-3.75-0.531-5.031-4.031v-5.969l1.531-0.719v5.438s0.469 3.656 5.031 3.656 5.094-3.656 5.094-3.656v-5.438zM10.469 12.281v2.688c0 1.906-1.75 3.5-3.906 3.5-2.188 0-3.906-1.594-3.906-3.5v-2.688h7.813z"></path> </g></svg>
+											)}
+											</>
+										)}
+										</>
 									)}
 									<p className="text-sm text-neutral-300 z-50 truncate max-w-3xl">
-										{file ? file.name : "Select your audio."}
+										{file ? file.name : audioSection === "import" ? "Import your audio" : recording ? "Stop Recording" : !audioUrl ? "Start Recording" : ""}
 									</p>
-									<input
-										ref={inputFileRef}
-										disabled={uploaded}
-										type="file"
-										accept="audio/*"
-										className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed"
-										onChange={handleFileChange}
-										aria-label="Select your audio"
-									/>
+									{audioSection === "import" ? (
+										<input
+											ref={inputFileRef}
+											disabled={uploaded}
+											type="file"
+											accept="audio/*"
+											className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed"
+											onChange={handleFileChange}
+											aria-label="Select your audio"
+										/>
+									) : (
+										<>
+										{!audioUrl && (
+										<button className="absolute inset-0 opacity-0 z-50 enabled:cursor-pointer disabled:cursor-not-allowed" type="button" onClick={recording ? stopRecording : startRecording}>
+										</button>
+										)}
+										</>
+									)}
+									{audioUrl && (
+										<div className="w-full justify-end items-end mt-auto h-[10svh] flex gap-2" style={{zIndex: 100}}>
+										<div className="w-full border border-white/20 rounded-xl pl-4 h-18 flex justify-between items-center gap-4">
+											<div className="flex justify-start items-center">
+											<button
+													type="button"
+													className="w-full h-full"
+													onClick={togglePlayPause}
+													aria-label="Toggle play/pause"
+												>
+													{isPlaying ? (
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 24 24"
+															fill="currentColor"
+															className="w-5 h-5"
+															aria-hidden="true"
+														>
+															<path
+																fillRule="evenodd"
+																d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z"
+																clipRule="evenodd"
+															/>
+														</svg>
+													) : (
+														<svg
+															xmlns="http://www.w3.org/2000/svg"
+															viewBox="0 0 24 24"
+															fill="currentColor"
+															className="w-5 h-5"
+															aria-hidden="true"
+														>
+															<path
+																fillRule="evenodd"
+																d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z"
+																clipRule="evenodd"
+															/>
+														</svg>
+													)}
+												</button>
+											</div>
+											<div className="aspect-video w-full max-w-full max-h-[10svh] overflow-hidden flex items-center gap-4">
+												<AudioVisualizer
+													aria-label="Audio visualizer"
+													ref={visualizerRef}
+													blob={audioBlob as Blob}
+													width={500}
+													height={500}
+													barWidth={1}
+													gap={6}
+													barColor="#22aa68"
+													style={{
+														height: "8svh",
+														width: "100%",
+														aspectRatio: "16 / 9",
+													}}
+												/>
+											</div>
+											{/* biome-ignore lint/a11y/useMediaCaption: <explanation> */}
+											<audio
+												ref={audioRef}
+												className="hidden"
+												onPlay={() => setIsPlaying(true)}
+												onPause={() => setIsPlaying(false)}
+											>
+												<source
+													src={audioUrl}
+													type="audio/wav"
+												/>
+											</audio>
+										</div>
+									</div>
+									)}
 								</div>
 							</div>
 							<div className="w-full h-full grid grid-cols-1 grid-rows-12 gap-2">

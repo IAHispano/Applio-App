@@ -950,7 +950,6 @@ def fetch_inferences():
 
     return inferences
 
-
 # stop server
 def shutdown_server():
     print("Shutting down...")
@@ -1169,6 +1168,24 @@ def get_inferences():
 def get_audio():
     audio_path = request.args.get("path")
     return send_file(audio_path, mimetype="audio/wav")
+
+@app.route("/upload-input", methods=["POST"])
+def upload_input():
+    try:
+        audio_data = request.data
+
+        if not audio_data:
+            return jsonify({"status": "error", "message": "No audio data received"}), 400
+
+        file_path = os.path.join(INPUT_AUDIO_DIR, f"{uuid.uuid4()}.wav")
+
+        with open(file_path, "wb") as f:
+            f.write(audio_data)
+
+        return jsonify({"status": "success", "file_path": file_path}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 if __name__ == "__main__":
