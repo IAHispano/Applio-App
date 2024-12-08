@@ -315,6 +315,9 @@ const icons = {
 			</g>
 		</svg>
 	),
+	AudioEditor: (
+		<svg className="w-6 h-6 opacity-60" fill="#ffffff" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path d="M1,16V8A1,1,0,0,1,3,8v8a1,1,0,0,1-2,0Zm7,4V4A1,1,0,0,0,6,4V20a1,1,0,0,0,2,0Zm5,2V2a1,1,0,0,0-2,0V22a1,1,0,0,0,2,0Zm5-2V4a1,1,0,0,0-2,0V20a1,1,0,0,0,2,0ZM22,7a1,1,0,0,0-1,1v8a1,1,0,0,0,2,0V8A1,1,0,0,0,22,7Z"></path></g></svg>
+	)
 };
 
 export default function Sidebar() {
@@ -331,6 +334,7 @@ export default function Sidebar() {
 		{ icon: "Models", label: "Models", to: "/models" },
 		{ icon: "Convert", label: "Convert", to: "/convert" },
 		{ icon: "Library", label: "Library", to: "/inferences" },
+		{ icon: "AudioEditor", label: "Audio Editor", to: "/audio-editor" },
 		{ icon: "Settings", label: "Settings", to: "/settings" },
 	];
 

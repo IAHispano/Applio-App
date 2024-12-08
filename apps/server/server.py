@@ -14,6 +14,7 @@ import requests
 import traceback
 import subprocess
 import threading
+import yt_dlp
 
 from datetime import datetime
 from urllib.parse import unquote
@@ -950,6 +951,104 @@ def fetch_inferences():
 
     return inferences
 
+# get input audios
+def get_input_audios():
+    audio_files = [file for file in os.listdir(INPUT_AUDIO_DIR) if file.lower().endswith(('.mp3', '.wav', '.ogg', '.webm'))]
+    audio_info = []
+
+    for file in audio_files:
+        file_path = os.path.join(INPUT_AUDIO_DIR, file)
+        audio_metadata = {}
+
+        audio_metadata["file_name"] = file
+        audio_metadata["file_path"] = file_path
+        audio_metadata["title"] = file.replace('-', ' ').replace('.mp3', '').replace('.wav', '').replace('.ogg', '').replace('.webm', '').title()
+
+        file_stats = os.stat(file_path)
+        audio_metadata["creation_time"] = file_stats.st_ctime
+        audio_metadata["modification_time"] = file_stats.st_mtime 
+        audio_metadata["file_size"] = file_stats.st_size
+
+        audio_info.append(audio_metadata)
+
+    return audio_info
+
+# download audio from youtube
+def downloadAudio(audio_link):
+    ydl_opts = {
+        'outtmpl': os.path.join(INPUT_AUDIO_DIR, '%(title)s.%(ext)s'),
+        'quiet': True,
+        'progress': False,
+        'format': 'wav',
+        'format': 'bestaudio/best',
+        'postprocessors': [{
+            'key': 'FFmpegExtractAudio',
+            'preferredcodec': 'wav',
+            'preferredquality': '32',
+        }],
+    }
+    try: 
+        logging.info(remove_ansi_escape_sequences(f"Downloading audio from {audio_link}"))
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([audio_link])
+            return "Audio downloaded successfully"
+    except Exception as e:
+        logging.error(remove_ansi_escape_sequences(f"Error downloading audio: {str(e)}"))
+        handle_exception(e)
+
+# delete input audio
+def delete_input_audio(file_path):
+    if os.path.exists(file_path):
+        os.remove(file_path)
+        return {"status": "success", "message": f"The file {file_path} has been deleted."}
+    return {"status": "error", "message": f"No file with path {file_path} found."}
+
+# delete all input audios
+def delete_input_audios_folder():
+    if os.path.exists(INPUT_AUDIO_DIR):
+        shutil.rmtree(INPUT_AUDIO_DIR)
+        return {"status": "success", "message": "All input audios have been deleted."}
+    return {"status": "error", "message": "Input audios folder not found."}
+
+# separate instrumental
+def separate_instrumental(path):
+    command = [os.path.join("env", "python.exe"), "uvr_cli.py", "--audio_file", path, "--output_format", "MP3", "--output_dir", INPUT_AUDIO_DIR]
+
+    logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
+
+    yield "data: Starting separation...\n\n"
+    logging.info(remove_ansi_escape_sequences("Starting separation..."))
+
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            shell=True,
+            cwd=RVC_DIR,
+        )
+
+        for line in process.stdout:
+            yield f"data: {line}\n\n"
+            logging.info(line.strip())
+
+        process.stdout.close()
+        process.kill()
+
+        yield "data: Separation completed successfully.\n\n"
+        logging.info(
+            remove_ansi_escape_sequences("Separation completed successfully.")
+        )
+
+    except Exception as e:
+        yield f"data: Error running separation: {str(e)}\n\n"
+        logging.error(
+            remove_ansi_escape_sequences(f"Error running separation: {str(e)}")
+        )
+        handle_exception(e)
+
 # stop server
 def shutdown_server():
     print("Shutting down...")
@@ -1113,6 +1212,48 @@ def get_all_models():
 
     return jsonify(models), 200
 
+@app.route("/download-audio", methods=["GET"])
+def download_audio_route():
+    logging.info(remove_ansi_escape_sequences("Getting link to download audio..."))
+    audio_link = request.args.get("link")
+    if not audio_link:
+        logging.error(
+            remove_ansi_escape_sequences("Error: audio link argument is missing.")
+        )
+        return Response("Error: audio link argument is missing.", status=400)
+
+    return Response(
+        downloadAudio(
+            audio_link,
+        ),
+        content_type="text/event-stream",
+    )
+
+@app.route("/get-input-audios", methods=["GET"])
+def get_input_audios_route():
+    audio_info = get_input_audios()
+    return jsonify(audio_info), 200
+
+@app.route("/separate", methods=["GET"])
+def separate_route():
+    path = request.args.get("path")
+    if not path:
+        return jsonify({"status": "error", "message": "Path is required"}), 400
+    result = separate_instrumental(path)
+    return Response(result, content_type="text/event-stream")
+
+@app.route("/delete-input-audio", methods=["GET"])
+def delete_input_audio_route():
+    id = request.args.get("id")
+    if not id:
+        return jsonify({"status": "error", "message": "ID is required"}), 400
+    result = delete_input_audio(id)
+    return jsonify(result)
+
+@app.route("/delete-all-input-audios", methods=["GET"])
+def delete_all_input_audios_route():
+    result = delete_input_audios_folder()
+    return jsonify(result)
 
 @app.route("/upload", methods=["POST"])
 def upload():

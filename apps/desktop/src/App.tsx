@@ -25,6 +25,7 @@ import Settings from "./pages/settings/settings";
 import Convert from "./pages/inference/convert";
 import Login from "./pages/login/login";
 import InferencesLibrary from "./pages/inference/library";
+import AudioEditor from "./pages/audio-editor/audioeditor";
 
 function App() {
 	const navigate = useNavigate();
@@ -287,6 +288,7 @@ function App() {
 					<Route path="/beta-access" element={<BetaAccess />} />
 					<Route path="/login" element={<Login />} />
 					<Route path="/inferences" element={<InferencesLibrary />} />
+					<Route path="/audio-editor" element={<AudioEditor />} />
 				</Routes>
 			</div>
 		</ConvertProvider>

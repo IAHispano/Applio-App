@@ -5,8 +5,8 @@ import { Link } from "react-router-dom";
 import { useConvertContext } from "../../components/convert/conversion-context";
 import Loading from "../../components/convert/loading";
 import { supabase } from "../../utils/database";
-import { open } from "@tauri-apps/plugin-dialog";
-import RecordRTC, { RecordRTCPromisesHandler } from 'recordrtc';
+import { open } from "@tauri-apps/plugin-shell";
+import { RecordRTCPromisesHandler } from 'recordrtc';
 
 export default function Convert() {
 	const {
