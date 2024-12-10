@@ -6,7 +6,7 @@ interface ConvertContextType {
 	currentIndex: number;
 	setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
 	file: File | null;
-	setFile: React.Dispatch<React.SetStateAction<string | null>>;
+	setFile: React.Dispatch<React.SetStateAction<File | null>>;
 	uploaded: boolean;
 	setUploaded: React.Dispatch<React.SetStateAction<boolean>>;
 	info: string;
@@ -56,7 +56,7 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 }) => {
 	const [models, setModels] = useState<any[]>([]);
 	const [currentIndex, setCurrentIndex] = useState(0);
-	const [file, setFile] = useState<string | null>(null);
+	const [file, setFile] = useState<File | null>(null);
 	const [uploaded, setUploaded] = useState(false);
 	const [info, setInfo] = useState("");
 	const [status, setStatus] = useState("");
