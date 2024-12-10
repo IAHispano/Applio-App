@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import Loading from "../../components/convert/loading";
 import { open } from "@tauri-apps/plugin-shell";
-import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
-import AudioPlayer from 'react-h5-audio-player';
+// import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+// import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
 
 export default function AudioEditor() {
@@ -13,14 +13,14 @@ export default function AudioEditor() {
     const [audios, setAudios] = useState<{ file_name: string; file_path: string; title: string; creation_time: number; modification_time: number; file_size: number; duration?: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
-    const [inputDir, setInputDir] = useState("");
-
-	const [file, setFile] = useState<string | null>(null);
-    const [uploaded, setUploaded] = useState(false);
-    const [UVRLoading, setUVRLoading] = useState(false);
-    const [UVRStatus, setUVRStatus] = useState("");
-    const [UVRError, setUVRError] = useState(false);
-    const [UVRLink, setUVRLink] = useState("");
+    
+    // const [inputDir, setInputDir] = useState("");
+	// const [file, setFile] = useState<string | null>(null);
+    // const [uploaded, setUploaded] = useState(false);
+    // const [UVRLoading, setUVRLoading] = useState(false);
+    // const [UVRStatus, setUVRStatus] = useState("");
+    // const [UVRError, setUVRError] = useState(false);
+    // const [UVRLink, setUVRLink] = useState("");
 
     // get server port
 	async function getServerPort() {
@@ -100,53 +100,53 @@ export default function AudioEditor() {
         }
     };
 
-    const handleSelectFile = async () => {
-        const file = await dialogOpen({
-            directory: false,
-            multiple: false,
-            defaultPath: inputDir,
-            filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "webm"] }]
-        });
-        if (file) {
-            console.log(file)
-            setFile(file);
-            setUploaded(true);
-        }
-    };
+    // const handleSelectFile = async () => {
+    //     const file = await dialogOpen({
+    //         directory: false,
+    //         multiple: false,
+    //         defaultPath: inputDir,
+    //         filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "webm"] }]
+    //     });
+    //     if (file) {
+    //         console.log(file)
+    //         setFile(file);
+    //         setUploaded(true);
+    //     }
+    // };
 
-    const handleSeparateInstrumental = async () => {
-        setUVRLoading(true);
-        const port = await getServerPort();
-        const eventSource = new EventSource(`http://localhost:${port}/separate?path=${encodeURIComponent(file as string)}`);
-        eventSource.onmessage = (event) => {
-            console.log(event.data);
-            setUVRStatus(event.data);
-            if (event.data.includes("error")) {
-                setUVRError(true);
-                setUVRLoading(false);
-                eventSource.close();
-            }
-            if (event.data.includes("successfully")) {
-                setUVRLoading(false);
-                setUVRStatus("Completed successfully.");
-                getAudios();
-                eventSource.close();
-            }
+    // const handleSeparateInstrumental = async () => {
+    //     setUVRLoading(true);
+    //     const port = await getServerPort();
+    //     const eventSource = new EventSource(`http://localhost:${port}/separate?path=${encodeURIComponent(file as string)}`);
+    //     eventSource.onmessage = (event) => {
+    //         console.log(event.data);
+    //         setUVRStatus(event.data);
+    //         if (event.data.includes("error")) {
+    //             setUVRError(true);
+    //             setUVRLoading(false);
+    //             eventSource.close();
+    //         }
+    //         if (event.data.includes("successfully")) {
+    //             setUVRLoading(false);
+    //             setUVRStatus("Completed successfully.");
+    //             getAudios();
+    //             eventSource.close();
+    //         }
 
-            // if (event.data.startsWith("[") && event.data.endsWith("]")) {
-            //     const audioPath = event.data[1].file_path;
-            //     setUVRLink(audioPath); 
-            //     console.log('Audio URL set to:', audioPath);
-            // }
+    //         // if (event.data.startsWith("[") && event.data.endsWith("]")) {
+    //         //     const audioPath = event.data[1].file_path;
+    //         //     setUVRLink(audioPath); 
+    //         //     console.log('Audio URL set to:', audioPath);
+    //         // }
             
-        };
-        eventSource.onerror = () => {
-            setUVRError(true);
-            console.error("Error occurred while separating instrumental.");
-            setUVRLoading(false);
-            eventSource.close();
-        };
-    };
+    //     };
+    //     eventSource.onerror = () => {
+    //         setUVRError(true);
+    //         console.error("Error occurred while separating instrumental.");
+    //         setUVRLoading(false);
+    //         eventSource.close();
+    //     };
+    // };
 
     useEffect(() => {
         getAudios();

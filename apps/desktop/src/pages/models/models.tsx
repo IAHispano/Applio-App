@@ -2,11 +2,11 @@ import { invoke } from "@tauri-apps/api/core";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { TitleBar } from "../../components/layout/titlebar";
 
 export default function Models() {
-	const [loading, setLoading] = useState(false);
+	const [loading, _setLoading] = useState(false);
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [status, setStatus] = useState("");
 	const [info, setInfo] = useState("");
@@ -15,7 +15,6 @@ export default function Models() {
 	const [url, setUrl] = useState("");
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>();
-	const [searchParams] = useSearchParams();
 	const [myModelsValue, setMyModelsValue] = useState("");
 	const [filePath, setFilePath] = useState<string | null>("");
 
