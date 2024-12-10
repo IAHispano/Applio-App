@@ -86,3 +86,13 @@ input[type="number"]::-webkit-inner-spin-button {
 input[type="number"]:focus {
 	outline: none;
 }
+
+.rhap_container {
+	background-color: transparent !important;
+	border: 0.1rem solid #ffffff10 !important;
+	box-shadow: none !important;
+}
+
+.rhap_time {
+	color: white !important;
+}

@@ -4,17 +4,14 @@ import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { TitleBar } from "../../components/layout/titlebar";
-import { supabase } from "../../utils/database";
 
 export default function Models() {
-	const [value, setValue] = useState("");
-	const [data, setData] = useState<any>();
 	const [loading, setLoading] = useState(false);
 	const [dropdownOpen, setDropdownOpen] = useState(false);
 	const [status, setStatus] = useState("");
 	const [info, setInfo] = useState("");
 	const [error, setError] = useState(false);
-	const [mode, setMode] = useState("explore");
+	const [mode, setMode] = useState("import");
 	const [url, setUrl] = useState("");
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
 	const [modelName, setModelName] = useState<string>();
@@ -23,38 +20,6 @@ export default function Models() {
 	const [filePath, setFilePath] = useState<string | null>("");
 
 	const navigate = useNavigate();
-
-	useEffect(() => {
-		async function getModels() {
-			setLoading(true);
-			if (!value) {
-				setData([]);
-				setLoading(false);
-				return;
-			}
-			if (!supabase) return;
-			const { data, error } = await supabase
-				.from("models")
-				.select("*")
-				.ilike("name", `%${value}%`)
-				.order("created_at", { ascending: false })
-				.limit(12);
-			if (error) {
-				console.log(error);
-				setData(null);
-			}
-			if (data && data.length > 0) {
-				console.log("models", data);
-				setData(data);
-				setLoading(false);
-			} else {
-				setData(null);
-				setLoading(false);
-			}
-		}
-
-		getModels();
-	}, [value]);
 
 	// get server port
 	async function getServerPort() {
@@ -220,11 +185,6 @@ export default function Models() {
 			)
 		: downloadedModels;
 
-	useEffect(() => {
-		const searchValue = searchParams.get("search");
-		if (searchValue) setValue(searchValue);
-	}, []);
-
 	const handleImportModel = async (modelPath: string) => {
 		const id = crypto.randomUUID();
 		const port = await getServerPort();
@@ -348,16 +308,6 @@ export default function Models() {
 					<div className="bg-[#111111]/20 rounded-xl w-full p-4 flex gap-4">
 						<button
 							type="button"
-							aria-label="Change to explore models page"
-							onClick={() => setMode("explore")}
-							className={`px-4 py-1 rounded-xl ${
-								mode === "explore" ? "bg-white/10 " : ""
-							} border border-white/[0.05] text-sm text-neutral-300`}
-						>
-							Explore
-						</button>
-						<button
-							type="button"
 							aria-label="Change to import models page"
 							onClick={() => setMode("import")}
 							className={`px-4 py-1 rounded-xl ${
@@ -377,92 +327,6 @@ export default function Models() {
 							My models
 						</button>
 					</div>
-					{mode === "explore" && (
-						<div>
-							<input
-								type="text"
-								className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
-								placeholder="Search..."
-								value={value}
-								onChange={(e) => setValue(e.target.value)}
-								aria-label="Search for models"
-							/>
-							<div className="w-full mt-6">
-								{!loading && data === null && (
-									<div className="flex flex-col items-center justify-center w-full h-full">
-										<h1 className="text-center text-sm text-neutral-400">
-											No results found
-										</h1>
-									</div>
-								)}
-								{loading && (
-									<div className="flex flex-col items-center justify-center w-full h-full">
-										<h1 className="text-center text-sm text-neutral-400">
-											Loading...
-										</h1>
-									</div>
-								)}
-								{!value && (
-									<div className="flex flex-col items-center justify-center w-full h-full">
-										<h1 className="text-center text-sm text-neutral-400">
-											Start searching for your favorite model
-										</h1>
-									</div>
-								)}
-								{!loading && data && (
-									<div className="grid grid-cols-3 gap-2 w-full">
-										{data.map((item: any) => (
-											<button
-												onClick={() =>
-													downloadModel(
-														item.link,
-														item.id,
-														item.epochs,
-														item.algorithm,
-														item.name,
-														item.author_username,
-														item.server_name,
-													)
-												}
-												type="button"
-												className="w-full h-full min-h-[20svh] text-left rounded-xl focus:outline-none bg-[#111111]/20 p-4 hover:bg-[#111111]/30 slow flex flex-col items-start justify-start"
-												key={item.id}
-												aria-label={`Download model ${item.name}`}
-											>
-												<h1 className="font-semibold title text-neutral-200 text-lg line-clamp-2">
-													{item.name}
-												</h1>
-												<p className="text-xs">
-													by {item.author_username} at
-													<span className="pl-1">
-														{new Date(item.created_at).toLocaleDateString(
-															"en-US",
-															{
-																year: "numeric",
-																month: "long",
-																day: "numeric",
-															},
-														)}
-													</span>
-												</p>
-												<div className="justify-end flex mt-auto gap-2">
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
-														{item.epochs} Epochs
-													</p>
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
-														{item.algorithm}
-													</p>
-													<p className="bg-[#111111]/50 px-2 rounded-md text-sm truncate">
-														{item.likes} Likes
-													</p>
-												</div>
-											</button>
-										))}
-									</div>
-								)}
-							</div>
-						</div>
-					)}
 					{mode === "import" && (
 						<div className="w-full h-full flex flex-col gap-4">
 							<h2 className="text-neutral-200">Download from URL</h2>
@@ -471,7 +335,7 @@ export default function Models() {
 									aria-label="Enter URL to download model from"
 									required
 									onChange={(e) => setUrl(e.target.value)}
-									className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
+									className="w-full h-12 rounded-xl focus:outline-none focus:bg-[#111111]/30 bg-[#111111]/20 text-sm p-4"
 									placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing"
 									type="text"
 								/>
@@ -494,7 +358,7 @@ export default function Models() {
 									<button
 										aria-label="Import model locally"
 										onClick={() => handleImportModelFile()}
-										className="w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 border border-white/10 text-sm"
+										className="w-full h-24 hover:bg-[#111111]/30 slow rounded-xl focus:outline-none bg-[#111111]/20 text-sm"
 										type="button"
 									>
 										{filePath ? (

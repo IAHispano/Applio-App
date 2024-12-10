@@ -1296,6 +1296,9 @@ def convert_audio():
         content_type="text/event-stream",
     )
 
+@app.route("/get-input-dir", methods=["GET"])
+def get_input_dir():
+    return INPUT_AUDIO_DIR, 200
 
 @app.route("/get-inferences", methods=["GET"])
 def get_inferences():

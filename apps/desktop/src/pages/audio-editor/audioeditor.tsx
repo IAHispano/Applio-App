@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 import Loading from "../../components/convert/loading";
 import { open } from "@tauri-apps/plugin-shell";
 import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
+import AudioPlayer from 'react-h5-audio-player';
+import 'react-h5-audio-player/lib/styles.css';
 
 export default function AudioEditor() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -11,18 +13,32 @@ export default function AudioEditor() {
     const [audios, setAudios] = useState<{ file_name: string; file_path: string; title: string; creation_time: number; modification_time: number; file_size: number; duration?: number }[]>([]);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
+    const [inputDir, setInputDir] = useState("");
 
 	const [file, setFile] = useState<string | null>(null);
     const [uploaded, setUploaded] = useState(false);
     const [UVRLoading, setUVRLoading] = useState(false);
     const [UVRStatus, setUVRStatus] = useState("");
     const [UVRError, setUVRError] = useState(false);
+    const [UVRLink, setUVRLink] = useState("");
 
     // get server port
 	async function getServerPort() {
 		const port = await invoke("get_port");
 		return port;
 	}
+
+    // useEffect(() => {
+    //     const getInputDir = async () => {
+    //         const port = await getServerPort();
+    //         const response = await fetch(`http://localhost:${port}/get-input-dir`);
+    //         const data = await response.text();
+    //         console.log(data);
+    //         setInputDir(data);
+    //     };
+
+    //     getInputDir();
+    // }, []);
 
     const handleDownload = async () => {
         if (!audioUrl) {
@@ -67,6 +83,7 @@ export default function AudioEditor() {
         const port = await getServerPort();
         const response = await fetch(`http://localhost:${port}/delete-all-input-audios`);
         if (response.ok) {
+            setNotFound(true);
             setAudios([]);
         }
     };
@@ -87,6 +104,7 @@ export default function AudioEditor() {
         const file = await dialogOpen({
             directory: false,
             multiple: false,
+            defaultPath: inputDir,
             filters: [{ name: "Audio", extensions: ["mp3", "wav", "ogg", "webm"] }]
         });
         if (file) {
@@ -114,6 +132,12 @@ export default function AudioEditor() {
                 getAudios();
                 eventSource.close();
             }
+
+            // if (event.data.startsWith("[") && event.data.endsWith("]")) {
+            //     const audioPath = event.data[1].file_path;
+            //     setUVRLink(audioPath); 
+            //     console.log('Audio URL set to:', audioPath);
+            // }
             
         };
         eventSource.onerror = () => {
@@ -141,8 +165,11 @@ export default function AudioEditor() {
                     <button disabled={!!status} onClick={handleDownload} type="button" className="px-4 mt-2 h-10 w-full rounded-xl bg-white/10 enabled:hover:bg-white/20 disabled:bg-opacity-30 slow transition-colors duration-300 border border-white/10">{status ? status : "Download"}</button>
                     </div>
                     <div className="border border-white/10 h-full rounded-xl p-4">
-                    <h2 className="text-neutral-200 text-xl mb-4">Ultimate vocal remover (UVR)</h2>
-                    <button disabled={!!file} onClick={handleSelectFile} type="button" className="w-full h-24 bg-neutral-600/50 enabled:hover:bg-neutral-600/70 transition-colors duration-200 rounded-xl relative">
+                    <h2 className="text-neutral-200 text-xl mb-4">Vocal remover</h2>
+                    <p className="flex justify-center m-auto items-center text-xs text-neutral-400">
+                        Coming soon... Stay tuned!
+                    </p>
+                    {/* <button disabled={!!file} onClick={handleSelectFile} type="button" className="w-full h-24 bg-neutral-600/50 enabled:hover:bg-neutral-600/70 transition-colors duration-200 rounded-xl relative">
                         <div className="flex justify-center items-center m-auto h-full">
                         {uploaded ? (
                             <p className="text-neutral-300 max-w-sm truncate text-xs">{file}</p>
@@ -167,9 +194,14 @@ export default function AudioEditor() {
                     )}
                     {UVRStatus.includes("Completed") && (
                         <div className="w-full h-44 bg-neutral-600/50 rounded-xl relative mt-4 flex items-center p-4">
-                            ...
+                            <AudioPlayer 
+                            src={UVRLink}
+                            showJumpControls={false}
+                            layout="stacked-reverse"
+                            className="rounded-xl bg-[#111111]/20 p-4 w-full h-full"
+                            />
                         </div>
-                    )}
+                    )} */}
                     </div>
                     </div>
                     <div className="flex flex-col mx-auto justify-start items-start w-full h-full p-4 gap-4 border border-white/10 rounded-xl overflow-auto">

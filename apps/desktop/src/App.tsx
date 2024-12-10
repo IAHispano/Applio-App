@@ -134,7 +134,7 @@ function App() {
 			`http://localhost:${port}/check-update`,
 		);
 		eventSource.onmessage = (event) => {
-			console.log(event.data);
+			console.log('needs update?', event.data);
 			if (event.data.includes("up to date")) {
 				localStorage.removeItem("update");
 				eventSource.close();

@@ -452,14 +452,14 @@ export default function Convert() {
 														<div className="absolute rounded-xl w-full h-full">
 															<div className="absolute bottom-0 xl:left-8 xl:right-8 left-4 right-4">
 																<h1 className="p-4 text-3xl title text-center font-semibold xl:max-w-5xl max-w-[200px] flex justify-center mx-auto">
-																	Explore our model library
+																	Import your model
 																</h1>
 																<div className="bg-[#111111]/50 mb-1 h-[40svh] rounded-t-xl overflow-hidden">
 																	<div className="flex flex-col gap-2 p-4">
 																		{previewModels.length > 0 &&
 																			previewModels.map((item: any) => (
 																				<Link
-																					to={`/models?search=${item.name}`}
+																					to='/models'
 																					key={item.id}
 																				>
 																					<div className="p-4 rounded-xl bg-[#111111]/60 hover:bg-[#111111]/80 slow">
