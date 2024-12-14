@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import Loading from "../../components/convert/loading";
 import { open } from "@tauri-apps/plugin-shell";
 // import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
-// import AudioPlayer from 'react-h5-audio-player';
-import 'react-h5-audio-player/lib/styles.css';
 import { FolderOpen, Trash } from "lucide-react";
 
 export default function AudioEditor() {

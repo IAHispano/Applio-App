@@ -1,5 +1,3 @@
-'use client'
-
 import { useEffect, useRef, useState } from "react"
 import { useConvertContext } from "./conversion-context"
 import Loading from "./loading"
