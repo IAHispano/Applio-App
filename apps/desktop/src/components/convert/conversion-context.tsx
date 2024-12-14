@@ -36,7 +36,7 @@ interface ConvertContextType {
 	setIsPlaying: React.Dispatch<React.SetStateAction<boolean>>;
 	progress: string;
 	setProgress: React.Dispatch<React.SetStateAction<string>>;
-	convertedAudio: string;
+	convertedAudio: string | undefined;
 	setConvertedAudio: React.Dispatch<React.SetStateAction<string | undefined>>;
 	convertTime: string;
 	setConvertTime: React.Dispatch<React.SetStateAction<string>>;
@@ -76,7 +76,7 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 	const [autotune, setAutotune] = useState(false);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [progress, setProgress] = useState("0");
-	const [convertedAudio, setConvertedAudio] = useState("");
+	const [convertedAudio, setConvertedAudio] = useState<string | undefined>();
 	const [convertTime, setConvertTime] = useState("");
 	const [cleanAudio, setCleanAudio] = useState(false);
 	const [exportFormat, setExportFormat] = useState("WAV");
