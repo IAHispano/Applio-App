@@ -99,20 +99,20 @@ export default function AnimatedApplio() {
                   >
 					<div className='grid grid-cols-3 gap-6 w-full h-full mt-12 overflow-hidden'>
 					<div className='border border-white/10 rounded-xl p-4 h-screen w-full overflow-hidden'>
-                    <h2 className="text-2xl font-semibold title text-neutral-200">How to start?</h2>
+                    <h2 className="text-2xl font-semibold title text-neutral-200">Preview version</h2>
 					<div className='mb-4 mt-2 border border-white/10 border-t'/>
                     <ul className="list-disc pl-5 space-y-4">
 						<li>
-						<h3 className='text-neutral-300 font-semibold'>Check the documentation</h3>
-						<p className='text-neutral-400 text-xs'>We have put a lot of effort into creating a complete documentation for Applio App, so don't forget to check it out! You will find from basic concepts to advanced guides. Access it by <span className='cursor-pointer text-neutral-300 underline hover:text-neutral-200 slow' onClick={() => open("https://docs.applio.org")}>clicking here</span>.</p>
+						<h3 className='text-neutral-300 font-semibold'>Basic features</h3>
+						<p className='text-neutral-400 text-xs'>This version is designed to find and correct errors. You will only find basic features such as downloading models or voice conversion.</p>
 						</li>
 						<li>
-						<h3 className='text-neutral-300 font-semibold'>Explore the interface</h3>
-						<p className='text-neutral-400 text-xs'>The interface has been designed to make it easy for anyone to use the application. Explore its functions, discover all it has to offer and learn how to get the most out of it - there is so much to do and enjoy!</p>
+						<h3 className='text-neutral-300 font-semibold'>Login required</h3>
+						<p className='text-neutral-400 text-xs'>To check if you are on the waitlist and have been granted permission to access the application it will be necessary during this version for you to log in via your social networks.</p>
 						</li>
 						<li>
-						<h3 className='text-neutral-300 font-semibold'>Need more help?</h3>
-						<p className='text-neutral-400 text-xs'>We are here to help you! If you have any questions or need support, please feel free to join <span className='cursor-pointer text-neutral-300 underline hover:text-neutral-200 slow' onClick={() => open("https://applio.org/discord")}>our Discord server</span>. We'll be happy to assist you!</p>
+						<h3 className='text-neutral-300 font-semibold'>You're a tester</h3>
+						<p className='text-neutral-400 text-xs'>Remember that you are here to test our application in this preliminary version. This version is not recommended for regular use. If you find bugs or problems, we ask you to report them. Also, it is important to complete the necessary forms to give us your feedback.</p>
 						</li>
                     </ul>
 					</div>
