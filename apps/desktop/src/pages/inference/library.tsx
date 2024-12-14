@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Loading from "../../components/convert/loading";
+import { FolderOpen, Minus, Plus, Trash } from "lucide-react";
 
 export default function InferencesLibrary() {
 	const [inferences, setInferences] = useState<any[]>([]);
@@ -29,6 +30,8 @@ export default function InferencesLibrary() {
 				setLoading(false);
 			} else {
 				console.log("Error fetching inferences");
+				setInferences(["No inferences found"]);
+				setLoading(false);
 			}
 		}
 
@@ -113,7 +116,7 @@ export default function InferencesLibrary() {
 										<input
 											aria-label="Search for inferences"
 											type="text"
-											className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-[#111111]/20 text-sm p-4"
+											className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-white/10 text-sm p-4"
 											placeholder="Search..."
 											value={value}
 											onChange={(e) => setValue(e.target.value)}
@@ -121,7 +124,7 @@ export default function InferencesLibrary() {
 										<button
 											aria-label="Delete all inferences"
 											onClick={deleteAllInferences}
-											className="col-span-1 rounded-xl bg-[#111111]/20 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
+											className="col-span-1 rounded-xl bg-white/10 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
 											type="button"
 										>
 											Delete all inferences
@@ -141,7 +144,7 @@ export default function InferencesLibrary() {
 										}) => (
 											<div
 												key={inference.id}
-												className="flex flex-col items-center mx-auto gap-2 w-full border border-white/10 rounded-xl p-4 bg-neutral-700/50"
+												className="flex flex-col items-center mx-auto gap-2 w-full border border-white/10 rounded-xl p-4	"
 											>
 												<div className="flex flex-row gap-2 w-full">
 													<div className="flex flex-col w-full">
@@ -168,117 +171,36 @@ export default function InferencesLibrary() {
 													<button
 														aria-label="Open inference details"
 														type="button"
-														className="rounded-lg border border-white/10 text-black p-2 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
+														className="rounded-lg border border-white/10 text-white p-2 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
 														onClick={() => toggleDropdown(inference.id)}
 													>
 														{openInferenceId === inference.id ? (
-															<svg
-																aria-hidden="true"
-																className="w-6 h-6 opacity-70"
-																viewBox="0 0 24 24"
-																fill="none"
-																xmlns="http://www.w3.org/2000/svg"
-															>
-																<g id="SVGRepo_iconCarrier">
-																	<path
-																		d="M6 12H18"
-																		stroke="#ffffff"
-																		strokeWidth="2"
-																		strokeLinecap="round"
-																		strokeLinejoin="round"
-																	/>
-																</g>
-															</svg>
+															<Minus className="w-6 h-6 opacity-70"/>
 														) : (
-															<svg
-																aria-hidden="true"
-																className="w-6 h-6 opacity-70"
-																viewBox="0 0 24 24"
-																fill="none"
-																xmlns="http://www.w3.org/2000/svg"
-															>
-																<g id="SVGRepo_iconCarrier">
-																	<path
-																		d="M6 12H18M12 6V18"
-																		stroke="#ffffff"
-																		strokeWidth="2"
-																		strokeLinecap="round"
-																		strokeLinejoin="round"
-																	/>
-																</g>
-															</svg>
+															<Plus className="w-6 h-6 opacity-70"/>
 														)}
 													</button>
 													<button
 														aria-label="Open converted audio"
 														type="button"
-														className="rounded-lg border border-white/10 text-black p-3 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
+														className="rounded-lg border border-white/10 text-white p-3 flex items-center justify-center hover:bg-neutral-700/50 hover:shadow-xl hover:shadow-white/10 slow"
 														onClick={() =>
 															downloadAudio(inference.audio_output)
 														}
 													>
-														<svg
-															xmlns="http://www.w3.org/2000/svg"
-															viewBox="0 0 24 24"
-															fill="none"
-															stroke="#ffffff"
-															strokeWidth="2"
-															strokeLinecap="round"
-															strokeLinejoin="round"
-															className="w-5 h-5 opacity-70"
-															aria-hidden="true"
-														>
-															<path d="M3 7V5a2 2 0 0 1 2-2h6l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
-														</svg>
+														<FolderOpen className="w-5 h-5 opacity-70"/>
 													</button>
 													<button
 														aria-label="Delete inference"
 														type="button"
-														className="rounded-lg border border-white/10 text-black p-3 flex items-center justify-center hover:bg-red-700/20 hover:shadow-xl hover:shadow-red-700/10 slow"
+														className="rounded-lg border border-white/10 text-white p-3 flex items-center justify-center hover:bg-red-700/20 hover:shadow-xl hover:shadow-red-700/10 slow"
 														onClick={() => deleteInference(inference.id)}
 													>
-														<svg
-															className="w-4 h-4 opacity-70"
-															aria-hidden="true"
-															viewBox="0 0 24 24"
-															fill="none"
-															xmlns="http://www.w3.org/2000/svg"
-														>
-															<g id="SVGRepo_bgCarrier" strokeWidth="0" />
-															<g
-																id="SVGRepo_tracerCarrier"
-																strokeLinecap="round"
-																strokeLinejoin="round"
-															/>
-															<g id="SVGRepo_iconCarrier">
-																{" "}
-																<path
-																	d="M4 7H20"
-																	stroke="#ffffff"
-																	strokeWidth="2"
-																	strokeLinecap="round"
-																	strokeLinejoin="round"
-																/>{" "}
-																<path
-																	d="M6 7V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V7"
-																	stroke="#ffffff"
-																	strokeWidth="2"
-																	strokeLinecap="round"
-																	strokeLinejoin="round"
-																/>{" "}
-																<path
-																	d="M9 5C9 3.89543 9.89543 3 11 3H13C14.1046 3 15 3.89543 15 5V7H9V5Z"
-																	stroke="#ffffff"
-																	strokeWidth="2"
-																	strokeLinecap="round"
-																	strokeLinejoin="round"
-																/>{" "}
-															</g>
-														</svg>
+														<Trash className="w-4 h-4 opacity-70"/>
 													</button>
 												</div>
 												{openInferenceId === inference.id && (
-													<div className="mt-4 w-full bg-neutral-800/50 p-4 rounded-xl">
+													<div className="mt-4 w-full bg-white/10 p-4 rounded-xl">
 														<table className="w-full text-sm text-left text-neutral-300">
 															<thead>
 																<tr>

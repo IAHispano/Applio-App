@@ -3,6 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { platform, version } from "@tauri-apps/plugin-os";
 import { Store } from "@tauri-apps/plugin-store";
+import { Check, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export default function Settings() {
@@ -167,6 +168,7 @@ export default function Settings() {
 		}
 	}
 
+
 	async function getSendData() {
 		try {
 			const port = await getServerPort();
@@ -287,7 +289,6 @@ export default function Settings() {
 				<div className="flex gap-4 w-full h-full p-4 pb-0">
 					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10">
 						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
-							<h1 className="text-xl font-bold title">Settings</h1>
 							<div className="flex flex-col gap-4 w-full h-full">
 								{/* Privacy */}
 								<div>
@@ -315,22 +316,7 @@ export default function Settings() {
 												aria-label="Check for activate option to send data anonymously"
 											/>
 											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													className="h-3.5 w-3.5"
-													viewBox="0 0 20 20"
-													fill="currentColor"
-													stroke="currentColor"
-													strokeWidth="1"
-													aria-label="Checkmark"
-													aria-hidden="true"
-												>
-													<path
-														fill-rule="evenodd"
-														d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-														clip-rule="evenodd"
-													/>
-												</svg>
+												<Check className="h-3.5 w-3.5"/>
 											</span>
 										</label>
 									</div>
@@ -360,22 +346,7 @@ export default function Settings() {
 												aria-label="Check for activate option to apply acrylic effect to the application window"
 											/>
 											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-												<svg
-													xmlns="http://www.w3.org/2000/svg"
-													className="h-3.5 w-3.5"
-													viewBox="0 0 20 20"
-													fill="currentColor"
-													stroke="currentColor"
-													strokeWidth="1"
-													aria-label="Checkmark"
-													aria-hidden="true"
-												>
-													<path
-														fill-rule="evenodd"
-														d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-														clip-rule="evenodd"
-													/>
-												</svg>
+												<Check className="h-3.5 w-3.5"/>
 											</span>
 										</label>
 									</div>
@@ -412,31 +383,7 @@ export default function Settings() {
 													aria-label="Change background color to custom color"
 												/>
 												<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
-													<svg
-														aria-hidden="true"
-														className="w-4 h-4"
-														viewBox="0 0 24 24"
-														fill="none"
-														xmlns="http://www.w3.org/2000/svg"
-														stroke="#ffffff"
-													>
-														<g id="SVGRepo_bgCarrier" strokeWidth="0" />
-														<g
-															id="SVGRepo_tracerCarrier"
-															strokeLinecap="round"
-															strokeLinejoin="round"
-														/>
-														<g id="SVGRepo_iconCarrier">
-															{" "}
-															<path
-																d="M4 12H20M12 4V20"
-																stroke="#ffffff"
-																strokeWidth="2"
-																strokeLinecap="round"
-																strokeLinejoin="round"
-															/>{" "}
-														</g>
-													</svg>
+													<Plus className="w-4 h-4"/>
 												</span>
 											</div>
 										</div>

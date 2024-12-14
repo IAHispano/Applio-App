@@ -12,4 +12,8 @@
 /logs
 /audios
 version.json
-/python
+/python/*
+!/python/.gitkeep
+
+# Error logs
+error.txt

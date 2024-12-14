@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-shell";
 // import { open as dialogOpen } from "@tauri-apps/plugin-dialog";
 // import AudioPlayer from 'react-h5-audio-player';
 import 'react-h5-audio-player/lib/styles.css';
+import { FolderOpen, Trash } from "lucide-react";
 
 export default function AudioEditor() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
@@ -220,21 +221,7 @@ export default function AudioEditor() {
                                   onClick={() => downloadAudio(audio.file_path)}
                                   aria-label="Download audio"
                                 >
-                                  <svg
-                                    aria-hidden="true"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth="2"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    className="w-4 h-4 opacity-70"
-                                  >
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                                    <polyline points="7 10 12 15 17 10" />
-                                    <line x1="12" y1="15" x2="12" y2="3" />
-                                  </svg>
+                                 <FolderOpen className="w-4 h-4 opacity-70"/>
                                 </button>
                                 <button
                                   type="button"
@@ -242,21 +229,7 @@ export default function AudioEditor() {
                                   className="p-2 rounded-xl border-white/10 hover:bg-red-500/10 border transition-colors duration-200"
                                   aria-label="Delete audio"
                                 >
-                                  <svg
-                                    aria-hidden="true"
-                                    className="w-4 h-4 opacity-70"
-                                    viewBox="0 0 24 24"
-                                    fill="none"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                  >
-                                    <path
-                                      d="M6 7V18C6 19.6569 7.34315 21 9 21H15C16.6569 21 18 19.6569 18 18V7M6 7H5M6 7H8M18 7H19M18 7H16M10 11V17M14 11V17M8 7V5C8 3.89543 8.89543 3 10 3H14C15.1046 3 16 3.89543 16 5V7M8 7H16"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                    />
-                                  </svg>
+                                  <Trash className="w-4 h-4 opacity-70"/>
                                 </button>
                               </div>
                             </div>
