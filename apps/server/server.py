@@ -800,6 +800,8 @@ def delete_inferences_folder():
 
 # upload audio
 def upload_audio():
+    os.makedirs(INPUT_AUDIO_DIR, exist_ok=True)
+    
     if "audio" not in request.files:
         return {"error": "No file part"}, 400
 
