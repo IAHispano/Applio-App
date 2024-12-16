@@ -5,6 +5,7 @@ const apiUrl = import.meta.env.VITE_API_URL;
 let supabase: SupabaseClient | undefined;
 
 if (!apiKey || !apiUrl) {
+	alert("Database credentials are missing. If you are running dev mode, please check your .env file. If you are running prod mode, please contact us.");
 	console.warn(
 		"Supabase API key or URL is missing. Please check your .env file.",
 		{
