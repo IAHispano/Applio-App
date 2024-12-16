@@ -15,7 +15,9 @@ export default function Models() {
 	const [mode, setMode] = useState("import");
 	const [url, setUrl] = useState("");
 	const [downloadedModels, setDownloadedModels] = useState<any>([]);
-	const [modelName, setModelName] = useState<string>();
+	const [modelName, setModelName] = useState<string | undefined>();
+	const [modelEpochs, setEpochs] = useState<number | undefined>();
+	const [modelAlgorithm, setAlgorithm] = useState<string | undefined>();
 	const [myModelsValue, setMyModelsValue] = useState("");
 	const [filePath, setFilePath] = useState<string | null>("");
 
@@ -30,10 +32,10 @@ export default function Models() {
 
 	const downloadModel = async (
 		link: string,
-		id?: string,
-		epochs?: string,
-		algorithm?: string,
 		name?: string,
+		epochs?: number,
+		algorithm?: string,
+		id?: string,
 		author?: string,
 		from?: string,
 	) => {
@@ -304,15 +306,15 @@ export default function Models() {
 						</div>
 					</div>
 				)}
-				<div className="border border-white/10 rounded-xl p-4 w-full h-full flex flex-col gap-4 overflow-auto">
-					<div className="bg-[#111111]/20 rounded-xl w-full p-4 flex gap-4">
+				<div className="rounded-xl w-full h-full flex flex-col gap-4 overflow-auto">
+					<div className="border border-white/10 rounded-xl w-full p-4 flex gap-4">
 						<button
 							type="button"
 							aria-label="Change to import models page"
 							onClick={() => setMode("import")}
 							className={`px-4 py-1 rounded-xl ${
-								mode === "import" ? "bg-white/10 " : ""
-							} border border-white/[0.05] text-sm text-neutral-300`}
+								mode === "import" ? "bg-white/10 " : "border border-white/10"
+							} text-sm text-neutral-300`}
 						>
 							Import
 						</button>
@@ -321,48 +323,105 @@ export default function Models() {
 							aria-label="Change to downloaded models page"
 							onClick={() => setMode("downloaded")}
 							className={`justify-end ml-auto px-4 py-1 rounded-xl ${
-								mode === "downloaded" ? "bg-white/10 " : ""
-							} border border-white/[0.05] text-sm text-neutral-300`}
+								mode === "downloaded" ? "bg-white/10 " : "border border-white/10"
+							} text-sm text-neutral-300`}
 						>
 							My models
 						</button>
 					</div>
 					{mode === "import" && (
-						<div className="w-full h-full flex flex-col gap-4">
+						<div className="w-full h-full grid grid-cols-2 justify-start items-start  gap-4">
+							<div className="h-full border border-white/10 rounded-xl p-4">
 							<h2 className="text-neutral-200">Download from URL</h2>
-							<div className="flex flex-col w-full">
+							<div className="flex gap-4">
+							<div className="">
+					 			{/* to do */}
+								<button className="bg-white/10 rounded-xl h-64 w-56 mt-4">
+									<p className="text-sm text-neutral-300 text-center">
+										Select an image
+									</p>
+								</button>
+							</div>
+							<div className="flex flex-col gap-4 w-full h-full justify-center m-auto">
+							<div className="flex flex-col gap-2 w-full -mt-2.5">
+								<label>
+									<p className="text-sm text-right text-neutral-300">Name</p>
+								</label>
+								<input 
+								aria-label="Enter a name for your model"
+								onChange={(e) => setModelName(e.target.value)}
+								className="w-full h-12 rounded-xl placeholder:text-neutral-400 focus:outline-none bg-white/10 text-sm p-4"
+								placeholder="My awesome model"
+								type="text"
+							/>
+							</div>
+							<div className="flex flex-col gap-2 w-full">
+								<label>
+									<p className="text-sm text-right text-neutral-300">Epochs</p>
+								</label>
+								<input 
+								aria-label="Enter the number of epochs for your model"
+								onChange={(e) => setEpochs(e.target.value as unknown as number)}
+								className="w-full h-12 rounded-xl placeholder:text-neutral-400 focus:outline-none bg-white/10 text-sm p-4"
+								placeholder="1000"
+								type="number"
+							/>
+							</div>
+							<div className="flex flex-col gap-2 w-full">
+								<label>
+									<p className="text-sm text-right text-neutral-300">Algorithm</p>
+								</label>
+								<input 
+								aria-label="Enter the number of epochs for your model"
+								onChange={(e) => setAlgorithm(e.target.value)}
+								className="w-full h-12 rounded-xl placeholder:text-neutral-400 focus:outline-none bg-white/10 text-sm p-4"
+								placeholder="Crepe"
+								type="text"
+							/>
+							</div>
+							</div>
+							</div>
+							<div className="flex flex-col gap-2 w-full mt-4">
+								<label>
+									<p className="text-sm text-neutral-300">URL *</p>
+								</label>
 								<input
 									aria-label="Enter URL to download model from"
 									required
 									onChange={(e) => setUrl(e.target.value)}
-									className="w-full h-12 rounded-xl focus:outline-none focus:bg-[#111111]/30 bg-[#111111]/20 text-sm p-4"
+									className="w-full h-12 rounded-xl placeholder:text-neutral-400 focus:outline-none bg-white/10 text-sm p-4"
 									placeholder="https://drive.google.com/file/d/1231207i231/view?usp=sharing"
-									type="text"
+									type="url"
 								/>
 							</div>
 							{url && (
 								<button
 									aria-label="Download model from URL"
-									onClick={() => downloadModel(url)}
-									className="w-fit justify-end ml-auto mt-12 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow"
+									onClick={() => downloadModel(url, modelName, modelEpochs, modelAlgorithm)}
+									className="w-full justify-end ml-auto mt-4 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow"
 									type="button"
 								>
 									Import
 								</button>
 							)}
-							<div className="mt-12 w-full flex flex-col gap-4 p-1">
+							{!url && (
+								<p className="text-[10px] text-neutral-400 mt-4 italic text-right"><span className="text-neutral-300">*</span> means required field</p>
+							)}
+							</div>
+							<div className="border border-white/10 h-full rounded-xl p-4">
+							<div className="w-full flex flex-col gap-4">
 								<h2 className="text-neutral-200">
 									Import from your local machine
 								</h2>
-								<div className="flex gap-4 w-full">
+								<div className="flex flex-col gap-4 w-full">
 									<button
 										aria-label="Import model locally"
 										onClick={() => handleImportModelFile()}
-										className="w-full h-24 hover:bg-[#111111]/30 slow rounded-xl focus:outline-none bg-[#111111]/20 text-sm"
+										className="w-full h-64 hover:bg-white/20 transition-colors duration-300 rounded-xl focus:outline-none bg-white/10 text-sm"
 										type="button"
 									>
 										{filePath ? (
-											<p className="text-sm text-neutral-300">{filePath}</p>
+											<p className="text-sm text-neutral-300 text-wrap max-w-xs text-center flex mx-auto justify-center items-center">{filePath}</p>
 										) : (
 											<p className="text-sm text-neutral-300">
 												No file selected
@@ -371,15 +430,16 @@ export default function Models() {
 									</button>
 									{filePath && (
 										<button
-											aria-label="Load model locally "
+											aria-label="Load model locally"
 											onClick={() => handleImportModel(filePath)}
-											className="w-fit px-8 rounded-xl focus:outline-none bg-neutral-600/50 text-neutral-200 text-sm"
+											className="w-full p-2 rounded-xl focus:outline-none bg-white hover:opacity-80 slow text-black text-sm"
 											type="button"
 										>
 											Import
 										</button>
 									)}
 								</div>
+							</div>
 							</div>
 						</div>
 					)}
