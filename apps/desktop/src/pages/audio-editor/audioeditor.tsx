@@ -155,13 +155,13 @@ export default function AudioEditor() {
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-center justify-start mt-10 mb-4 px-4 w-full overflow-auto">
 				<div className="w-full h-full flex flex-col gap-4 overflow-auto">
-					<div className="grid grid-cols-2 gap-4 w-full h-full border border-white/10 rounded-xl p-4">
+					<div className="grid grid-cols-2 gap-4 w-full h-full rounded-xl">
                     <div className="flex flex-col gap-4">
                     <div className="flex flex-col mx-auto justify-start items-start w-full h-fit p-4 gap-2 border border-white/10 rounded-xl">
                     <h2 className="text-neutral-200 mb-2 text-xl">Download audio from URL</h2>
-                    <input onChange={(e) => setAudioUrl(e.target.value)} type="text" className="w-full h-10 rounded-xl focus:outline-none bg-[#111111]/20 text-sm px-4 placeholder-neutral-400" placeholder="Paste here your link..."/>
+                    <input onChange={(e) => setAudioUrl(e.target.value)} type="text" className="w-full h-10 rounded-xl focus:outline-none bg-white/10 text-sm px-4 placeholder-neutral-400" placeholder="Paste here your link..."/>
 					{error && (<p className="text-xs text-red-500/50 mb-2 px-1">{error}</p>)}
-                    <button disabled={!!status} onClick={handleDownload} type="button" className="px-4 mt-2 h-10 w-full rounded-xl bg-white/10 enabled:hover:bg-white/20 disabled:bg-opacity-30 slow transition-colors duration-300 border border-white/10">{status ? status : "Download"}</button>
+                    <button disabled={!!status} onClick={handleDownload} type="button" className="px-4 mt-2 h-10 w-full rounded-xl bg-white/20 enabled:hover:bg-white/30 disabled:bg-opacity-30 slow transition-colors duration-300">{status ? status : "Download"}</button>
                     </div>
                     <div className="border border-white/10 h-full rounded-xl p-4">
                     <h2 className="text-neutral-200 text-xl mb-4">Vocal remover</h2>
