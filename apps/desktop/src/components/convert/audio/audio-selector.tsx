@@ -22,6 +22,7 @@ export default function AudioSelector() {
 		setInfo,
 		setStatus,
 		setInput,
+        input,
 		setPth,
 		setIndex,
 		setOutput,
@@ -61,7 +62,6 @@ export default function AudioSelector() {
         setAudioBlob(audioBlob);
         const audioUrl = URL.createObjectURL(audioBlob);
         setAudioUrl(audioUrl);
-
         console.log("Audio URL:", audioUrl);
         uploadAudio(audioBlob);
     } catch (error) {
@@ -217,6 +217,7 @@ export default function AudioSelector() {
             </div>
             )}
             {uploaded || audioUrl ? (
+                <>
                 <button
                     aria-label="Reset conversion"
                     onClick={handleReset}
@@ -226,6 +227,8 @@ export default function AudioSelector() {
                 >
                     <RotateCcw className="w-4 h-4 opacity-80" />
                 </button>
+                <p className="absolute left-4 top-9 max-w-[200px] truncate text-xs text-neutral-400">{file?.name || input}</p>
+                </>
             ) : (
                 <>
                 {audioSection === "import" ? (
