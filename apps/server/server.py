@@ -15,6 +15,7 @@ import traceback
 import subprocess
 import threading
 import yt_dlp
+import mimetypes
 
 from datetime import datetime
 from urllib.parse import unquote
@@ -479,7 +480,7 @@ def get_latest_files(directory):
 
 # download model
 def downloadModel(
-    modelLink, model_id, model_epochs, model_algorithm, model_name, author, server
+    modelLink, model_id, model_epochs, model_algorithm, model_name, author, server, image
 ):
     command = [
         os.path.join("env", "python.exe"),
@@ -553,6 +554,7 @@ def downloadModel(
             "algorithm": model_algorithm,
             "author": author,
             "from": server,
+            "image": image,
             "link": modelLink,
             "model_folder_path": model_folder_path,
             "model_pth_file": model_files["pth"],
@@ -1181,6 +1183,7 @@ def download_model():
     model_algorithm = request.args.get("algorithm")
     author = request.args.get("author")
     server = request.args.get("from")
+    image = request.args.get("image")
     logging.info(remove_ansi_escape_sequences(f"model_link: {model_link}"))
     if not model_link:
         logging.error(
@@ -1197,6 +1200,7 @@ def download_model():
             model_name,
             author,
             server,
+            image
         ),
         content_type="text/event-stream",
     )
@@ -1314,6 +1318,19 @@ def get_inferences():
 def get_audio():
     audio_path = request.args.get("path")
     return send_file(audio_path, mimetype="audio/wav")
+
+@app.route("/image", methods=["GET"])
+def serve_image():
+    image_path = request.args.get('path')
+
+    if image_path:
+        try:
+            mime_type, _ = mimetypes.guess_type(image_path)
+
+            return send_file(image_path, mimetype=mime_type)
+        except FileNotFoundError:
+            return {"error": "File not found"}, 404
+    return {"error": "No path provided"}, 400
 
 @app.route("/upload-input", methods=["POST"])
 def upload_input():
