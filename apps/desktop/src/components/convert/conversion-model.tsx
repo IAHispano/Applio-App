@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react"
-import { useConvertContext } from "./conversion-context"
+import { useConvert, useConvertContext } from "./conversion-context"
 import Loading from "./loading"
 import { ModelType } from "./models/types"
 import { invoke } from "@tauri-apps/api/core"
@@ -20,7 +20,10 @@ export default function ConversionModel() {
   
   const [loading, setLoading] = useState(true)
   const [isOpen, setIsOpen] = useState(false)
+  const [imagePath, setImagePath] = useState("");
+  const [imageLoading, setImageLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { getServerPort } = useConvert();
 
   useEffect(() => {
     async function getLocalModels() {
@@ -59,10 +62,16 @@ export default function ConversionModel() {
 
   useEffect(() => {
     if (currentModel) {
+      setImageLoading(true);
       setModelName(currentModel.name);
       setPth(currentModel.model_pth_file);
       setIndex(currentModel.model_index_file);
       setIsOpen(false);
+      if (currentModel.image) {
+        getImage();
+      } else {
+        setImageLoading(false);
+      }
     }
   }, [currentModel]);
   
@@ -72,10 +81,28 @@ export default function ConversionModel() {
     }
   }, [pth, index]);
   
+  const getImage = async () => {
+    const port = await getServerPort();
+    const imageUrl = `http://localhost:${port}/image?path=${currentModel.image}`;
+    const response = await fetch(imageUrl, { method: "GET" });
+    if (response.ok) {
+      setImagePath(imageUrl);
+      setImageLoading(false);
+    } else {
+      console.error("Error fetching image:", response.statusText);
+      return "";
+    }
+  };
 
   const toggleDropdown = () => {
     setIsOpen(!isOpen);
+  }
+
+  const handleSelectModel = (model: ModelType) => {
+    setCurrentModel(model);
     setModelName("");
+    setImagePath("")
+    setIsOpen(false);
   }
 
   return (
@@ -105,8 +132,8 @@ export default function ConversionModel() {
                 models.map((model) => (
                   <div
                     key={model.name}
-                    className="px-4 py-2 hover:bg-white/10 slow cursor-pointer text-neutral-300 rounded-xl border border-white/10"
-                    onClick={() => setCurrentModel(model)}
+                    className="px-4 py-2 hover:bg-white/10 slow cursor-pointer text-neutral-300 rounded-xl border border-white/10 break-all"
+                    onClick={() => handleSelectModel(model)}
                   >
                     {decodeURIComponent(model.name)}
                   </div>
@@ -121,7 +148,33 @@ export default function ConversionModel() {
         </div>
         </>
       )}
+      {currentModel && (
+      <div className="w-full h-fit border border-white/10 rounded-xl mt-4 p-4">
+        <div className="w-full h-80">
+        {imageLoading ? (
+          <div className="w-full h-full bg-white/10 rounded-xl animate-pulse" />
+        ) : (
+          <>
+          {imagePath ? (
+            <img
+              src={imagePath}
+              alt="Your model image"
+              onLoadStart={() => setImageLoading(true)}
+              onLoad={() => setImageLoading(false)}
+              onError={() => setImageLoading(false)}
+              className="w-full h-full object-cover rounded-xl bg-white/10"
+            />
+          ) : (
+            <div className="w-full h-full bg-white/10 rounded-xl" />
+          )}
+          </>
+        )}
+      </div>
+          <p className='title text-2xl max-w-sm mt-6 truncate font-semibold text-neutral-200 text-center'>{decodeURIComponent(currentModel.name)}</p>
+      </div>
+    )}
     </div>
   )
 }
 
+  

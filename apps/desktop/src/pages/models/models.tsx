@@ -5,6 +5,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TitleBar } from "../../components/layout/titlebar";
 import { FolderOpen, Trash } from "lucide-react";
+import Loading from "../../components/convert/loading";
+import { motion } from "framer-motion";
 
 export default function Models() {
 	const [loading, _setLoading] = useState(false);
@@ -20,6 +22,10 @@ export default function Models() {
 	const [modelAlgorithm, setAlgorithm] = useState<string | undefined>();
 	const [myModelsValue, setMyModelsValue] = useState("");
 	const [filePath, setFilePath] = useState<string | null>("");
+	const [imagePath, setImagePath] = useState<string | null>("");
+	const [uploadedImage, setUploadedImage] = useState<string | undefined>("");
+	const [imageLoading, setImageLoading] = useState(false);
+	const [dominantColor, setDominantColor] = useState<string | null>("");
 
 	const navigate = useNavigate();
 
@@ -35,6 +41,7 @@ export default function Models() {
 		name?: string,
 		epochs?: number,
 		algorithm?: string,
+		image?: string,
 		id?: string,
 		author?: string,
 		from?: string,
@@ -60,6 +67,7 @@ export default function Models() {
 			if (name) queryParams.append("name", encodeURIComponent(name));
 			if (author) queryParams.append("author", encodeURIComponent(author));
 			if (from) queryParams.append("from", encodeURIComponent(from));
+			if (image) queryParams.append("image", encodeURIComponent(image));
 
 			console.log(queryParams.toString());
 
@@ -237,6 +245,62 @@ export default function Models() {
 
 		setFilePath(file);
 	};
+	const handleImportModelImage = async () => {
+		setDominantColor(null);
+		setImagePath("");
+		setImageLoading(true);
+		const file = await dialogOpen({
+			directory: false,
+			multiple: false,
+			filters: [{ name: "Images", extensions: ["jpg", "png", "jpeg", "gif", "webp"] }]
+		});
+	
+		if (file) {
+			setUploadedImage(file);
+			const port = await getServerPort();
+			const imageUrl = `http://localhost:${port}/image?path=${encodeURIComponent(file)}`;
+	
+			const response = await fetch(imageUrl, { method: "GET" });
+			if (response.ok) {
+				setImagePath(imageUrl);
+			} else {
+				console.error("Error fetching image:", response.statusText);
+			}
+		}
+	};
+
+	useEffect(() => {
+		if (imagePath) {
+			const img = new Image();
+			img.crossOrigin = "Anonymous"; 
+			img.src = imagePath;
+			img.onload = () => {
+				const canvas = document.createElement("canvas");
+				const ctx = canvas.getContext("2d");
+				if (ctx) {
+					canvas.width = img.width;
+					canvas.height = img.height;
+					ctx.drawImage(img, 0, 0);
+					const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+					const data = imageData.data;
+					let r = 0, g = 0, b = 0;
+					let total = data.length / 4;
+					for (let i = 0; i < data.length; i += 4) {
+						r += data[i];
+						g += data[i + 1];
+						b += data[i + 2];
+					}
+					r = Math.floor(r / total);
+					g = Math.floor(g / total);
+					b = Math.floor(b / total);
+					setDominantColor(`rgb(${r}, ${g}, ${b})`);
+					console.log("Dominant Color:", `rgb(${r}, ${g}, ${b})`);
+				}
+			};
+		}
+	}, [imagePath]);
+	
+	
 
 	return (
 		<div className="grid h-screen w-screen">
@@ -335,12 +399,48 @@ export default function Models() {
 							<h2 className="text-neutral-200">Download from URL</h2>
 							<div className="flex gap-4">
 							<div className="">
-					 			{/* to do */}
-								<button className="bg-white/10 rounded-xl h-64 w-56 mt-4">
-									<p className="text-sm text-neutral-300 text-center">
-										Select an image
-									</p>
-								</button>
+							<button
+								className="bg-white/10 hover:bg-white/10 rounded-xl h-64 w-56 mt-4"
+								onClick={handleImportModelImage}
+							>
+								<motion.div
+								className="text-sm text-neutral-300 text-center flex justify-center items-center w-full h-full rounded-xl relative"
+								initial={{
+									boxShadow: "0 0 0px 0px transparent",
+								}}
+								animate={{
+									boxShadow: dominantColor ? `0 0 20px 5px ${dominantColor}` : "none",
+								}}
+								transition={{
+									duration: 0.5,
+									ease: "easeIn",
+								}}
+    							>
+									{imagePath ? (
+										<div className="w-full h-full">
+											<img
+												src={imagePath}
+												onLoad={() => setImageLoading(false)}
+												alt="image"
+												className="w-full h-full object-cover rounded-xl hover:opacity-80 slow"
+											/>
+										</div>
+									) : (
+										<>
+											{!imageLoading && (
+												<p className="text-sm text-neutral-300">
+													Select an image
+												</p>
+											)}
+										</>
+									)}
+									{imageLoading && (
+										<div className="absolute inset-0">
+											<Loading />
+										</div>
+									)}
+								</motion.div>
+							</button>		
 							</div>
 							<div className="flex flex-col gap-4 w-full h-full justify-center m-auto">
 							<div className="flex flex-col gap-2 w-full -mt-2.5">
@@ -397,7 +497,7 @@ export default function Models() {
 							{url && (
 								<button
 									aria-label="Download model from URL"
-									onClick={() => downloadModel(url, modelName, modelEpochs, modelAlgorithm)}
+									onClick={() => downloadModel(url, modelName, modelEpochs, modelAlgorithm, uploadedImage)}
 									className="w-full justify-end ml-auto mt-4 px-4 py-2 bg-white text-black rounded-xl text-sm hover:bg-opacity-80 slow"
 									type="button"
 								>
