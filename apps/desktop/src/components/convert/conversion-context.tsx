@@ -1,5 +1,6 @@
-import { invoke } from "@tauri-apps/api/core";
 import React, { createContext, useContext, useState, ReactNode } from "react";
+import { getServerPort } from "../../utils/getBackendPort";
+import { sendNotificationUtil } from "../../utils/sendNotification";
 
 interface ConvertContextType {
 	models: any[];
@@ -48,6 +49,12 @@ interface ConvertContextType {
 	setModelName: React.Dispatch<React.SetStateAction<string>>;
 	currentModel: any;
 	setCurrentModel: React.Dispatch<React.SetStateAction<any>>;
+	hopLength: number;
+	setHopLength: React.Dispatch<React.SetStateAction<number>>;
+	f0Method: string;
+	setF0Method: React.Dispatch<React.SetStateAction<string>>;
+	// upscaleAudio: boolean;
+	// setUpscaleAudio: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const ConvertContext = createContext<ConvertContextType | undefined>(undefined);
@@ -82,6 +89,9 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 	const [exportFormat, setExportFormat] = useState("WAV");
 	const [modelName, setModelName] = useState("");
 	const [currentModel, setCurrentModel] = useState<any>(null);
+	const [hopLength, setHopLength] = useState(128);
+	const [f0Method, setF0Method] = useState("rmvpe");
+	// const [upscaleAudio, setUpscaleAudio] = useState(false);
 
 	return (
 		<ConvertContext.Provider
@@ -130,8 +140,14 @@ export const ConvertProvider: React.FC<ConvertProviderProps> = ({
 				setExportFormat,
 				modelName,
 				setModelName,
-				currentModel, 
-				setCurrentModel
+				currentModel,
+				setCurrentModel,
+				hopLength,
+				setHopLength,
+				f0Method,
+				setF0Method,
+				// upscaleAudio,
+				// setUpscaleAudio
 			}}
 		>
 			{children}
@@ -164,15 +180,11 @@ export const useConvert = () => {
 		info,
 		setConvertTime,
 		setConvertedAudio,
-		setOutput
+		setOutput,
+		hopLength,
+		f0Method,
+		// upscaleAudio,
 	} = useConvertContext();
-
-	// get server port
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		console.log("port", port);
-		return port;
-	}
 
 	function transformPath(path: string) {
 		return path.replace(/\\/g, "/");
@@ -197,39 +209,38 @@ export const useConvert = () => {
 		}
 	}
 
-
 	const convert = async () => {
 		const startingTime = performance.now();
 		setInfo("Starting...");
 		setStatus("Sending request...");
 		setError(false);
-
+		sendNotificationUtil("Converting", "Converting audio...");
 		const time = setInterval(() => {
 			const actualTime = performance.now();
 			const duration = (actualTime - startingTime) / 1000;
 			setConvertTime(duration.toFixed(2));
 		}, 100);
 
-		console.log('export format', exportFormat.toUpperCase());
+		console.log("export format", exportFormat.toUpperCase());
 
 		const port = await getServerPort();
-		console.log('INDEX AND PTH', currentModel.model_pth_file, currentModel.model_index_file);
 		try {
-			const url = `http://localhost:${port}/convert?input=${encodeURIComponent(
-				input,
-			)}&pth=${encodeURIComponent(currentModel.model_pth_file)}&index=${encodeURIComponent(
-				currentModel.model_index_file,
-			)}&pitch=${encodeURIComponent(pitch)}&indexRate=${encodeURIComponent(
-				indexRate,
-			)}&filterRadius=${encodeURIComponent(
-				filterRadius,
-			)}&autotune=${encodeURIComponent(
-				autotune,
-			)}&cleanaudio=${encodeURIComponent(
-				cleanAudio,
-			)}&exportformat=${
-				exportFormat.toUpperCase()
-			}&name=${encodeURIComponent(modelName)}`;
+			const urlParams = new URLSearchParams({
+				input: input,
+				pth: currentModel.model_pth_file,
+				index: currentModel.model_index_file,
+				pitch: pitch.toString(),
+				indexRate: indexRate.toString(),
+				filterRadius: filterRadius.toString(),
+				autotune: autotune.toString(),
+				cleanaudio: cleanAudio.toString(),
+				exportformat: exportFormat.toUpperCase(),
+				name: modelName,
+				hoplength: hopLength.toString(),
+				f0method: f0Method,
+				// upscaleaudio: upscaleAudio.toString(),
+			});
+			const url = `http://localhost:${port}/convert?${urlParams}`;
 			const eventSource = new EventSource(url);
 			console.log(url);
 			eventSource.onmessage = (event) => {
@@ -241,6 +252,10 @@ export const useConvert = () => {
 					setError(true);
 					clearInterval(time);
 					eventSource.close();
+					sendNotificationUtil(
+						"Conversion failed",
+						"Error converting audio, please try again.",
+					);
 				}
 				if (event.data.includes("finished")) {
 					const audioPath = event.data.split("Audio path: ")[1];
@@ -251,6 +266,10 @@ export const useConvert = () => {
 					setStatus("Your audio has been converted successfully.");
 					clearInterval(time);
 					eventSource.close();
+					sendNotificationUtil(
+						"Conversion finished",
+						"Conversion completed successfully!",
+					);
 				}
 
 				if (event.data.includes("completed")) {
@@ -267,6 +286,10 @@ export const useConvert = () => {
 				setError(true);
 				clearInterval(time);
 				setStatus("We detected an error, please try again.");
+				sendNotificationUtil(
+					"Conversion failed",
+					"Error converting audio, please try again.",
+				);
 			};
 
 			return () => {
@@ -281,4 +304,4 @@ export const useConvert = () => {
 	};
 
 	return { convert, getServerPort, transformPath, getAudio };
-}
+};

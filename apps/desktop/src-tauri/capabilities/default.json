@@ -20,6 +20,9 @@
 		"store:default",
 		"oauth:allow-start",
 		"oauth:allow-cancel",
-		"dialog:default"
+		"dialog:default",
+		"global-shortcut:allow-register",
+		"global-shortcut:allow-unregister",
+		"notification:default"
 	]
 }

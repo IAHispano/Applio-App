@@ -26,17 +26,13 @@ import Convert from "./pages/inference/convert";
 import Login from "./pages/login/login";
 import InferencesLibrary from "./pages/inference/library";
 import AudioEditor from "./pages/audio-editor/audioeditor";
+import { getServerPort } from "./utils/getBackendPort";
+import { UVRProvider } from "./components/audio-editor/uvrcontext";
 
 function App() {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { pathname } = location;
-
-	// get server port
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		return port;
-	}
 
 	// check if dev mode
 	async function checkIfDev() {
@@ -105,13 +101,18 @@ function App() {
 
 	// initialize discord rpc
 	const initializeDiscordRpc = async () => {
-		try {
-			await invoke("set_discord_presence", {
-				state: "Creating awesome AI Audios.",
-				details: "Using the easiest voice cloning tool, now in app.",
-			});
-		} catch (error) {
-			console.error("Error starting discord presence:", error);
+		const store = await Store.load("settings.json");
+		const discordPresence = await store.get("discordPresence");
+
+		if (discordPresence) {
+			try {
+				await invoke("set_discord_presence", {
+					state: "Creating awesome AI Audios.",
+					details: "Using the easiest voice cloning tool, now in app.",
+				});
+			} catch (error) {
+				console.error("Error starting discord presence:", error);
+			}
 		}
 	};
 
@@ -134,7 +135,7 @@ function App() {
 			`http://localhost:${port}/check-update`,
 		);
 		eventSource.onmessage = (event) => {
-			console.log('needs update?', event.data);
+			console.log("needs update?", event.data);
 			if (event.data.includes("up to date")) {
 				localStorage.removeItem("update");
 				eventSource.close();
@@ -272,26 +273,28 @@ function App() {
 	);
 
 	return (
-		<ConvertProvider>
-			<TitleBar />
-			<div className="flex w-screen h-screen gap-0">
-				{shouldShowHeader && <Header />}
-				<Routes>
-					<Route index path="/" element={<Home />} />
-					<Route path="*" element={<NotFound />} />
-					<Route path="/first-time" element={<FirstTime />} />
-					<Route path="/models" element={<Models />} />
-					<Route path="/settings" element={<Settings />} />
-					<Route path="/convert" element={<Convert />} />
-					<Route path="/pretraineds" element={<DownloadPretraineds />} />
-					<Route path="/os-not-supported" element={<OSNotSupported />} />
-					<Route path="/beta-access" element={<BetaAccess />} />
-					<Route path="/login" element={<Login />} />
-					<Route path="/inferences" element={<InferencesLibrary />} />
-					<Route path="/audio-editor" element={<AudioEditor />} />
-				</Routes>
-			</div>
-		</ConvertProvider>
+		<UVRProvider>
+			<ConvertProvider>
+				<TitleBar />
+				<div className="flex w-screen h-screen gap-0">
+					{shouldShowHeader && <Header />}
+					<Routes>
+						<Route index path="/" element={<Home />} />
+						<Route path="*" element={<NotFound />} />
+						<Route path="/first-time" element={<FirstTime />} />
+						<Route path="/models" element={<Models />} />
+						<Route path="/settings" element={<Settings />} />
+						<Route path="/convert" element={<Convert />} />
+						<Route path="/pretraineds" element={<DownloadPretraineds />} />
+						<Route path="/os-not-supported" element={<OSNotSupported />} />
+						<Route path="/beta-access" element={<BetaAccess />} />
+						<Route path="/login" element={<Login />} />
+						<Route path="/inferences" element={<InferencesLibrary />} />
+						<Route path="/audio-editor" element={<AudioEditor />} />
+					</Routes>
+				</div>
+			</ConvertProvider>
+		</UVRProvider>
 	);
 }
 

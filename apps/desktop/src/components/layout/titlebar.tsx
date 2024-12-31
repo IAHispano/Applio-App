@@ -1,5 +1,13 @@
 import { getCurrentWindow as getCurrent } from "@tauri-apps/api/window";
-import { ChevronLeft, ChevronRight, Maximize, Minimize, Minus, RefreshCcw, X } from "lucide-react";
+import {
+	ChevronLeft,
+	ChevronRight,
+	Maximize,
+	Minimize,
+	Minus,
+	RefreshCcw,
+	X,
+} from "lucide-react";
 import { useState } from "react";
 
 export const TitleBar = () => {
@@ -53,13 +61,16 @@ export const TitleBar = () => {
 							</button>
 						</div>
 					)}
-				<p className="text-sm text-neutral-300 title font-medium flex mx-auto w-full" data-tauri-drag-region>
+				<p
+					className="text-sm text-neutral-300 title font-medium flex mx-auto w-full"
+					data-tauri-drag-region
+				>
 					Applio App
 				</p>
 				<div className="justify-end flex gap-3" data-tauri-drag-region>
 					{/* minimized button */}
 					<button type="button" onClick={minimized} className="">
-					<Minus className="text-neutral-300 hover:text-neutral-200 slow w-5 h-5" />
+						<Minus className="text-neutral-300 hover:text-neutral-200 slow w-5 h-5" />
 					</button>
 					{/* maximize button */}
 					<button onClick={maximize} type="button">

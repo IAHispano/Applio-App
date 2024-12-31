@@ -2,14 +2,28 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "../../utils/database";
 import { useConvertContext } from "../convert/conversion-context";
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Bolt, FileAudio2, House, Import, Library, Sparkles } from "lucide-react";
+import {
+	ArrowDownToLine,
+	ArrowLeft,
+	ArrowRight,
+	Bolt,
+	FileAudio2,
+	House,
+	Import,
+	Library,
+	Sparkles,
+} from "lucide-react";
+import { motion } from "framer-motion";
+import { useUVR } from "../audio-editor/uvrcontext";
 
 export default function Sidebar() {
 	const [isExpanded, setIsExpanded] = useState(false);
 	const [updateAvailable, setUpdateAvailable] = useState(false);
+	const [dominantColor, setDominantColor] = useState("");
 	const { info } = useConvertContext();
+	const { UVRinfo } = useUVR();
 	const navigate = useNavigate();
-	const {pathname} = useLocation();
+	const { pathname } = useLocation();
 
 	const [userInfo, setUserInfo] = useState<any>();
 
@@ -78,6 +92,38 @@ export default function Sidebar() {
 		checkUpdates();
 	}, [pathname]);
 
+	useEffect(() => {
+		if (userInfo?.avatar_url) {
+			const img = new Image();
+			img.crossOrigin = "Anonymous";
+			img.src = userInfo.avatar_url;
+			img.onload = () => {
+				const canvas = document.createElement("canvas");
+				const ctx = canvas.getContext("2d");
+				if (ctx) {
+					canvas.width = img.width;
+					canvas.height = img.height;
+					ctx.drawImage(img, 0, 0);
+					const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+					const data = imageData.data;
+					let r = 0,
+						g = 0,
+						b = 0;
+					let total = data.length / 4;
+					for (let i = 0; i < data.length; i += 4) {
+						r += data[i];
+						g += data[i + 1];
+						b += data[i + 2];
+					}
+					r = Math.floor(r / total);
+					g = Math.floor(g / total);
+					b = Math.floor(b / total);
+					setDominantColor(`rgb(${r}, ${g}, ${b})`);
+				}
+			};
+		}
+	}, [userInfo?.avatar_url]);
+
 	return (
 		<div
 			className={`flex flex-col mt-10 bg-[#1c1c1c]/10 border border-white/10 text-gray-100 p-4 m-4 mr-0 rounded-xl transition-all duration-300 ease-in-out ${
@@ -91,7 +137,7 @@ export default function Sidebar() {
 						<li key={index}>
 							<Link
 								to={item.to}
-								className="flex items-center justify-start space-x-3 p-2 rounded-lg hover:bg-white/10 transition-colors duration-200 opacity-70"
+								className={`flex items-center justify-start space-x-3 p-2.5 rounded-lg ${pathname === item.to ? "bg-white/10" : ""} hover:bg-white/10 transition-colors duration-200 opacity-70`}
 							>
 								{item.icon}
 								{isExpanded && <span>{item.label}</span>}
@@ -100,15 +146,16 @@ export default function Sidebar() {
 					))}
 				</ul>
 			</nav>
+
 			<div className="mt-auto flex flex-col gap-2">
 				{updateAvailable && (
 					<Link
 						to="/first-time"
-						className={`mb-4 p-2 ${
-							isExpanded ? "px-4 w-full text-center justify-center " : ""
-						} flex m-auto rounded-full bg-neutral-700/50 hover:bg-neutral-700/20 border border-white/10 shadow-xl shadow-white/10 hover:saturate-200 slow transition-colors duration-200`}
+						className={`p-2 my-2 ${
+							isExpanded ? "px-4 w-full text-center justify-center" : ""
+						} flex m-auto rounded-xl bg-neutral-700/50 hover:bg-neutral-700/20 border border-white/10 shadow-xl shadow-white/10 hover:saturate-200 slow transition-colors duration-200`}
 					>
-						{!isExpanded && <ArrowDownToLine />}
+						{!isExpanded && <ArrowDownToLine className="opacity-70" />}
 						{isExpanded && (
 							<span className="text-sm text-neutral-300">
 								Update available!
@@ -116,75 +163,111 @@ export default function Sidebar() {
 						)}
 					</Link>
 				)}
+
 				{!isExpanded &&
 					!info.includes("completed") &&
 					!info.includes("error") &&
 					info && (
 						<Link
 							to="/convert"
-							className={`p-2 ${
-								isExpanded
-									? "justify-start items-start"
-									: "justify-center items-center"
-							} flex m-auto rounded-full bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200`}
+							className="p-2 flex justify-center items-center rounded-xl bg-gradient-to-t from-transparent shadow-[#00AA68]/10 shadow-xl to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200"
 							aria-label="Convert"
 						>
-							<Sparkles className="opacity-70 w-5 h-5"/>
+							<Sparkles className="opacity-70 w-5 h-5" />
 						</Link>
 					)}
-				<div
-					className={`flex items-center ${
-						isExpanded ? "justify-start" : "justify-center flex-col"
-					} gap-2 mb-4`}
-				>
-					<button
-						type="button"
-						className={`flex gap-2 items-center ${
-							isExpanded ? "px-4 w-full text-center justify-center " : ""
-						} p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-200`}
-						onClick={handleClick}
-						aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
-					>
-						{isExpanded ? <ArrowLeft className="opacity-70"/> : <ArrowRight className="opacity-70" />}
-						{isExpanded && (
-							<span className="text-sm text-neutral-300">Collapse</span>
-						)}
-					</button>
-					{isExpanded &&
-						!info.includes("completed") &&
-						!info.includes("error") &&
-						info && (
-							<Link
-								to="/convert"
-								className={`p-2 ${
-									isExpanded
-										? "justify-start items-start"
-										: "justify-center items-center"
-								} flex m-auto rounded-full bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200`}
-								aria-label="Convert"
-							>
-								<Sparkles className="opacity-70 w-5 h-5"/>
-							</Link>
-						)}
+				{!isExpanded &&
+					!UVRinfo.includes("completed") &&
+					!UVRinfo.includes("error") &&
+					UVRinfo &&
+					!info && (
+						<Link
+							to="/convert"
+							className="p-2 flex justify-center items-center rounded-xl bg-gradient-to-t from-transparent shadow-[#00AA68]/10 shadow-xl to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200"
+							aria-label="Convert"
+						>
+							<Sparkles className="opacity-70 w-5 h-6" />
+						</Link>
+					)}
+
+				<div className="flex flex-col gap-2">
+					<div className="flex gap-2 w-full">
+						<button
+							type="button"
+							className={`flex gap-2 items-center ${
+								isExpanded ? "px-4 w-full justify-center" : "justify-center"
+							} p-2 rounded-xl border-white/10 border hover:bg-white/10 transition-colors duration-200`}
+							onClick={handleClick}
+							aria-label={isExpanded ? "Collapse sidebar" : "Expand sidebar"}
+						>
+							{isExpanded ? (
+								<ArrowLeft className="opacity-60" />
+							) : (
+								<ArrowRight className="opacity-60" />
+							)}
+							{isExpanded && (
+								<span className="text-sm text-neutral-300">Collapse</span>
+							)}
+						</button>
+
+						{isExpanded &&
+							!info.includes("completed") &&
+							!info.includes("error") &&
+							info && (
+								<Link
+									to="/convert"
+									className="p-2.5 flex justify-center items-center rounded-xl bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200"
+									aria-label="Convert"
+								>
+									<Sparkles className="opacity-70 w-5 h-5" />
+								</Link>
+							)}
+						{isExpanded &&
+							!UVRinfo.includes("completed") &&
+							!UVRinfo.includes("error") &&
+							UVRinfo &&
+							!info && (
+								<Link
+									to="/convert"
+									className="p-2.5 flex justify-center items-center rounded-xl bg-gradient-to-t from-transparent to-[#00AA68]/40 hover:saturate-200 slow transition-colors duration-200"
+									aria-label="Convert"
+								>
+									<Sparkles className="opacity-70 w-5 h-5" />
+								</Link>
+							)}
+					</div>
+
 					{!isExpanded && userInfo && (
-						<img
+						<motion.img
 							src={userInfo.avatar_url}
 							alt="User avatar"
-							className="w-9 h-9 rounded-full"
+							className="w-10 h-10 rounded-xl mx-auto mt-2"
+							initial={{
+								boxShadow: "0 0 0px 0px transparent",
+							}}
+							animate={{
+								boxShadow: dominantColor
+									? `0 0 10px 2px ${dominantColor}`
+									: "none",
+							}}
+							transition={{
+								duration: 0.5,
+							}}
 						/>
 					)}
 				</div>
+
 				{isExpanded && (
 					<>
 						{userInfo ? (
 							<div
-								className="flex items-center space-x-3 px-4 py-3 bg-white/10 rounded-lg"
+								className="flex items-center justify-center m-auto w-full px-4 py-2 mt-2 space-x-3 border border-white/10 rounded-xl cursor-pointer"
 								onClick={logout}
 							>
 								<img
 									src={userInfo.avatar_url}
 									alt="User avatar"
-									className="w-10 h-10 rounded-full"
+									className="w-10 h-10 rounded-xl"
 								/>
 								<div className="flex-1 truncate">
 									<p className="font-semibold title">{userInfo.full_name}</p>
@@ -196,7 +279,7 @@ export default function Sidebar() {
 						) : (
 							<Link
 								to="/login"
-								className="w-full h-full rounded-xl bg-neutral-700 py-2 flex flex-col justify-center items-center hover:bg-neutral-600 transition-colors duration-200"
+								className="w-full rounded-xl bg-neutral-700 py-2 flex justify-center items-center hover:bg-neutral-600 transition-colors duration-200"
 							>
 								Login
 							</Link>

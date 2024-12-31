@@ -1,10 +1,16 @@
 import { getTauriVersion, getVersion } from "@tauri-apps/api/app";
-import { invoke } from "@tauri-apps/api/core";
 import { Effect, getCurrentWindow } from "@tauri-apps/api/window";
 import { platform, version } from "@tauri-apps/plugin-os";
 import { Store } from "@tauri-apps/plugin-store";
 import { Check, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { getServerPort } from "../../utils/getBackendPort";
+import Contributors from "../../components/settings/contributors";
+import {
+	isPermissionGranted,
+	requestPermission,
+} from "@tauri-apps/plugin-notification";
+import { sendNotificationUtil } from "../../utils/sendNotification";
 
 export default function Settings() {
 	const [appVersion, setAppVersion] = useState("");
@@ -16,13 +22,10 @@ export default function Settings() {
 	const [sendData, setSendData] = useState(false);
 	const [deviceId, setDeviceId] = useState("");
 	const [deleteRVC, setDeleteRVC] = useState(false);
-
-	// get server port
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		console.log("port", port);
-		return port;
-	}
+	const [discordPresence, setDiscordPresence] = useState(false);
+	const [notifications, setNotifications] = useState(false);
+	const [tours, setTours] = useState(true);
+	const [animateTours, setAnimateTours] = useState(true);
 
 	const handleTestBackend = async () => {
 		try {
@@ -168,6 +171,43 @@ export default function Settings() {
 		}
 	}
 
+	async function setDiscordPresenceOption(value: boolean) {
+		const store = await Store.load("settings.json");
+		await store.set("discordPresence", value);
+		await store.save();
+
+		setDiscordPresence(value);
+	}
+
+	async function setNotificationsOption(value: boolean) {
+		const permission = await isPermissionGranted();
+		if (!permission) {
+			await requestPermission();
+		}
+		console.log("can send notifications?", permission);
+		const store = await Store.load("settings.json");
+		await store.set("notifications", value);
+		await store.save();
+		setNotifications(value);
+		sendNotificationUtil(
+			"Notifications enabled!",
+			"Now you will receive notifications when a process is finished.",
+		);
+	}
+
+	async function setToursOption(value: boolean) {
+		const store = await Store.load("settings.json");
+		await store.set("tours", value);
+		await store.save();
+		setTours(value);
+	}
+
+	async function setAnimateToursOption(value: boolean) {
+		const store = await Store.load("settings.json");
+		await store.set("animateTours", value);
+		await store.save();
+		setAnimateTours(value);
+	}
 
 	async function getSendData() {
 		try {
@@ -255,6 +295,60 @@ export default function Settings() {
 			}
 		}
 
+		async function getDiscordPresence() {
+			const store = await Store.load("settings.json");
+			const discordPresence = await store.get("discordPresence");
+			if (discordPresence) {
+				setDiscordPresence(true);
+			} else {
+				setDiscordPresence(false);
+			}
+		}
+
+		async function getNotifications() {
+			const store = await Store.load("settings.json");
+			const notifications = await store.get("notifications");
+			if (notifications) {
+				setNotifications(true);
+			} else {
+				setNotifications(false);
+			}
+		}
+
+		async function getTours() {
+			const store = await Store.load("settings.json");
+			const tours = await store.get("tours");
+			if (tours === undefined) {
+				setTours(true);
+				setToursOption(true);
+			} else {
+				if (tours === true) {
+					setTours(true);
+				} else {
+					setTours(false);
+				}
+			}
+		}
+
+		async function getAnimateTours() {
+			const store = await Store.load("settings.json");
+			const animateTours = await store.get("animateTours");
+			if (animateTours === undefined) {
+				setAnimateTours(true);
+				setAnimateToursOption(true);
+			} else {
+				if (animateTours === true) {
+					setAnimateTours(true);
+				} else {
+					setAnimateTours(false);
+				}
+			}
+		}
+
+		getAnimateTours();
+		getTours();
+		getNotifications();
+		getDiscordPresence();
 		getEffect();
 		getBackground();
 		getSendData();
@@ -272,7 +366,7 @@ export default function Settings() {
 
 	const handleDeleteRVC = async () => {
 		try {
-			const port = await getServerPort()
+			const port = await getServerPort();
 			const response = await fetch(`http://localhost:${port}/delete-rvc`);
 			if (response.status === 204) {
 				setDeleteRVC(true);
@@ -287,12 +381,68 @@ export default function Settings() {
 		<div className="grid h-screen w-screen">
 			<main className="flex flex-col items-end justify-end mt-6 w-full overflow-auto">
 				<div className="flex gap-4 w-full h-full p-4 pb-0">
-					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10">
-						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4">
+					<div className="col-span-3 row-span-2 rounded-t-xl w-full h-full border border-white/10 overflow-auto mb-24">
+						<div className="flex flex-col w-full h-full rounded-xl justify-start items-start p-4 ">
 							<div className="flex flex-col gap-4 w-full h-full">
+								{/* Tours */}
+								<div>
+									<h2 className="text-lg font-medium">Tours</h2>
+									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
+									<div className="flex flex-col gap-4">
+										<div className="items-center w-full justify-between flex gap-4">
+											<div>
+												<p className="text-neutral-200 font-medium">
+													Enable tours
+												</p>
+												<p className="text-xs text-neutral-400 max-w-3xl">
+													This will show a tour when you use a new feature for
+													the first time. Enabled by default.
+												</p>
+											</div>
+											<label className="flex items-center cursor-pointer relative">
+												<input
+													checked={tours}
+													onChange={(e) => setToursOption(e.target.checked)}
+													type="checkbox"
+													className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+													id="check"
+													aria-label="Check for activate option to send data anonymously"
+												/>
+												<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+													<Check className="h-3.5 w-3.5" />
+												</span>
+											</label>
+										</div>
+										<div className="items-center w-full justify-between flex">
+											<div>
+												<p className="text-neutral-200 font-medium">
+													Animate tours
+												</p>
+												<p className="text-xs text-neutral-400 max-w-3xl">
+													This will animate the tour. Enabled by default.
+												</p>
+											</div>
+											<label className="flex items-center cursor-pointer relative">
+												<input
+													checked={animateTours}
+													onChange={(e) =>
+														setAnimateToursOption(e.target.checked)
+													}
+													type="checkbox"
+													className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+													id="check"
+													aria-label="Check for activate option to send data anonymously"
+												/>
+												<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+													<Check className="h-3.5 w-3.5" />
+												</span>
+											</label>
+										</div>
+									</div>
+								</div>
 								{/* Privacy */}
 								<div>
-									<h2 className="text-lg font-medium mt-4">Privacy</h2>
+									<h2 className="text-lg font-medium">Privacy</h2>
 									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 									<div className="items-center w-full justify-between flex">
 										<div>
@@ -300,10 +450,11 @@ export default function Settings() {
 												Send data anonymously
 											</p>
 											<p className="text-xs text-neutral-400 max-w-3xl">
-												This sends anonymous data to the server to help enhance
-												the app. No personal information is ever included—only
-												system details are shared. Sensitive information is
-												never collected or transmitted.
+												This sends anonymous system data to the server to
+												improve the app's performance. Personal information is
+												never included, and only technical details are shared.
+												Sensitive information is neither collected nor
+												transmitted.
 											</p>
 										</div>
 										<label className="flex items-center cursor-pointer relative">
@@ -316,7 +467,7 @@ export default function Settings() {
 												aria-label="Check for activate option to send data anonymously"
 											/>
 											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-												<Check className="h-3.5 w-3.5"/>
+												<Check className="h-3.5 w-3.5" />
 											</span>
 										</label>
 									</div>
@@ -325,35 +476,92 @@ export default function Settings() {
 								<div>
 									<h2 className="text-lg font-medium mt-4">Personalization</h2>
 									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
-									<div className="items-center w-full justify-between flex">
-										<div>
-											<p className="text-neutral-200 font-medium">
-												Window effect
-											</p>
-											<p className="text-xs text-neutral-400">
-												This will apply an acrylic effect to the application
-												window when you select a background colour, only
-												available in Windows 11.
-											</p>
+									<div className="flex flex-col gap-4">
+										<div className="items-center w-full justify-between flex">
+											<div>
+												<p className="text-neutral-200 font-medium">
+													Enable notifications
+												</p>
+												<p className="text-xs text-neutral-400">
+													Enable application notifications. This will show a
+													notification when a conversion is finished or when UVR
+													finish separation process.
+												</p>
+											</div>
+											<label className="flex items-center cursor-pointer relative">
+												<input
+													checked={notifications}
+													onChange={(e) =>
+														setNotificationsOption(e.target.checked)
+													}
+													type="checkbox"
+													className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+													id="check"
+													aria-label="Check for activate notifications"
+												/>
+												<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+													<Check className="h-3.5 w-3.5" />
+												</span>
+											</label>
 										</div>
-										<label className="flex items-center cursor-pointer relative">
-											<input
-												checked={effect}
-												onChange={(e) => setHaveEffect(e.target.checked)}
-												type="checkbox"
-												className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-												id="check"
-												aria-label="Check for activate option to apply acrylic effect to the application window"
-											/>
-											<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-												<Check className="h-3.5 w-3.5"/>
-											</span>
-										</label>
+										<div className="items-center w-full justify-between flex">
+											<div>
+												<p className="text-neutral-200 font-medium">
+													Enable Discord Rich Presence
+												</p>
+												<p className="text-xs text-neutral-400">
+													This enables the Discord Rich Presence feature,
+													displaying your current status on your Discord
+													profile. A restart is required for this option to take
+													effect.
+												</p>
+											</div>
+											<label className="flex items-center cursor-pointer relative">
+												<input
+													checked={discordPresence}
+													onChange={(e) =>
+														setDiscordPresenceOption(e.target.checked)
+													}
+													type="checkbox"
+													className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+													id="check"
+													aria-label="Check for activate Discord Rich Presence feature"
+												/>
+												<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+													<Check className="h-3.5 w-3.5" />
+												</span>
+											</label>
+										</div>
+										<div className="items-center w-full justify-between flex">
+											<div>
+												<p className="text-neutral-200 font-medium">
+													Add window effect
+												</p>
+												<p className="text-xs text-neutral-400">
+													This will apply an acrylic effect to the application
+													window when you select a background colour, only
+													available in Windows 11.
+												</p>
+											</div>
+											<label className="flex items-center cursor-pointer relative">
+												<input
+													checked={effect}
+													onChange={(e) => setHaveEffect(e.target.checked)}
+													type="checkbox"
+													className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
+													id="check"
+													aria-label="Check for activate option to apply acrylic effect to the application window"
+												/>
+												<span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+													<Check className="h-3.5 w-3.5" />
+												</span>
+											</label>
+										</div>
 									</div>
 									<div className="flex justify-between w-full items-center mt-6">
 										<div>
-											<p className="text-sm text-neutral-200 font-medium">
-												Background
+											<p className="text-neutral-200 font-medium">
+												Change background color
 											</p>
 											<p className="text-xs text-neutral-400">
 												This will apply a background colour to the application
@@ -383,7 +591,7 @@ export default function Settings() {
 													aria-label="Change background color to custom color"
 												/>
 												<span className="text-xs text-neutral-300 absolute inset-0 flex items-center justify-center pointer-events-none">
-													<Plus className="w-4 h-4"/>
+													<Plus className="w-4 h-4" />
 												</span>
 											</div>
 										</div>
@@ -395,13 +603,13 @@ export default function Settings() {
 									<div className="w-full h-0.5 rounded-xl bg-white/20 mt-2 mb-4" />
 									<div className="flex gap-2">
 										<button
-										 onClick={handleDeleteRVC}
-										 disabled={deleteRVC}
-										 type="button"
-										 className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
-										 aria-label="Delete RVC"
+											onClick={handleDeleteRVC}
+											disabled={deleteRVC}
+											type="button"
+											className="px-3 hover:bg-white/20 slow rounded-lg border border-white/10 bg-white/10 py-1 text-sm"
+											aria-label="Delete RVC"
 										>
-											{ deleteRVC ? "Delete RVC Successfully" : "Delete RVC" }
+											{deleteRVC ? "Delete RVC Successfully" : "Delete RVC"}
 										</button>
 										<a
 											href="/first-time"
@@ -436,8 +644,9 @@ export default function Settings() {
 											Check updates
 										</button>
 									</div>
+									<Contributors />
 								</div>
-								<div className="flex justify-end items-end mt-auto ml-auto flex-col">
+								<div className="flex justify-end items-end mt-auto ml-auto flex-col pb-4">
 									<p className="text-neutral-400 text-xs">v{appVersion}</p>
 									<p className="text-neutral-400 text-xs">
 										tauri-{tauriVersion}

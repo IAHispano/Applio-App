@@ -3,7 +3,7 @@
 use declarative_discord_rich_presence::activity::Activity;
 use declarative_discord_rich_presence::{activity, DeclarativeDiscordIpcClient};
 use std::io;
-use std::io::{Write};
+use std::io::Write;
 use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::{Child, Command};
@@ -109,6 +109,8 @@ pub fn run() {
     let port = Arc::new(Mutex::new(None));
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
         .setup({

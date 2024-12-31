@@ -188,9 +188,26 @@ export default function Login() {
 			{isLogging && (
 				<div className="absolute w-screen h-screen flex flex-col justify-center items-center bg-neutral-900 text-white">
 					<div className="flex gap-4 flex-col border border-white/10 p-8 rounded-xl h-fit w-full max-w-sm text-left">
-					<h2 className="title text-neutral-200 text-2xl font-semibold">Sing in on your browser to continue</h2>
-					<p className="text-sm text-neutral-400">If your browser does not open automatically, <button className="text-neutral-300 hover:text-neutral-200 slow hover:underline" onClick={() => window.navigator.clipboard.writeText(authUrl)}>copy the URL</button> and open the page manually.</p>
-						
+						<h2 className="title text-neutral-200 text-2xl font-semibold">
+							Sing in on your browser to continue
+						</h2>
+						<p className="text-sm text-neutral-400">
+							If your browser does not open automatically,{" "}
+							<button
+								className="text-neutral-300 hover:text-neutral-200 slow hover:underline"
+								onClick={() => window.navigator.clipboard.writeText(authUrl)}
+							>
+								copy the URL
+							</button>{" "}
+							and open the page manually.
+						</p>
+						<button
+							type="button"
+							className="text-sm text-neutral-400 z-50 hover:text-neutral-300 hover:underline text-left"
+							onClick={() => window.location.reload()}
+						>
+							Return
+						</button>
 					</div>
 				</div>
 			)}

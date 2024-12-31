@@ -25,6 +25,9 @@ REM Build the server (use CMD, not PowerShell)
 pyinstaller --onefile --icon=logo.ico --noconsole server.py
 copy dist\server.exe ..\desktop\src-tauri\python\server.exe
 
+REM Deactivate the virtual environment
+call .\env\Scripts\deactivate
+
 REM Return to the root folder of the project
 cd ../..
 

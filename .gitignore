@@ -29,6 +29,7 @@ apps/desktop/node_modules
 apps/desktop/.pnp
 apps/desktop/.pnp.js
 apps/desktop/.env
+apps/desktop/tsconfig.tsbuildinfo
 node_modules
 
 # Global
@@ -48,3 +49,6 @@ yarn-error.log*
 
 /build/*
 !/build/.gitkeep
+
+# deeivihh stuff
+notes

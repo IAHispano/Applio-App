@@ -33,7 +33,7 @@
 ### Prerequisites
 
 - Install [pnpm](https://pnpm.js.org/) (Node.js package manager)
-- Install [Python](https://www.python.org/downloads/) (required for the server)
+- Install [Python 3.10+](https://www.python.org/downloads/) (required for the server)
 - Ensure you meet the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for desktop development
 
 ### Setup Instructions
@@ -50,6 +50,11 @@
    ```
 
 ### Running the App
+
+- Create server executable:
+  ```bash
+  pnpm build:server
+  ```
 
 - To **run the app in development mode**, use:
   ```bash

@@ -13,11 +13,10 @@ export default defineConfig({
 		port: 1420,
 		watch: {
 			ignored: [
-				"**/python/**",
-				"**/rvc-cli-main/**",
-				"**/rvc/**",
-				"**/logs/**",
-				"**/audios/**",
+				"./src-tauri/python/**",
+				"**/.git/**",
+				"**/node_modules/**",
+				"**/.cache/**",
 			],
 		},
 	},
@@ -31,5 +30,23 @@ export default defineConfig({
 		minify: !process.env.TAURI_ENV_DEBUG ? "esbuild" : false,
 		// produce sourcemaps for debug builds
 		sourcemap: !!process.env.TAURI_ENV_DEBUG,
+		// optimizations for production builds
+		rollupOptions: {
+			output: {
+				manualChunks: {
+					vendor: ["react", "react-dom"],
+				},
+			},
+		},
+		reportCompressedSize: true,
+		chunkSizeWarningLimit: 1000,
+		commonjsOptions: {
+			include: [/node_modules/],
+			extensions: [".js", ".cjs"],
+		},
+	},
+	optimizeDeps: {
+		include: ["react", "react-dom"],
+		exclude: ["@tauri-apps/api"],
 	},
 });

@@ -94,5 +94,5 @@ input[type="number"]:focus {
 }
 
 .rhap_time {
-	color: white !important;
+	color: transparent !important;
 }

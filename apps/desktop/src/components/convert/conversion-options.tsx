@@ -1,8 +1,87 @@
-import { Check } from "lucide-react";
 import { useConvertContext } from "../../components/convert/conversion-context";
+import { NumberInput, SelectInput, ToggleSwitch } from "../../utils/inputs";
 
 export default function ConversionOptions() {
-    const {
+	const optionsConfig = [
+		{
+			type: "number",
+			key: "pitch",
+			label: "Pitch",
+			min: -24,
+			max: 24,
+			step: 0.1,
+			description:
+				"Set the pitch of the audio. Higher values result in a higher pitch.",
+		},
+		{
+			type: "number",
+			key: "indexRate",
+			label: "Index Rate",
+			min: 0,
+			max: 1,
+			step: 0.01,
+			description:
+				"Control the influence of the index file on the output. Higher values mean stronger influence.",
+		},
+		{
+			type: "number",
+			key: "filterRadius",
+			label: "Filter Radius",
+			min: 0,
+			max: 10,
+			step: 1,
+			description:
+				"Apply median filtering to reduce breathiness in the output audio.",
+		},
+		{
+			type: "number",
+			key: "hopLength",
+			label: "Hop Length",
+			min: 1,
+			max: 512,
+			step: 10,
+			description:
+				"Only applicable for the Crepe pitch extraction method. Determines the time it takes for the system to react to a significant pitch change. Smaller values require more processing time but can lead to better pitch accuracy.",
+		},
+		{
+			type: "toggle",
+			key: "autotune",
+			label: "Autotune",
+			description: "Apply a light autotune to the inferred audio.",
+		},
+		{
+			type: "toggle",
+			key: "cleanAudio",
+			label: "Clean Audio",
+			description: "Clean the output audio using noise reduction algorithms.",
+		},
+		{
+			type: "select",
+			key: "exportFormat",
+			label: "Export Format",
+			options: ["WAV", "MP3"],
+			description: "Select the desired output audio format.",
+		},
+		{
+			type: "select",
+			key: "f0Method",
+			label: "F0 Method",
+			options: [
+				"crepe",
+				"crepe-tiny",
+				"rmvpe",
+				"fcpe",
+				"hybrid[crepe+rmvpe]",
+				"hybrid[crepe+fcpe]",
+				"hybrid[rmvpe+fcpe]",
+				"hybrid[crepe+rmvpe+fcpe]",
+			],
+			description:
+				"Select the method for extracting the fundamental frequency.",
+		},
+	];
+
+	const {
 		pitch,
 		setPitch,
 		indexRate,
@@ -15,199 +94,68 @@ export default function ConversionOptions() {
 		setCleanAudio,
 		exportFormat,
 		setExportFormat,
+		hopLength,
+		setHopLength,
+		f0Method,
+		setF0Method,
 	} = useConvertContext();
 
+	const optionHandlers: Record<string, any> = {
+		pitch: { value: pitch, onChange: setPitch },
+		indexRate: { value: indexRate, onChange: setIndexRate },
+		filterRadius: { value: filterRadius, onChange: setFilterRadius },
+		autotune: { value: autotune, onChange: setAutotune },
+		cleanAudio: { value: cleanAudio, onChange: setCleanAudio },
+		exportFormat: { value: exportFormat, onChange: setExportFormat },
+		hopLength: { value: hopLength, onChange: setHopLength },
+		f0Method: { value: f0Method, onChange: setF0Method },
+	};
+
 	return (
-        <div className="row-span-full w-full h-full border border-white/10 rounded-xl p-4 flex flex-col gap-6 max-h-full overflow-auto">
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-neutral-200 text-lg font-medium">
-                        Pitch
-                    </h2>
-                    <div className="flex gap-0 justify-center items-center">
-                        <input
-                            aria-label="Set pitch"
-                            type="number"
-                            value={pitch}
-                            onChange={(e) => {
-                                let value = Number.parseFloat(e.target.value);
-                                if (value < -24) value = -24;
-                                if (value > 24) value = 24;
-                                setPitch(value);
-                            }}
-                            step="0.1"
-                            min="-24"
-                            max="24"
-                            className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-                        />
-                        <input
-                            aria-label="Set pitch"
-                            value={pitch}
-                            onChange={(e) => setPitch(Number(e.target.value))}
-                            type="range"
-                            defaultValue="0"
-                            min="-24"
-                            max="24"
-                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
-                        />
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Set the pitch of the audio. Higher values result in a
-                        higher pitch.
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-neutral-200 text-lg font-medium">
-                        Index Rate
-                    </h2>
-                    <div className="flex gap-2 justify-center items-center">
-                        <input
-                            aria-label="Set index rate"
-                            type="number"
-                            value={indexRate}
-                            onChange={(e) => {
-                                let value = Number.parseFloat(e.target.value);
-                                if (value < 0) value = 0;
-                                if (value > 1) value = 1;
-                                setIndexRate(value);
-                            }}
-                            step="0.01"
-                            min="0.0"
-                            max="1.0"
-                            className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-                        />
-                        <input
-                            aria-label="Set index rate"
-                            value={indexRate}
-                            onChange={(e) => setIndexRate(Number(e.target.value))}
-                            type="range"
-                            defaultValue="0.3"
-                            min="0.0"
-                            max="1.0"
-                            step="0.1"
-                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
-                        />
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Control the influence of the index file on the output.
-                        Higher values mean stronger influence. Lower values can
-                        help reduce artifacts but may result in less accurate
-                        voice cloning.
-                    </p>
-                </div>
-                <div className="flex flex-col gap-2">
-                    <h2 className="text-neutral-200 text-lg font-medium">
-                        Filter Radius
-                    </h2>
-                    <div className="flex gap-2 justify-center items-center">
-                        <input
-                            aria-label="Set filter radius"
-                            type="number"
-                            value={filterRadius}
-                            onChange={(e) => {
-                                let value = Number.parseFloat(e.target.value);
-                                if (value < 0) value = 0;
-                                if (value > 10) value = 10;
-                                setFilterRadius(value);
-                            }}
-                            step="1"
-                            min="0"
-                            max="10"
-                            className="w-8 text-sm text-neutral-200 bg-transparent outline-none appearance-none"
-                        />
-                        <input
-                            aria-label="Set filter radius"
-                            value={filterRadius}
-                            onChange={(e) =>
-                                setFilterRadius(Number(e.target.value))
-                            }
-                            type="range"
-                            defaultValue="3"
-                            min="0"
-                            max="10"
-                            className="w-full h-2 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white"
-                        />
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Apply median filtering to the extracted pitch values if
-                        this value is greater than or equal to three. This can
-                        help reduce breathiness in the output audio.
-                    </p>
-                </div>
-                <div className="flex flex-col mt-8">
-                    <div className="flex justify-between items-center w-full">
-                        <h2 className="text-neutral-200 text-lg font-medium">
-                            Autotune
-                        </h2>
-                        <div className="inline-flex items-center">
-                            <label className="flex items-center cursor-pointer relative">
-                                <input
-                                    aria-label="Set autotune"
-                                    checked={autotune}
-                                    onChange={(e) => setAutotune(e.target.checked)}
-                                    type="checkbox"
-                                    className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-                                    id="check"
-                                />
-                                <span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                                    <Check className="w-3.5 h-3.5"/>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Apply a light autotune to the inferred audio. Particularly
-                        useful for singing voice conversions.
-                    </p>
-                </div>
-                <div className="flex flex-col">
-                    <div className="flex justify-between items-center w-full">
-                        <h2 className="text-neutral-200 text-lg font-medium">
-                            Clean audio
-                        </h2>
-                        <div className="inline-flex items-center">
-                            <label className="flex items-center cursor-pointer relative">
-                                <input
-                                    aria-label="Set clean audio"
-                                    checked={cleanAudio}
-                                    onChange={(e) => setCleanAudio(e.target.checked)}
-                                    type="checkbox"
-                                    className="peer h-5 w-5 cursor-pointer transition-all appearance-none rounded shadow hover:shadow-md border border-slate-300 checked:bg-white"
-                                    id="check"
-                                />
-                                <span className="absolute text-black opacity-0 peer-checked:opacity-100 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-                                    <Check className="w-3.5 h-3.5"/>
-                                </span>
-                            </label>
-                        </div>
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Clean the output audio using noise reduction algorithms.
-                        Recommended for speech conversions.
-                    </p>
-                </div>
-                <div className="flex flex-col">
-                    <div className="flex justify-between items-center w-full">
-                        <h2 className="text-neutral-200 text-lg font-medium">
-                            Export format
-                        </h2>
-                        <div className="inline-flex items-center">
-                            <label className="flex items-center cursor-pointer relative">
-                                <select
-                                    aria-label="Set export format"
-                                    defaultValue={exportFormat}
-                                    onChange={(e) => setExportFormat(e.target.value.toUpperCase())}
-                                    className="h-8 w-fit flex items-center justify-center text-end px-4 cursor-pointer transition-all appearance-none rounded-lg shadow-sm hover:shadow-md border border-slate-300 bg-white text-slate-700 focus:outline-none focus:border-slate-400"
-                                >
-                                    <option value="WAV">WAV</option>
-                                    <option value="MP3">MP3</option>
-                                </select>
-                            </label>
-                        </div>
-                    </div>
-                    <p className="text-xs text-neutral-300">
-                        Select the desired output audio format.
-                    </p>
-                </div>
-            </div>
-    )
+		<div className="w-full h-full border border-white/10 rounded-xl p-4 overflow-auto">
+			<div className="flex flex-col gap-6">
+				{optionsConfig.map((option) => {
+					const handler = optionHandlers[option.key];
+					if (option.type === "number") {
+						return (
+							<NumberInput
+								key={option.key}
+								label={option.label}
+								value={handler.value}
+								onChange={handler.onChange}
+								min={option.min as number}
+								max={option.max as number}
+								step={option.step}
+								description={option.description}
+							/>
+						);
+					}
+					if (option.type === "toggle") {
+						return (
+							<div className={`${option.key === "autotune" ? "mt-10" : ""}`}>
+								<ToggleSwitch
+									key={option.key}
+									label={option.label}
+									checked={handler.value}
+									onChange={handler.onChange}
+									description={option.description}
+								/>
+							</div>
+						);
+					}
+					if (option.type === "select") {
+						return (
+							<SelectInput
+								label={option.label}
+								options={option.options ?? []}
+								value={handler.value}
+								onChange={handler.onChange}
+								description={option.description}
+							/>
+						);
+					}
+				})}
+			</div>
+		</div>
+	);
 }

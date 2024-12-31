@@ -23,6 +23,7 @@ from flask import Flask, jsonify, request, Response, send_file
 from flask_cors import CORS
 from requests.exceptions import HTTPError
 from dotenv import load_dotenv
+from pathlib import Path
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -719,6 +720,22 @@ def delete_model_json(id):
         "message": f"The file {json_file} and folder {folder_path} have been deleted.",
     }
 
+# edit model
+def edit_model_json(model_id, model_name, model_epochs, model_algorithm, model_image):
+    json_file = os.path.join(MODELS_DIR, f"{model_id}.json")
+    with open(json_file, "r") as file:
+        data = json.load(file)
+        data["name"] = model_name
+        data["epochs"] = model_epochs
+        data["algorithm"] = model_algorithm
+        data["image"] = model_image
+        with open(json_file, "w") as file:
+            json.dump(data, file, indent=4)
+            logging.info(f"Model {model_id} has been edited.")
+    return {
+        "status": "success",
+        "message": f"Model {model_id} has been edited.",
+    }
 
 # delete all models
 def delete_models_folder():
@@ -829,6 +846,8 @@ def convert(
     autotune,
     cleanaudio,
     exportformat,
+    hoplength,
+    f0method,
     name,
 ):
     unique_id = str(uuid.uuid4())
@@ -858,6 +877,10 @@ def convert(
         cleanaudio,
         "--export_format",
         exportformat,
+        "--hop_length",
+        hoplength,
+        "--f0_method",
+        f0method,
     ]
 
     logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
@@ -900,6 +923,7 @@ def convert(
             "autotune": autotune,
             "cleanaudio": cleanaudio,
             "exportformat": exportformat,
+            "hoplength": hoplength,
         }
 
         logging.info(f"Attempting to create directory: {INFERENCE_LOGS_DIR}")
@@ -957,23 +981,27 @@ def fetch_inferences():
 
 # get input audios
 def get_input_audios():
-    audio_files = [file for file in os.listdir(INPUT_AUDIO_DIR) if file.lower().endswith(('.mp3', '.wav', '.ogg', '.webm'))]
     audio_info = []
+    input_audio_dir_path = Path(INPUT_AUDIO_DIR)
 
-    for file in audio_files:
-        file_path = os.path.join(INPUT_AUDIO_DIR, file)
-        audio_metadata = {}
+    for file in input_audio_dir_path.iterdir():
+        if file.is_file():
+            try:
+                with open(file, "rb") as f:
+                    f.read(512)
 
-        audio_metadata["file_name"] = file
-        audio_metadata["file_path"] = file_path
-        audio_metadata["title"] = file.replace('-', ' ').replace('.mp3', '').replace('.wav', '').replace('.ogg', '').replace('.webm', '').title()
-
-        file_stats = os.stat(file_path)
-        audio_metadata["creation_time"] = file_stats.st_ctime
-        audio_metadata["modification_time"] = file_stats.st_mtime 
-        audio_metadata["file_size"] = file_stats.st_size
-
-        audio_info.append(audio_metadata)
+                file_metadata = {
+                    "file_name": file.name,
+                    "file_path": str(file.resolve()),
+                    "title": file.stem.replace("-", " ").title(),
+                    "creation_time": file.stat().st_ctime,
+                    "modification_time": file.stat().st_mtime,
+                    "file_size": file.stat().st_size,
+                }
+                audio_info.append(file_metadata)
+            except Exception as e:
+                logging.error(f"Error processing file: {file}: {e}")
+                handle_exception(e)
 
     return audio_info
 
@@ -1015,8 +1043,15 @@ def delete_input_audios_folder():
     return {"status": "error", "message": "Input audios folder not found."}
 
 # separate instrumental
-def separate_instrumental(path):
+def separate_instrumental(path, model, single_stem, sample_rate,):
+    os.makedirs(INPUT_AUDIO_DIR, exist_ok=True)
     command = [os.path.join("env", "python.exe"), "uvr_cli.py", "--audio_file", path, "--output_format", "MP3", "--output_dir", INPUT_AUDIO_DIR]
+    if model:
+        command.extend(["--model_filename", model])
+    if single_stem:
+        command.extend([f"--single_stem=${single_stem}"]) 
+    if sample_rate:
+        command.extend([f"--sample_rate={sample_rate}"])
 
     logging.info(remove_ansi_escape_sequences(f"command: {' '.join(command)}"))
 
@@ -1052,6 +1087,44 @@ def separate_instrumental(path):
             remove_ansi_escape_sequences(f"Error running separation: {str(e)}")
         )
         handle_exception(e)
+
+# get available uvr models
+def get_uvr_models():
+    command = [os.path.join("env", "python.exe"), "uvr_cli.py", "--list_models"]
+    try:
+        process = subprocess.Popen(
+            command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            shell=True,
+            cwd=RVC_DIR,
+        )
+        output = "\n".join(
+            line.strip() for line in process.stdout if "No hardware acceleration" not in line
+        )
+        process.stdout.close()
+        process.kill()
+
+        data = json.loads(output)
+
+        grouped_models = {}
+        for category, models in data.items():
+            category_name = category.lower()
+            grouped_models[category_name] = []
+            
+            for key, value in models.items():
+                if isinstance(value, str):
+                    grouped_models[category_name].append(os.path.basename(value))
+                elif isinstance(value, dict):
+                    grouped_models[category_name].extend(
+                        os.path.basename(file) for file in value.keys()
+                    )
+        return grouped_models
+    except Exception as e:
+        logging.error(f"Error retrieving UVR models: {e}")
+        handle_exception(e)
+        return {}
 
 # stop server
 def shutdown_server():
@@ -1128,6 +1201,17 @@ def delete_model():
     result = delete_model_json(model_id)
     return jsonify(result)
 
+@app.route("/edit-model", methods=["GET"])
+def edit_model():
+    model_id = request.args.get("id")
+    model_name = request.args.get("name")
+    model_epochs = request.args.get("epochs")
+    model_algorithm = request.args.get("algorithm")
+    model_image = request.args.get("image")
+    if not model_id:
+        return jsonify({"status": "error", "message": "Model ID is required"}), 400
+    result = edit_model_json(model_id, model_name, model_epochs, model_algorithm, model_image)
+    return jsonify(result)
 
 @app.route("/delete-all-models", methods=["GET"])
 def delete_all_models():
@@ -1210,7 +1294,6 @@ def download_model():
 def import_model_route():
     return import_model()
 
-
 @app.route("/get-models", methods=["GET"])
 def get_all_models():
     logging.info(remove_ansi_escape_sequences("Getting all models..."))
@@ -1243,10 +1326,22 @@ def get_input_audios_route():
 @app.route("/separate", methods=["GET"])
 def separate_route():
     path = request.args.get("path")
+    model = request.args.get("model")
+    single_stem = request.args.get("single_stem")
+    sample_rate = request.args.get("sample_rate")
+
+    if not model: 
+        model = "2_HP-UVR.pth"
     if not path:
         return jsonify({"status": "error", "message": "Path is required"}), 400
-    result = separate_instrumental(path)
+    
+    result = separate_instrumental(path, model, single_stem, sample_rate)
     return Response(result, content_type="text/event-stream")
+
+@app.route("/get-uvr-models", methods=["GET"])
+def get_uvr_models_route():
+    result = get_uvr_models()
+    return jsonify(result), 200
 
 @app.route("/delete-input-audio", methods=["GET"])
 def delete_input_audio_route():
@@ -1280,6 +1375,10 @@ def convert_audio():
     autotune = request.args.get("autotune")
     cleanaudio = request.args.get("cleanaudio")
     exportformat = request.args.get("exportformat")
+
+    hoplength = request.args.get("hoplength")
+    f0method = request.args.get("f0method")
+
     name = request.args.get("name")
     logging.info(remove_ansi_escape_sequences("Getting conversion info..."))
     if not input_path or not pth_path or not index_path or not pitch:
@@ -1297,6 +1396,8 @@ def convert_audio():
             autotune,
             cleanaudio,
             exportformat,
+            hoplength,
+            f0method,
             name,
         ),
         content_type="text/event-stream",

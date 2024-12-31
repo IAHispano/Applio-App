@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
 import Background1 from "../svg/background1";
-import { invoke } from "@tauri-apps/api/core";
 import { useNavigate } from "react-router-dom";
+import { getServerPort } from "../../utils/getBackendPort";
 
 export default function PreInstall() {
 	const [status, setStatus] = useState("Initializing...");
 	const [info, setInfo] = useState("Preparing to download...");
-
 	const navigate = useNavigate();
-
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		console.log("Server port:", port);
-		return port;
-	}
 
 	useEffect(() => {
 		const fetchData = async () => {

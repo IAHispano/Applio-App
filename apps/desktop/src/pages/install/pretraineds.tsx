@@ -1,20 +1,13 @@
-import { invoke } from "@tauri-apps/api/core";
 import { useEffect, useState } from "react";
 import Background1 from "../../components/svg/background1";
 import { useNavigate } from "react-router-dom";
+import { getServerPort } from "../../utils/getBackendPort";
 
 export default function DownloadPretraineds() {
 	const [status, setStatus] = useState("Starting...");
 	const [info, setInfo] = useState("Downloading...");
-
 	const navigate = useNavigate();
 
-	// get server port
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		console.log("port", port);
-		return port;
-	}
 	useEffect(() => {
 		const installPretraineds = async () => {
 			try {

@@ -18,17 +18,13 @@
 		"strict": true,
 		"noUnusedLocals": true,
 		"noUnusedParameters": true,
-		"noFallthroughCasesInSwitch": true
+		"noFallthroughCasesInSwitch": true,
+
+		/* Optimizations */
+		"incremental": true,
+		"skipDefaultLibCheck": true
 	},
 	"include": ["src"],
-	"exclude": [
-		"node_modules",
-		"python",
-		"src-tauri",
-		"rvc",
-		"audios",
-		"logs",
-		"rvc-cli-main"
-	],
+	"exclude": ["./node_modules", "./src-tauri/python", "./src-tauri"],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

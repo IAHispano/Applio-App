@@ -1,9 +1,9 @@
-import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-shell";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Loading from "../../components/convert/loading";
 import { FolderOpen, Minus, Plus, Trash } from "lucide-react";
+import { getServerPort } from "../../utils/getBackendPort";
 
 export default function InferencesLibrary() {
 	const [inferences, setInferences] = useState<any[]>([]);
@@ -11,11 +11,6 @@ export default function InferencesLibrary() {
 	const [loading, setLoading] = useState(true);
 	const [value, setValue] = useState("");
 	const navigate = useNavigate();
-
-	async function getServerPort() {
-		const port = await invoke("get_port");
-		return port;
-	}
 
 	useEffect(() => {
 		async function getInferences() {
@@ -112,11 +107,11 @@ export default function InferencesLibrary() {
 								</div>
 							) : (
 								<div className="flex flex-col items-center w-full h-full gap-4">
-									<div className="grid grid-cols-6 gap-4 w-full">
+									<div className="flex gap-2 w-full">
 										<input
 											aria-label="Search for inferences"
 											type="text"
-											className="col-span-5 w-full h-12 rounded-xl focus:outline-none bg-white/10 text-sm p-4"
+											className="w-full h-12 rounded-xl focus:outline-none bg-white/10 text-sm p-4"
 											placeholder="Search..."
 											value={value}
 											onChange={(e) => setValue(e.target.value)}
@@ -124,10 +119,10 @@ export default function InferencesLibrary() {
 										<button
 											aria-label="Delete all inferences"
 											onClick={deleteAllInferences}
-											className="col-span-1 rounded-xl bg-white/10 p-2 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
+											className="w-fit justify-center items-center mx-auto rounded-xl bg-red-500/10 p-4 text-sm text-neutral-200 hover:shadow-xl hover:shadow-red-500/10 hover:bg-red-500/20 slow"
 											type="button"
 										>
-											Delete all inferences
+											<Trash className="w-4 h-4 opacity-70" />
 										</button>
 									</div>
 									{filteredData.map(
@@ -175,9 +170,9 @@ export default function InferencesLibrary() {
 														onClick={() => toggleDropdown(inference.id)}
 													>
 														{openInferenceId === inference.id ? (
-															<Minus className="w-6 h-6 opacity-70"/>
+															<Minus className="w-6 h-6 opacity-70" />
 														) : (
-															<Plus className="w-6 h-6 opacity-70"/>
+															<Plus className="w-6 h-6 opacity-70" />
 														)}
 													</button>
 													<button
@@ -188,7 +183,7 @@ export default function InferencesLibrary() {
 															downloadAudio(inference.audio_output)
 														}
 													>
-														<FolderOpen className="w-5 h-5 opacity-70"/>
+														<FolderOpen className="w-5 h-5 opacity-70" />
 													</button>
 													<button
 														aria-label="Delete inference"
@@ -196,7 +191,7 @@ export default function InferencesLibrary() {
 														className="rounded-lg border border-white/10 text-white p-3 flex items-center justify-center hover:bg-red-700/20 hover:shadow-xl hover:shadow-red-700/10 slow"
 														onClick={() => deleteInference(inference.id)}
 													>
-														<Trash className="w-4 h-4 opacity-70"/>
+														<Trash className="w-4 h-4 opacity-70" />
 													</button>
 												</div>
 												{openInferenceId === inference.id && (
