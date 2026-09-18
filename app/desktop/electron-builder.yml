@@ -1,6 +1,6 @@
 appId: org.applio.app
 productName: Applio
-copyright: Copyright © Applio contributors
+copyright: Copyright © AI Hispano
 compression: normal
 asar: false
 afterPack: ./afterPack.js
@@ -100,7 +100,7 @@ dmg:
 linux:
   category: AudioVideo
   icon: ../../assets/icon.png
-  maintainer: Applio contributors
+  maintainer: AI Hispano
   target:
     - target: AppImage
       arch:

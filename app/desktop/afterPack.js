@@ -101,7 +101,7 @@ exports.default = async (context) => {
         CompanyName: "Applio",
         FileDescription: "Applio",
         ProductName: "Applio",
-        LegalCopyright: "Copyright © Applio contributors",
+        LegalCopyright: "Copyright © AI Hispano",
       },
     });
     console.log(`[afterPack] Successfully stamped ${exeName} with Applio icon.`);

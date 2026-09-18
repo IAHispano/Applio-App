@@ -2,8 +2,8 @@
   "name": "@applio/desktop",
   "version": "3.6.4",
   "private": true,
-  "description": "Applio desktop shell (Electron): hosts Next.js + Express API + Python engine sidecar",
-  "author": "Applio contributors",
+  "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
+  "author": "AI Hispano",
   "homepage": "https://github.com/IAHispano/Applio-app",
   "main": "dist/main.js",
   "scripts": {

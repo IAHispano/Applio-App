@@ -2,7 +2,7 @@
   "name": "applio",
   "version": "3.6.4",
   "private": true,
-  "description": "Applio: Next.js web UI + Express API + Python RVC engine",
+  "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "packageManager": "pnpm@11.15.0",
   "scripts": {
     "dev": "concurrently \"pnpm --filter @applio/api dev\" \"pnpm --filter @applio/web dev\"",
