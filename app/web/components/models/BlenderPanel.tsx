@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Layers, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";

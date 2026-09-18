@@ -454,7 +454,10 @@ export function startInstall(): Job {
             try {
               await streamRun(job, pnpmCmd, ["run", "build"], { shell: pnpmShell });
             } catch (e) {
-              appendLog(job, `! Web build failed (${e}) — everything else installed; run \`pnpm build\` manually.`);
+              appendLog(
+                job,
+                `! Web build failed (${e}) — everything else installed; run \`pnpm build\` manually.`,
+              );
             }
           }
         }

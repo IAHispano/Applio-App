@@ -91,11 +91,15 @@ export default function ReportPanel() {
           </div>
           <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
             <span className="text-neutral-400 block">{t("Node / Python")}</span>
-            <span className="font-medium text-white truncate block">Node {info.node} · {info.python}</span>
+            <span className="font-medium text-white truncate block">
+              Node {info.node} · {info.python}
+            </span>
           </div>
           <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
             <span className="text-neutral-400 block">{t("Hardware")}</span>
-            <span className="font-medium text-white">{info.cpus} CPUs · {info.totalMemGB}GB RAM</span>
+            <span className="font-medium text-white">
+              {info.cpus} CPUs · {info.totalMemGB}GB RAM
+            </span>
           </div>
         </section>
       ) : (

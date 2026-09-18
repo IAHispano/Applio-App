@@ -22,11 +22,15 @@ def find_rcedit() -> str:
     node_rcedit = os.path.join(ROOT, "node_modules", "rcedit", "bin", "rcedit-x64.exe")
     if os.path.exists(node_rcedit):
         return node_rcedit
-    cache = os.path.join(os.environ.get("LOCALAPPDATA", ""), "electron-builder", "Cache", "winCodeSign")
+    cache = os.path.join(
+        os.environ.get("LOCALAPPDATA", ""), "electron-builder", "Cache", "winCodeSign"
+    )
     candidates = glob.glob(os.path.join(cache, "*", "rcedit-x64.exe"))
     if candidates:
         return sorted(candidates, key=os.path.getmtime)[-1]
-    raise FileNotFoundError("rcedit-x64.exe not found in node_modules or electron-builder cache")
+    raise FileNotFoundError(
+        "rcedit-x64.exe not found in node_modules or electron-builder cache"
+    )
 
 
 def app_version() -> str:
@@ -36,7 +40,9 @@ def app_version() -> str:
             v = json.load(f).get("version")
             if v:
                 return str(v)
-    with open(os.path.join(ROOT, "assets", "config_template.json"), encoding="utf-8") as f:
+    with open(
+        os.path.join(ROOT, "assets", "config_template.json"), encoding="utf-8"
+    ) as f:
         return str(json.load(f).get("version", "1.0.0"))
 
 

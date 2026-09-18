@@ -3,7 +3,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, nativeImage, Notification, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, nativeImage, shell } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 
 // User data, logs and caches live under a clean app-scoped dir
@@ -514,7 +514,11 @@ function initAutoUpdater(): void {
       status: "downloaded",
       version: info.version,
       releaseNotes:
-        typeof notes === "string" ? notes : Array.isArray(notes) ? notes.map((n) => n.note).join("\n") : undefined,
+        typeof notes === "string"
+          ? notes
+          : Array.isArray(notes)
+            ? notes.map((n) => n.note).join("\n")
+            : undefined,
     };
     notifyUpdateState();
 
