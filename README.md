@@ -27,9 +27,11 @@
   •
   <a href="https://applio.org/playground" target="_blank">🎮 Playground</a>
   •
-  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio.ipynb" target="_blank">🔎 Google Colab (UI)</a>
+  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio.ipynb" target="_blank">🔎 Google Colab</a>
   •
-  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio_NoUI.ipynb" target="_blank">🔎 Google Colab (No UI)</a>
+  <a href="https://github.com/IAHispano/Applio-app/blob/main/assets/Applio_Kaggle.ipynb" target="_blank">🦅 Kaggle</a>
+  •
+  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio_NoUI.ipynb" target="_blank">💻 Colab (No UI)</a>
 </p>
 
 
@@ -39,7 +41,13 @@ Applio App is a voice conversion studio focused on simplicity, quality, and perf
 
 ## Getting Started
 
-### Recommended: installer
+### Free Cloud Runtimes (Google Colab & Kaggle)
+
+Run Applio online for free using cloud GPUs without installing anything locally:
+- **[Google Colab](./assets/Applio.ipynb)**: One-click setup with Nvidia T4 GPU, persistent Google Drive model synchronization, and free automatic Cloudflare tunneling (no account or token required).
+- **[Kaggle Notebook](./assets/Applio_Kaggle.ipynb)**: Free T4 x2 / P100 GPU with automatic Cloudflare tunneling (ensure *Settings ➔ Internet: ON* in Kaggle notebook settings).
+
+### Recommended: desktop installer
 
 1. Download the installer for your OS from the [releases page](https://github.com/IAHispano/Applio-app/releases) (`Applio-<version>-Windows-Setup.exe`, `Applio-<version>-macOS.dmg`, or `Applio-<version>-Linux.AppImage` / `.deb`) and run it.
 2. Launch **Applio**. On first launch the setup screen checks every dependency — press **Install / Repair** and wait.
