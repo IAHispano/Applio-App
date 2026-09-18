@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { version as appVersion } from "../../package.json";
 import { useI18n } from "../../lib/i18n";
+import { version as appVersion } from "../../package.json";
 import { NAV_SECTIONS } from "./nav";
 
 export default function Sidebar() {
