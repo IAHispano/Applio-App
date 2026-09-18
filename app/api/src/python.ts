@@ -31,6 +31,19 @@ export function getPythonBin(): string {
   return process.platform === "win32" ? "python" : "python3";
 }
 
+// Base environment for every spawned Python process. On Apple Silicon,
+// PyTorch MPS needs fallback enabled and the memory high-watermark
+// disabled, otherwise inference crashes on unsupported ops. ??= respects
+// values the user already exported.
+export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, PYTHONIOENCODING: "utf-8", ...extra };
+  if (process.platform === "darwin") {
+    env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
+    env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
+  }
+  return env;
+}
+
 export function getUploadsDir(): string {
   const dir = process.env.UPLOADS_DIR || path.join(getRepoRoot(), "assets", "audios", "_uploads");
   fs.mkdirSync(dir, { recursive: true });
@@ -62,7 +75,7 @@ export function runPythonModule(
     const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
     const child: ChildProcess = spawn(getPythonBin(), args, {
       cwd,
-      env: { ...process.env, PATH: pathEnv, PYTHONIOENCODING: "utf-8" },
+      env: pythonEnv({ PATH: pathEnv }),
       windowsHide: true,
     });
     opts.onSpawn?.(child.pid);

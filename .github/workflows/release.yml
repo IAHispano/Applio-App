@@ -188,7 +188,11 @@ jobs:
           tag_name: v${{ github.event.inputs.version }}
           name: Applio v${{ github.event.inputs.version }}
           files: release-files/**
-          body: ${{ steps.changelog.outputs.changelog }}
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
+
+            ### macOS first launch
+            The app is not Apple-notarized yet. If macOS reports Applio is "damaged", run `xattr -cr /Applications/Applio.app` and open it again.
           draft: false
           prerelease: ${{ github.event.inputs.prerelease }}
           make_latest: true

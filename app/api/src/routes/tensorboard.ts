@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot } from "../python";
+import { getPythonBin, getRepoRoot, pythonEnv } from "../python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);
@@ -78,7 +78,7 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
         {
           cwd: root,
           windowsHide: true,
-          env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+          env: pythonEnv(),
         },
       );
 

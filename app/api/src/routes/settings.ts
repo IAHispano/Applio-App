@@ -4,7 +4,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, getUploadsDir } from "../python";
+import { getPythonBin, getRepoRoot, getUploadsDir, pythonEnv } from "../python";
 
 const router = Router();
 
@@ -241,6 +241,7 @@ export function startPresence(): boolean {
       detached: true,
       stdio: "ignore",
       windowsHide: true,
+      env: pythonEnv(),
     });
     presenceProc.unref();
     fs.writeFileSync(presencePidFile(), String(presenceProc.pid || ""));

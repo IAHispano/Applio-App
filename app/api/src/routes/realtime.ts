@@ -6,7 +6,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot } from "../python";
+import { getPythonBin, getRepoRoot, pythonEnv } from "../python";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);
@@ -64,7 +64,7 @@ router.post("/start", async (_req: Request, res: Response) => {
       ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
       {
         cwd: getRepoRoot(),
-        env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+        env: pythonEnv(),
         windowsHide: true,
       },
     );

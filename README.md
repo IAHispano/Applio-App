@@ -45,6 +45,14 @@ Applio App is a voice conversion studio focused on simplicity, quality, and perf
 2. Launch **Applio**. On first launch the setup screen checks every dependency — press **Install / Repair** and wait.
 3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
 
+> [!WARNING]
+> **macOS first launch:** the app is not Apple-notarized yet, so Gatekeeper may claim Applio "is damaged".
+> It isn't — clear the download quarantine and open it again:
+> ```bash
+> xattr -cr /Applications/Applio.app
+> ```
+> On Apple Silicon the app runs via PyTorch MPS with CPU fallback enabled automatically.
+
 ### Developers (any OS)
 
 Prerequisites: Python 3.10–3.12, Node.js 22+, `pnpm@11`, ffmpeg.

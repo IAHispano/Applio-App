@@ -10,6 +10,15 @@ import { autoUpdater, type UpdateInfo } from "electron-updater";
 // (~/.config/Applio on Linux) instead of the npm package name.
 app.setName("Applio");
 
+// PyTorch on Apple Silicon needs MPS fallback + uncapped memory pressure
+// handling, otherwise inference crashes on unsupported ops. Set early so
+// every child process (API, engine, setup) inherits it. ??= respects
+// user-provided values.
+if (process.platform === "darwin") {
+  process.env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
+  process.env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
+}
+
 const isDev: boolean = !app.isPackaged;
 const API_PORT: string = process.env.API_PORT || "8000";
 const WEB_PORT: string = process.env.WEB_PORT || "3000";

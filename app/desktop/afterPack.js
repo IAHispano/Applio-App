@@ -68,6 +68,35 @@ function ensureStandaloneNodeModules(packagedAppDir) {
   console.log(`[afterPack] standalone node_modules ${ok ? "ready" : "STILL MISSING — check build!"}`);
 }
 
+function adHocSignMacApp(appOutDir) {
+  // No paid Apple Developer certificate on CI, so notarization is out.
+  // An ad-hoc signature keeps the bundle seal self-consistent (avoids the
+  // "damaged" Gatekeeper variant for locally-built apps). A browser
+  // download is still quarantined — first launch additionally needs
+  // `xattr -cr` (see README) since only notarization clears that.
+  if (process.platform !== "darwin") return; // codesign only exists on mac
+  const { execFileSync } = require("node:child_process");
+  let entries;
+  try {
+    entries = fs.readdirSync(appOutDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  const apps = entries
+    .filter((e) => e.isDirectory() && e.name.endsWith(".app"))
+    .map((e) => path.join(appOutDir, e.name));
+  for (const appPath of apps) {
+    try {
+      console.log(`[afterPack] ad-hoc signing ${appPath}…`);
+      execFileSync("codesign", ["--deep", "--force", "--verify", "--sign", "-", appPath], {
+        stdio: "inherit",
+      });
+    } catch (err) {
+      console.warn(`[afterPack] ad-hoc signing failed for ${appPath}:`, err.message);
+    }
+  }
+}
+
 exports.default = async (context) => {
   const appOutDir = context.appOutDir;
   const productFilename = context.packager.appInfo.productFilename;
@@ -76,6 +105,10 @@ exports.default = async (context) => {
     console.warn("[afterPack] packaged app dir not found under:", appOutDir);
   } else {
     ensureStandaloneNodeModules(packagedAppDir);
+  }
+
+  if (context.electronPlatformName === "darwin") {
+    adHocSignMacApp(appOutDir);
   }
 
   if (context.electronPlatformName !== "win32") return;
