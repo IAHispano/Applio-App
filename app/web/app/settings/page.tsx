@@ -23,7 +23,7 @@ const THEME_PRESETS: ThemePreset[] = [
     id: "",
     name: "Default",
     subtitle: "Dark Slate",
-    bg: "#0a0a0a",
+    bg: "#060606",
     surface: "#141414",
     accent: "#ffffff",
     border: "rgba(255, 255, 255, 0.12)",

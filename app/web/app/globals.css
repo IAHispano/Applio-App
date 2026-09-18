@@ -2,7 +2,7 @@
 
 :root {
   color-scheme: dark;
-  --bg: #0a0a0a;
+  --bg: #060606;
   --panel: #141414;
   --border: rgba(255, 255, 255, 0.1);
   --text: #e7e5e4;
@@ -18,7 +18,7 @@
   --input-bg: rgba(0, 0, 0, 0.4);
   --heading: #f5f5f5;
   --cta-bg: #ffffff;
-  --cta-text: #0a0a0a;
+  --cta-text: #060606;
   --button-bg: rgba(255, 255, 255, 0.08);
   --button-bg-hover: rgba(255, 255, 255, 0.14);
   --button-text-hover: #ffffff;
@@ -45,7 +45,7 @@
   --danger-bg-hover: rgba(239, 68, 68, 0.22);
   --danger-border-hover: rgba(239, 68, 68, 0.5);
   --danger-text-hover: #ffffff;
-  --font-display: var(--font-sans);
+  --font-display: var(--font-sans), "Syne", ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
   --radius-card: 12px;
   --radius-input: 8px;
@@ -65,7 +65,7 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), "Syne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   user-select: none;
   -webkit-user-select: none;
   scroll-behavior: smooth;
@@ -77,7 +77,7 @@ body {
 }
 
 .title {
-  font-family: var(--font-display), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-display), var(--font-sans), "Syne", ui-sans-serif, system-ui, -apple-system, sans-serif;
   letter-spacing: -0.025em;
   font-weight: 600;
 }

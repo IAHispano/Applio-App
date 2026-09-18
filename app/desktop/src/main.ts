@@ -365,106 +365,180 @@ function getSplashHtml(version: string): string {
 <html>
 <head>
 <meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   margin: 0;
   height: 100%;
   width: 100%;
-  background: transparent;
+  background: #060606;
   overflow: hidden;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'Syne', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   user-select: none;
   -webkit-user-select: none;
-  -webkit-app-region: drag;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 1;
-  transition: opacity 0.18s ease-out;
+  transition: opacity 0.2s ease-out;
 }
-.card {
-  width: 320px;
-  background: #141414;
+.splash {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #060606;
+  background-image: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.11) 28%, rgba(255, 255, 255, 0.03) 50%, rgba(6, 6, 6, 0) 72%);
+  box-sizing: border-box;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
-  padding: 22px 24px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95);
   display: flex;
   flex-direction: column;
-  gap: 14px;
-}
-.header {
-  display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  -webkit-app-region: drag;
+}
+.bg-lines {
+  position: absolute;
+  width: 82%;
+  height: 80%;
+  max-width: 950px;
+  max-height: 540px;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000000 30%, rgba(0, 0, 0, 0.4) 60%, transparent 90%);
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000000 30%, rgba(0, 0, 0, 0.4) 60%, transparent 90%);
+}
+.center-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -10px;
+}
+.brand-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: max-content;
 }
 .brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.title {
-  font-size: 17px;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  color: #f5f5f5;
+  font-family: 'Syne', sans-serif;
+  font-size: 82px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
   line-height: 1;
-}
-.badge {
-  font-size: 10px;
-  font-weight: 500;
-  color: #a3a3a3;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-  padding: 1px 5px;
-  line-height: 1.3;
-}
-#pct {
-  font-size: 11px;
-  color: #a3a3a3;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.25);
+  margin-bottom: 24px;
+  white-space: nowrap;
+  display: block;
 }
 .track {
   width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 10px;
+  background: rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   overflow: hidden;
-  position: relative;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 .bar {
   height: 100%;
-  width: 15%;
+  width: 0%;
   background: #ffffff;
   border-radius: 999px;
-  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
-#st {
-  font-size: 12px;
-  color: #a3a3a3;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+  will-change: width;
+  transform: translateZ(0);
 }
 </style>
 </head>
 <body>
-  <div class="card">
-    <div class="header">
-      <div class="brand">
-        <span class="title">Applio</span>
-        <span class="badge">v${version}</span>
+  <div class="splash">
+    <svg class="bg-lines" viewBox="0 0 1373 777" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+      <g opacity="0.22" stroke="white" stroke-width="1.5">
+        <line x1="4.48657" y1="1" x2="1370.49" y2="1"/>
+        <line x1="4.48657" y1="80" x2="1370.49" y2="80"/>
+        <line x1="4.48657" y1="770" x2="1370.49" y2="770"/>
+        <line x1="4.48657" y1="700" x2="1370.49" y2="700"/>
+        <line x1="4.48657" y1="641" x2="1370.49" y2="641"/>
+        <line x1="157.487" y1="2" x2="157.487" y2="771"/>
+        <line x1="1209.49" y1="2" x2="1209.49" y2="771"/>
+        <path d="M198.987 1L298.487 84"/>
+        <path d="M189.987 637L3.48657 740.5M359.487 637L194.487 775M489.987 636L388.987 775M605.487 636L544.987 773.5"/>
+        <path d="M1170.49 635.5L1371.99 753M1008.99 635.5L1172.99 772.5M876.987 636.5L976.987 775M778.487 636L824.487 776"/>
+        <path d="M390.987 1.5L453.987 88.5M544.487 0.5L582.987 86.5M822.987 0.5L795.487 86.5M975.487 1.5L913.487 86.5M1174.49 1.5L1074.49 86M1371.99 20L1206.99 117"/>
+        <path d="M0.486572 29.5L167.487 122.5"/>
+      </g>
+    </svg>
+    <div class="center-content">
+      <div class="brand-wrap">
+        <div class="brand">Applio</div>
+        <div class="track">
+          <div id="pb" class="bar"></div>
+        </div>
       </div>
-      <span id="pct">15%</span>
     </div>
-    <div class="track">
-      <div id="pb" class="bar"></div>
-    </div>
-    <div id="st">Starting…</div>
   </div>
+  <script>
+    (function() {
+      var bar = document.getElementById('pb');
+      var brand = document.querySelector('.brand');
+      var track = document.querySelector('.track');
+      var current = 0;
+      var target = 18;
+      var lastTime = performance.now();
+
+      function syncWidth() {
+        if (brand && track) {
+          var w = brand.getBoundingClientRect().width;
+          if (w > 0) {
+            track.style.width = w + 'px';
+          }
+        }
+      }
+      syncWidth();
+      if (document.fonts) {
+        document.fonts.ready.then(syncWidth);
+      }
+      window.addEventListener('resize', syncWidth);
+
+      window.setProgress = function(pct) {
+        if (typeof pct === 'number' && !isNaN(pct)) {
+          target = Math.max(target, Math.min(100, pct));
+        }
+      };
+
+      function tick(now) {
+        var dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+
+        if (target >= 100) {
+          current += (100 - current) * Math.min(1, dt * 12);
+          if (current >= 99.8) current = 100;
+        } else {
+          if (current < target) {
+            var diff = target - current;
+            var speed = Math.max(diff * 3.5, 15);
+            current = Math.min(target, current + speed * dt);
+          } else if (current < 94) {
+            current += 1.8 * dt;
+          }
+        }
+
+        if (bar) {
+          bar.style.width = current.toFixed(2) + '%';
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      requestAnimationFrame(tick);
+    })();
+  </script>
 </body>
 </html>`;
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
@@ -475,20 +549,24 @@ function showSplash(): void {
   const icon = appIconPath();
   const version = app.getVersion();
   splash = new BrowserWindow({
-    width: 380,
-    height: 180,
+    width: 1140,
+    height: 640,
     resizable: false,
     minimizable: false,
     maximizable: false,
     frame: false,
-    transparent: true,
+    transparent: false,
     center: true,
     show: false,
-    backgroundColor: "#00000000",
-    hasShadow: false,
+    backgroundColor: "#060606",
+    hasShadow: true,
     skipTaskbar: false,
     ...(icon ? { icon } : {}),
-    webPreferences: { contextIsolation: true, nodeIntegration: false },
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
   void splash.loadURL(getSplashHtml(version));
   splash.once("ready-to-show", () => {
@@ -499,19 +577,14 @@ function showSplash(): void {
   });
 }
 
-function setSplashStatus(text: string, percent?: number): void {
+function setSplashStatus(_text: string, percent?: number): void {
   if (!splash || splash.isDestroyed()) return;
-  const esc = text.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ");
   const clamped = typeof percent === "number" ? Math.max(0, Math.min(100, Math.round(percent))) : null;
-  const progJs =
-    clamped !== null
-      ? `var p=document.getElementById('pb');if(p)p.style.width='${clamped}%';var pc=document.getElementById('pct');if(pc)pc.textContent='${clamped}%';`
-      : "";
-  void splash.webContents
-    .executeJavaScript(
-      `(function(){var el=document.getElementById('st');if(el)el.textContent='${esc}';${progJs}})()`,
-    )
-    .catch(() => {});
+  if (clamped !== null) {
+    void splash.webContents
+      .executeJavaScript(`if(typeof window.setProgress === 'function') window.setProgress(${clamped});`)
+      .catch(() => {});
+  }
 }
 
 function closeSplash(): void {
@@ -522,20 +595,10 @@ function closeSplash(): void {
   const s = splash;
   splash = null;
   try {
-    void s.webContents.executeJavaScript(`document.body.style.opacity = '0';`).catch(() => {});
-    setTimeout(() => {
-      try {
-        if (!s.isDestroyed()) s.close();
-      } catch {
-        /* ignore */
-      }
-    }, 180);
+    s.hide();
+    s.destroy();
   } catch {
-    try {
-      if (!s.isDestroyed()) s.close();
-    } catch {
-      /* ignore */
-    }
+    /* ignore */
   }
 }
 
@@ -857,7 +920,7 @@ async function createWindow(): Promise<void> {
     titleBarStyle: "default",
     show: false,
     center: saved === null,
-    backgroundColor: "#0a0a0a",
+    backgroundColor: "#060606",
     autoHideMenuBar: true,
     ...(icon ? { icon } : {}),
     webPreferences: {
@@ -876,20 +939,25 @@ async function createWindow(): Promise<void> {
     }
   }
 
-  // Paint only when the first frame is ready, and ONLY then close the splash screen!
+  // Paint only when the first frame is ready, and remove the loader BEFORE showing the app
   let windowShown = false;
   const showMainWindow = () => {
     if (windowShown || !mainWindow || mainWindow.isDestroyed()) return;
     windowShown = true;
     setSplashStatus("Ready!", 100);
+
+    // Give a brief moment for the bar to smoothly reach 100%, then remove splash before showing the app
     setTimeout(() => {
       closeSplash();
-      if (saved?.isMaximized) {
-        mainWindow?.maximize();
-      }
-      mainWindow?.show();
-      mainWindow?.focus();
-    }, 120);
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        if (saved?.isMaximized) {
+          mainWindow.maximize();
+        }
+        mainWindow.show();
+        mainWindow.focus();
+      }, 50);
+    }, 180);
   };
   mainWindow.once("ready-to-show", showMainWindow);
   setTimeout(showMainWindow, 5000);
@@ -981,6 +1049,12 @@ ipcMain.on("window:toggle-fullscreen", (event) => {
 
 ipcMain.on("window:close", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (win === splash) {
+    closeSplash();
+    stopBackends();
+    app.quit();
+    return;
+  }
   win?.close();
 });
 

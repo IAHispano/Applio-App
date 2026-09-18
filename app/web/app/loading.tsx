@@ -12,7 +12,7 @@ export default function Loading() {
           <span className="text-xs text-[var(--muted)] animate-pulse">Loading…</span>
         </div>
 
-        <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
+        <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden relative">
           <div className="loaderBar" />
         </div>
       </div>

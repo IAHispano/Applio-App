@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Syne } from "next/font/google";
 import "./globals.css";
 import PageTransition from "../components/layout/PageTransition";
 import RoutePrewarm from "../components/layout/RoutePrewarm";
@@ -9,10 +9,10 @@ import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
 import Toaster from "../lib/toast";
 
-const inter = Inter({
+const syne = Syne({
   subsets: ["latin"],
   variable: "--font-sans",
-  weight: ["300", "400", "500", "600", "700"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} bg-[var(--bg)] text-[var(--text)] overflow-hidden h-screen w-screen flex flex-col m-0 p-0`}
+        className={`${syne.variable} bg-[var(--bg)] text-[var(--text)] overflow-hidden h-screen w-screen flex flex-col m-0 p-0`}
       >
         <I18nProvider>
           <ThemeProvider>

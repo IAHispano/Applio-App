@@ -85,36 +85,30 @@ export default function Home() {
   const audioCount = modelsData?.audios.length ?? 0;
 
   if (!status) {
+    if (error) {
+      return (
+        <div className="h-full w-full min-h-[300px] flex flex-col items-center justify-center p-6">
+          <div className="p-6 rounded-2xl bg-[var(--panel)] border border-red-500/20 max-w-md w-full shadow-lg text-center">
+            <p className="text-sm text-red-400 mb-3">{error}</p>
+            <button
+              type="button"
+              className="ghost text-xs py-1.5 px-4 bg-white/5 border border-white/10 hover:border-white/25 rounded-md"
+              onClick={() => refresh(true)}
+            >
+              {t("Retry Connection")}
+            </button>
+          </div>
+        </div>
+      );
+    }
     return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="h-full w-full min-h-[260px] flex flex-col items-center justify-center select-none p-6"
-      >
-        <div className="flex flex-col gap-3.5 p-5 rounded-2xl bg-[var(--panel)] border border-[var(--border)] max-w-xs w-full shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-base font-semibold tracking-tight text-[var(--heading)]">Applio</span>
-            <span className="text-xs text-[var(--muted)] animate-pulse">{t("Connecting…")}</span>
-          </div>
-
-          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
-            <div className="loaderBar" />
-          </div>
-
-          <span className="text-xs text-[var(--muted)]">{t("Connecting to engine…")}</span>
-
-          {error && (
-            <div className="text-center mt-2 w-full">
-              <p className="text-xs text-red-400 mb-2">{error}</p>
-              <button
-                type="button"
-                className="ghost text-xs py-1.5 px-4 w-full"
-                onClick={() => refresh(true)}
-              >
-                {t("Retry Connection")}
-              </button>
-            </div>
-          )}
+      <div className="w-full max-w-[1920px] mx-auto flex flex-col gap-6 animate-pulse">
+        <div className="h-28 rounded-2xl border border-white/5 bg-white/[0.02]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
         </div>
       </div>
     );
