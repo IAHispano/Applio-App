@@ -7,7 +7,7 @@ import { errMsg } from "../errors";
 import { getOutputsDir, getRepoRoot, runPythonModule } from "../python";
 
 const router = Router();
-const ISSUE_URL = "https://github.com/IAHispano/Applio/issues/new";
+const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";
 
 router.get("/info", async (_req: Request, res: Response) => {
   let version = "unknown";

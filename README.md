@@ -59,7 +59,7 @@ By using the official version of Applio, you accept full responsibility for comp
 
 ### Recommended: Windows installer
 
-1. Download `Applio-Setup-<version>.exe` from the [releases page](https://github.com/IAHispano/Applio/releases) and run it (per-user install, no admin rights needed).
+1. Download `Applio-Setup-<version>.exe` from the [releases page](https://github.com/IAHispano/Applio-app/releases) and run it (per-user install, no admin rights needed).
 2. Launch **Applio** from the Start Menu. On first launch the setup screen checks every dependency (Python env, engine packages, ffmpeg, web build) and installs whatever is missing — just press **Install / Repair** and wait.
 3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
 
@@ -90,7 +90,7 @@ Applio is made possible thanks to these projects and their references:
 - [rvc-cli](https://github.com/blaisewf/rvc-cli) by blaisewf
 
 ### Contributors
+<a href="https://github.com/IAHispano/Applio-app/graphs/contributors" target="_blank">
 
-<a href="https://github.com/IAHispano/Applio/graphs/contributors" target="_blank">
-  <img src="https://contrib.rocks/image?repo=IAHispano/Applio" />
+  <img src="https://contrib.rocks/image?repo=IAHispano/Applio-app" />
 </a>

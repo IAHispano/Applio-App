@@ -11,7 +11,7 @@ directories:
 publish:
   - provider: github
     owner: IAHispano
-    repo: Applio
+    repo: Applio-app
 
 files:
   - dist/**/*

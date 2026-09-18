@@ -393,7 +393,7 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     const local = loadConfig().version || "unknown";
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch("https://api.github.com/repos/IAHispano/Applio/releases/latest", {
+    const r = await fetch("https://api.github.com/repos/IAHispano/Applio-app/releases/latest", {
       signal: ctrl.signal,
     });
     clearTimeout(t);
