@@ -1,6 +1,6 @@
 {
   "name": "@applio/web",
-  "version": "3.6.4",
+  "version": "0.0.0",
   "private": true,
   "description": "Applio Next.js frontend (App Router) — all 11 feature tabs + startup setup screen",
   "scripts": {
