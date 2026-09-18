@@ -7,6 +7,7 @@
 // - pnpm symlinks: https://pnpm.io/motivation
 // - electron-builder FileSet: https://www.electron.build/docs/api/app-builder-lib.interface.fileset/
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 
 const webDir: string = path.resolve(import.meta.dirname, "..");
@@ -93,56 +94,79 @@ const webModules = path.join(webDir, "node_modules");
 console.log(`[copy-static] layout: ${detectLayout(rootModules)}`);
 ensureDir(standaloneModules);
 
-const essentialDeps = ["react", "react-dom", "react-is", "next"];
-
-// Next's own runtime deps (require-hook.js resolves styled-jsx at load,
-// constants.js needs @swc/helpers). Under pnpm these live isolated in
-// app/web/node_modules, not nested inside next/, so copy them explicitly.
-// Deps-of-deps (e.g. styled-jsx -> client-only, react-dom -> scheduler) are
-// isolated too, so walk the closure to a fixpoint. Read live from
-// package.json files so upgrades stay covered.
-function runtimeClosure(): string[] {
-  const seen = new Set<string>(["react", "react-dom", "react-is", "next"]);
-  const queue = [...seen];
-  while (queue.length > 0) {
-    const dep = queue.pop() as string;
-    for (const base of [webModules, rootModules]) {
-      let pkg: { dependencies?: Record<string, string> };
-      try {
-        const pkgPath = path.join(base, dep, "package.json");
-        if (!fs.existsSync(pkgPath)) continue;
-        pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8")) as {
-          dependencies?: Record<string, string>;
-        };
-      } catch {
-        continue;
-      }
-      for (const sub of Object.keys(pkg.dependencies ?? {})) {
-        if (!seen.has(sub)) {
-          seen.add(sub);
-          queue.push(sub);
+// Resolve a package directory, npm/pnpm compatible. `fromPkgJson` is the
+// package.json of the dependent, so Node resolves transitive deps through
+// the dependent's own node_modules — including pnpm's isolated .pnpm store,
+// where transitive deps are NOT hoisted to app/web/node_modules.
+function resolvePkgDir(dep: string, fromPkgJson: string): string | null {
+  // Fast path: hoisted or directly-symlinked locations (npm flat, pnpm direct).
+  for (const base of [webModules, rootModules]) {
+    const dir = path.join(base, dep);
+    if (fs.existsSync(path.join(dir, "package.json"))) return dir;
+  }
+  // Parent-relative resolution for pnpm-isolated transitive deps.
+  // realpath first: under pnpm the parent itself is a symlink into the
+  // .pnpm store, and only the real location has the dep symlinks next to it.
+  try {
+    const realParent = fs.realpathSync(fromPkgJson);
+    const main = createRequire(realParent).resolve(dep);
+    let dir = path.dirname(main);
+    for (let i = 0; i < 8; i++) {
+      const pj = path.join(dir, "package.json");
+      if (fs.existsSync(pj)) {
+        try {
+          if ((JSON.parse(fs.readFileSync(pj, "utf8")) as { name?: string }).name === dep) return dir;
+        } catch {
+          // unreadable manifest, keep walking up
         }
       }
-      break;
+      const up = path.dirname(dir);
+      if (up === dir) break;
+      dir = up;
     }
-  }
-  return [...seen];
-}
-
-function findDepSrc(dep: string): string | null {
-  // npm: hoisted to repo root. pnpm: kept in app/web/node_modules.
-  // Mixed installs: either can hold the real dir.
-  for (const base of [webModules, rootModules]) {
-    const candidate = path.join(base, dep);
-    if (fs.existsSync(candidate)) return candidate;
+  } catch {
+    // unresolvable from this parent
   }
   return null;
 }
 
-function ensureRealDep(dep: string): void {
+// Full Next runtime closure: Map dep -> source dir. BFS from the web root so
+// every transitive dep resolves relative to its actual dependent.
+function runtimeClosure(): Map<string, string> {
+  const found = new Map<string, string>();
+  const webPkgJson = path.join(webDir, "package.json");
+  const queue: Array<{ dep: string; from: string }> = [
+    { dep: "react", from: webPkgJson },
+    { dep: "react-dom", from: webPkgJson },
+    { dep: "next", from: webPkgJson },
+  ];
+  while (queue.length > 0) {
+    const next = queue.pop();
+    if (!next || found.has(next.dep)) continue;
+    const { dep, from } = next;
+    const src = resolvePkgDir(dep, from);
+    if (!src) {
+      console.warn(`[copy-static] could not locate ${dep} (required by ${from}), skipping`);
+      continue;
+    }
+    found.set(dep, src);
+    let pkg: { dependencies?: Record<string, string> };
+    try {
+      pkg = JSON.parse(fs.readFileSync(path.join(src, "package.json"), "utf8")) as {
+        dependencies?: Record<string, string>;
+      };
+    } catch {
+      continue;
+    }
+    for (const sub of Object.keys(pkg.dependencies ?? {})) {
+      if (!found.has(sub)) queue.push({ dep: sub, from: path.join(src, "package.json") });
+    }
+  }
+  return found;
+}
+
+function ensureRealDep(dep: string, src: string): void {
   const target = path.join(standaloneModules, dep);
-  const src = findDepSrc(dep);
-  if (!src) return; // not installed under this manager, skip
   const targetStat = fs.lstatSync(target, { throwIfNoEntry: false });
   if (targetStat?.isSymbolicLink()) {
     // Broken or valid link -> replace with real copy for Electron/Docker.
@@ -151,23 +175,28 @@ function ensureRealDep(dep: string): void {
     fs.unlinkSync(target);
   }
   if (!fs.existsSync(target)) {
-    console.log(`[copy-static] copying hoisted ${dep} to standalone/node_modules/${dep}`);
+    console.log(`[copy-static] copying ${dep} to standalone/node_modules/${dep}`);
     copyDir(src, target);
   }
 }
+
+const closure = runtimeClosure();
 
 // 2a. Repair any broken symlink Next tracing left behind (pnpm layout).
 for (const entry of fs.readdirSync(standaloneModules, { withFileTypes: true })) {
   if (!entry.isSymbolicLink()) continue;
   const full = path.join(standaloneModules, entry.name);
-  if (!fs.existsSync(full)) {
-    console.log(`[copy-static] found broken symlink: ${entry.name}`);
-    ensureRealDep(entry.name);
+  if (fs.existsSync(full)) continue;
+  console.log(`[copy-static] found broken symlink: ${entry.name}`);
+  const src = closure.get(entry.name);
+  if (!src) {
+    console.warn(`[copy-static] no source found for ${entry.name}, leaving as-is`);
+    continue;
   }
+  ensureRealDep(entry.name, src);
 }
 
-// 2b. Ensure essentials + Next runtime closure as real dirs (npm flat + pnpm).
-// 2b. Ensure essentials + full runtime closure as real dirs (npm flat + pnpm).
-for (const dep of runtimeClosure()) ensureRealDep(dep);
+// 2b. Ensure full runtime closure as real dirs (npm flat + pnpm).
+for (const [dep, src] of closure) ensureRealDep(dep, src);
 
 console.log("[copy-static] static assets and standalone dependencies ready");
