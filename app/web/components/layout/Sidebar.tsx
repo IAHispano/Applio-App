@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { version as appVersion } from "../../package.json";
 import { useI18n } from "../../lib/i18n";
 import { NAV_SECTIONS } from "./nav";
 
@@ -26,7 +27,7 @@ export default function Sidebar() {
             Applio
           </span>
           <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-white/10 text-neutral-400 border border-white/5">
-            v3.6.4
+            v{appVersion}
           </span>
         </Link>
       </div>
