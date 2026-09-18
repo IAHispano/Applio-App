@@ -46,6 +46,9 @@ export type UpdateState =
   | { status: "dev-mode"; message: string };
 
 let currentUpdateState: UpdateState = { status: "idle" };
+// Version the "ready to install" prompt was already shown for (per session).
+// Prevents stacked duplicate dialogs when `update-downloaded` fires twice.
+let updatePromptVersion: string | null = null;
 
 function repoRoot(): string {
   if (process.env.APPLIO_ROOT && fs.existsSync(process.env.APPLIO_ROOT)) {
@@ -531,6 +534,12 @@ function initAutoUpdater(): void {
             : undefined,
     };
     notifyUpdateState();
+
+    // One prompt per version: `update-downloaded` can fire more than once
+    // (background check + manual "Check for Updates"), and without this guard
+    // the user gets stacked duplicate dialogs.
+    if (updatePromptVersion === info.version) return;
+    updatePromptVersion = info.version;
 
     const nativeIcon = appNativeIcon();
     if (mainWindow && !mainWindow.isDestroyed()) {
