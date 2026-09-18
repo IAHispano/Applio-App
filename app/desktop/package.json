@@ -10,9 +10,9 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dev": "pnpm build && electron .",
-    "dist:win": "pnpm build && electron-builder --win",
-    "dist:mac": "pnpm build && electron-builder --mac",
-    "dist:linux": "pnpm build && electron-builder --linux"
+    "dist:win": "pnpm build && electron-builder --win --publish never",
+    "dist:mac": "pnpm build && electron-builder --mac --publish never",
+    "dist:linux": "pnpm build && electron-builder --linux --publish never"
   },
   "devDependencies": {
     "electron": "33.2.1",
