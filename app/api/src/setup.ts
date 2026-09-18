@@ -108,8 +108,14 @@ export async function findPython(): Promise<PythonInfo | null> {
   const candidates: Array<{ cmd: string[]; source: string }> = [];
   if (process.env.PYTHON_BIN) candidates.push({ cmd: [process.env.PYTHON_BIN], source: "PYTHON_BIN" });
   if (process.platform === "win32") {
-    candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.real.exe")], source: "app .venv (real)" });
-    candidates.push({ cmd: [path.join(root, "env", "Scripts", "python.real.exe")], source: "app env/ (real)" });
+    candidates.push({
+      cmd: [path.join(root, ".venv", "Scripts", "python.real.exe")],
+      source: "app .venv (real)",
+    });
+    candidates.push({
+      cmd: [path.join(root, "env", "Scripts", "python.real.exe")],
+      source: "app env/ (real)",
+    });
     candidates.push({ cmd: [path.join(root, "env", "python.exe")], source: "app env/" });
     candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.exe")], source: "app .venv" });
     candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
