@@ -1,8 +1,8 @@
 {
   "name": "@applio/api",
-  "version": "3.6.4",
+  "version": "0.0.2",
   "private": true,
-  "description": "Applio Express.js API gateway \u2014 orchestrates the Python RVC engine (rvc/ + core.py)",
+  "description": "Applio Express.js API gateway — orchestrates the Python RVC engine (rvc/ + core.py)",
   "type": "commonjs",
   "main": "dist/index.js",
   "scripts": {
