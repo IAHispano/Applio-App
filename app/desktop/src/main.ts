@@ -340,51 +340,160 @@ async function reportBootFailure(): Promise<"retry" | "quit"> {
   }
 }
 
-async function waitFor(url: string, tries = 60, onTick?: (n: number) => void): Promise<boolean> {
-  for (let i = 0; i < tries; i++) {
+async function waitFor(
+  url: string,
+  timeoutSeconds = 60,
+  onTick?: (progressRatio: number) => void,
+  intervalMs = 150,
+): Promise<boolean> {
+  const maxAttempts = Math.max(1, Math.floor((timeoutSeconds * 1000) / intervalMs));
+  for (let i = 0; i < maxAttempts; i++) {
     try {
       const r = await fetch(url);
       if (r.ok) return true;
     } catch {
       /* not up yet */
     }
-    onTick?.(i + 1);
-    await new Promise((r) => setTimeout(r, 1000));
+    onTick?.(i / maxAttempts);
+    await new Promise((r) => setTimeout(r, intervalMs));
   }
   return false;
 }
 
-const SPLASH_HTML = `data:text/html,${encodeURIComponent(`<!doctype html>
-<html><head><meta charset="utf-8"><style>
-html,body{margin:0;height:100%;background:#0a0a0a;color:#e7e5e4;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;user-select:none}
-.wrap{text-align:center;width:280px;padding:20px}
-.brand{font-size:28px;font-weight:700;letter-spacing:-0.02em;margin-bottom:24px;color:#ffffff}
-.track{width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:999px;overflow:hidden;margin-bottom:14px;position:relative}
-.bar{height:100%;width:15%;background:#ffffff;border-radius:999px;transition:width 0.4s cubic-bezier(0.4, 0, 0.2, 1)}
-#st{font-size:12px;color:#a3a3a3;min-height:18px;letter-spacing:0.01em}
-</style></head><body><div class="wrap">
-<div class="brand">Applio</div>
-<div class="track"><div id="pb" class="bar"></div></div>
-<div id="st">Starting…</div>
-</div></body></html>`)}`;
+function getSplashHtml(version: string): string {
+  const html = `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.18s ease-out;
+}
+.card {
+  width: 320px;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.title {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  color: #f5f5f5;
+  line-height: 1;
+}
+.badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: #a3a3a3;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.3;
+}
+#pct {
+  font-size: 11px;
+  color: #a3a3a3;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+}
+.bar {
+  height: 100%;
+  width: 15%;
+  background: #ffffff;
+  border-radius: 999px;
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+#st {
+  font-size: 12px;
+  color: #a3a3a3;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="brand">
+        <span class="title">Applio</span>
+        <span class="badge">v${version}</span>
+      </div>
+      <span id="pct">15%</span>
+    </div>
+    <div class="track">
+      <div id="pb" class="bar"></div>
+    </div>
+    <div id="st">Starting…</div>
+  </div>
+</body>
+</html>`;
+  return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
+}
 
 function showSplash(): void {
   if (splash && !splash.isDestroyed()) return;
   const icon = appIconPath();
+  const version = app.getVersion();
   splash = new BrowserWindow({
-    width: 420,
-    height: 320,
+    width: 380,
+    height: 180,
     resizable: false,
     minimizable: false,
     maximizable: false,
     frame: false,
+    transparent: true,
     center: true,
-    show: true,
-    backgroundColor: "#0a0a0a",
+    show: false,
+    backgroundColor: "#00000000",
+    hasShadow: false,
+    skipTaskbar: false,
     ...(icon ? { icon } : {}),
     webPreferences: { contextIsolation: true, nodeIntegration: false },
   });
-  void splash.loadURL(SPLASH_HTML);
+  void splash.loadURL(getSplashHtml(version));
+  splash.once("ready-to-show", () => {
+    splash?.show();
+  });
   splash.on("closed", () => {
     splash = null;
   });
@@ -393,9 +502,10 @@ function showSplash(): void {
 function setSplashStatus(text: string, percent?: number): void {
   if (!splash || splash.isDestroyed()) return;
   const esc = text.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\n/g, " ");
+  const clamped = typeof percent === "number" ? Math.max(0, Math.min(100, Math.round(percent))) : null;
   const progJs =
-    typeof percent === "number"
-      ? `var p=document.getElementById('pb');if(p)p.style.width='${Math.max(0, Math.min(100, percent))}%';`
+    clamped !== null
+      ? `var p=document.getElementById('pb');if(p)p.style.width='${clamped}%';var pc=document.getElementById('pct');if(pc)pc.textContent='${clamped}%';`
       : "";
   void splash.webContents
     .executeJavaScript(
@@ -405,12 +515,30 @@ function setSplashStatus(text: string, percent?: number): void {
 }
 
 function closeSplash(): void {
-  try {
-    splash?.close();
-  } catch {
-    /* already gone */
+  if (!splash || splash.isDestroyed()) {
+    splash = null;
+    return;
   }
+  const s = splash;
   splash = null;
+  try {
+    void s.webContents
+      .executeJavaScript(`document.body.style.opacity = '0';`)
+      .catch(() => {});
+    setTimeout(() => {
+      try {
+        if (!s.isDestroyed()) s.close();
+      } catch {
+        /* ignore */
+      }
+    }, 180);
+  } catch {
+    try {
+      if (!s.isDestroyed()) s.close();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 interface SavedWindowState {
@@ -418,6 +546,7 @@ interface SavedWindowState {
   height: number;
   x?: number;
   y?: number;
+  isMaximized?: boolean;
 }
 
 function windowStatePath(): string {
@@ -437,7 +566,11 @@ function loadWindowState(): SavedWindowState | null {
     ) {
       return null;
     }
-    const state: SavedWindowState = { width: Math.round(raw.width), height: Math.round(raw.height) };
+    const state: SavedWindowState = {
+      width: Math.round(raw.width),
+      height: Math.round(raw.height),
+      isMaximized: typeof raw.isMaximized === "boolean" ? raw.isMaximized : false,
+    };
     if (typeof raw.x === "number" && typeof raw.y === "number") {
       state.x = Math.round(raw.x);
       state.y = Math.round(raw.y);
@@ -451,9 +584,22 @@ function loadWindowState(): SavedWindowState | null {
 function saveWindowState(): void {
   try {
     if (!mainWindow || mainWindow.isDestroyed()) return;
+    const isMax = mainWindow.isMaximized();
+    if (isMax) {
+      const existing = loadWindowState();
+      const state: SavedWindowState = {
+        width: existing?.width ?? 1280,
+        height: existing?.height ?? 860,
+        x: existing?.x,
+        y: existing?.y,
+        isMaximized: true,
+      };
+      fs.writeFileSync(windowStatePath(), JSON.stringify(state));
+      return;
+    }
     const [width, height] = mainWindow.getSize();
     const [x, y] = mainWindow.getPosition();
-    const state: SavedWindowState = { width, height, x, y };
+    const state: SavedWindowState = { width, height, x, y, isMaximized: false };
     fs.writeFileSync(windowStatePath(), JSON.stringify(state));
   } catch {
     /* non-fatal */
@@ -614,11 +760,33 @@ async function createWindow(): Promise<void> {
   showSplash();
 
   if (isDev) {
-    setSplashStatus("Starting dev server…", 15);
-    const ok = await waitFor(WEB_URL, 60, (n) =>
-      setSplashStatus(`Starting dev server…`, 15 + Math.min(30, Math.round((n / 60) * 30))),
-    );
-    if (!ok) {
+    setSplashStatus("Connecting to dev environment…", 15);
+    const apiHealthUrl = `http://127.0.0.1:${API_PORT}/api/health`;
+
+    let webDone = false;
+    let apiDone = false;
+
+    const [webOk] = await Promise.all([
+      waitFor(WEB_URL, 60, (ratio) => {
+        if (!webDone && !apiDone) {
+          setSplashStatus("Starting dev server…", 15 + Math.round(ratio * 35));
+        }
+      }).then((res) => {
+        webDone = true;
+        if (res && !apiDone) setSplashStatus("Dev server ready, waiting for engine…", 55);
+        return res;
+      }),
+      waitFor(apiHealthUrl, 60, (ratio) => {
+        if (webDone && !apiDone) {
+          setSplashStatus("Starting engine…", 55 + Math.round(ratio * 30));
+        }
+      }).then((res) => {
+        apiDone = true;
+        return res;
+      }),
+    ]);
+
+    if (!webOk) {
       closeSplash();
       console.error(`[electron] dev server at ${WEB_URL} did not respond within 60s`);
       const nativeIcon = appNativeIcon();
@@ -633,15 +801,8 @@ async function createWindow(): Promise<void> {
       return;
     }
 
-    // Wait for the backend API engine so the user never has to wait after the app window opens
-    setSplashStatus("Starting engine…", 50);
-    const apiHealthUrl = `http://127.0.0.1:${API_PORT}/api/health`;
-    await waitFor(apiHealthUrl, 60, (n) =>
-      setSplashStatus(`Starting engine…`, 50 + Math.min(30, Math.round((n / 60) * 30))),
-    );
-
     // Preload & prime engine data
-    setSplashStatus("Loading Applio…", 85);
+    setSplashStatus("Loading Applio…", 88);
     await Promise.all([
       fetch(`http://127.0.0.1:${API_PORT}/api/setup/status`).catch(() => {}),
       fetch(`http://127.0.0.1:${API_PORT}/api/models`).catch(() => {}),
@@ -657,14 +818,14 @@ async function createWindow(): Promise<void> {
       const webHealthUrl = `http://127.0.0.1:${WEB_PORT}/`;
 
       const [webOk] = await Promise.all([
-        waitFor(webHealthUrl, 60, (n) =>
-          setSplashStatus(`Starting Applio…`, 20 + Math.min(45, Math.round((n / 60) * 45))),
+        waitFor(webHealthUrl, 60, (ratio) =>
+          setSplashStatus(`Starting Applio…`, 20 + Math.min(65, Math.round(ratio * 65))),
         ),
         waitFor(apiHealthUrl, 60),
       ]);
 
       if (webOk) {
-        setSplashStatus("Loading Applio…", 85);
+        setSplashStatus("Loading Applio…", 88);
         await Promise.all([
           fetch(`http://127.0.0.1:${API_PORT}/api/setup/status`).catch(() => {}),
           fetch(`http://127.0.0.1:${API_PORT}/api/models`).catch(() => {}),
@@ -725,6 +886,9 @@ async function createWindow(): Promise<void> {
     setSplashStatus("Ready!", 100);
     setTimeout(() => {
       closeSplash();
+      if (saved?.isMaximized) {
+        mainWindow?.maximize();
+      }
       mainWindow?.show();
       mainWindow?.focus();
     }, 120);
@@ -811,6 +975,12 @@ ipcMain.on("window:toggle-maximize", (event) => {
   }
 });
 
+ipcMain.on("window:toggle-fullscreen", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  if (!win) return;
+  win.setFullScreen(!win.isFullScreen());
+});
+
 ipcMain.on("window:close", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   win?.close();
@@ -819,6 +989,11 @@ ipcMain.on("window:close", (event) => {
 ipcMain.handle("window:is-maximized", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   return win?.isMaximized() ?? false;
+});
+
+ipcMain.handle("window:is-fullscreen", (event) => {
+  const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+  return win?.isFullScreen() ?? false;
 });
 
 // One instance at a time: a second launch focuses the running window instead

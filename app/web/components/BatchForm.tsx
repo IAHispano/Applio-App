@@ -152,7 +152,7 @@ export default function BatchForm() {
             {t("Converts every supported audio file in the input folder (server-side paths).")}
           </p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <label htmlFor="batch-input-folder" className="text-xs font-medium text-neutral-300">
               {t("Input Folder (server path)")}
@@ -241,7 +241,7 @@ export default function BatchForm() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           <SliderField
             id="batch-pitch"
             label={t("Pitch Shift (Semitones)")}

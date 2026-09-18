@@ -57,7 +57,7 @@ export default function PluginsPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Plugins")}
         description={t("Manage installed plugins and extend Applio with custom functionality.")}
@@ -141,7 +141,7 @@ export default function PluginsPage() {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-xl">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-2xl 2xl:max-w-3xl">
           <input
             id="plugin-file-input"
             type="file"

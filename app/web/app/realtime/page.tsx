@@ -360,7 +360,7 @@ export default function RealtimePage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Realtime")}
         description={t(
@@ -435,7 +435,7 @@ export default function RealtimePage() {
             )}
           </p>
         </div>
-        <div className="grid2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <label htmlFor="rt-model">{t("Voice Model")}</label>
             <input
@@ -643,7 +643,7 @@ export default function RealtimePage() {
               {t("Clean Audio")}
             </label>
           </div>
-          <div className="grid2" style={{ marginTop: 8 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginTop: 8 }}>
             <div>
               <SliderField
                 id="rt-autotune-strength"
@@ -691,7 +691,7 @@ export default function RealtimePage() {
         </details>
         <details>
           <summary>{t("Latency / VAD / gains")}</summary>
-          <div className="grid2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
               <SliderField
                 id="rt-chunk-ms"
@@ -832,7 +832,7 @@ export default function RealtimePage() {
             {t("Records the converted stream server-side via the engine.")}
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
           <div>
             <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
             <input

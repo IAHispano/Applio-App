@@ -24,7 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body
-        className={`${inter.variable} bg-[#0a0a0a] text-neutral-200 overflow-hidden h-screen w-screen flex flex-col m-0 p-0`}
+        className={`${inter.variable} bg-[var(--bg)] text-[var(--text)] overflow-hidden h-screen w-screen flex flex-col m-0 p-0`}
       >
         <I18nProvider>
           <ThemeProvider>
@@ -40,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <main
                 id="main-content"
                 tabIndex={-1}
-                className="flex-1 min-h-0 min-w-0 overflow-y-auto px-3 sm:px-4 pt-5 pb-4 outline-none"
+                className="flex-1 min-h-0 min-w-0 overflow-y-auto px-3 sm:px-5 lg:px-6 2xl:px-8 pt-5 pb-4 outline-none"
               >
                 <PageTransition>{children}</PageTransition>
               </main>

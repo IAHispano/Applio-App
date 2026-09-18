@@ -360,7 +360,7 @@ export default function AudioWavePlayer({
   return (
     <section
       aria-label={`Audio Waveplayer: ${title || displayName}`}
-      className={`w-full bg-[#141414] border border-white/10 rounded-2xl p-4 my-2 backdrop-blur-md shadow-2xl space-y-3 transition-all ${className}`}
+      className={`w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 my-2 backdrop-blur-md shadow-2xl space-y-3 transition-all ${className}`}
     >
       {/* Audio element */}
       {/* biome-ignore lint/a11y/useMediaCaption: Audio waveform stream has no captions */}

@@ -103,6 +103,27 @@ function ensureGoogleFont(name: string): void {
 
 export function applyTheme(theme: ThemeFile): void {
   const root = document.documentElement;
+
+  // Clear all previously applied theme CSS variables so switching cleanly resets
+  for (const v of Object.values(COLOR_TO_VAR)) {
+    root.style.removeProperty(v);
+  }
+  for (const v of Object.values(RADIUS_TO_VAR)) {
+    root.style.removeProperty(v);
+  }
+  for (const v of Object.values(SHADOW_TO_VAR)) {
+    root.style.removeProperty(v);
+  }
+  root.style.removeProperty("--titlebar-bg");
+  root.style.removeProperty("--titlebar-close-bg");
+  root.style.removeProperty("--titlebar-close-text");
+  root.style.removeProperty("--font-display");
+  root.style.removeProperty("--font-sans");
+  root.style.removeProperty("--font-mono");
+  document.body.style.fontFamily = "";
+  root.dataset.themeMode = "dark";
+  root.style.colorScheme = "dark";
+
   for (const [key, value] of Object.entries(theme.colors || {})) {
     const v = COLOR_TO_VAR[key];
     if (v && typeof value === "string") root.style.setProperty(v, value);

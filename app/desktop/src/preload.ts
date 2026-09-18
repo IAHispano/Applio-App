@@ -3,8 +3,10 @@ import { contextBridge, ipcRenderer } from "electron";
 export interface WindowControls {
   minimize: () => void;
   toggleMaximize: () => void;
+  toggleFullscreen: () => void;
   close: () => void;
   isMaximized: () => Promise<boolean>;
+  isFullscreen: () => Promise<boolean>;
   onMaximizeChanged: (cb: (maximized: boolean) => void) => () => void;
 }
 
@@ -44,8 +46,10 @@ contextBridge.exposeInMainWorld("applio", {
   controls: {
     minimize: () => ipcRenderer.send("window:minimize"),
     toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),
+    toggleFullscreen: () => ipcRenderer.send("window:toggle-fullscreen"),
     close: () => ipcRenderer.send("window:close"),
     isMaximized: () => ipcRenderer.invoke("window:is-maximized"),
+    isFullscreen: () => ipcRenderer.invoke("window:is-fullscreen"),
     onMaximizeChanged: (cb: (maximized: boolean) => void) => {
       const listener = (_event: unknown, value: unknown) => cb(value === true);
       ipcRenderer.on("window:maximize-changed", listener);

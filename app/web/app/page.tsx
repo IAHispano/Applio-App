@@ -86,16 +86,37 @@ export default function Home() {
 
   if (!status) {
     return (
-      <div className="h-full flex items-center justify-center p-6">
-        <div className="flex flex-col items-center gap-4 text-neutral-400 w-full max-w-xs text-center">
-          <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden relative">
-            <div className="h-full bg-white rounded-full animate-pulse w-3/4" />
+      <div
+        role="status"
+        aria-live="polite"
+        className="h-full w-full min-h-[260px] flex flex-col items-center justify-center select-none p-6"
+      >
+        <div className="flex flex-col gap-3.5 p-5 rounded-2xl bg-[var(--panel)] border border-[var(--border)] max-w-xs w-full shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-semibold tracking-tight text-[var(--heading)]">
+              Applio
+            </span>
+            <span className="text-xs text-[var(--muted)] animate-pulse">
+              {t("Connecting…")}
+            </span>
           </div>
-          <span className="text-xs font-medium text-neutral-300">{t("Connecting to engine…")}</span>
+
+          <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
+            <div className="loaderBar" />
+          </div>
+
+          <span className="text-xs text-[var(--muted)]">
+            {t("Connecting to engine…")}
+          </span>
+
           {error && (
-            <div className="text-center mt-2">
+            <div className="text-center mt-2 w-full">
               <p className="text-xs text-red-400 mb-2">{error}</p>
-              <button type="button" className="ghost text-xs py-1 px-3" onClick={() => refresh(true)}>
+              <button
+                type="button"
+                className="ghost text-xs py-1.5 px-4 w-full"
+                onClick={() => refresh(true)}
+              >
                 {t("Retry Connection")}
               </button>
             </div>
@@ -110,7 +131,7 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto flex flex-col gap-6">
+    <div className="w-full max-w-[1920px] mx-auto flex flex-col gap-6">
       {/* Applio Header Card */}
       <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02] p-6 sm:p-7">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
@@ -298,7 +319,7 @@ export default function Home() {
         )}
 
         {showDetails && (
-          <div className="border-t border-white/5 p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
+          <div className="border-t border-white/5 p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5">
             {status.checks.map((c) => {
               const isOk = c.status === "ok";
               const isWarn = c.status === "warn";

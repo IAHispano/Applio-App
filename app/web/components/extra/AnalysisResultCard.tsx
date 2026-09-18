@@ -113,7 +113,7 @@ export default function AnalysisResultCard({ jobId, title, type }: AnalysisResul
             <img
               src={outputUrl(out)}
               alt={`${title} visualization`}
-              className="w-full h-auto rounded-lg object-contain max-h-[480px]"
+              className="w-full h-auto rounded-lg object-contain max-h-[520px] 2xl:max-h-[720px]"
             />
           </div>
 

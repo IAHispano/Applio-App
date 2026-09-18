@@ -328,7 +328,7 @@ export default function InferenceForm() {
   const isConverting = Boolean(submitting || (job && job.status !== "done" && job.status !== "error"));
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 max-w-7xl mx-auto">
+    <form onSubmit={onSubmit} className="space-y-4 w-full max-w-[1920px] mx-auto">
       {loadError && (
         <div className="card">
           <strong className="text-white">{t("API offline.")}</strong>{" "}
@@ -340,8 +340,8 @@ export default function InferenceForm() {
 
       {/* Top Grid: Model & Audio Input */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-        {/* Voice Model Selector (5 cols) */}
-        <div className="lg:col-span-5 space-y-4 h-full">
+        {/* Voice Model Selector (5 cols, 4 on 2xl) */}
+        <div className="lg:col-span-5 2xl:col-span-4 space-y-4 h-full">
           <div className="card space-y-4 h-full flex flex-col">
             <div className="border-b border-white/10 pb-3.5 space-y-1">
               <div className="flex items-center justify-between">
@@ -482,8 +482,8 @@ export default function InferenceForm() {
           </div>
         </div>
 
-        {/* Audio Input & Drag & Drop Zone (7 cols) */}
-        <div className="lg:col-span-7 space-y-4 h-full">
+        {/* Audio Input & Drag & Drop Zone (7 cols, 8 on 2xl) */}
+        <div className="lg:col-span-7 2xl:col-span-8 space-y-4 h-full">
           <div className="card space-y-4 h-full">
             <div className="border-b border-white/10 pb-3.5 space-y-1">
               <div className="flex items-center justify-between">
@@ -541,8 +541,8 @@ export default function InferenceForm() {
           </p>
         </div>
 
-        {/* 4 Core Voice Sliders (2x2 Grid) */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           {/* Pitch Shift with Quick Octave Buttons */}
           <div className="space-y-2">
             <SliderField

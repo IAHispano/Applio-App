@@ -82,7 +82,7 @@ export default function ReportPage() {
     : "";
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Report a Bug")}
         description={t("Collect system diagnostics, record screen logs, and submit issue reports to GitHub.")}

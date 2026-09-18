@@ -1,11 +1,97 @@
 "use client";
 
-import { Activity, Cpu, Palette, Power, RefreshCw, Save, Sliders } from "lucide-react";
+import { Activity, Check, Cpu, Palette, Power, RefreshCw, Sliders } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import SliderField from "../../components/ui/SliderField";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { applyTheme, type ThemeFile } from "../../lib/theme";
+
+interface ThemePreset {
+  id: string;
+  name: string;
+  subtitle: string;
+  bg: string;
+  surface: string;
+  accent: string;
+  border?: string;
+}
+
+const THEME_PRESETS: ThemePreset[] = [
+  {
+    id: "",
+    name: "Default",
+    subtitle: "Dark Slate",
+    bg: "#0a0a0a",
+    surface: "#141414",
+    accent: "#ffffff",
+    border: "rgba(255, 255, 255, 0.12)",
+  },
+  {
+    id: "applio.json",
+    name: "OG",
+    subtitle: "Classic Applio",
+    bg: "#110f0f",
+    surface: "#262626",
+    accent: "#9e9e9e",
+    border: "#404040",
+  },
+  {
+    id: "midnight.json",
+    name: "Midnight",
+    subtitle: "Navy & Cyan",
+    bg: "#0b0f19",
+    surface: "#131c2e",
+    accent: "#38bdf8",
+    border: "#1e293b",
+  },
+  {
+    id: "cyberpunk.json",
+    name: "Cyberpunk",
+    subtitle: "Neon Magenta",
+    bg: "#0d0221",
+    surface: "#1d0838",
+    accent: "#f43f5e",
+    border: "#31115e",
+  },
+  {
+    id: "emerald.json",
+    name: "Emerald",
+    subtitle: "Botanical Jade",
+    bg: "#05140f",
+    surface: "#0c2b21",
+    accent: "#10b981",
+    border: "#134233",
+  },
+  {
+    id: "amethyst.json",
+    name: "Amethyst",
+    subtitle: "Obsidian Violet",
+    bg: "#0e0918",
+    surface: "#1e1333",
+    accent: "#a855f7",
+    border: "#2e1e4f",
+  },
+  {
+    id: "sunset.json",
+    name: "Sunset",
+    subtitle: "Espresso & Amber",
+    bg: "#140c06",
+    surface: "#29190d",
+    accent: "#f59e0b",
+    border: "#3d2514",
+  },
+  {
+    id: "crimson.json",
+    name: "Crimson",
+    subtitle: "Ruby Obsidian",
+    bg: "#140709",
+    surface: "#290f13",
+    accent: "#ef4444",
+    border: "#3d171d",
+  },
+];
 
 interface AppConfig {
   model_index_filter?: boolean;
@@ -46,7 +132,7 @@ export default function SettingsPage() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [langs, setLangs] = useState<Array<{ code: string; name: string }>>([]);
   const [themes, setThemes] = useState<
-    Array<{ id: string; name: string; description: string; example: boolean }>
+    Array<{ id: string; name: string; description: string; colors?: Record<string, string>; example: boolean }>
   >([]);
   const [ver, setVer] = useState<VersionCheck | null>(null);
   const [updaterState, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
@@ -66,7 +152,7 @@ export default function SettingsPage() {
       setLangs(named);
       try {
         const th = await apiGet<{
-          themes: Array<{ id: string; name: string; description: string; example: boolean }>;
+          themes: Array<{ id: string; name: string; description: string; colors?: Record<string, string>; example: boolean }>;
         }>("/api/settings/themes");
         setThemes(th.themes);
       } catch {
@@ -83,61 +169,7 @@ export default function SettingsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    load();
-    if (typeof window !== "undefined") {
-      const bridge = (
-        window as unknown as {
-          applio?: {
-            updater?: {
-              getStatus: () => Promise<DesktopUpdaterState>;
-              onStatusChange: (cb: (s: DesktopUpdaterState) => void) => () => void;
-            };
-          };
-        }
-      ).applio;
-      if (bridge?.updater) {
-        bridge.updater
-          .getStatus()
-          .then((st) => {
-            if (st && st.status !== "idle") setUpdaterState(st);
-          })
-          .catch(() => {});
-        const unsub = bridge.updater.onStatusChange((st) => {
-          setUpdaterState(st);
-        });
-        return unsub;
-      }
-    }
-  }, [load]);
-
-  async function save(patch: unknown) {
-    setError("");
-    setSaved("");
-    try {
-      const r = await apiSend<{ config: AppConfig }>("/api/settings", "PUT", patch);
-      setCfg(r.config);
-      if (typeof (patch as Record<string, unknown>).lang !== "undefined") {
-        window.dispatchEvent(new Event("applio:language-changed"));
-      }
-      if (typeof (patch as Record<string, unknown>).discord_presence === "boolean") {
-        try {
-          const p = await apiSend<{ running: boolean }>("/api/settings/presence", "POST", {
-            enabled: (patch as Record<string, unknown>).discord_presence,
-          });
-          setPresenceRunning(p.running);
-        } catch (e) {
-          setError(errMsg(e));
-          return;
-        }
-      }
-      setSaved(t("Settings saved successfully."));
-    } catch (e) {
-      setError(errMsg(e));
-    }
-  }
-
-  async function checkVersion() {
+  const checkVersion = useCallback(async () => {
     setError("");
     const bridge =
       typeof window !== "undefined"
@@ -170,6 +202,62 @@ export default function SettingsPage() {
     } catch (e) {
       setVer({ error: errMsg(e) });
     }
+  }, []);
+
+  useEffect(() => {
+    load();
+    checkVersion();
+    if (typeof window !== "undefined") {
+      const bridge = (
+        window as unknown as {
+          applio?: {
+            updater?: {
+              getStatus: () => Promise<DesktopUpdaterState>;
+              onStatusChange: (cb: (s: DesktopUpdaterState) => void) => () => void;
+            };
+          };
+        }
+      ).applio;
+      if (bridge?.updater) {
+        bridge.updater
+          .getStatus()
+          .then((st) => {
+            if (st && st.status !== "idle") setUpdaterState(st);
+          })
+          .catch(() => {});
+        const unsub = bridge.updater.onStatusChange((st) => {
+          setUpdaterState(st);
+        });
+        return unsub;
+      }
+    }
+  }, [load, checkVersion]);
+
+  async function save(patch: unknown) {
+    setError("");
+    setSaved("");
+    try {
+      const r = await apiSend<{ config: AppConfig }>("/api/settings", "PUT", patch);
+      setCfg(r.config);
+      if (typeof (patch as Record<string, unknown>).lang !== "undefined") {
+        window.dispatchEvent(new Event("applio:language-changed"));
+      }
+      if (typeof (patch as Record<string, unknown>).discord_presence === "boolean") {
+        try {
+          const p = await apiSend<{ running: boolean }>("/api/settings/presence", "POST", {
+            enabled: (patch as Record<string, unknown>).discord_presence,
+          });
+          setPresenceRunning(p.running);
+        } catch (e) {
+          setError(errMsg(e));
+          return;
+        }
+      }
+      setSaved(t("Saved"));
+      setTimeout(() => setSaved(""), 2000);
+    } catch (e) {
+      setError(errMsg(e));
+    }
   }
 
   async function restartApi() {
@@ -185,7 +273,7 @@ export default function SettingsPage() {
 
   if (!cfg)
     return (
-      <div className="max-w-7xl mx-auto space-y-6">
+      <div className="w-full max-w-[1920px] mx-auto space-y-6">
         <div className="card">
           <p className="text-neutral-400">{t("Loading settings…")}</p>
           {error && <p className="text-neutral-300">{error}</p>}
@@ -201,8 +289,51 @@ export default function SettingsPage() {
     setCfg(next);
   };
 
+  const handleSelectTheme = async (themeId: string) => {
+    set(["theme", "file"], themeId);
+
+    // Instant DOM visual update
+    if (!themeId) {
+      applyTheme({ name: "Default", colors: {}, radius: {}, shadows: {} });
+    } else {
+      try {
+        const res = await apiGet<{ id: string; theme: ThemeFile }>(
+          `/api/settings/theme?file=${encodeURIComponent(themeId)}`,
+          { force: true },
+        );
+        if (res.theme) {
+          applyTheme(res.theme);
+        }
+      } catch (err) {
+        console.warn("Could not preview theme instantly:", err);
+      }
+    }
+
+    try {
+      await save({ theme: { file: themeId } });
+      window.dispatchEvent(new Event("applio:theme-changed"));
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  };
+
+  const customThemes: ThemePreset[] = themes
+    .filter((th) => !THEME_PRESETS.some((p) => p.id === th.id))
+    .map((th) => ({
+      id: th.id,
+      name: th.name,
+      subtitle: th.description ? th.description.slice(0, 24) : th.id.replace(/\.json$/, ""),
+      bg: th.colors?.background || "#111",
+      surface: th.colors?.surface || "#222",
+      accent: th.colors?.primary || "#3b82f6",
+      border: th.colors?.border || "rgba(255,255,255,0.12)",
+    }));
+
+  const allThemes = [...THEME_PRESETS, ...customThemes];
+  const selectedThemeFile = (cfg.theme as { file?: string } | undefined)?.file || "";
+
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Settings")}
         description={t("Configure application preferences, audio engine settings, precision, and language.")}
@@ -221,9 +352,10 @@ export default function SettingsPage() {
         <div
           role="status"
           aria-live="polite"
-          className="p-3.5 rounded-xl border border-white/10 text-white bg-white/10 text-sm"
+          className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl border border-[var(--border)] text-[var(--heading)] bg-[var(--surface)] backdrop-blur-md text-xs font-medium shadow-xl flex items-center gap-2"
         >
-          {saved}
+          <Check size={14} className="text-emerald-400" />
+          <span>{saved}</span>
         </div>
       )}
 
@@ -250,7 +382,11 @@ export default function SettingsPage() {
               id="settings-filter-checkbox"
               type="checkbox"
               checked={!!cfg.model_index_filter}
-              onChange={(e) => set(["model_index_filter"], e.target.checked)}
+              onChange={(e) => {
+                const v = e.target.checked;
+                set(["model_index_filter"], v);
+                save({ model_index_filter: v });
+              }}
             />
             <span>{t("Model & index filter box")}</span>
           </label>
@@ -263,7 +399,11 @@ export default function SettingsPage() {
               id="settings-discord-checkbox"
               type="checkbox"
               checked={!!cfg.discord_presence}
-              onChange={(e) => set(["discord_presence"], e.target.checked)}
+              onChange={(e) => {
+                const v = e.target.checked;
+                set(["discord_presence"], v);
+                save({ discord_presence: v });
+              }}
             />
             <span>{t("Discord Rich Presence")}</span>
             {presenceRunning !== null && (
@@ -273,7 +413,7 @@ export default function SettingsPage() {
             )}
           </label>
 
-          <div className="max-w-md pt-1">
+          <div className="max-w-md 2xl:max-w-lg pt-1">
             <label htmlFor="settings-lang" className="block text-xs font-medium text-neutral-300 mb-1.5">
               {t("Interface Language")} ({langs.length} {t("available")})
             </label>
@@ -281,12 +421,11 @@ export default function SettingsPage() {
               id="settings-lang"
               value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
               onChange={(e) => {
-                if (!e.target.value)
-                  setCfg({
-                    ...cfg,
-                    lang: { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" },
-                  });
-                else setCfg({ ...cfg, lang: { override: true, selected_lang: e.target.value } });
+                const nextLang = !e.target.value
+                  ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
+                  : { override: true, selected_lang: e.target.value };
+                setCfg({ ...cfg, lang: nextLang });
+                save({ lang: nextLang });
               }}
             >
               <option value="">{t("Language automatically detected…")}</option>
@@ -298,72 +437,88 @@ export default function SettingsPage() {
             </select>
           </div>
         </div>
-
-        <div className="pt-3.5 border-t border-white/5 flex items-center justify-end">
-          <button
-            type="button"
-            className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-            onClick={() =>
-              save({
-                model_index_filter: cfg.model_index_filter,
-                discord_presence: cfg.discord_presence,
-                lang: cfg.lang,
-              })
-            }
-          >
-            <Save size={14} className="shrink-0" />
-            <span>{t("Save General")}</span>
-          </button>
-        </div>
       </div>
 
       {/* 2. Appearance & Themes */}
       <div className="card space-y-4">
         <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Palette size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("Appearance & Themes")}</h2>
-            </div>
+          <div className="flex items-center gap-2">
+            <Palette size={18} className="text-white shrink-0" />
+            <h2 className="text-base font-bold text-white m-0">{t("Appearance & Themes")}</h2>
           </div>
           <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Customize visual theme styling from assets/themes/ or load custom theme palettes.")}
+            {t("Choose your visual palette. Clicking any theme immediately transforms the interface.")}
           </p>
         </div>
 
-        <div className="max-w-md">
-          <label htmlFor="settings-theme" className="block text-xs font-medium text-neutral-300 mb-1.5">
-            {t("Theme")}
-          </label>
-          <select
-            id="settings-theme"
-            value={(cfg.theme as { file?: string } | undefined)?.file || ""}
-            onChange={(e) => set(["theme", "file"], e.target.value)}
-          >
-            <option value="">{t("Default")}</option>
-            {themes.map((th) => (
-              <option key={th.id} value={th.id}>
-                {th.name}
-                {th.description ? ` — ${th.description.slice(0, 60)}` : ""}
-              </option>
-            ))}
-          </select>
-        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+            {allThemes.map((opt) => {
+              const isSelected = selectedThemeFile === opt.id;
+              return (
+                <button
+                  key={opt.id || "default"}
+                  type="button"
+                  onClick={() => handleSelectTheme(opt.id)}
+                  className={`group relative flex flex-col p-3 rounded-xl text-left transition-all duration-150 cursor-pointer !shadow-none ${
+                    isSelected
+                      ? "border-2 border-[var(--accent,#ffffff)] !bg-[var(--accent-soft,rgba(255,255,255,0.12))] ring-1 ring-[var(--accent,#ffffff)]/40"
+                      : "border border-white/10 hover:border-white/25 !bg-transparent hover:!bg-white/[0.04]"
+                  }`}
+                  aria-pressed={isSelected}
+                  title={`${opt.name} — ${opt.subtitle}`}
+                >
+                  {/* Clean 3-dot palette indicator preview */}
+                  <div className="flex items-center gap-1.5 mb-2.5 w-full">
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                      style={{ backgroundColor: opt.bg }}
+                      title={`Background: ${opt.bg}`}
+                    />
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                      style={{ backgroundColor: opt.surface }}
+                      title={`Surface: ${opt.surface}`}
+                    />
+                    <span
+                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                      style={{ backgroundColor: opt.accent }}
+                      title={`Accent: ${opt.accent}`}
+                    />
+                    {isSelected && (
+                      <span
+                        className="ml-auto w-4 h-4 rounded-full flex items-center justify-center shadow-xs shrink-0"
+                        style={{
+                          backgroundColor: opt.accent,
+                          color: opt.accent === "#ffffff" ? "#000000" : "#ffffff",
+                        }}
+                      >
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
+                  </div>
 
-        <div className="pt-3.5 border-t border-white/5 flex items-center justify-end">
-          <button
-            type="button"
-            className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-            onClick={() =>
-              save({ theme: { file: (cfg.theme as { file?: string } | undefined)?.file || "" } }).then(() =>
-                window.dispatchEvent(new Event("applio:theme-changed")),
-              )
-            }
-          >
-            <Save size={14} className="shrink-0" />
-            <span>{t("Save Appearance")}</span>
-          </button>
-        </div>
+                  {/* Theme text info */}
+                  <div className="flex items-center justify-between gap-1 w-full">
+                    <span
+                      className={`text-xs tracking-tight truncate ${
+                        isSelected ? "font-bold text-white" : "font-medium text-neutral-300 group-hover:text-white"
+                      }`}
+                    >
+                      {opt.name}
+                    </span>
+                    {isSelected && (
+                      <span className="text-[9px] font-bold text-[var(--accent,#ffffff)] uppercase tracking-wider shrink-0">
+                        {t("Active")}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-neutral-400 truncate mt-0.5 w-full">
+                    {opt.subtitle}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
       </div>
 
       {/* 3. Training Engine */}
@@ -393,6 +548,10 @@ export default function SettingsPage() {
               type="text"
               value={cfg.model_author || ""}
               onChange={(e) => set(["model_author"], e.target.value || null)}
+              onBlur={(e) => save({ model_author: e.target.value || null })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              }}
               placeholder="Applio"
             />
           </div>
@@ -403,7 +562,11 @@ export default function SettingsPage() {
             <select
               id="settings-precision"
               value={cfg.precision}
-              onChange={(e) => set(["precision"], e.target.value)}
+              onChange={(e) => {
+                const v = e.target.value;
+                set(["precision"], v);
+                save({ precision: v });
+              }}
             >
               {["fp32", "fp16", "bf16"].map((p) => (
                 <option key={p} value={p}>
@@ -412,17 +575,6 @@ export default function SettingsPage() {
               ))}
             </select>
           </div>
-        </div>
-
-        <div className="pt-3.5 border-t border-white/5 flex items-center justify-end">
-          <button
-            type="button"
-            className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-            onClick={() => save({ model_author: cfg.model_author, precision: cfg.precision })}
-          >
-            <Save size={14} className="shrink-0" />
-            <span>{t("Save Training")}</span>
-          </button>
         </div>
       </div>
 
@@ -449,7 +601,16 @@ export default function SettingsPage() {
               id="settings-rmvpe-enabled"
               type="checkbox"
               checked={!!cfg.rmvpe_high_register?.enabled}
-              onChange={(e) => set(["rmvpe_high_register", "enabled"], e.target.checked)}
+              onChange={(e) => {
+                const v = e.target.checked;
+                const next = {
+                  enabled: v,
+                  mode: cfg.rmvpe_high_register?.mode || "true_pitch",
+                  f0_ceil: cfg.rmvpe_high_register?.f0_ceil || 1250,
+                };
+                set(["rmvpe_high_register"], next);
+                save({ rmvpe_high_register: next });
+              }}
             />
             <span>{t("Enable High Register")}</span>
           </label>
@@ -465,7 +626,16 @@ export default function SettingsPage() {
               <select
                 id="settings-rmvpe-mode"
                 value={cfg.rmvpe_high_register?.mode}
-                onChange={(e) => set(["rmvpe_high_register", "mode"], e.target.value)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const next = {
+                    enabled: !!cfg.rmvpe_high_register?.enabled,
+                    mode: v,
+                    f0_ceil: cfg.rmvpe_high_register?.f0_ceil || 1250,
+                  };
+                  set(["rmvpe_high_register"], next);
+                  save({ rmvpe_high_register: next });
+                }}
               >
                 <option value="true_pitch">true_pitch</option>
                 <option value="fold">fold</option>
@@ -480,43 +650,70 @@ export default function SettingsPage() {
                 max={2000}
                 step={10}
                 unit="Hz"
-                onChange={(v) => set(["rmvpe_high_register", "f0_ceil"], v)}
+                onChange={(v) => {
+                  const next = {
+                    enabled: !!cfg.rmvpe_high_register?.enabled,
+                    mode: cfg.rmvpe_high_register?.mode || "true_pitch",
+                    f0_ceil: v,
+                  };
+                  set(["rmvpe_high_register"], next);
+                  save({ rmvpe_high_register: next });
+                }}
               />
             </div>
           </div>
-        </div>
-
-        <div className="pt-3.5 border-t border-white/5 flex items-center justify-end">
-          <button
-            type="button"
-            className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-            onClick={() => save({ rmvpe_high_register: cfg.rmvpe_high_register })}
-          >
-            <Save size={14} className="shrink-0" />
-            <span>{t("Save RMVPE")}</span>
-          </button>
         </div>
       </div>
 
       {/* 5. Version & Updates */}
       <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
+        <div className="border-b border-white/10 pb-3.5 flex items-center justify-between gap-4 flex-wrap">
+          <div className="space-y-1">
             <div className="flex items-center gap-2">
               <RefreshCw size={18} className="text-white shrink-0" />
               <h2 className="text-base font-bold text-white m-0">{t("Version & Updates")}</h2>
+              <span className="text-xs text-neutral-400 tabular-nums px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
+                v{cfg.version}
+              </span>
             </div>
-            <span className="text-xs text-neutral-400 tabular-nums px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-              v{cfg.version}
-            </span>
+            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
+              {t("Check for official Applio updates and apply package releases.")}
+            </p>
           </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Check for official Applio updates and apply package releases.")}
-          </p>
+
+          <div className="flex items-center gap-2">
+            {updaterState?.status === "downloaded" && (
+              <button
+                type="button"
+                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
+                onClick={() => {
+                  (
+                    window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
+                  ).applio?.updater?.quitAndInstall();
+                }}
+              >
+                <RefreshCw size={14} className="shrink-0" />
+                <span>{t("Restart and Update")}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
+              onClick={checkVersion}
+              disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
+            >
+              <RefreshCw
+                size={14}
+                className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
+              />
+              <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
+            </button>
+          </div>
         </div>
 
         {/* Status display section */}
-        <div className="space-y-3">
+        <div className="space-y-3 pt-0.5">
           {updaterState && updaterState.status === "downloading" && (
             <div className="max-w-md space-y-1.5">
               <div className="flex justify-between text-xs text-neutral-400 tabular-nums">
@@ -571,49 +768,12 @@ export default function SettingsPage() {
               {ver.error || `${ver.latest} — ${ver.status}`}
             </p>
           )}
-        </div>
 
-        {/* Action row with clean breathing room */}
-        <div className="pt-3.5 border-t border-white/5 flex items-center justify-between gap-4 flex-wrap">
-          <div className="text-xs text-neutral-400">
-            {updaterState?.status === "downloaded" && (
-              <span>
-                {t("Update downloaded (v")}
-                {updaterState.version}
-                {")"}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            {updaterState?.status === "downloaded" && (
-              <button
-                type="button"
-                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-                onClick={() => {
-                  (
-                    window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
-                  ).applio?.updater?.quitAndInstall();
-                }}
-              >
-                <RefreshCw size={14} className="shrink-0" />
-                <span>{t("Restart and Update")}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
-              onClick={checkVersion}
-              disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
-            >
-              <RefreshCw
-                size={14}
-                className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
-              />
-              <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
-            </button>
-          </div>
+          {!updaterState && !ver && (
+            <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
+              {t("Checking for updates…")}
+            </p>
+          )}
         </div>
       </div>
 

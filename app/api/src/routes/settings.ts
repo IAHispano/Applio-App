@@ -343,22 +343,24 @@ router.get("/themes", (_req: Request, res: Response) => {
     const dir = themesDir();
     const entries: ThemeListEntry[] = fs
       .readdirSync(dir)
-      .filter((f) => f.endsWith(".json"))
+      .filter((f) => f.endsWith(".json") && !f.endsWith(".example.json"))
       .sort()
       .map((f) => {
         try {
           const raw = JSON.parse(fs.readFileSync(path.join(dir, f), "utf-8")) as {
             name?: string;
             description?: string;
+            colors?: Record<string, string>;
           };
           return {
             id: f,
             name: typeof raw.name === "string" && raw.name ? raw.name : f.replace(/\.json$/, ""),
             description: typeof raw.description === "string" ? raw.description : "",
+            colors: raw.colors || {},
             example: f.endsWith(".example.json"),
           };
         } catch {
-          return { id: f, name: f, description: "Invalid JSON — fix or remove this file.", example: false };
+          return { id: f, name: f, description: "Invalid JSON — fix or remove this file.", colors: {}, example: false };
         }
       });
     res.json({

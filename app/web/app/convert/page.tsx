@@ -16,7 +16,7 @@ export default function ConvertPage() {
   const { t } = useI18n();
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Convert")}
         description={t("Turn any voice into another — single file, batch folder, or text-to-speech.")}

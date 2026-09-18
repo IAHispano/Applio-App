@@ -151,7 +151,7 @@ export default function AudioPlayer({
   return (
     <section
       aria-label={`Audio Player: ${title || displayName}`}
-      className="w-full bg-[#171717]/95 border border-white/15 rounded-2xl p-4 my-3 backdrop-blur-md shadow-xl space-y-3"
+      className="w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 my-3 backdrop-blur-md shadow-xl space-y-3"
     >
       {/* Screen Reader polite status announcements */}
       <div className="sr-only" aria-live="polite" aria-atomic="true">

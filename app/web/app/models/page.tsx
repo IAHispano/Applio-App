@@ -159,7 +159,7 @@ export default function ModelsPage() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Voice Models")}
         description={t(
@@ -195,7 +195,7 @@ export default function ModelsPage() {
         <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" className="space-y-4">
           {/* Controls bar: Search, Refresh, Download CTA */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+            <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md 2xl:max-w-lg bg-white/5 border border-white/10 rounded-lg px-3 py-2">
               <Search size={16} className="text-neutral-400" aria-hidden="true" />
               <input
                 type="text"
@@ -270,7 +270,7 @@ export default function ModelsPage() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4">
               {filteredModels.map((m) => (
                 <div
                   key={m.id}

@@ -177,7 +177,7 @@ export default function TrainPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Training")}
         description={t(
@@ -210,7 +210,7 @@ export default function TrainPage() {
             {t("Define project identity and target compute device configuration.")}
           </p>
         </div>
-        <div className="grid2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label htmlFor="train-model-name">{t("Model Project Name")}</label>
             <input
@@ -295,7 +295,7 @@ export default function TrainPage() {
               ))}
             </div>
 
-            <div className="grid2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="pipeline-dataset-path">{t("Dataset Folder (in assets/datasets)")}</label>
                 <input
@@ -435,7 +435,7 @@ export default function TrainPage() {
                 {t("Slice, clean, and normalize raw dataset audio samples for model ingestion.")}
               </p>
             </div>
-            <div className="grid2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="prep-dataset-path">{t("Dataset (assets/datasets)")}</label>
                 <input
@@ -587,7 +587,7 @@ export default function TrainPage() {
                 {t("Extract pitch contours and speech representations with your chosen embedder.")}
               </p>
             </div>
-            <div className="grid2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="ext-pitch-method">{t("Pitch Method (F0)")}</label>
                 <select id="ext-pitch-method" value={f0Method} onChange={(e) => setF0Method(e.target.value)}>
@@ -677,7 +677,7 @@ export default function TrainPage() {
                 {t("Train generator and discriminator weights and compile the feature index.")}
               </p>
             </div>
-            <div className="grid2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label htmlFor="train-step-vocoder">{t("Vocoder")}</label>
                 <select id="train-step-vocoder" value={vocoder} onChange={(e) => pickVocoder(e.target.value)}>

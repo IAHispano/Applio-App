@@ -71,7 +71,7 @@ export default function ExtraPage() {
   const previewUrl = audio ? URL.createObjectURL(audio) : inputPath ? `/${inputPath}` : null;
 
   return (
-    <div className="max-w-7xl mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
         title={t("Extra Tools")}
         description={t(

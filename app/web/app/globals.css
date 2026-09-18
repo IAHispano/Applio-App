@@ -3,7 +3,7 @@
 :root {
   color-scheme: dark;
   --bg: #0a0a0a;
-  --panel: #1c1c1c;
+  --panel: #141414;
   --border: rgba(255, 255, 255, 0.1);
   --text: #e7e5e4;
   --muted: #a3a3a3;
@@ -264,6 +264,7 @@ a:focus-visible {
 
 .card {
   background: var(--surface);
+  color: var(--text);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
@@ -273,11 +274,25 @@ a:focus-visible {
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    box-shadow 0.2s ease,
+    color 0.2s ease;
   box-shadow: var(--shadow-card);
 }
 .card:last-child {
   margin-bottom: 0;
+}
+.card h1,
+.card h2,
+.card h3 {
+  color: var(--heading);
+}
+.card .border-white\/10,
+.card .border-white\/5,
+.card .border-white\/15 {
+  border-color: var(--border);
+}
+.card .text-neutral-400 {
+  color: var(--muted);
 }
 
 /* Page-end flush: nothing on a page's trailing spine may add margin below
