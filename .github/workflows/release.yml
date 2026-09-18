@@ -19,8 +19,11 @@ permissions:
   contents: write
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Shared with code_formatter.yml (same group name): serialize the two
+  # workflows per branch so the formatter's direct push can never race the
+  # version-bump push mid-release. Queue (false), never cancel a release.
+  group: applio-format-release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -144,6 +147,18 @@ jobs:
             echo "Versions already in sync."
           else
             git commit -m "chore(release): bump version to ${{ github.event.inputs.version }} [skip ci]"
+            # The checkout can lag behind main (e.g. the formatter bot
+            # pushed meanwhile), so rebase onto the latest remote state
+            # before pushing, retrying a few times. -Xtheirs keeps this
+            # release's version lines on the rare same-line conflict.
+            for i in 1 2 3; do
+              git fetch origin ${{ github.ref_name }} || { sleep 5; continue; }
+              if git rebase -Xtheirs "origin/${{ github.ref_name }}"; then
+                break
+              fi
+              git rebase --abort || true
+              sleep 5
+            done
             git push origin HEAD:${{ github.ref_name }}
           fi
 

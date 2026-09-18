@@ -15,6 +15,13 @@ on:
       - 'pnpm-workspace.yaml'
       - '.github/workflows/code_formatter.yml'
 
+# Shared with release.yml: the two workflows must never run at the same
+# time on the same branch (the formatter's direct push would race the
+# release's version-bump push). Queue instead of cancel.
+concurrency:
+  group: applio-format-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   format:
     runs-on: ubuntu-latest
