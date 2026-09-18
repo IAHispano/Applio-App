@@ -16,6 +16,12 @@ export function getPythonBin(): string {
   const venvCandidates =
     process.platform === "win32"
       ? [
+          // Staged real interpreter first (see ensureWindowsRealPython in
+          // setup.ts): the default venv shim re-execs without hidden-console
+          // flags and pops a visible terminal per process.
+          path.join(root, ".venv", "Scripts", "python.real.exe"),
+          path.join(root, "venv", "Scripts", "python.real.exe"),
+          path.join(root, "env", "Scripts", "python.real.exe"),
           path.join(root, ".venv", "Scripts", "python.exe"),
           path.join(root, "venv", "Scripts", "python.exe"),
           path.join(root, "env", "Scripts", "python.exe"),

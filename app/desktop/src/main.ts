@@ -266,6 +266,7 @@ function findPythonBin(): { path: string; source: string; exists: boolean } {
   }
   if (process.platform === "win32") {
     candidates.push(
+      { path: path.join(root, ".venv", "Scripts", "python.real.exe"), source: "bundled .venv (real)" },
       { path: path.join(root, ".venv", "Scripts", "python.exe"), source: "bundled .venv" },
       { path: path.join(root, "env", "python.exe"), source: "bundled env" },
     );

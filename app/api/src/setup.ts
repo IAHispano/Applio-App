@@ -108,6 +108,8 @@ export async function findPython(): Promise<PythonInfo | null> {
   const candidates: Array<{ cmd: string[]; source: string }> = [];
   if (process.env.PYTHON_BIN) candidates.push({ cmd: [process.env.PYTHON_BIN], source: "PYTHON_BIN" });
   if (process.platform === "win32") {
+    candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.real.exe")], source: "app .venv (real)" });
+    candidates.push({ cmd: [path.join(root, "env", "Scripts", "python.real.exe")], source: "app env/ (real)" });
     candidates.push({ cmd: [path.join(root, "env", "python.exe")], source: "app env/" });
     candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.exe")], source: "app .venv" });
     candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
@@ -378,6 +380,47 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   throw new Error(manual);
 }
 
+// Windows-only: a uv-created venv ships python.exe as a trampoline shim
+// that re-execs the base interpreter WITHOUT our hidden-console spawn
+// flags, popping a visible terminal for every engine process. Copy the
+// real base interpreter next to it (python.real.exe) and prefer that copy
+// for all our spawns. Safe to re-run: skips when already in place, warns
+// (never throws) when the venv python is busy.
+export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promise<string | null> {
+  if (process.platform !== "win32") return null;
+  const probe = path.join(venvDir, "Scripts", "python.exe");
+  const target = path.join(venvDir, "Scripts", "python.real.exe");
+  if (!exists(probe)) return null;
+  const note = (m: string) => {
+    if (job) appendLog(job, m);
+    else console.warn(`[setup] ${m}`);
+  };
+  try {
+    const r = await runCmd(probe, ["-c", "import sys; print(sys._base_executable)"], { timeoutMs: 30000 });
+    const base = (r.stdout.trim().split("\n").pop() || "").trim();
+    if (r.code !== 0 || !base || !exists(base)) return exists(target) ? target : null;
+    let stale = !exists(target);
+    if (!stale) {
+      try {
+        const [ts, bs] = [fs.statSync(target), fs.statSync(base)];
+        stale = ts.size !== bs.size || ts.mtimeMs < bs.mtimeMs - 1000;
+      } catch {
+        stale = true;
+      }
+    }
+    if (stale) {
+      note("Staging a real venv Python next to the launcher shim (stops popup terminals)…");
+      fs.copyFileSync(base, target);
+    }
+    return target;
+  } catch (err) {
+    note(
+      `Could not stage python.real.exe (${err instanceof Error ? err.message : err}); using venv python as-is.`,
+    );
+    return exists(target) ? target : null;
+  }
+}
+
 export function startInstall(): Job {
   if (activeInstallId) {
     const existing = getJob(activeInstallId);
@@ -395,15 +438,17 @@ export function startInstall(): Job {
       const found = await findPython();
       const sysPy: string[] = found ? found.cmd : await bootstrapSystemPython(job);
 
-      const venvPy =
-        process.platform === "win32"
-          ? path.join(root, ".venv", "Scripts", "python.exe")
-          : path.join(root, ".venv", "bin", "python");
+      let venvPy = venvPythonPath();
       if (!exists(venvPy)) {
         appendLog(job, "Creating app virtualenv (.venv)…");
         await streamRun(job, sysPy[0], [...sysPy.slice(1), "-m", "venv", path.join(root, ".venv")]);
       } else {
         appendLog(job, "App virtualenv already exists ✓");
+      }
+      if (process.platform === "win32") {
+        await ensureWindowsRealPython(path.join(root, ".venv"), job);
+        // Re-resolve: the staging step may have just created python.real.exe.
+        venvPy = venvPythonPath();
       }
 
       appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
@@ -501,9 +546,16 @@ export function startPrerequisites(py: string[] | null): Job {
   void (async () => {
     setRunning(job);
     try {
-      const exe = py
-        ? py[0]
-        : process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
+      if (!py && process.platform === "win32") {
+        await ensureWindowsRealPython(path.join(getRepoRoot(), ".venv"), job);
+      }
+      // Prefer the venv interpreter (staged real copy on win32) over a bare
+      // system python; keep the system fallback when no venv exists yet.
+      let exe = py ? py[0] : process.env.PYTHON_BIN || null;
+      if (!exe) {
+        const venvPy = venvPythonPath();
+        exe = exists(venvPy) ? venvPy : process.platform === "win32" ? "python" : "python3";
+      }
       const prefix = py ? py.slice(1) : [];
       await streamRun(job, exe, [
         ...prefix,
@@ -525,7 +577,12 @@ export function startPrerequisites(py: string[] | null): Job {
 
 export function venvPythonPath(): string {
   const root = getRepoRoot();
-  return process.platform === "win32"
-    ? path.join(root, ".venv", "Scripts", "python.exe")
-    : path.join(root, ".venv", "bin", "python");
+  if (process.platform === "win32") {
+    // Prefer the staged real interpreter (see ensureWindowsRealPython):
+    // the default venv shim re-execs without hidden-console flags.
+    const real = path.join(root, ".venv", "Scripts", "python.real.exe");
+    if (exists(real)) return real;
+    return path.join(root, ".venv", "Scripts", "python.exe");
+  }
+  return path.join(root, ".venv", "bin", "python");
 }

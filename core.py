@@ -17,6 +17,16 @@ logs_path = os.path.join(current_script_directory, "logs")
 python = sys.executable
 
 
+def run_quiet(command, **kwargs):
+    # The desktop app launches the engine hidden. On Windows, spawning a
+    # console-subsystem binary (python.exe, ffmpeg.exe, …) without
+    # CREATE_NO_WINDOW pops a visible terminal window, so set it here for
+    # every engine subprocess.
+    if os.name == "nt":
+        kwargs.setdefault("creationflags", getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    return subprocess.run(command, **kwargs)
+
+
 # Get TTS Voices -> https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=6A5AA1D4EAFF4E9FB37E23D68491D6F4
 @lru_cache(maxsize=1)  # Cache only one result since the file is static
 def load_voices_data():
@@ -350,7 +360,7 @@ def run_tts_script(
             ],
         ),
     ]
-    result = subprocess.run(command_tts, capture_output=True, text=True)
+    result = run_quiet(command_tts, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip())
     infer_pipeline = import_voice_converter()
@@ -432,7 +442,7 @@ def run_preprocess_script(
             ],
         ),
     ]
-    result = subprocess.run(command)
+    result = run_quiet(command)
     if result.returncode != 0:
         return f"Preprocessing failed for model {model_name}. Please check the console logs for more details."
 
@@ -471,7 +481,7 @@ def run_extract_script(
         ),
     ]
 
-    result = subprocess.run(command_1)
+    result = run_quiet(command_1)
     if result.returncode != 0:
         return f"Feature extraction failed for model {model_name}. Please check the console logs for more details."
 
@@ -486,7 +496,8 @@ def shutdown_after_training():
     if os_name == "win32":
         delay_seconds = 300
         shutdown_time = datetime.now() + timedelta(seconds=delay_seconds)
-        os.system(f"shutdown /s /t {delay_seconds}")
+        # run_quiet: os.system would flash a cmd window.
+        run_quiet(["shutdown", "/s", "/t", str(delay_seconds)])
 
     # MacOS
     elif os_name == "darwin":
@@ -586,7 +597,7 @@ def run_train_script(
             ],
         ),
     ]
-    result = subprocess.run(command)
+    result = run_quiet(command)
     if result.returncode != 0:
         return f"Training failed for model {model_name}. Please check the console logs for more details."
 
@@ -623,7 +634,7 @@ def run_index_script(model_name: str, index_algorithm: str):
         index_algorithm,
     ]
 
-    result = subprocess.run(command)
+    result = run_quiet(command)
     if result.returncode != 0:
         return f"Index generation failed for model {model_name}. Make sure you have enough GPU available to generate the Index file. Please check the console logs for more details."
 
