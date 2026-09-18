@@ -132,7 +132,13 @@ export default function SettingsPage() {
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [langs, setLangs] = useState<Array<{ code: string; name: string }>>([]);
   const [themes, setThemes] = useState<
-    Array<{ id: string; name: string; description: string; colors?: Record<string, string>; example: boolean }>
+    Array<{
+      id: string;
+      name: string;
+      description: string;
+      colors?: Record<string, string>;
+      example: boolean;
+    }>
   >([]);
   const [ver, setVer] = useState<VersionCheck | null>(null);
   const [updaterState, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
@@ -152,7 +158,13 @@ export default function SettingsPage() {
       setLangs(named);
       try {
         const th = await apiGet<{
-          themes: Array<{ id: string; name: string; description: string; colors?: Record<string, string>; example: boolean }>;
+          themes: Array<{
+            id: string;
+            name: string;
+            description: string;
+            colors?: Record<string, string>;
+            example: boolean;
+          }>;
         }>("/api/settings/themes");
         setThemes(th.themes);
       } catch {
@@ -452,73 +464,73 @@ export default function SettingsPage() {
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
-            {allThemes.map((opt) => {
-              const isSelected = selectedThemeFile === opt.id;
-              return (
-                <button
-                  key={opt.id || "default"}
-                  type="button"
-                  onClick={() => handleSelectTheme(opt.id)}
-                  className={`group relative flex flex-col p-3 rounded-xl text-left transition-all duration-150 cursor-pointer !shadow-none ${
-                    isSelected
-                      ? "border-2 border-[var(--accent,#ffffff)] !bg-[var(--accent-soft,rgba(255,255,255,0.12))] ring-1 ring-[var(--accent,#ffffff)]/40"
-                      : "border border-white/10 hover:border-white/25 !bg-transparent hover:!bg-white/[0.04]"
-                  }`}
-                  aria-pressed={isSelected}
-                  title={`${opt.name} — ${opt.subtitle}`}
-                >
-                  {/* Clean 3-dot palette indicator preview */}
-                  <div className="flex items-center gap-1.5 mb-2.5 w-full">
+          {allThemes.map((opt) => {
+            const isSelected = selectedThemeFile === opt.id;
+            return (
+              <button
+                key={opt.id || "default"}
+                type="button"
+                onClick={() => handleSelectTheme(opt.id)}
+                className={`group relative flex flex-col p-3 rounded-xl text-left transition-all duration-150 cursor-pointer !shadow-none ${
+                  isSelected
+                    ? "border-2 border-[var(--accent,#ffffff)] !bg-[var(--accent-soft,rgba(255,255,255,0.12))] ring-1 ring-[var(--accent,#ffffff)]/40"
+                    : "border border-white/10 hover:border-white/25 !bg-transparent hover:!bg-white/[0.04]"
+                }`}
+                aria-pressed={isSelected}
+                title={`${opt.name} — ${opt.subtitle}`}
+              >
+                {/* Clean 3-dot palette indicator preview */}
+                <div className="flex items-center gap-1.5 mb-2.5 w-full">
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                    style={{ backgroundColor: opt.bg }}
+                    title={`Background: ${opt.bg}`}
+                  />
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                    style={{ backgroundColor: opt.surface }}
+                    title={`Surface: ${opt.surface}`}
+                  />
+                  <span
+                    className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
+                    style={{ backgroundColor: opt.accent }}
+                    title={`Accent: ${opt.accent}`}
+                  />
+                  {isSelected && (
                     <span
-                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
-                      style={{ backgroundColor: opt.bg }}
-                      title={`Background: ${opt.bg}`}
-                    />
-                    <span
-                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
-                      style={{ backgroundColor: opt.surface }}
-                      title={`Surface: ${opt.surface}`}
-                    />
-                    <span
-                      className="w-3.5 h-3.5 rounded-full border border-white/20 shadow-xs shrink-0"
-                      style={{ backgroundColor: opt.accent }}
-                      title={`Accent: ${opt.accent}`}
-                    />
-                    {isSelected && (
-                      <span
-                        className="ml-auto w-4 h-4 rounded-full flex items-center justify-center shadow-xs shrink-0"
-                        style={{
-                          backgroundColor: opt.accent,
-                          color: opt.accent === "#ffffff" ? "#000000" : "#ffffff",
-                        }}
-                      >
-                        <Check size={10} strokeWidth={3} />
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Theme text info */}
-                  <div className="flex items-center justify-between gap-1 w-full">
-                    <span
-                      className={`text-xs tracking-tight truncate ${
-                        isSelected ? "font-bold text-white" : "font-medium text-neutral-300 group-hover:text-white"
-                      }`}
+                      className="ml-auto w-4 h-4 rounded-full flex items-center justify-center shadow-xs shrink-0"
+                      style={{
+                        backgroundColor: opt.accent,
+                        color: opt.accent === "#ffffff" ? "#000000" : "#ffffff",
+                      }}
                     >
-                      {opt.name}
+                      <Check size={10} strokeWidth={3} />
                     </span>
-                    {isSelected && (
-                      <span className="text-[9px] font-bold text-[var(--accent,#ffffff)] uppercase tracking-wider shrink-0">
-                        {t("Active")}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[11px] text-neutral-400 truncate mt-0.5 w-full">
-                    {opt.subtitle}
+                  )}
+                </div>
+
+                {/* Theme text info */}
+                <div className="flex items-center justify-between gap-1 w-full">
+                  <span
+                    className={`text-xs tracking-tight truncate ${
+                      isSelected
+                        ? "font-bold text-white"
+                        : "font-medium text-neutral-300 group-hover:text-white"
+                    }`}
+                  >
+                    {opt.name}
                   </span>
-                </button>
-              );
-            })}
-          </div>
+                  {isSelected && (
+                    <span className="text-[9px] font-bold text-[var(--accent,#ffffff)] uppercase tracking-wider shrink-0">
+                      {t("Active")}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] text-neutral-400 truncate mt-0.5 w-full">{opt.subtitle}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* 3. Training Engine */}

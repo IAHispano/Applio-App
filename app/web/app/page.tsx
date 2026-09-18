@@ -93,21 +93,15 @@ export default function Home() {
       >
         <div className="flex flex-col gap-3.5 p-5 rounded-2xl bg-[var(--panel)] border border-[var(--border)] max-w-xs w-full shadow-lg">
           <div className="flex items-center justify-between">
-            <span className="text-base font-semibold tracking-tight text-[var(--heading)]">
-              Applio
-            </span>
-            <span className="text-xs text-[var(--muted)] animate-pulse">
-              {t("Connecting…")}
-            </span>
+            <span className="text-base font-semibold tracking-tight text-[var(--heading)]">Applio</span>
+            <span className="text-xs text-[var(--muted)] animate-pulse">{t("Connecting…")}</span>
           </div>
 
           <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden relative">
             <div className="loaderBar" />
           </div>
 
-          <span className="text-xs text-[var(--muted)]">
-            {t("Connecting to engine…")}
-          </span>
+          <span className="text-xs text-[var(--muted)]">{t("Connecting to engine…")}</span>
 
           {error && (
             <div className="text-center mt-2 w-full">
