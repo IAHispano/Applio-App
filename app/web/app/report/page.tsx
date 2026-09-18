@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { Bug, Check, Copy, Cpu, Download, ExternalLink, Video } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import { apiGet, apiSend, errMsg, outputUrl } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";

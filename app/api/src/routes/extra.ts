@@ -93,7 +93,9 @@ router.post("/model-info", (req: Request, res: Response) => {
         return {
           result: {
             metadata: meta,
-            message: meta.model_name ? `Checkpoint "${meta.model_name}" analyzed successfully.` : "Model checkpoint analyzed.",
+            message: meta.model_name
+              ? `Checkpoint "${meta.model_name}" analyzed successfully.`
+              : "Model checkpoint analyzed.",
           },
         };
       },

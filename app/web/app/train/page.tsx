@@ -203,9 +203,7 @@ export default function TrainPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cpu size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">
-                {t("Model & Compute Hardware")}
-              </h2>
+              <h2 className="text-base font-bold text-white m-0">{t("Model & Compute Hardware")}</h2>
             </div>
           </div>
           <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -271,9 +269,7 @@ export default function TrainPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("1-Click Complete Pipeline")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("1-Click Complete Pipeline")}</h2>
                 </div>
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -432,9 +428,7 @@ export default function TrainPage() {
                     1
                   </span>
                   <Sliders size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Preprocess Dataset")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Preprocess Dataset")}</h2>
                 </div>
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -586,9 +580,7 @@ export default function TrainPage() {
                     2
                   </span>
                   <Activity size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Extract Features")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Extract Features")}</h2>
                 </div>
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -678,9 +670,7 @@ export default function TrainPage() {
                     3
                   </span>
                   <Flame size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Model Training")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Model Training")}</h2>
                 </div>
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -893,9 +883,7 @@ export default function TrainPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FolderUp size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">
-                  {t("Dataset & Checkpoint Uploads")}
-                </h2>
+                <h2 className="text-base font-bold text-white m-0">{t("Dataset & Checkpoint Uploads")}</h2>
               </div>
             </div>
             <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -930,9 +918,7 @@ export default function TrainPage() {
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <Download size={18} className="text-white" />
-            <h2 className="text-base font-bold text-white m-0">
-              {t("Export Model")}
-            </h2>
+            <h2 className="text-base font-bold text-white m-0">{t("Export Model")}</h2>
           </div>
         </div>
         <p className="muted text-sm m-0">{t("Download a trained .pth and its .index from logs/.")}</p>
@@ -985,9 +971,7 @@ export default function TrainPage() {
         <div className="flex items-center justify-between border-b border-white/10 pb-3">
           <div className="flex items-center gap-2">
             <StopCircle size={18} className="text-white" />
-            <h2 className="text-base font-bold text-white m-0">
-              {t("Stop Training Process")}
-            </h2>
+            <h2 className="text-base font-bold text-white m-0">{t("Stop Training Process")}</h2>
           </div>
         </div>
         <div className="row">
@@ -1005,12 +989,7 @@ export default function TrainPage() {
         </div>
       </div>
 
-      <TrainingConsole
-        jobId={jobId}
-        modelName={modelName}
-        totalEpochs={totalEpoch}
-        onStop={stop}
-      />
+      <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />
     </div>
   );
 }

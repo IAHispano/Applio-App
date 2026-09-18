@@ -4,8 +4,8 @@ import {
   ArrowRight,
   Calendar,
   Check,
-  Cpu,
   Copy,
+  Cpu,
   FileCheck,
   Hash,
   Layers,
@@ -79,7 +79,10 @@ export default function ModelInfoCard({
   }
 
   return (
-    <div className="card space-y-5 animate-in fade-in duration-200" aria-label={t("Model Checkpoint Details")}>
+    <div
+      className="card space-y-5 animate-in fade-in duration-200"
+      aria-label={t("Model Checkpoint Details")}
+    >
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -127,7 +130,9 @@ export default function ModelInfoCard({
           <div className="loader" role="progressbar" aria-label={t("Inspecting checkpoint…")}>
             <div className="loaderBar" />
           </div>
-          <p className="text-xs text-neutral-400 font-medium">{t("Inspecting checkpoint weights and architecture…")}</p>
+          <p className="text-xs text-neutral-400 font-medium">
+            {t("Inspecting checkpoint weights and architecture…")}
+          </p>
         </div>
       )}
 

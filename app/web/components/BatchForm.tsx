@@ -140,9 +140,7 @@ export default function BatchForm() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Layers size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">
-                {t("Batch Source & Voice Model")}
-              </h2>
+              <h2 className="text-base font-bold text-white m-0">{t("Batch Source & Voice Model")}</h2>
             </div>
             {pthPath && (
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10 font-medium">
@@ -212,9 +210,7 @@ export default function BatchForm() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sliders size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">
-                {t("Conversion Parameters")}
-              </h2>
+              <h2 className="text-base font-bold text-white m-0">{t("Conversion Parameters")}</h2>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -239,7 +235,9 @@ export default function BatchForm() {
             </div>
           </div>
           <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Fine-tune pitch, timbre retrieval, voiceless consonant protection, and synthesis algorithms.")}
+            {t(
+              "Fine-tune pitch, timbre retrieval, voiceless consonant protection, and synthesis algorithms.",
+            )}
           </p>
         </div>
 
@@ -369,7 +367,10 @@ export default function BatchForm() {
         </div>
 
         <div className="flex items-center gap-4 pt-3 border-t border-white/5 flex-wrap">
-          <label htmlFor="batch-split-audio" className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300">
+          <label
+            htmlFor="batch-split-audio"
+            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
+          >
             <input
               id="batch-split-audio"
               type="checkbox"
@@ -378,7 +379,10 @@ export default function BatchForm() {
             />
             <span>{t("Split in Chunks")}</span>
           </label>
-          <label htmlFor="batch-f0-autotune" className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300">
+          <label
+            htmlFor="batch-f0-autotune"
+            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
+          >
             <input
               id="batch-f0-autotune"
               type="checkbox"
@@ -387,7 +391,10 @@ export default function BatchForm() {
             />
             <span>{t("Autotune")}</span>
           </label>
-          <label htmlFor="batch-clean-audio" className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300">
+          <label
+            htmlFor="batch-clean-audio"
+            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
+          >
             <input
               id="batch-clean-audio"
               type="checkbox"
@@ -442,15 +449,22 @@ export default function BatchForm() {
             <div className="loaderBar" />
           </div>
           <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
-            <span>{t("Input:")} {inputFolder}</span>
-            <span>{t("Output:")} {outputFolder}</span>
+            <span>
+              {t("Input:")} {inputFolder}
+            </span>
+            <span>
+              {t("Output:")} {outputFolder}
+            </span>
           </div>
         </div>
       )}
 
       {/* Error state */}
       {job && job.status === "error" && (
-        <div role="alert" className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs">
+        <div
+          role="alert"
+          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
+        >
           {job.error || t("Batch conversion failed.")}
         </div>
       )}

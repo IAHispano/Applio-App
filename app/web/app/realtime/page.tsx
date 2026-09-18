@@ -1,7 +1,7 @@
 "use client";
 
+import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Radio, Disc, Play, Square, ListMusic, ChevronDown } from "lucide-react";
 import PageHeader from "../../components/layout/PageHeader";
 import SliderField from "../../components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "../../lib/api";
@@ -371,17 +371,29 @@ export default function RealtimePage() {
           {engine?.running ? t("active") : t("stopped")}
         </span>
         {!engine?.running ? (
-          <button type="button" className="cta h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg" onClick={startEngine}>
+          <button
+            type="button"
+            className="cta h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
+            onClick={startEngine}
+          >
             <Play size={14} className="shrink-0" />
             <span>{t("Start Service")}</span>
           </button>
         ) : (
-          <button type="button" className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg" onClick={stopEngine}>
+          <button
+            type="button"
+            className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
+            onClick={stopEngine}
+          >
             <Square size={14} className="text-white shrink-0" />
             <span>{t("Stop Service")}</span>
           </button>
         )}
-        <button type="button" className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg" onClick={enumDevices}>
+        <button
+          type="button"
+          className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
+          onClick={enumDevices}
+        >
           <ListMusic size={14} className="text-white shrink-0" />
           <span>{t("List Audio Devices")}</span>
         </button>
@@ -398,7 +410,11 @@ export default function RealtimePage() {
               <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
               <span>{t("Activity Details")}</span>
             </summary>
-            <pre className="log mt-1 max-h-40 overflow-y-auto text-[11px] p-2 rounded-lg bg-black/40 border border-white/5 font-sans" role="log" aria-live="polite">
+            <pre
+              className="log mt-1 max-h-40 overflow-y-auto text-[11px] p-2 rounded-lg bg-black/40 border border-white/5 font-sans"
+              role="log"
+              aria-live="polite"
+            >
               {engine.logs.slice(-10).join("\n")}
             </pre>
           </details>
@@ -414,7 +430,9 @@ export default function RealtimePage() {
             </div>
           </div>
           <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Configure real-time low-latency inference inputs, target voice model, and DSP pitch parameters.")}
+            {t(
+              "Configure real-time low-latency inference inputs, target voice model, and DSP pitch parameters.",
+            )}
           </p>
         </div>
         <div className="grid2">

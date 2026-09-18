@@ -1,7 +1,7 @@
 "use client";
 
+import { Database, Download, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link2, Upload, Database, Download } from "lucide-react";
 import { apiGet, apiSend, errMsg, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";

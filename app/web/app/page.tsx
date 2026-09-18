@@ -204,9 +204,7 @@ export default function Home() {
               <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-semibold text-neutral-400">
-                {t("Audio Conversion")}
-              </span>
+              <span className="text-[11px] font-semibold text-neutral-400">{t("Audio Conversion")}</span>
             </div>
             <h2 className="text-base font-bold text-neutral-100 group-hover:text-white transition-colors m-0">
               {t("Voice Inference")}
@@ -232,9 +230,7 @@ export default function Home() {
               <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white">
                 <Radio className="w-4 h-4" />
               </div>
-              <span className="text-[11px] font-semibold text-neutral-400">
-                {t("Live Audio")}
-              </span>
+              <span className="text-[11px] font-semibold text-neutral-400">{t("Live Audio")}</span>
             </div>
             <h2 className="text-base font-bold text-neutral-100 group-hover:text-white transition-colors m-0">
               {t("Realtime")}
