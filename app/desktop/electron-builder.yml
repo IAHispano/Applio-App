@@ -46,14 +46,13 @@ files:
     to: app/api/dist
   - from: ../../app/api/package.json
     to: app/api/package.json
+  # NOTE: standalone is copied as one whole tree. copy-static.mts
+  # (web postbuild) already places .next/static, public, and real
+  # node_modules dirs inside it, so do NOT list them again here:
+  # duplicate file sets race on the same destination and fail on
+  # macOS/Linux with EEXIST hard-link errors in electron-builder.
   - from: ../../app/web/.next/standalone
     to: app/web/.next/standalone
-  - from: ../../app/web/.next/standalone/node_modules
-    to: app/web/.next/standalone/node_modules
-  - from: ../../app/web/.next/static
-    to: app/web/.next/standalone/.next/static
-  - from: ../../app/web/public
-    to: app/web/.next/standalone/public
 
 win:
   target:

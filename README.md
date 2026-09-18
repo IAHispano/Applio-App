@@ -3,14 +3,14 @@
 </h1>
 
 <p align="center">
-    <img alt="Contributors" src="https://img.shields.io/github/contributors/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Release" src="https://img.shields.io/github/release/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Stars" src="https://img.shields.io/github/stars/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Fork" src="https://img.shields.io/github/forks/iahispano/applio?style=for-the-badge&color=FFFFFF" />
-    <img alt="Issues" src="https://img.shields.io/github/issues/iahispano/applio?style=for-the-badge&color=FFFFFF" />
+    <img alt="Contributors" src="https://img.shields.io/github/contributors/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
+    <img alt="Release" src="https://img.shields.io/github/v/release/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
+    <img alt="Stars" src="https://img.shields.io/github/stars/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
+    <img alt="Fork" src="https://img.shields.io/github/forks/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
+    <img alt="Issues" src="https://img.shields.io/github/issues/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
 </p>
 
-<p align="center">A simple, high-quality voice conversion tool, focused on ease of use and performance.</p>
+<p align="center">A desktop-first, high-quality voice conversion studio built on Applio — convert voices, train models, and synthesize speech from one app.</p>
 
 <p align="center">
   <a href="https://applio.org" target="_blank">🌐 Website</a>
@@ -27,17 +27,50 @@
   •
   <a href="https://applio.org/playground" target="_blank">🎮 Playground</a>
   •
-  <a href="https://colab.research.google.com/github/iahispano/applio/blob/main/assets/Applio.ipynb" target="_blank">🔎 Google Colab (UI)</a>
+  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio.ipynb" target="_blank">🔎 Google Colab (UI)</a>
   •
-  <a href="https://colab.research.google.com/github/iahispano/applio/blob/main/assets/Applio_NoUI.ipynb" target="_blank">🔎 Google Colab (No UI)</a>
+  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio_NoUI.ipynb" target="_blank">🔎 Google Colab (No UI)</a>
 </p>
 
-> [!NOTE]  
-> Applio will no longer receive frequent updates. Going forward, development will focus mainly on security patches, dependency updates, and occasional feature improvements. This is because the project is already stable and mature with limited room for further improvements.
 
 ## Introduction
 
-Applio is a powerful voice conversion tool focused on simplicity, quality, and performance. Whether you're an artist, developer, or researcher, Applio offers a straightforward platform for high-quality voice transformations. Its flexible design allows for customization through plugins and configurations, catering to a wide range of projects.
+Applio App is a voice conversion studio focused on simplicity, quality, and performance. Whether you're an artist, developer, or researcher, it gives you a single desktop app for high-quality voice transformations, model training, and speech synthesis — with a plugin system for extending it to your own projects.
+
+## Getting Started
+
+### Recommended: installer
+
+1. Download the installer for your OS from the [releases page](https://github.com/IAHispano/Applio-app/releases) (`Applio-<version>-Windows-Setup.exe`, `Applio-<version>-macOS.dmg`, or `Applio-<version>-Linux.AppImage` / `.deb`) and run it.
+2. Launch **Applio**. On first launch the setup screen checks every dependency — press **Install / Repair** and wait.
+3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
+
+### Developers (any OS)
+
+Prerequisites: Python 3.10–3.12, Node.js 22+, `pnpm@11`, ffmpeg.
+
+```bash
+pnpm install
+pnpm dev          # API :8000 + web :3000 with hot reload
+# open http://localhost:3000/  (setup screen)
+
+pnpm desktop:dev  # full Electron shell instead of just the browser UI
+```
+
+First run: open the app, press **Install / Repair** on the setup screen (creates `.venv`, installs torch + requirements, builds the UI).
+
+### Scripts
+
+| Command | What it does |
+| --- | --- |
+| `pnpm dev` | API + web with hot reload |
+| `pnpm desktop:dev` | API + web + Electron shell |
+| `pnpm build` | Production build of API + web |
+| `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `app/desktop/dist-installers/`) |
+| `pnpm typecheck` | TypeScript checks across all packages |
+| `pnpm test` | Smoke test suite |
+| `pnpm format` | Format/lint-fix `app` + `tests` with Biome |
+
 
 ## Terms of Use and Commercial Usage
 
@@ -54,33 +87,6 @@ However, if you choose to use this official version of Applio (as provided in th
 For commercial use, we recommend contacting us at [support@applio.org](mailto:support@applio.org) to ensure your usage aligns with ethical standards. All audio generated with Applio must comply with applicable copyright laws. If you find Applio helpful, consider supporting its development [through a donation](https://ko-fi.com/iahispano).
 
 By using the official version of Applio, you accept full responsibility for complying with both the MIT license and our Terms of Use. Applio and its contributors are not liable for misuse. For full legal details, see the [Terms of Use](./TERMS_OF_USE.md).
-
-## Getting Started
-
-### Recommended: Windows installer
-
-1. Download `Applio-Setup-<version>.exe` from the [releases page](https://github.com/IAHispano/Applio-app/releases) and run it (per-user install, no admin rights needed).
-2. Launch **Applio** from the Start Menu. On first launch the setup screen checks every dependency (Python env, engine packages, ffmpeg, web build) and installs whatever is missing — just press **Install / Repair** and wait.
-3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
-
-### Developers (any OS)
-
-Prerequisites: Python 3.10–3.12, Node.js 20+, ffmpeg.
-
-```bash
-npm install
-npm run dev    # API :8000 + web :3000 with hot reload
-# open http://localhost:3000/  (setup screen)
-```
-
-First run: open the app, press **Install / Repair** on the setup screen (creates `.venv`, installs torch + requirements, builds the UI). Useful scripts: `npm test` (smoke suite), `npm run format` (Biome), `npm run build`.
-
-### Other ways to run
-
-- **TensorBoard:** built into the UI — open the TensorBoard tab and press Launch.
-- **Docker:** `docker compose -f docker/docker-compose.yml up --build`.
-- **Colab/Kaggle:** see `assets/Applio.ipynb` / `assets/Applio_Kaggle.ipynb` (CLI-only: `assets/Applio_NoUI.ipynb`).
-- **Package the installer yourself:** `npm run build && npm run dist:win` (`.exe` lands in `app/desktop/dist-installers/`).
 
 ## References
 
