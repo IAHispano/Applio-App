@@ -70,22 +70,14 @@ jobs:
       - name: Organize imports (app)
         run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false app tests
 
-      - name: Commit back
-        continue-on-error: true
-        id: commitback
+      - name: Commit and push directly
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add --all
-          git commit -m "chore(format): run formatters on ${{ github.ref_name }}"
-
-      - name: Create Pull Request
-        if: steps.commitback.outcome == 'success'
-        continue-on-error: true
-        uses: peter-evans/create-pull-request@v7
-        with:
-          delete-branch: true
-          body: "Automatically apply code formatter changes (Black + Biome)."
-          title: "chore(format): run formatters on ${{ github.ref_name }}"
-          commit-message: "chore(format): run formatters on ${{ github.ref_name }}"
-          branch: formatter/${{ github.ref_name }}
+          if git diff --cached --quiet; then
+            echo "No formatting changes."
+          else
+            git commit -m "chore(format): run formatters on ${{ github.ref_name }} [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
