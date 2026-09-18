@@ -130,7 +130,7 @@ export default function ModelDropdown({
   useEffect(() => {
     if (!open || highlighted < 0) return;
     itemRefs.current.get(highlighted)?.scrollIntoView({ block: "nearest" });
-  }, [open, highlighted ]);
+  }, [open, highlighted]);
 
   useEffect(() => {
     if (!open) {
@@ -307,7 +307,10 @@ export default function ModelDropdown({
                         </div>
                         <p
                           className="text-[10px] truncate m-0 leading-tight mt-0.5"
-                          style={{ color: isSelected ? "inherit" : "var(--muted)", opacity: isSelected ? 0.75 : 1 }}
+                          style={{
+                            color: isSelected ? "inherit" : "var(--muted)",
+                            opacity: isSelected ? 0.75 : 1,
+                          }}
                         >
                           {m} {hasIndex ? `• ${t("Index paired")}` : ""}
                         </p>
@@ -391,7 +394,11 @@ export default function ModelDropdown({
         <div className="flex items-center gap-3 min-w-0 flex-1">
           <div
             className="w-8 h-8 flex items-center justify-center shrink-0"
-            style={{ background: "var(--accent-soft)", borderRadius: "var(--radius-input)", color: "var(--text)" }}
+            style={{
+              background: "var(--accent-soft)",
+              borderRadius: "var(--radius-input)",
+              color: "var(--text)",
+            }}
           >
             <Mic2 size={16} />
           </div>
