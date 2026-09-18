@@ -51,9 +51,11 @@ export default function ModelDropdown({
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
+  const [highlighted, setHighlighted] = useState(-1);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const itemRefs = useRef(new Map<number, HTMLButtonElement | null>());
 
   useEffect(() => {
     setMounted(true);
@@ -86,6 +88,50 @@ export default function ModelDropdown({
     }
   }, []);
 
+  const filteredModels = useMemo(() => {
+    if (!search.trim()) return models;
+    const query = search.toLowerCase();
+    return models.filter((m) => m.toLowerCase().includes(query));
+  }, [models, search]);
+
+  const hasIndexMatch = (modelPath: string): boolean => {
+    const stem = modelDisplayName(modelPath).toLowerCase().slice(0, 8);
+    return indexes.some((idx) => idx.toLowerCase().includes(stem));
+  };
+
+  const chooseModel = useCallback(
+    (modelPath: string | undefined) => {
+      if (!modelPath) return;
+      onSelect(modelPath);
+      setOpen(false);
+    },
+    [onSelect],
+  );
+
+  const moveHighlight = useCallback(
+    (delta: number) => {
+      if (filteredModels.length === 0) return;
+      setHighlighted((h) => {
+        const base = h < 0 ? (delta > 0 ? -1 : 0) : h;
+        return (base + delta + filteredModels.length) % filteredModels.length;
+      });
+    },
+    [filteredModels],
+  );
+
+  // Reset highlight whenever the menu opens or the list changes.
+  useEffect(() => {
+    if (!open) return;
+    const selected = filteredModels.findIndex((m) => m === selectedModel);
+    setHighlighted(selected >= 0 ? selected : filteredModels.length > 0 ? 0 : -1);
+  }, [open, search, selectedModel, filteredModels]);
+
+  // Keep the highlighted option visible while navigating.
+  useEffect(() => {
+    if (!open || highlighted < 0) return;
+    itemRefs.current.get(highlighted)?.scrollIntoView({ block: "nearest" });
+  }, [open, highlighted ]);
+
   useEffect(() => {
     if (!open) {
       setMenuPos(null);
@@ -101,7 +147,37 @@ export default function ModelDropdown({
       setOpen(false);
     }
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        moveHighlight(1);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        moveHighlight(-1);
+        return;
+      }
+      if (e.key === "Home") {
+        e.preventDefault();
+        setHighlighted(filteredModels.length > 0 ? 0 : -1);
+        return;
+      }
+      if (e.key === "End") {
+        e.preventDefault();
+        setHighlighted(filteredModels.length > 0 ? filteredModels.length - 1 : -1);
+        return;
+      }
+      if (e.key === "Enter") {
+        // Let focused buttons (options, Unload, Refresh) handle Enter natively.
+        const tag = (e.target as HTMLElement | null)?.tagName;
+        if (tag === "BUTTON" || tag === "A") return;
+        e.preventDefault();
+        chooseModel(filteredModels[highlighted] ?? filteredModels[0]);
+      }
     }
     function handleReposition() {
       updatePosition();
@@ -117,18 +193,7 @@ export default function ModelDropdown({
       window.removeEventListener("resize", handleReposition);
       document.removeEventListener("scroll", handleReposition, true);
     };
-  }, [open, updatePosition]);
-
-  const filteredModels = useMemo(() => {
-    if (!search.trim()) return models;
-    const query = search.toLowerCase();
-    return models.filter((m) => m.toLowerCase().includes(query));
-  }, [models, search]);
-
-  const hasIndexMatch = (modelPath: string): boolean => {
-    const stem = modelDisplayName(modelPath).toLowerCase().slice(0, 8);
-    return indexes.some((idx) => idx.toLowerCase().includes(stem));
-  };
+  }, [open, updatePosition, moveHighlight, chooseModel, filteredModels, highlighted]);
 
   const currentDisplayName = selectedModel ? modelDisplayName(selectedModel) : t("Select a voice model…");
 
@@ -138,6 +203,7 @@ export default function ModelDropdown({
           <div
             ref={menuRef}
             role="listbox"
+            aria-activedescendant={highlighted >= 0 ? `model-option-${highlighted}` : undefined}
             style={{
               position: "fixed",
               zIndex: 9999,
@@ -145,25 +211,33 @@ export default function ModelDropdown({
               width: menuPos.width,
               top: menuPos.top,
               bottom: menuPos.bottom,
+              background: "var(--panel)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-card)",
             }}
-            className="rounded-xl bg-[#171717] border border-white/15 shadow-2xl backdrop-blur-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
+            className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
           >
             {/* Search Header */}
-            <div className="p-2 border-b border-white/10 flex items-center gap-2 bg-black/40 shrink-0">
-              <Search size={14} className="text-neutral-400 ml-1 shrink-0" />
+            <div
+              className="p-2 flex items-center gap-2 shrink-0"
+              style={{ borderBottom: "1px solid var(--border)" }}
+            >
+              <Search size={14} className="ml-1 shrink-0" style={{ color: "var(--muted)" }} />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("Search models…")}
-                className="w-full bg-transparent text-xs text-white placeholder-neutral-500 border-none outline-none py-1 focus:ring-0"
+                className="w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0"
+                style={{ color: "var(--text)" }}
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="p-1 text-neutral-400 hover:text-white rounded"
+                  className="p-1 rounded transition-colors hover:text-white"
+                  style={{ color: "var(--muted)" }}
                 >
                   <X size={12} />
                 </button>
@@ -174,51 +248,72 @@ export default function ModelDropdown({
             <div className="max-h-60 overflow-y-auto p-1.5 space-y-1 grow">
               {filteredModels.length === 0 ? (
                 <div className="p-4 text-center">
-                  <p className="text-xs text-neutral-400 m-0">
+                  <p className="text-xs m-0" style={{ color: "var(--muted)" }}>
                     {search ? t("No models matching search query") : t("No models found in logs/")}
                   </p>
                 </div>
               ) : (
-                filteredModels.map((m) => {
+                filteredModels.map((m, i) => {
                   const isSelected = m === selectedModel;
+                  const isHighlighted = i === highlighted && !isSelected;
                   const hasIndex = hasIndexMatch(m);
                   return (
                     <button
                       key={m}
+                      id={`model-option-${i}`}
+                      ref={(el) => {
+                        itemRefs.current.set(i, el);
+                      }}
                       type="button"
                       role="option"
                       aria-selected={isSelected}
-                      onClick={() => {
-                        onSelect(m);
-                        setOpen(false);
+                      onMouseEnter={() => setHighlighted(i)}
+                      onClick={() => chooseModel(m)}
+                      style={{
+                        background: isSelected
+                          ? "var(--cta-bg)"
+                          : isHighlighted
+                            ? "var(--button-bg-hover)"
+                            : "transparent",
+                        color: isSelected ? "var(--cta-text)" : "var(--text)",
+                        borderRadius: "var(--radius-input)",
                       }}
-                      className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left transition-all ${
-                        isSelected
-                          ? "bg-white text-black font-semibold shadow-sm"
-                          : "text-neutral-200 hover:bg-white/10"
-                      }`}
+                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-all cursor-pointer"
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
+                          <span
+                            className="w-1.5 h-1.5 rounded-full shrink-0"
+                            title={hasIndex ? t("Index paired") : undefined}
+                            style={{
+                              background: hasIndex ? "var(--ok)" : "transparent",
+                              border: hasIndex ? "none" : "1px solid var(--checkbox-border)",
+                            }}
+                          />
                           <span className="text-xs font-semibold truncate">{modelDisplayName(m)}</span>
                           <span
-                            className={`text-[9px] px-1 py-0.2 rounded ${
-                              isSelected ? "bg-black/20 text-black" : "bg-white/10 text-neutral-400"
-                            }`}
+                            className="text-[9px] px-1 py-0.2 rounded shrink-0"
+                            style={
+                              isSelected
+                                ? { border: "1px solid currentColor", opacity: 0.7 }
+                                : {
+                                    background: "var(--accent-soft)",
+                                    color: "var(--muted)",
+                                  }
+                            }
                           >
                             {m.endsWith(".onnx") ? "ONNX" : "PTH"}
                           </span>
                         </div>
                         <p
-                          className={`text-[10px] truncate m-0 leading-tight mt-0.5 ${
-                            isSelected ? "text-neutral-800" : "text-neutral-400"
-                          }`}
+                          className="text-[10px] truncate m-0 leading-tight mt-0.5"
+                          style={{ color: isSelected ? "inherit" : "var(--muted)", opacity: isSelected ? 0.75 : 1 }}
                         >
                           {m} {hasIndex ? `• ${t("Index paired")}` : ""}
                         </p>
                       </div>
 
-                      {isSelected && <Check size={14} className="shrink-0 text-black" />}
+                      {isSelected && <Check size={14} className="shrink-0" />}
                     </button>
                   );
                 })
@@ -226,8 +321,11 @@ export default function ModelDropdown({
             </div>
 
             {/* Actions Footer */}
-            <div className="p-2 border-t border-white/10 bg-black/40 flex items-center justify-between gap-2 text-xs shrink-0">
-              <span className="text-[11px] text-neutral-400">
+            <div
+              className="p-2 flex items-center justify-between gap-2 text-xs shrink-0"
+              style={{ borderTop: "1px solid var(--border)", background: "var(--input-bg)" }}
+            >
+              <span className="text-[11px]" style={{ color: "var(--muted)" }}>
                 {models.length} {t("models available")}
               </span>
               <div className="flex items-center gap-2">
@@ -238,7 +336,8 @@ export default function ModelDropdown({
                       onUnload();
                       setOpen(false);
                     }}
-                    className="text-xs text-neutral-400 hover:text-red-400 transition-colors"
+                    className="text-xs transition-colors hover:text-red-400"
+                    style={{ color: "var(--muted)" }}
                   >
                     {t("Unload")}
                   </button>
@@ -249,7 +348,8 @@ export default function ModelDropdown({
                     onClick={() => {
                       onRefresh();
                     }}
-                    className="flex items-center gap-1 text-xs text-neutral-300 hover:text-white transition-colors"
+                    className="flex items-center gap-1 text-xs transition-colors hover:text-white"
+                    style={{ color: "var(--button-ghost-text)" }}
                   >
                     <RefreshCw size={11} />
                     <span>{t("Refresh")}</span>
@@ -270,43 +370,61 @@ export default function ModelDropdown({
         type="button"
         disabled={disabled}
         onClick={() => setOpen(!open)}
+        onKeyDown={(e) => {
+          if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-xl border text-left transition-all ${
-          open
-            ? "bg-[#1f1f1f] border-white/40 shadow-lg ring-1 ring-white/30"
-            : "bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/[0.08]"
-        } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
+        style={{
+          background: "var(--input-bg)",
+          borderColor: open ? "var(--focus-border)" : "var(--border)",
+          borderRadius: "var(--radius-input)",
+          boxShadow: open ? "0 0 0 1px var(--focus-border)" : undefined,
+        }}
+        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-all hover:border-[var(--focus-border)] ${
+          disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+        }`}
       >
         <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className="w-8 h-8 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+          <div
+            className="w-8 h-8 flex items-center justify-center shrink-0"
+            style={{ background: "var(--accent-soft)", borderRadius: "var(--radius-input)", color: "var(--text)" }}
+          >
             <Mic2 size={16} />
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <span
-                className={`text-sm font-semibold truncate ${selectedModel ? "text-white" : "text-neutral-400"}`}
+                className="text-sm font-semibold truncate"
+                style={{ color: selectedModel ? "var(--text)" : "var(--muted)" }}
               >
                 {currentDisplayName}
               </span>
               {selectedModel && (
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/10 text-neutral-300 shrink-0">
+                <span
+                  className="text-[10px] px-1.5 py-0.2 rounded shrink-0"
+                  style={{ background: "var(--accent-soft)", color: "var(--muted)" }}
+                >
                   {selectedModel.endsWith(".onnx") ? "ONNX" : "PTH"}
                 </span>
               )}
             </div>
             {selectedModel && (
-              <p className="text-[11px] text-neutral-400 truncate m-0 leading-tight mt-0.5">
+              <p className="text-[11px] truncate m-0 leading-tight mt-0.5" style={{ color: "var(--muted)" }}>
                 {modelFolder(selectedModel)} {hasIndexMatch(selectedModel) ? `• ${t("Index paired")}` : ""}
               </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1 shrink-0 text-neutral-400">
+        <div className="flex items-center gap-1 shrink-0" style={{ color: "var(--muted)" }}>
           <ChevronDown
             size={16}
-            className={`transition-transform duration-200 ${open ? "rotate-180 text-white" : ""}`}
+            className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+            style={open ? { color: "var(--text)" } : undefined}
           />
         </div>
       </button>
