@@ -307,6 +307,20 @@ async function streamRun(
   });
 }
 
+async function ensureUv(job: Job): Promise<string | null> {
+  for (const c of ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")]) {
+    if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) return c;
+  }
+  appendLog(job, "Installing uv…");
+  await streamRun(job, "curl -LsSf https://astral.sh/uv/install.sh | sh", [], { shell: true });
+  const localUv = path.join(process.env.HOME || "", ".local", "bin", "uv");
+  if (process.env.HOME && exists(localUv)) {
+    process.env.PATH = `${path.join(process.env.HOME, ".local", "bin")}${path.delimiter}${process.env.PATH || ""}`;
+    return localUv;
+  }
+  return null;
+}
+
 async function bootstrapSystemPython(job: Job): Promise<string[]> {
   appendLog(job, "No system Python found — bootstrapping one…");
   if (process.platform === "win32") {
@@ -329,6 +343,17 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
     return retry.cmd;
   }
   if (process.platform === "darwin") {
+    // Prefer a uv-managed Python: uv downloads a standalone 3.12 build
+    // itself, so neither Homebrew nor python.org is required.
+    const uvBin = await ensureUv(job);
+    if (uvBin) {
+      const venvDir = path.join(getRepoRoot(), ".venv");
+      appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
+      await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed"]);
+      const venvPy = path.join(venvDir, "bin", "python");
+      if (exists(venvPy)) return [venvPy];
+      appendLog(job, "uv venv did not produce a Python, falling back to Homebrew…");
+    }
     const brew = await runCmd("brew", ["--version"], { timeoutMs: 15000 });
     if (brew.code !== 0) {
       throw new Error(
@@ -342,22 +367,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   }
   const manual =
     "Install Python 3.10–3.12 (e.g. sudo apt install python3-venv python3-pip), then press Install again.";
-  let uvBin: string | null = null;
-  for (const c of ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")]) {
-    if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
-      uvBin = c;
-      break;
-    }
-  }
-  if (!uvBin) {
-    appendLog(job, "Installing uv…");
-    await streamRun(job, "curl -LsSf https://astral.sh/uv/install.sh | sh", [], { shell: true });
-    const localUv = path.join(process.env.HOME || "", ".local", "bin", "uv");
-    if (process.env.HOME && exists(localUv)) {
-      uvBin = localUv;
-      process.env.PATH = `${path.join(process.env.HOME, ".local", "bin")}${path.delimiter}${process.env.PATH || ""}`;
-    }
-  }
+  const uvBin = await ensureUv(job);
   if (uvBin) {
     const venvDir = path.join(getRepoRoot(), ".venv");
     appendLog(job, "Creating app virtualenv with uv…");
