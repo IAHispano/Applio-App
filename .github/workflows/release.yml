@@ -72,7 +72,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y rpm
+          sudo apt-get install --no-install-recommends -y rpm libopenjp2-tools
           # fpm (Ruby) is required by electron-builder for the .deb target.
           command -v fpm >/dev/null || sudo gem install fpm --no-document || echo "fpm install failed, continuing"
 
