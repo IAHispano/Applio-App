@@ -95,9 +95,7 @@ export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelP
                   ? t("Failed")
                   : t("Queued")}
           </span>
-          <span className="text-neutral-400 text-xs font-medium">
-            {t("Activity")}
-          </span>
+          <span className="text-neutral-400 text-xs font-medium">{t("Activity")}</span>
         </div>
         {(job.status === "queued" || job.status === "running") && (
           <button
@@ -182,8 +180,13 @@ export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelP
       )}
 
       {sidecars.map((s) => (
-        <div key={s.label} className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-white/5">
-          <span className="text-xs text-neutral-300">{s.label}: {fileBasename(s.file)}</span>
+        <div
+          key={s.label}
+          className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-white/5"
+        >
+          <span className="text-xs text-neutral-300">
+            {s.label}: {fileBasename(s.file)}
+          </span>
           <a
             href={outputUrl(s.file)}
             download
@@ -201,9 +204,14 @@ export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelP
             <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
             <span>{t("Activity Details")}</span>
           </summary>
-          <div className="mt-2 max-h-48 overflow-y-auto text-xs p-3 rounded-xl bg-black/50 border border-white/10 space-y-0.5" role="log">
+          <div
+            className="mt-2 max-h-48 overflow-y-auto text-xs p-3 rounded-xl bg-black/50 border border-white/10 space-y-0.5"
+            role="log"
+          >
             {cleanedLogs.slice(-60).map((l, idx) => (
-              <p key={idx} className="m-0 leading-relaxed text-neutral-300">{l}</p>
+              <p key={idx} className="m-0 leading-relaxed text-neutral-300">
+                {l}
+              </p>
             ))}
           </div>
         </details>

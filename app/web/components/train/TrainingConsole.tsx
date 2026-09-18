@@ -245,7 +245,10 @@ export default function TrainingConsole({
       : null;
 
   return (
-    <div className="card space-y-5 animate-in fade-in duration-200" aria-label={t("Training Activity Console")}>
+    <div
+      className="card space-y-5 animate-in fade-in duration-200"
+      aria-label={t("Training Activity Console")}
+    >
       {/* 1. Header Bar */}
       <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
@@ -432,7 +435,9 @@ export default function TrainingConsole({
             <button
               type="button"
               className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-              onClick={() => router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)}
+              onClick={() =>
+                router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)
+              }
             >
               <span>{t("Test in Inference")}</span>
               <ArrowRight size={14} className="shrink-0" />
@@ -467,11 +472,19 @@ export default function TrainingConsole({
                     key={lvl}
                     type="button"
                     className={`px-2 py-0.5 rounded-md capitalize transition-colors ${
-                      level === lvl ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-neutral-200"
+                      level === lvl
+                        ? "bg-white/10 text-white font-medium"
+                        : "text-neutral-400 hover:text-neutral-200"
                     }`}
                     onClick={() => setLevel(lvl)}
                   >
-                    {lvl === "all" ? t("All") : lvl === "epochs" ? t("Epochs") : lvl === "checkpoints" ? t("Saves") : t("Errors")}
+                    {lvl === "all"
+                      ? t("All")
+                      : lvl === "epochs"
+                        ? t("Epochs")
+                        : lvl === "checkpoints"
+                          ? t("Saves")
+                          : t("Errors")}
                   </button>
                 ))}
               </div>

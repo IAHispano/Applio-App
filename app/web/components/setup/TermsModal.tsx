@@ -163,9 +163,7 @@ export default function TermsModal() {
             <div className="p-4 rounded-xl border border-white/15 bg-white/[0.04] text-neutral-200 flex items-start gap-3.5 shadow-sm">
               <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-white" />
               <div className="space-y-0.5">
-                <h3 className="text-xs font-semibold text-white m-0">
-                  {t("Important Notice")}
-                </h3>
+                <h3 className="text-xs font-semibold text-white m-0">{t("Important Notice")}</h3>
                 <p className="text-xs text-neutral-300 m-0 leading-normal">
                   {t(
                     "Applio is an open-source audio research and voice transformation tool. Responsible, ethical, and legal use is strictly required.",

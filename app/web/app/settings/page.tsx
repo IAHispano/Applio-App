@@ -1,7 +1,7 @@
 "use client";
 
+import { Activity, Cpu, Palette, Power, RefreshCw, Save, Sliders } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Sliders, Palette, Cpu, Activity, RefreshCw, Power, Save } from "lucide-react";
 import PageHeader from "../../components/layout/PageHeader";
 import SliderField from "../../components/ui/SliderField";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
@@ -382,7 +382,10 @@ export default function SettingsPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
           <div>
-            <label htmlFor="settings-model-author" className="block text-xs font-medium text-neutral-300 mb-1.5">
+            <label
+              htmlFor="settings-model-author"
+              className="block text-xs font-medium text-neutral-300 mb-1.5"
+            >
               {t("Model Author Name")}
             </label>
             <input
@@ -453,7 +456,10 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
-              <label htmlFor="settings-rmvpe-mode" className="block text-xs font-medium text-neutral-300 mb-1.5">
+              <label
+                htmlFor="settings-rmvpe-mode"
+                className="block text-xs font-medium text-neutral-300 mb-1.5"
+              >
                 {t("Mode")}
               </label>
               <select
@@ -528,13 +534,17 @@ export default function SettingsPage() {
 
           {updaterState?.status === "available" && (
             <p className="text-xs text-neutral-300 m-0" role="status" aria-live="polite">
-              {t("Update available: v")}{updaterState.version}{t(". Ready to download.")}
+              {t("Update available: v")}
+              {updaterState.version}
+              {t(". Ready to download.")}
             </p>
           )}
 
           {updaterState?.status === "not-available" && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-              {t("Applio is up to date (v")}{updaterState.version || cfg.version}{")"}
+              {t("Applio is up to date (v")}
+              {updaterState.version || cfg.version}
+              {")"}
             </p>
           )}
 
@@ -567,7 +577,11 @@ export default function SettingsPage() {
         <div className="pt-3.5 border-t border-white/5 flex items-center justify-between gap-4 flex-wrap">
           <div className="text-xs text-neutral-400">
             {updaterState?.status === "downloaded" && (
-              <span>{t("Update downloaded (v")}{updaterState.version}{")"}</span>
+              <span>
+                {t("Update downloaded (v")}
+                {updaterState.version}
+                {")"}
+              </span>
             )}
           </div>
 
@@ -593,7 +607,10 @@ export default function SettingsPage() {
               onClick={checkVersion}
               disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
             >
-              <RefreshCw size={14} className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`} />
+              <RefreshCw
+                size={14}
+                className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
+              />
               <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
             </button>
           </div>

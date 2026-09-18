@@ -1,7 +1,7 @@
 "use client";
 
+import { FileText, Music, RotateCcw, Sliders, Volume2, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FileText, Music, Sliders, Wand2, RotateCcw, Volume2 } from "lucide-react";
 import {
   apiGet,
   errMsg,
@@ -459,7 +459,10 @@ export default function TtsForm() {
                   />
                   <span>{t("Autotune")}</span>
                 </label>
-                <label htmlFor="tts-proposed-pitch" className="flex items-center gap-2 cursor-pointer text-sm">
+                <label
+                  htmlFor="tts-proposed-pitch"
+                  className="flex items-center gap-2 cursor-pointer text-sm"
+                >
                   <input
                     id="tts-proposed-pitch"
                     type="checkbox"

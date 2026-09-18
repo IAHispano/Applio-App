@@ -349,7 +349,11 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           >
             <Activity size={14} className="text-white shrink-0" />
             <span>{showLogs ? t("Hide Activity Details") : t("View Activity Details")}</span>
-            {showLogs ? <ChevronUp size={14} className="shrink-0" /> : <ChevronDown size={14} className="shrink-0" />}
+            {showLogs ? (
+              <ChevronUp size={14} className="shrink-0" />
+            ) : (
+              <ChevronDown size={14} className="shrink-0" />
+            )}
           </button>
 
           {job?.status === "done" && (
@@ -375,7 +379,12 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           >
             {job?.logs.length ? (
               job.logs
-                .map((log) => log.replace(/^\$ python.*$/i, "").replace(/^\[(stdout|stderr)\]\s*/i, "").trim())
+                .map((log) =>
+                  log
+                    .replace(/^\$ python.*$/i, "")
+                    .replace(/^\[(stdout|stderr)\]\s*/i, "")
+                    .trim(),
+                )
                 .filter((log) => log.length > 0)
                 .map((log, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: append-only activity logs

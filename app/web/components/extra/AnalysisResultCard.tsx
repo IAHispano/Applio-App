@@ -2,15 +2,7 @@
 
 import { Download, FileText, Image as ImageIcon, LineChart, StopCircle, Waves } from "lucide-react";
 import { useEffect, useState } from "react";
-import {
-  errMsg,
-  fetchJob,
-  fileBasename,
-  type Job,
-  outputUrl,
-  pollJob,
-  stopJob,
-} from "../../lib/api";
+import { errMsg, fetchJob, fileBasename, type Job, outputUrl, pollJob, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
 interface AnalysisResultCardProps {
@@ -43,19 +35,11 @@ export default function AnalysisResultCard({ jobId, title, type }: AnalysisResul
   if (!jobId) return null;
 
   if (error) {
-    return (
-      <div className="card border-red-500/30 bg-red-500/10 text-red-400 text-xs p-4">
-        {error}
-      </div>
-    );
+    return <div className="card border-red-500/30 bg-red-500/10 text-red-400 text-xs p-4">{error}</div>;
   }
 
   if (!job) {
-    return (
-      <div className="card p-5 text-center text-xs text-neutral-400">
-        {t("Loading analysis…")}
-      </div>
-    );
+    return <div className="card p-5 text-center text-xs text-neutral-400">{t("Loading analysis…")}</div>;
   }
 
   const isRunning = job.status === "running" || job.status === "queued";
@@ -135,9 +119,7 @@ export default function AnalysisResultCard({ jobId, title, type }: AnalysisResul
 
           {/* Action and Download Bar */}
           <div className="flex items-center justify-between gap-3 flex-wrap pt-1">
-            <span className="text-xs text-neutral-400">
-              {fileBasename(out)}
-            </span>
+            <span className="text-xs text-neutral-400">{fileBasename(out)}</span>
 
             <div className="flex items-center gap-2">
               {curveFile && (

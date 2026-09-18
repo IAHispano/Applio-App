@@ -165,10 +165,7 @@ export default function InferenceForm() {
       .catch(() => setLibrary([]));
   }, []);
 
-  const selectedMeta = useMemo(
-    () => library.find((m) => m.pthPath === pthPath) ?? null,
-    [library, pthPath],
-  );
+  const selectedMeta = useMemo(() => library.find((m) => m.pthPath === pthPath) ?? null, [library, pthPath]);
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
@@ -350,9 +347,7 @@ export default function InferenceForm() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Music size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Voice Model")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Voice Model")}</h2>
                 </div>
                 {pthPath && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10">
@@ -494,9 +489,7 @@ export default function InferenceForm() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <AudioWaveform size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Audio Source")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Audio Source")}</h2>
                 </div>
                 {(audioFile || inputPath) && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10">
@@ -528,9 +521,7 @@ export default function InferenceForm() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sliders size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">
-                {t("Conversion Parameters")}
-              </h2>
+              <h2 className="text-base font-bold text-white m-0">{t("Conversion Parameters")}</h2>
             </div>
             <button
               type="button"
@@ -1118,7 +1109,11 @@ export default function InferenceForm() {
           <div className="flex items-center gap-2">
             {job && (
               <span className={`badge ${job.status}`} role="status">
-                {job.status === "done" ? t("Completed") : job.status === "running" ? t("In Progress") : job.status}
+                {job.status === "done"
+                  ? t("Completed")
+                  : job.status === "running"
+                    ? t("In Progress")
+                    : job.status}
               </span>
             )}
           </div>

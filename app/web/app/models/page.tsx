@@ -18,10 +18,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import ModelInfoCard, { type ModelMetadata } from "../../components/models/ModelInfoCard";
 import PageHeader from "../../components/layout/PageHeader";
 import BlenderPanel from "../../components/models/BlenderPanel";
 import DownloadPanel from "../../components/models/DownloadPanel";
+import ModelInfoCard, { type ModelMetadata } from "../../components/models/ModelInfoCard";
 import Modal from "../../components/ui/Modal";
 import SegmentedControl from "../../components/ui/SegmentedControl";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
@@ -377,9 +377,7 @@ export default function ModelsPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Info size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">
-                    {t("Inspect Model File")}
-                  </h2>
+                  <h2 className="text-base font-bold text-white m-0">{t("Inspect Model File")}</h2>
                 </div>
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
