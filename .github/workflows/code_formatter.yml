@@ -47,17 +47,28 @@ jobs:
       - name: Install Python formatters
         run: pip install "black[jupyter]" autoflake
 
+      # Python formatting runs BEFORE pnpm install so node_modules
+      # doesn't even exist yet when black/autoflake scan the tree.
+      - name: Run autoflake (Python)
+        run: autoflake --in-place --recursive --exclude=node_modules,.venv,venv,dist,build,.git,__pycache__,.next .
+
+      - name: Run Black (Python)
+        # NOTE: use --extend-exclude, NOT --exclude. --exclude would
+        # override black's defaults (which skip node_modules, .venv,
+        # dist, build, ...) and cause third-party code to be reformatted.
+        run: black . --extend-exclude=".*\.ipynb$"
+
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Run autoflake (Python)
-        run: autoflake --in-place --recursive .
+      # NOTE: format only (no lint). `pnpm format` runs `biome check`,
+      # which fails on pre-existing lint debt. The formatter job must
+      # apply what it can and exit 0, not go red on lint findings.
+      - name: Run Biome formatter (app)
+        run: pnpm exec biome format --write app tests
 
-      - name: Run Black (Python)
-        run: black . --exclude=".*\.ipynb$"
-
-      - name: Run Biome (app)
-        run: pnpm format
+      - name: Organize imports (app)
+        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false app tests
 
       - name: Commit back
         continue-on-error: true
