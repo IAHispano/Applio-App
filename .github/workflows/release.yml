@@ -124,6 +124,29 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Sync package versions to release input
+        # Same sync as the build jobs, so the bump can be committed back.
+        run: |
+          node -e "const fs=require('node:fs');const v=(process.env.RELEASE_VERSION||'').replace(/^v/,'');if(!v)throw new Error('empty version');for(const f of ['package.json','app/api/package.json','app/web/package.json','app/desktop/package.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');}const c='assets/config_template.json';const cfg=JSON.parse(fs.readFileSync(c,'utf8'));cfg.version=v;fs.writeFileSync(c,JSON.stringify(cfg,null,2)+'\n');console.log('version set to '+v);"
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
+
+      - name: Commit version bump back to branch
+        # The build jobs only patch their own checkout, so without this the
+        # repo would keep the old version and the sidebar badge would lag
+        # one release behind. Direct commit (no PR) + [skip ci] so the
+        # formatter workflow doesn't retrigger on the version bump.
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add package.json app/api/package.json app/web/package.json app/desktop/package.json assets/config_template.json
+          if git diff --cached --quiet; then
+            echo "Versions already in sync."
+          else
+            git commit -m "chore(release): bump version to ${{ github.event.inputs.version }} [skip ci]"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
       - name: Get commit messages since last tag
         id: changelog
         run: |
