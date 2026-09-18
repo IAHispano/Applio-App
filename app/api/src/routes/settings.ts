@@ -360,7 +360,13 @@ router.get("/themes", (_req: Request, res: Response) => {
             example: f.endsWith(".example.json"),
           };
         } catch {
-          return { id: f, name: f, description: "Invalid JSON — fix or remove this file.", colors: {}, example: false };
+          return {
+            id: f,
+            name: f,
+            description: "Invalid JSON — fix or remove this file.",
+            colors: {},
+            example: false,
+          };
         }
       });
     res.json({

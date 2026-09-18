@@ -522,9 +522,7 @@ function closeSplash(): void {
   const s = splash;
   splash = null;
   try {
-    void s.webContents
-      .executeJavaScript(`document.body.style.opacity = '0';`)
-      .catch(() => {});
+    void s.webContents.executeJavaScript(`document.body.style.opacity = '0';`).catch(() => {});
     setTimeout(() => {
       try {
         if (!s.isDestroyed()) s.close();
