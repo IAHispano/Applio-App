@@ -28,6 +28,7 @@ concurrency:
 jobs:
   build:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
 
     strategy:
       fail-fast: false
@@ -49,11 +50,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Setup pnpm via Corepack
-        run: |
-          corepack enable
-          corepack prepare pnpm@11.15.0 --activate
-          pnpm --version
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+          run_install: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -81,12 +82,19 @@ jobs:
           command -v fpm >/dev/null || sudo gem install fpm --no-document || echo "fpm install failed, continuing"
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Cache Next.js build
+        uses: actions/cache@v5
+        with:
+          path: app/web/.next/cache
+          key: ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('app/web/**/*.ts', 'app/web/**/*.tsx') }}
+          restore-keys: |
+            ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+            ${{ runner.os }}-nextjs-
 
       - name: Sync version to release input
-        # Installer filenames embed the package.json version, so it must
-        # match the release tag (leading "v" is stripped if given).
-        run: node -e "const fs=require('node:fs');const v=(process.env.RELEASE_VERSION||'').replace(/^v/,'');if(!v)throw new Error('empty version');for(const f of ['package.json','app/api/package.json','app/web/package.json','app/desktop/package.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');}const c='assets/config_template.json';const cfg=JSON.parse(fs.readFileSync(c,'utf8'));cfg.version=v;fs.writeFileSync(c,JSON.stringify(cfg,null,2)+'\n');console.log('version set to '+v);"
+        run: node scripts/sync-version.mjs
         env:
           RELEASE_VERSION: ${{ github.event.inputs.version }}
 
@@ -97,40 +105,42 @@ jobs:
           # Unsigned CI builds (no Apple Developer certificate on runners).
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Compress artifacts
-        working-directory: app/desktop/dist-installers
-        run: |
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            7z a -tzip build-artifacts.zip Applio-*-Windows-Setup.exe *.blockmap latest.yml 2>/dev/null || true
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            zip -r build-artifacts.zip Applio-*-macOS*.dmg Applio-*-macOS*.zip latest-mac.yml 2>/dev/null || true
-          else
-            zip -r build-artifacts.zip Applio-*-Linux*.AppImage Applio-*-Linux*.deb *.blockmap latest-linux.yml 2>/dev/null || true
-          fi
-        shell: bash
-
       - name: Upload build artifacts
+        # Installers are already compressed (.exe/.dmg/.AppImage/.deb), so
+        # upload them directly instead of re-zipping (saves CPU on every job
+        # plus the unzip step in the release job).
         uses: actions/upload-artifact@v5
         with:
           name: build-${{ matrix.id }}
-          path: app/desktop/dist-installers/build-artifacts.zip
+          path: |
+            app/desktop/dist-installers/Applio-*-Windows-Setup.exe
+            app/desktop/dist-installers/Applio-*-macOS*.dmg
+            app/desktop/dist-installers/Applio-*-macOS*.zip
+            app/desktop/dist-installers/Applio-*-Linux*.AppImage
+            app/desktop/dist-installers/Applio-*-Linux*.deb
+            app/desktop/dist-installers/*.blockmap
+            app/desktop/dist-installers/latest*.yml
+          if-no-files-found: error
           retention-days: 1
-          compression-level: 1
+          compression-level: 0
 
   release:
     needs: build
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          # Shallow + tags is enough for the changelog (last tag + recent
+          # commits) and much faster than the full history.
+          fetch-depth: 100
+          fetch-tags: true
 
       - name: Sync package versions to release input
         # Same sync as the build jobs, so the bump can be committed back.
-        run: |
-          node -e "const fs=require('node:fs');const v=(process.env.RELEASE_VERSION||'').replace(/^v/,'');if(!v)throw new Error('empty version');for(const f of ['package.json','app/api/package.json','app/web/package.json','app/desktop/package.json']){const p=JSON.parse(fs.readFileSync(f,'utf8'));p.version=v;fs.writeFileSync(f,JSON.stringify(p,null,2)+'\n');}const c='assets/config_template.json';const cfg=JSON.parse(fs.readFileSync(c,'utf8'));cfg.version=v;fs.writeFileSync(c,JSON.stringify(cfg,null,2)+'\n');console.log('version set to '+v);"
+        run: node scripts/sync-version.mjs
         env:
           RELEASE_VERSION: ${{ github.event.inputs.version }}
 
@@ -183,26 +193,18 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v5
         with:
-          path: ./artifacts
+          path: ./release-files
+          merge-multiple: true
 
-      - name: Extract and organize artifacts
-        run: |
-          mkdir -p release-files
-          cd artifacts
-          for dir in */; do
-            if [ -f "$dir/build-artifacts.zip" ]; then
-              unzip -q "$dir/build-artifacts.zip" -d "../release-files/"
-            fi
-          done
-          cd ..
-          ls -la release-files/
+      - name: List release files
+        run: ls -la release-files/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ github.event.inputs.version }}
           name: Applio v${{ github.event.inputs.version }}
-          files: release-files/**
+          files: release-files/*
           body: |
             ${{ steps.changelog.outputs.changelog }}
 
