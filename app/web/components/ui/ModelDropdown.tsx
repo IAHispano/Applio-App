@@ -268,7 +268,7 @@ export default function ModelDropdown({
                       onMouseEnter={() => setHighlighted(i)}
                       onClick={() => chooseModel(m)}
                       className={`menu-option w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left cursor-pointer border-0 rounded-none bg-transparent ${
-                        isSelected ? "text-white font-medium" : "text-neutral-400 hover:text-neutral-200"
+                        isSelected ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
@@ -282,7 +282,7 @@ export default function ModelDropdown({
                             }}
                           />
                           <span
-                            className={`text-xs truncate ${isSelected ? "font-semibold text-white" : "font-medium"}`}
+                            className={`text-xs truncate ${isSelected ? "font-bold text-white" : "font-medium"}`}
                           >
                             {modelDisplayName(m)}
                           </span>

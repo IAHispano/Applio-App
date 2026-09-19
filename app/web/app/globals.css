@@ -665,6 +665,10 @@ button.menu-option:active {
   border-color: transparent;
   filter: none;
 }
+
+button.menu-option[aria-selected="true"] {
+  font-weight: 700;
+}
 button.slider-step-btn {
   width: 28px;
   height: 28px;
@@ -783,7 +787,7 @@ button.segmented-item.is-active {
   background: var(--cta-bg);
   border-color: var(--cta-bg);
   color: var(--cta-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 button.segmented-item.is-active:hover {
   background: var(--cta-bg);
