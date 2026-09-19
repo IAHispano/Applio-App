@@ -8,7 +8,7 @@
     "override": false,
     "selected_lang": "en_US"
   },
-  "version": "0.0.1",
+  "version": "0.0.2",
   "model_author": "None",
   "precision": "fp16",
   "rmvpe_high_register": {
