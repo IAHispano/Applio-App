@@ -202,19 +202,13 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
 
     try {
       trackPid(job.id, inferenceWorker.getPid());
-      const res = await inferenceWorker.infer(
-        job.id,
-        params,
-        inputAbs,
-        outWav,
-        (chunk) => {
-          const trimmed = chunk.trim().slice(0, 1000);
-          if (trimmed) {
-            appendLog(job, trimmed);
-            runStdout += trimmed + "\n";
-          }
-        },
-      );
+      const res = await inferenceWorker.infer(job.id, params, inputAbs, outWav, (chunk) => {
+        const trimmed = chunk.trim().slice(0, 1000);
+        if (trimmed) {
+          appendLog(job, trimmed);
+          runStdout += trimmed + "\n";
+        }
+      });
       trackPid(job.id, undefined);
       finalServed = res.outputPath || outWav;
     } catch (workerErr) {
@@ -239,11 +233,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
 
     const finalAbs = outWav.replace(/\.wav$/i, `.${ext}`);
     const served =
-      finalServed && fs.existsSync(finalServed)
-        ? finalServed
-        : fs.existsSync(finalAbs)
-          ? finalAbs
-          : outWav;
+      finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outWav;
 
     if (!fs.existsSync(served)) throw new Error("Inference finished but no output file was found.");
     const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");

@@ -182,7 +182,12 @@ export default function ExtraPage() {
             </button>
           </div>
 
-          <AnalysisResultCard jobId={jobId} title={t("Acoustic Spectrogram Analysis")} type="analyzer" embedded />
+          <AnalysisResultCard
+            jobId={jobId}
+            title={t("Acoustic Spectrogram Analysis")}
+            type="analyzer"
+            embedded
+          />
         </div>
 
         {/* Tool 2: F0 Curve Extractor */}

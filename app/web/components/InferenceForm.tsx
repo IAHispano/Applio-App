@@ -1,6 +1,17 @@
 "use client";
 
-import { Activity, AudioWaveform, ChevronDown, Info, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
+import {
+  Activity,
+  AudioWaveform,
+  ChevronDown,
+  Info,
+  Layers,
+  Loader2,
+  Music,
+  Sliders,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -551,7 +562,7 @@ export default function InferenceForm() {
                   )}
                   <div>
                     <dt>{t("Speakers")}</dt>
-                    <dd>{speakers.length > 0 ? speakers.length : (inspectMeta?.speakers_id || 1)}</dd>
+                    <dd>{speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}</dd>
                   </div>
                   {selectedMeta?.folder && (
                     <div>

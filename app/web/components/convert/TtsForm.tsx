@@ -596,7 +596,10 @@ export default function TtsForm() {
 
           {/* Conversion In Progress Live Progress Bar */}
           {job && (job.status === "running" || job.status === "queued") && (
-            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200" role="status">
+            <div
+              className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200"
+              role="status"
+            >
               <div className="flex items-center justify-between text-xs text-neutral-300">
                 <span className="font-medium">{t("Synthesizing speech & converting timbre…")}</span>
                 <span className="text-neutral-400 capitalize">{job.status}</span>

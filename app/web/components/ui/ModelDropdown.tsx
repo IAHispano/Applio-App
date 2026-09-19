@@ -286,16 +286,16 @@ export default function ModelDropdown({
                               border: hasIndex ? "none" : "1px solid var(--checkbox-border)",
                             }}
                           />
-                          <span className={`text-xs truncate ${isSelected ? "font-semibold text-white" : "font-medium"}`}>
+                          <span
+                            className={`text-xs truncate ${isSelected ? "font-semibold text-white" : "font-medium"}`}
+                          >
                             {modelDisplayName(m)}
                           </span>
                           <span className="text-[10px] font-mono text-neutral-500 shrink-0">
                             {m.endsWith(".onnx") ? "ONNX" : "PTH"}
                           </span>
                         </div>
-                        <p
-                          className="text-[10px] truncate m-0 leading-tight mt-0.5 text-neutral-500"
-                        >
+                        <p className="text-[10px] truncate m-0 leading-tight mt-0.5 text-neutral-500">
                           {m} {hasIndex ? `• ${t("Index paired")}` : ""}
                         </p>
                       </div>
