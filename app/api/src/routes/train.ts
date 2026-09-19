@@ -456,16 +456,21 @@ router.post("/index", (req: Request, res: Response) => {
     .safeParse(req.body);
   if (!parsed.success)
     return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
-  const job = startCliJob("train", { step: "index", ...parsed.data }, [
-    "core.py",
-    "index",
-    "--model-name",
-    parsed.data.modelName,
-    "--index-algorithm",
-    parsed.data.indexAlgorithm,
-  ], {
-    expectSuccess: `Index file for ${parsed.data.modelName} generated successfully.`,
-  });
+  const job = startCliJob(
+    "train",
+    { step: "index", ...parsed.data },
+    [
+      "core.py",
+      "index",
+      "--model-name",
+      parsed.data.modelName,
+      "--index-algorithm",
+      parsed.data.indexAlgorithm,
+    ],
+    {
+      expectSuccess: `Index file for ${parsed.data.modelName} generated successfully.`,
+    },
+  );
   return res.status(202).json({ jobId: job.id });
 });
 

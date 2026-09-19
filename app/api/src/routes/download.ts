@@ -32,14 +32,14 @@ router.post("/", (req: Request, res: Response) => {
       .status(400)
       .json({ error: "Invalid params (modelLink must be a URL)", details: parsed.error.flatten() });
   }
-  const job = startCliJob("download", parsed.data, [
-    "core.py",
+  const job = startCliJob(
     "download",
-    "--model-link",
-    parsed.data.modelLink,
-  ], {
-    expectSuccess: "Model downloaded successfully.",
-  });
+    parsed.data,
+    ["core.py", "download", "--model-link", parsed.data.modelLink],
+    {
+      expectSuccess: "Model downloaded successfully.",
+    },
+  );
   return res.status(202).json({ jobId: job.id });
 });
 

@@ -54,7 +54,8 @@ async function blobToWavFile(blob: Blob, baseName: string): Promise<File> {
   }
 }
 
-function pickMime(): string {  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
+function pickMime(): string {
+  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
   for (const m of ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]) {
     try {
       if (MediaRecorder.isTypeSupported(m)) return m;

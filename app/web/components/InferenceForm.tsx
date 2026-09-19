@@ -882,41 +882,41 @@ export default function InferenceForm() {
 
               {(f0Autotune || cleanAudio || proposedPitch) && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                {f0Autotune && (
-                  <SliderField
-                    id="infer-autotune-strength"
-                    label={t("Autotune Strength")}
-                    value={f0AutotuneStrength}
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    onChange={setF0AutotuneStrength}
-                  />
-                )}
-                {cleanAudio && (
-                  <SliderField
-                    id="infer-clean-strength"
-                    label={t("Clean Strength")}
-                    value={cleanStrength}
-                    min={0.1}
-                    max={1}
-                    step={0.05}
-                    onChange={setCleanStrength}
-                  />
-                )}
-                {proposedPitch && (
-                  <SliderField
-                    id="infer-pitch-thresh"
-                    label={t("Proposed Pitch Threshold")}
-                    value={proposedPitchThreshold}
-                    min={50}
-                    max={1200}
-                    step={1}
-                    unit="Hz"
-                    onChange={setProposedPitchThreshold}
-                  />
-                )}
-              </div>
+                  {f0Autotune && (
+                    <SliderField
+                      id="infer-autotune-strength"
+                      label={t("Autotune Strength")}
+                      value={f0AutotuneStrength}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={setF0AutotuneStrength}
+                    />
+                  )}
+                  {cleanAudio && (
+                    <SliderField
+                      id="infer-clean-strength"
+                      label={t("Clean Strength")}
+                      value={cleanStrength}
+                      min={0.1}
+                      max={1}
+                      step={0.05}
+                      onChange={setCleanStrength}
+                    />
+                  )}
+                  {proposedPitch && (
+                    <SliderField
+                      id="infer-pitch-thresh"
+                      label={t("Proposed Pitch Threshold")}
+                      value={proposedPitchThreshold}
+                      min={50}
+                      max={1200}
+                      step={1}
+                      unit="Hz"
+                      onChange={setProposedPitchThreshold}
+                    />
+                  )}
+                </div>
               )}
             </div>
           </details>
@@ -1469,7 +1469,6 @@ export default function InferenceForm() {
           </div>
         )}
       </div>
-
     </form>
   );
 }
