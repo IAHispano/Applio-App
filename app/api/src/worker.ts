@@ -68,8 +68,7 @@ export class InferenceWorkerManager {
           const msg = JSON.parse(trimmed) as WorkerIPCMessage;
           this.handleIPCMessage(msg);
           return;
-        } catch {
-        }
+        } catch {}
       }
       if (this.activeJob) {
         this.activeJob.onLog(trimmed);

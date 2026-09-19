@@ -303,11 +303,7 @@ export default function CustomSelect({
         aria-label={selectedOption ? selectedOption.label : placeholder}
         className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
           open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
-        } ${
-          disabled
-            ? "opacity-40 cursor-not-allowed pointer-events-none"
-            : "hover:bg-white/[0.03]"
-        }`}
+        } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
       >
         <span
           className={`truncate flex-1 ${
@@ -383,9 +379,7 @@ export default function CustomSelect({
                       onClick={() => !opt.disabled && handleSelect(opt.value)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                       className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
-                        isSelected
-                          ? "text-white font-medium"
-                          : "text-neutral-400 hover:text-neutral-200"
+                        isSelected ? "text-white font-medium" : "text-neutral-400 hover:text-neutral-200"
                       } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}
                     >
                       <div className="min-w-0 flex-1 flex flex-col">
