@@ -253,7 +253,7 @@ export default function TtsForm() {
               </div>
 
               <div>
-                <label htmlFor="tts-voice-select">{t("Voice")}</label>
+                <label htmlFor="tts-voice-select">{t("TTS Voices")}</label>
                 <CustomSelect
                   id="tts-voice-select"
                   value={voice}
@@ -272,7 +272,7 @@ export default function TtsForm() {
               <div>
                 <SliderField
                   id="tts-speaking-rate"
-                  label={t("Speaking rate")}
+                  label={t("TTS Speed")}
                   value={rate}
                   min={-100}
                   max={100}
@@ -291,7 +291,7 @@ export default function TtsForm() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Music size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Target Voice Model")}</h2>
+                <h2 className="text-base font-bold text-white m-0">{t("Voice Model")}</h2>
               </div>
             </div>
             <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -462,7 +462,7 @@ export default function TtsForm() {
 
             {embedderModel === "custom" && (
               <div>
-                <label htmlFor="tts-custom-embedder">{t("Custom embedder path")}</label>
+                <label htmlFor="tts-custom-embedder">{t("Select Custom Embedder")}</label>
                 <input
                   id="tts-custom-embedder"
                   type="text"

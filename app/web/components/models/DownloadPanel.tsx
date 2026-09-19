@@ -101,7 +101,7 @@ export default function DownloadPanel() {
 
         <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
           <label htmlFor="dl-link-input" className="sr-only">
-            {t("Model link")}
+            {t("Model Link")}
           </label>
           <input
             id="dl-link-input"
@@ -183,7 +183,7 @@ export default function DownloadPanel() {
         {!custom ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
-              <label htmlFor="dl-pretrained-select">{t("Pretrained Model")}</label>
+              <label htmlFor="dl-pretrained-select">{t("Pretrained")}</label>
               <CustomSelect
                 id="dl-pretrained-select"
                 value={model}
@@ -220,11 +220,11 @@ export default function DownloadPanel() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
-              <label htmlFor="dl-url-g">{t("Pretrained G URL")}</label>
+              <label htmlFor="dl-url-g">{t("Pretrained G")}</label>
               <input id="dl-url-g" type="text" value={urlG} onChange={(e) => setUrlG(e.target.value)} />
             </div>
             <div>
-              <label htmlFor="dl-url-d">{t("Pretrained D URL")}</label>
+              <label htmlFor="dl-url-d">{t("Pretrained D")}</label>
               <input id="dl-url-d" type="text" value={urlD} onChange={(e) => setUrlD(e.target.value)} />
             </div>
           </div>

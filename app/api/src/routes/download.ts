@@ -37,7 +37,9 @@ router.post("/", (req: Request, res: Response) => {
     "download",
     "--model-link",
     parsed.data.modelLink,
-  ]);
+  ], {
+    expectSuccess: "Model downloaded successfully.",
+  });
   return res.status(202).json({ jobId: job.id });
 });
 

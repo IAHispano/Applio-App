@@ -180,6 +180,9 @@ export function runPythonModule(
   args: string[],
   opts: {
     cwd?: string;
+    // Unix only: new process group so the whole tree can be signaled.
+    // Never enable on Windows — a detached console binary pops its own window.
+    detached?: boolean;
     onData?: (chunk: string, stream: "stdout" | "stderr") => void;
     onSpawn?: (pid?: number) => void;
   } = {},
@@ -189,6 +192,7 @@ export function runPythonModule(
     const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
     const child: ChildProcess = spawn(getPythonBin(), args, {
       cwd,
+      detached: opts.detached ?? false,
       env: pythonEnv({ PATH: pathEnv }),
       windowsHide: true,
     });

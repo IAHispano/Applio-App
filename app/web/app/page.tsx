@@ -3,7 +3,6 @@
 import {
   Activity,
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -200,59 +199,6 @@ export default function Home() {
             <CheckCircle2 className="w-4 h-4" />
           </div>
         </div>
-      </div>
-
-      {/* Focused Workflows (Clean 2-card layout) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/inference"
-          className="group p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20 transition-all flex flex-col justify-between"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white">
-                <Sparkles className="w-4 h-4" />
-              </div>
-              <span className="text-[11px] font-semibold text-neutral-400">{t("Audio Conversion")}</span>
-            </div>
-            <h2 className="text-base font-bold text-neutral-100 group-hover:text-white transition-colors m-0">
-              {t("Voice Inference")}
-            </h2>
-            <p className="text-xs text-neutral-400 leading-relaxed m-0">
-              {t(
-                "Transform audio files or batches with your custom voice models, pitch, and timbre controls.",
-              )}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-300 group-hover:text-white pt-4 mt-3 border-t border-white/5">
-            <span>{t("Start Converting")}</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </Link>
-
-        <Link
-          href="/realtime"
-          className="group p-5 rounded-2xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.06] hover:border-white/20 transition-all flex flex-col justify-between"
-        >
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center text-white">
-                <Radio className="w-4 h-4" />
-              </div>
-              <span className="text-[11px] font-semibold text-neutral-400">{t("Live Audio")}</span>
-            </div>
-            <h2 className="text-base font-bold text-neutral-100 group-hover:text-white transition-colors m-0">
-              {t("Realtime")}
-            </h2>
-            <p className="text-xs text-neutral-400 leading-relaxed m-0">
-              {t("Low-latency microphone voice conversion for live streams, voice calls, and monitoring.")}
-            </p>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-medium text-neutral-300 group-hover:text-white pt-4 mt-3 border-t border-white/5">
-            <span>{t("Launch Live Audio")}</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </Link>
       </div>
 
       {/* Clean Collapsible Diagnostics Section */}

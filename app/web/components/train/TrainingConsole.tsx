@@ -90,47 +90,69 @@ export default function TrainingConsole({
       activePhase = 5;
     }
 
-    for (let i = cleanedLogs.length - 1; i >= 0; i--) {
-      const line = cleanedLogs[i];
+    // Oldest -> newest so the latest line always wins and the phase only
+    // moves forward. The previous newest-first scan let stale lines (e.g.
+    // "audio" in old preprocess output) drag the stepper back to phase 1
+    // mid-training.
+    const raisePhase = (cur: 1 | 2 | 3 | 4 | 5, p: 1 | 2 | 3 | 4 | 5): 1 | 2 | 3 | 4 | 5 =>
+      cur !== 5 && p > cur ? p : cur;
 
-      if (activePhase !== 5) {
-        if (line.includes("index") || line.includes("faiss") || line.includes("trained_IVF")) {
-          activePhase = 4;
-        } else if (line.includes("epoch=") || line.includes("step=") || line.includes("epoch:")) {
-          activePhase = 3;
+    for (const rawLine of cleanedLogs) {
+      const line = rawLine.toLowerCase();
+
+      // The API's own pipeline markers are authoritative when present.
+      if (line.includes(">>> [4/4]")) {
+        activePhase = raisePhase(activePhase, 4);
+      } else if (line.includes(">>> [3/4]")) {
+        activePhase = raisePhase(activePhase, 3);
+      } else if (line.includes(">>> [2/4]")) {
+        activePhase = raisePhase(activePhase, 2);
+      } else if (line.includes(">>> [1/4]")) {
+        activePhase = raisePhase(activePhase, 1);
+      } else if (activePhase !== 5) {
+        if (line.includes("index") || line.includes("faiss") || line.includes("trained_ivf")) {
+          activePhase = raisePhase(activePhase, 4);
+        } else if (
+          line.includes("epoch=") ||
+          line.includes("step=") ||
+          line.includes("epoch:") ||
+          /\bstarting training\b/.test(line)
+        ) {
+          // "Starting training..." (engine) but NOT "Starting 1-Click
+          // Training Pipeline" (API header): word adjacency distinguishes them.
+          activePhase = raisePhase(activePhase, 3);
         } else if (
           line.includes("extract") ||
           line.includes("f0") ||
           line.includes("rmvpe") ||
           line.includes("contentvec")
         ) {
-          activePhase = 2;
+          activePhase = raisePhase(activePhase, 2);
         } else if (line.includes("preprocess") || line.includes("sliced") || line.includes("audio")) {
-          activePhase = 1;
+          activePhase = raisePhase(activePhase, 1);
         }
       }
 
-      if (currentEpoch === null) {
-        const mEpoch = line.match(/epoch=(\d+)/i) || line.match(/epoch:\s*(\d+)/i);
-        if (mEpoch) currentEpoch = Number.parseInt(mEpoch[1], 10);
+      // Newest match wins: plain overwrite in oldest-first order.
+      const mEpoch = rawLine.match(/epoch=(\d+)/i) || rawLine.match(/epoch:\s*(\d+)/i);
+      if (mEpoch) currentEpoch = Number.parseInt(mEpoch[1], 10);
+
+      const mStep = rawLine.match(/step=(\d+)/i) || rawLine.match(/step:\s*(\d+)/i);
+      if (mStep) {
+        currentStep = Number.parseInt(mStep[1], 10);
+      } else if (activePhase === 3) {
+        // tqdm bars ("189/322 [..., 1.93it/s]") carry no step= token: attribute
+        // the fraction to training steps only while already in phase 3, so
+        // preprocess/extract bars can never pollute the counter.
+        const mTqdm = rawLine.match(/(\d+)\/(\d+)\s*\[[^\]]*it\/s/);
+        if (mTqdm) currentStep = Number.parseInt(mTqdm[1], 10);
       }
 
-      if (currentStep === null) {
-        const mStep = line.match(/step=(\d+)/i) || line.match(/step:\s*(\d+)/i);
-        if (mStep) currentStep = Number.parseInt(mStep[1], 10);
-      }
-
-      if (loss === null) {
-        const mLoss =
-          line.match(/lowest_value=([0-9\.]+)/i) ||
-          line.match(/loss_gen_all=([0-9\.]+)/i) ||
-          line.match(/loss:\s*([0-9\.]+)/i);
-        if (mLoss) loss = mLoss[1];
-      }
-
-      if (currentEpoch !== null && currentStep !== null && loss !== null && activePhase !== 1) {
-        break;
-      }
+      const mLoss =
+        rawLine.match(/lowest_value=([0-9.]+)/i) ||
+        rawLine.match(/loss_gen_all=([0-9.]+)/i) ||
+        rawLine.match(/loss:\s*([0-9.]+)/i);
+      if (mLoss) loss = mLoss[1];
     }
 
     return { currentEpoch, currentStep, loss, activePhase };

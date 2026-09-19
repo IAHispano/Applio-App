@@ -8,6 +8,7 @@ import {
   Flame,
   FolderUp,
   Layers,
+  RefreshCw,
   Sliders,
   StopCircle,
   Zap,
@@ -80,24 +81,43 @@ export default function TrainPage() {
   const [busy, setBusy] = useState(false);
   const [stopTarget, setStopTarget] = useState("");
 
+  async function loadDatasets(selectFirst = false): Promise<string[]> {
+    try {
+      const d = await apiGet<{ datasets: string[] }>("/api/train/datasets");
+      setDatasets(d.datasets);
+      if (selectFirst && d.datasets[0]) setDatasetPath(d.datasets[0]);
+      return d.datasets;
+    } catch {
+      return [];
+    }
+  }
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: mount-time fetch only; t is a stable dictionary lookup
   useEffect(() => {
-    apiGet<{ datasets: string[] }>("/api/train/datasets")
-      .then((d) => {
-        setDatasets(d.datasets);
-        if (d.datasets[0]) setDatasetPath(d.datasets[0]);
-      })
-      .catch(() => {});
+    loadDatasets(true);
     apiGet<{ g: string[]; d: string[] }>("/api/train/pretraineds")
       .then((p) => {
         setPretG(p.g);
         setPretD(p.d);
       })
       .catch(() => {});
-    apiGet<{ count: number; info: string }>("/api/train/gpus")
+    apiGet<{ count: number | string; info: string }>("/api/train/gpus")
       .then((g) => {
         setGpuInfo(g.info);
-        setGpuCount(g.count > 0 ? "0" : "-");
+        // NOTE: the API returns the GPU index spec as a string ("0", "0-1",
+        // ...), NOT a count — a raw `g.count > 0` is always false for those
+        // strings, which stuck every GPU host on "-" and crashed train.py's
+        // cuda parsing. Use a valid spec as-is; "-" only when there is none.
+        const raw = g.count;
+        const gpuId =
+          typeof raw === "number"
+            ? raw > 0
+              ? "0"
+              : "-"
+            : /^\d+(-\d+)*$/.test(String(raw).trim())
+              ? String(raw).trim()
+              : "-";
+        setGpuCount(gpuId);
       })
       .catch(() => setGpuInfo(t("GPU query failed (CPU-only host)")));
     apiGet<{ models: string[]; indexes: string[] }>("/api/train/exports")
@@ -109,6 +129,23 @@ export default function TrainPage() {
       })
       .catch(() => {});
   }, []);
+
+  function needModel(): boolean {
+    if (!modelName.trim()) {
+      toast(t("Please enter a model name."), "error");
+      return false;
+    }
+    return true;
+  }
+
+  function needDataset(): boolean {
+    if (!needModel()) return false;
+    if (!datasetPath) {
+      toast(t("Please select or upload a dataset."), "error");
+      return false;
+    }
+    return true;
+  }
 
   async function run(path: string, body: unknown) {
     setError("");
@@ -125,11 +162,11 @@ export default function TrainPage() {
 
   async function runPipeline() {
     if (!modelName.trim()) {
-      setError(t("Please enter a model name."));
+      toast(t("Please enter a model name."), "error");
       return;
     }
     if (!datasetPath) {
-      setError(t("Please select or upload a dataset."));
+      toast(t("Please select or upload a dataset."), "error");
       return;
     }
     setError("");
@@ -139,15 +176,33 @@ export default function TrainPage() {
         modelName: modelName.trim(),
         datasetPath,
         sampleRate,
+        ...(cpuCores ? { cpuCores: Number(cpuCores) } : {}),
+        cutPreprocess: cut,
+        chunkLen: chunk,
+        overlapLen: overlap,
+        processEffects,
+        noiseReduction,
+        cleanStrength,
+        normalizationMode,
         f0Method,
         embedderModel: embedder,
+        ...(embedder === "custom" && embedderCustom ? { embedderModelCustom: embedderCustom } : {}),
+        includeMutes,
         vocoder,
         totalEpoch,
         batchSize,
         saveEveryEpoch: saveEvery,
+        saveOnlyLatest,
+        saveEveryWeights,
+        pretrained,
+        customPretrained: customPre,
+        ...(customPre && gPath ? { gPretrainedPath: gPath } : {}),
+        ...(customPre && dPath ? { dPretrainedPath: dPath } : {}),
+        cleanup,
+        cacheDataInGpu: cacheGpu,
+        checkpointing,
         gpu: gpuCount,
         indexAlgorithm: indexAlgo,
-        noiseReduction,
       });
       setJobId(id);
     } catch (e) {
@@ -180,7 +235,7 @@ export default function TrainPage() {
       await fetch("/api/train/stop", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ modelName: stopTarget || modelName }),
+        body: JSON.stringify({ jobId: jobId || undefined, modelName: stopTarget || modelName }),
       });
       toast(t("Training stopped."));
     } catch (e) {
@@ -224,7 +279,7 @@ export default function TrainPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label htmlFor="train-model-name">{t("Model Project Name")}</label>
+            <label htmlFor="train-model-name">{t("Model Name")}</label>
             <input
               id="train-model-name"
               type="text"
@@ -234,7 +289,7 @@ export default function TrainPage() {
             />
           </div>
           <div>
-            <label htmlFor="train-gpu-count">{t("Compute Hardware (GPU)")}</label>
+            <label htmlFor="train-gpu-count">{t("GPU")}</label>
             <input
               id="train-gpu-count"
               type="text"
@@ -293,31 +348,34 @@ export default function TrainPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="pipeline-dataset-path">{t("Dataset Folder (in assets/datasets)")}</label>
-                {datasets.length > 0 ? (
-                  <CustomSelect
-                    id="pipeline-dataset-path"
-                    value={datasetPath}
-                    onChange={(e) => setDatasetPath(e.target.value)}
-                    placeholder={t("Select dataset…")}
-                    className="w-full mt-1"
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="pipeline-dataset-path" className="m-0">
+                    {t("Dataset Folder (in assets/datasets)")}
+                  </label>
+                  <button
+                    type="button"
+                    className="ghost h-7 px-2 text-xs flex items-center gap-1"
+                    onClick={() => loadDatasets()}
+                    title={t("Refresh datasets")}
+                    aria-label={t("Refresh datasets")}
                   >
-                    <option value="">{t("Select dataset…")}</option>
-                    {datasets.map((d) => (
-                      <option key={d} value={d}>
-                        {d.split(/[\\/]/).pop() || d}
-                      </option>
-                    ))}
-                  </CustomSelect>
-                ) : (
-                  <input
-                    id="pipeline-dataset-path"
-                    type="text"
-                    value={datasetPath}
-                    onChange={(e) => setDatasetPath(e.target.value)}
-                    placeholder="assets/datasets/my_vocal_data"
-                  />
-                )}
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+                <CustomSelect
+                  id="pipeline-dataset-path"
+                  value={datasetPath}
+                  onChange={(e) => setDatasetPath(e.target.value)}
+                  placeholder={t("Select dataset…")}
+                  className="w-full mt-1"
+                >
+                  <option value="">{t("Select dataset…")}</option>
+                  {datasets.map((d) => (
+                    <option key={d} value={d}>
+                      {d.split(/[\\/]/).pop() || d}
+                    </option>
+                  ))}
+                </CustomSelect>
               </div>
 
               <div>
@@ -339,7 +397,7 @@ export default function TrainPage() {
               <div>
                 <SliderField
                   id="pipeline-total-epoch"
-                  label={t("Total Epochs")}
+                  label={t("Total Epoch")}
                   value={totalEpoch}
                   min={10}
                   max={1000}
@@ -361,7 +419,7 @@ export default function TrainPage() {
               </div>
 
               <div>
-                <label htmlFor="pipeline-f0-method">{t("Pitch Extraction (F0)")}</label>
+                <label htmlFor="pipeline-f0-method">{t("Pitch extraction algorithm")}</label>
                 <CustomSelect
                   id="pipeline-f0-method"
                   value={f0Method}
@@ -400,7 +458,7 @@ export default function TrainPage() {
                   checked={noiseReduction}
                   onChange={(e) => setNoiseReduction(e.target.checked)}
                 />
-                <span>{t("Enable Audio Noise Reduction")}</span>
+                <span>{t("Noise Reduction")}</span>
               </label>
             </div>
 
@@ -451,34 +509,37 @@ export default function TrainPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="prep-dataset-path">{t("Dataset (assets/datasets)")}</label>
-                {datasets.length > 0 ? (
-                  <CustomSelect
-                    id="prep-dataset-path"
-                    value={datasetPath}
-                    onChange={(e) => setDatasetPath(e.target.value)}
-                    placeholder={t("Select dataset…")}
-                    className="w-full mt-1"
+                <div className="flex items-center justify-between gap-2">
+                  <label htmlFor="prep-dataset-path" className="m-0">
+                    {t("Dataset (assets/datasets)")}
+                  </label>
+                  <button
+                    type="button"
+                    className="ghost h-7 px-2 text-xs flex items-center gap-1"
+                    onClick={() => loadDatasets()}
+                    title={t("Refresh datasets")}
+                    aria-label={t("Refresh datasets")}
                   >
-                    <option value="">{t("Select dataset…")}</option>
-                    {datasets.map((d) => (
-                      <option key={d} value={d}>
-                        {d.split(/[\\/]/).pop() || d}
-                      </option>
-                    ))}
-                  </CustomSelect>
-                ) : (
-                  <input
-                    id="prep-dataset-path"
-                    type="text"
-                    value={datasetPath}
-                    onChange={(e) => setDatasetPath(e.target.value)}
-                    placeholder="assets/datasets/my_vocal_data"
-                  />
-                )}
+                    <RefreshCw size={13} />
+                  </button>
+                </div>
+                <CustomSelect
+                  id="prep-dataset-path"
+                  value={datasetPath}
+                  onChange={(e) => setDatasetPath(e.target.value)}
+                  placeholder={t("Select dataset…")}
+                  className="w-full mt-1"
+                >
+                  <option value="">{t("Select dataset…")}</option>
+                  {datasets.map((d) => (
+                    <option key={d} value={d}>
+                      {d.split(/[\\/]/).pop() || d}
+                    </option>
+                  ))}
+                </CustomSelect>
               </div>
               <div>
-                <label htmlFor="prep-sample-rate">{t("Sample Rate")}</label>
+                <label htmlFor="prep-sample-rate">{t("Sampling Rate")}</label>
                 <CustomSelect
                   id="prep-sample-rate"
                   value={sampleRate}
@@ -493,7 +554,7 @@ export default function TrainPage() {
                 </CustomSelect>
               </div>
               <div>
-                <label htmlFor="prep-cut-method">{t("Cut Method")}</label>
+                <label htmlFor="prep-cut-method">{t("Audio cutting")}</label>
                 <CustomSelect
                   id="prep-cut-method"
                   value={cut}
@@ -561,7 +622,7 @@ export default function TrainPage() {
                 checked={processEffects}
                 onChange={(e) => setProcessEffects(e.target.checked)}
               />
-              <span>{t("Process effects (disable filters during preprocessing)")}</span>
+              <span>{t("Noise filter")}</span>
             </label>
             <div className="mt-2">
               <label htmlFor="prep-norm-mode">{t("Normalization mode")}</label>
@@ -583,7 +644,8 @@ export default function TrainPage() {
                 type="button"
                 className="cta"
                 disabled={busy}
-                onClick={() =>
+                onClick={() => {
+                  if (!needDataset()) return;
                   run("/api/train/preprocess", {
                     modelName,
                     datasetPath,
@@ -596,10 +658,10 @@ export default function TrainPage() {
                     cleanStrength,
                     processEffects,
                     normalizationMode,
-                  })
-                }
+                  });
+                }}
               >
-                {t("Run Preprocess")}
+                {t("Preprocess Dataset")}
               </button>
             </div>
           </div>
@@ -622,7 +684,7 @@ export default function TrainPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <label htmlFor="ext-pitch-method">{t("Pitch Method (F0)")}</label>
+                <label htmlFor="ext-pitch-method">{t("Pitch extraction algorithm")}</label>
                 <CustomSelect
                   id="ext-pitch-method"
                   value={f0Method}
@@ -653,7 +715,7 @@ export default function TrainPage() {
               </div>
               {embedder === "custom" && (
                 <div>
-                  <label htmlFor="ext-custom-embedder">{t("Custom embedder path")}</label>
+                  <label htmlFor="ext-custom-embedder">{t("Select Custom Embedder")}</label>
                   <input
                     id="ext-custom-embedder"
                     type="text"
@@ -666,7 +728,7 @@ export default function TrainPage() {
               <div>
                 <SliderField
                   id="ext-include-mutes"
-                  label={t("Include mutes")}
+                  label={t("Silent training files")}
                   value={includeMutes}
                   min={0}
                   max={10}
@@ -680,7 +742,8 @@ export default function TrainPage() {
                 type="button"
                 className="cta"
                 disabled={busy}
-                onClick={() =>
+                onClick={() => {
+                  if (!needModel()) return;
                   run("/api/train/extract", {
                     modelName,
                     f0Method,
@@ -692,10 +755,10 @@ export default function TrainPage() {
                       ? { embedderModelCustom: embedderCustom }
                       : {}),
                     includeMutes,
-                  })
-                }
+                  });
+                }}
               >
-                {t("Run Extract")}
+                {t("Extract Features")}
               </button>
             </div>
           </div>
@@ -735,7 +798,7 @@ export default function TrainPage() {
               <div>
                 <SliderField
                   id="train-step-total-epoch"
-                  label={t("Total Epochs")}
+                  label={t("Total Epoch")}
                   value={totalEpoch}
                   min={1}
                   max={10000}
@@ -757,7 +820,7 @@ export default function TrainPage() {
               <div>
                 <SliderField
                   id="train-step-save-every"
-                  label={t("Save Every N Epochs")}
+                  label={t("Save Every Epoch")}
                   value={saveEvery}
                   min={1}
                   max={100}
@@ -804,7 +867,7 @@ export default function TrainPage() {
                     checked={saveOnlyLatest}
                     onChange={(e) => setSaveOnlyLatest(e.target.checked)}
                   />
-                  <span>{t("Save only latest checkpoint")}</span>
+                  <span>{t("Save Only Latest")}</span>
                 </label>
                 <label
                   htmlFor="train-step-save-weights"
@@ -816,7 +879,7 @@ export default function TrainPage() {
                     checked={saveEveryWeights}
                     onChange={(e) => setSaveEveryWeights(e.target.checked)}
                   />
-                  <span>{t("Save model weights every checkpoint")}</span>
+                  <span>{t("Save Every Weights")}</span>
                 </label>
                 <label htmlFor="train-step-cleanup" className="flex items-center gap-2 cursor-pointer mt-3">
                   <input
@@ -825,7 +888,7 @@ export default function TrainPage() {
                     checked={cleanup}
                     onChange={(e) => setCleanup(e.target.checked)}
                   />
-                  <span>{t("Fresh start (clean up previous attempt)")}</span>
+                  <span>{t("Fresh Training")}</span>
                 </label>
                 <label htmlFor="train-step-cache-gpu" className="flex items-center gap-2 cursor-pointer mt-3">
                   <input
@@ -846,7 +909,7 @@ export default function TrainPage() {
                     checked={checkpointing}
                     onChange={(e) => setCheckpointing(e.target.checked)}
                   />
-                  <span>{t("Memory-efficient checkpointing")}</span>
+                  <span>{t("Checkpointing")}</span>
                 </label>
               </div>
             </details>
@@ -857,12 +920,12 @@ export default function TrainPage() {
                 checked={customPre}
                 onChange={(e) => setCustomPre(e.target.checked)}
               />
-              <span>{t("Custom pretrained G/D")}</span>
+              <span>{t("Custom Pretrained")}</span>
             </label>
             {customPre && (
               <div className="grid2 mt-2">
                 <div>
-                  <label htmlFor="train-step-gpath">{t("G path")}</label>
+                  <label htmlFor="train-step-gpath">{t("Custom Pretrained G")}</label>
                   {pretG.length > 0 ? (
                     <CustomSelect
                       id="train-step-gpath"
@@ -889,7 +952,7 @@ export default function TrainPage() {
                   )}
                 </div>
                 <div>
-                  <label htmlFor="train-step-dpath">{t("D path")}</label>
+                  <label htmlFor="train-step-dpath">{t("Custom Pretrained D")}</label>
                   {pretD.length > 0 ? (
                     <CustomSelect
                       id="train-step-dpath"
@@ -924,6 +987,7 @@ export default function TrainPage() {
                 className="cta"
                 disabled={busy}
                 onClick={() => {
+                  if (!needModel()) return;
                   run("/api/train/train", {
                     modelName,
                     vocoder,
@@ -950,9 +1014,12 @@ export default function TrainPage() {
               <button
                 type="button"
                 className="ghost"
-                onClick={() => run("/api/train/index", { modelName, indexAlgorithm: indexAlgo })}
+                onClick={() => {
+                  if (!needModel()) return;
+                  run("/api/train/index", { modelName, indexAlgorithm: indexAlgo });
+                }}
               >
-                {t("Generate Index Only")}
+                {t("Generate Index")}
               </button>
             </div>
           </div>

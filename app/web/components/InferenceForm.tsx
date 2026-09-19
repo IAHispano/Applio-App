@@ -4,7 +4,6 @@ import {
   Activity,
   AudioWaveform,
   ChevronDown,
-  Info,
   Layers,
   Loader2,
   Music,
@@ -32,10 +31,9 @@ import { useI18n } from "../lib/i18n";
 import { matchIndex } from "../lib/model-index";
 import { useSpeakers } from "../lib/useSpeakers";
 import AudioWavePlayer from "./AudioWavePlayer";
-import ModelInfoCard, { type ModelMetadata } from "./models/ModelInfoCard";
+import type { ModelMetadata } from "./models/ModelInfoCard";
 import AudioDropzone from "./ui/AudioDropzone";
 import CustomSelect from "./ui/CustomSelect";
-import Modal from "./ui/Modal";
 import ModelDropdown from "./ui/ModelDropdown";
 import SliderField from "./ui/SliderField";
 
@@ -183,8 +181,7 @@ export default function InferenceForm() {
   // Deep model metadata extracted by running inspection script
   const [inspectMeta, setInspectMeta] = useState<ModelMetadata | null>(null);
   const [inspectLoading, setInspectLoading] = useState(false);
-  const [inspectError, setInspectError] = useState("");
-  const [showFullInfoModal, setShowFullInfoModal] = useState(false);
+  const [, setInspectError] = useState("");
 
   // Extract model information when checkpoint is loaded
   useEffect(() => {
@@ -492,16 +489,6 @@ export default function InferenceForm() {
                       </span>
                     )}
                   </div>
-                  {inspectMeta && (
-                    <button
-                      type="button"
-                      onClick={() => setShowFullInfoModal(true)}
-                      className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      <Info size={12} />
-                      <span>{t("Full info")}</span>
-                    </button>
-                  )}
                 </div>
 
                 <dl className="model-meta">
@@ -543,7 +530,7 @@ export default function InferenceForm() {
                   )}
                   {inspectMeta?.f0 && inspectMeta.f0 !== "None" && (
                     <div>
-                      <dt>{t("Pitch Guidance (F0)")}</dt>
+                      <dt>{t("Pitch extraction algorithm")}</dt>
                       <dd>
                         {inspectMeta.f0 === "1" || inspectMeta.f0 === "True" || inspectMeta.f0 === "true"
                           ? t("Yes")
@@ -553,7 +540,7 @@ export default function InferenceForm() {
                   )}
                   {inspectMeta?.embedder_model && inspectMeta.embedder_model !== "None" && (
                     <div>
-                      <dt>{t("Feature Embedder")}</dt>
+                      <dt>{t("Embedder Model")}</dt>
                       <dd className="truncate" title={inspectMeta.embedder_model}>
                         {inspectMeta.embedder_model}
                       </dd>
@@ -592,7 +579,7 @@ export default function InferenceForm() {
                     : t("Pick a voice model above — its index file is paired automatically.")}
                 </p>
                 {models.length === 0 && (
-                  <Link href="/download" className="ghost-link">
+                  <Link href="/models" className="ghost-link">
                     {t("Go to Download")}
                   </Link>
                 )}
@@ -687,7 +674,7 @@ export default function InferenceForm() {
           <div className="space-y-2">
             <SliderField
               id="infer-pitch"
-              label={t("Pitch Shift (Semitones)")}
+              label={t("Pitch")}
               value={pitch}
               min={-24}
               max={24}
@@ -728,7 +715,7 @@ export default function InferenceForm() {
           <div>
             <SliderField
               id="infer-index-rate"
-              label={t("Search Feature Ratio (Index Accent)")}
+              label={t("Search Feature Ratio")}
               value={indexRate}
               min={0}
               max={1}
@@ -743,7 +730,7 @@ export default function InferenceForm() {
           <div>
             <SliderField
               id="infer-volume-envelope"
-              label={t("Volume Envelope (Dynamic Loudness)")}
+              label={t("Volume Envelope")}
               value={volumeEnvelope}
               min={0}
               max={1}
@@ -792,7 +779,7 @@ export default function InferenceForm() {
 
           <div>
             <label htmlFor="embedder-model-select" className="text-xs font-medium text-neutral-300">
-              {t("Speech Embedder Model")}
+              {t("Embedder Model")}
             </label>
             <CustomSelect
               id="embedder-model-select"
@@ -830,7 +817,7 @@ export default function InferenceForm() {
         {embedderModel === "custom" && (
           <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl">
             <label htmlFor="embedder-custom-input" className="text-xs font-medium text-neutral-300">
-              {t("Custom Embedder Path (rvc/models/embedders/embedders_custom/...)")}
+              {t("Select Custom Embedder")}
             </label>
             <input
               id="embedder-custom-input"
@@ -859,41 +846,42 @@ export default function InferenceForm() {
             </summary>
             <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                   <input
                     type="checkbox"
                     checked={splitAudio}
                     onChange={(e) => setSplitAudio(e.target.checked)}
                   />
-                  <span className="text-xs">{t("Split in Chunks")}</span>
+                  <span>{t("Split Audio")}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                   <input
                     type="checkbox"
                     checked={f0Autotune}
                     onChange={(e) => setF0Autotune(e.target.checked)}
                   />
-                  <span className="text-xs">{t("Autotune")}</span>
+                  <span>{t("Autotune")}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                   <input
                     type="checkbox"
                     checked={cleanAudio}
                     onChange={(e) => setCleanAudio(e.target.checked)}
                   />
-                  <span className="text-xs">{t("Clean Artifacts")}</span>
+                  <span>{t("Clean Audio")}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer p-2.5 rounded-lg border border-white/5 bg-white/[0.02] hover:bg-white/[0.05]">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                   <input
                     type="checkbox"
                     checked={proposedPitch}
                     onChange={(e) => setProposedPitch(e.target.checked)}
                   />
-                  <span className="text-xs">{t("Proposed Pitch")}</span>
+                  <span>{t("Proposed Pitch")}</span>
                 </label>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              {(f0Autotune || cleanAudio || proposedPitch) && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 {f0Autotune && (
                   <SliderField
                     id="infer-autotune-strength"
@@ -919,7 +907,7 @@ export default function InferenceForm() {
                 {proposedPitch && (
                   <SliderField
                     id="infer-pitch-thresh"
-                    label={t("Pitch Threshold")}
+                    label={t("Proposed Pitch Threshold")}
                     value={proposedPitchThreshold}
                     min={50}
                     max={1200}
@@ -929,6 +917,7 @@ export default function InferenceForm() {
                   />
                 )}
               </div>
+              )}
             </div>
           </details>
 
@@ -937,7 +926,7 @@ export default function InferenceForm() {
             <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none">
               <span className="flex items-center gap-2">
                 <Sparkles size={15} />
-                <span>{t("Formant Shifting (Vocal Tract Modification)")}</span>
+                <span>{t("Formant Shifting")}</span>
               </span>
               <ChevronDown
                 size={16}
@@ -958,7 +947,7 @@ export default function InferenceForm() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                   <SliderField
                     id="infer-formant-qfrency"
-                    label={t("Formant Q-Frequency")}
+                    label={t("Quefrency for formant shifting")}
                     value={formantQfrency}
                     min={0}
                     max={16.0}
@@ -968,7 +957,7 @@ export default function InferenceForm() {
                   />
                   <SliderField
                     id="infer-formant-timbre"
-                    label={t("Formant Timbre")}
+                    label={t("Timbre for formant shifting")}
                     value={formantTimbre}
                     min={0}
                     max={16.0}
@@ -982,11 +971,15 @@ export default function InferenceForm() {
           </details>
 
           {/* Audio FX Rack Accordion */}
-          <details className="group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
+          <details
+            className="group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]"
+            open={postProcess}
+            onToggle={(e) => setPostProcess(e.currentTarget.open)}
+          >
             <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none">
               <span className="flex items-center gap-2">
                 <Layers size={15} />
-                <span>{t("Post-Processing Audio FX Chain")}</span>
+                <span>{t("Post-Process")}</span>
               </span>
               <ChevronDown
                 size={16}
@@ -994,19 +987,10 @@ export default function InferenceForm() {
               />
             </summary>
             <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={postProcess}
-                  onChange={(e) => setPostProcess(e.target.checked)}
-                />
-                <span className="text-xs font-medium text-white">{t("Enable Master FX Rack")}</span>
-              </label>
-
               {postProcess && (
                 <div className="space-y-4 pt-2">
                   {/* Reverb */}
-                  <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                       <input type="checkbox" checked={reverb} onChange={(e) => setReverb(e.target.checked)} />
                       <span>{t("Reverb")}</span>
@@ -1015,7 +999,7 @@ export default function InferenceForm() {
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                         <SliderField
                           id="fx-reverb-room"
-                          label={t("Room Size")}
+                          label={t("Reverb Room Size")}
                           value={reverbRoomSize}
                           min={0}
                           max={1}
@@ -1024,7 +1008,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-reverb-damping"
-                          label={t("Damping")}
+                          label={t("Reverb Damping")}
                           value={reverbDamping}
                           min={0}
                           max={1}
@@ -1033,7 +1017,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-reverb-wet"
-                          label={t("Wet Mix")}
+                          label={t("Reverb Wet Gain")}
                           value={reverbWetGain}
                           min={0}
                           max={1}
@@ -1042,7 +1026,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-reverb-dry"
-                          label={t("Dry Mix")}
+                          label={t("Reverb Dry Gain")}
                           value={reverbDryGain}
                           min={0}
                           max={1}
@@ -1051,7 +1035,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-reverb-width"
-                          label={t("Width")}
+                          label={t("Reverb Width")}
                           value={reverbWidth}
                           min={0}
                           max={1}
@@ -1060,7 +1044,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-reverb-freeze"
-                          label={t("Freeze Mode")}
+                          label={t("Reverb Freeze Mode")}
                           value={reverbFreezeMode}
                           min={0}
                           max={1}
@@ -1072,7 +1056,7 @@ export default function InferenceForm() {
                   </div>
 
                   {/* Pitch Shift */}
-                  <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                       <input
                         type="checkbox"
@@ -1084,7 +1068,7 @@ export default function InferenceForm() {
                     {pitchShift && (
                       <SliderField
                         id="fx-pitch-semitones"
-                        label={t("Semitones")}
+                        label={t("Pitch Shift Semitones")}
                         value={pitchShiftSemitones}
                         min={-12}
                         max={12}
@@ -1095,16 +1079,16 @@ export default function InferenceForm() {
                   </div>
 
                   {/* Delay */}
-                  <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                       <input type="checkbox" checked={delay} onChange={(e) => setDelay(e.target.checked)} />
-                      <span>{t("Stereo Delay")}</span>
+                      <span>{t("Delay")}</span>
                     </label>
                     {delay && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <SliderField
                           id="fx-delay-time"
-                          label={t("Delay Time")}
+                          label={t("Delay Seconds")}
                           value={delaySeconds}
                           min={0}
                           max={5.0}
@@ -1114,7 +1098,7 @@ export default function InferenceForm() {
                         />
                         <SliderField
                           id="fx-delay-feedback"
-                          label={t("Feedback")}
+                          label={t("Delay Feedback")}
                           value={delayFeedback}
                           min={0}
                           max={1.0}
@@ -1135,8 +1119,8 @@ export default function InferenceForm() {
                   </div>
 
                   {/* Compressor & Limiter */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
@@ -1149,7 +1133,7 @@ export default function InferenceForm() {
                         <div className="space-y-2">
                           <SliderField
                             id="fx-comp-thresh"
-                            label={t("Threshold")}
+                            label={t("Compressor Threshold dB")}
                             value={compressorThreshold}
                             min={-60}
                             max={0}
@@ -1159,7 +1143,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-comp-ratio"
-                            label={t("Ratio")}
+                            label={t("Compressor Ratio")}
                             value={compressorRatio}
                             min={1}
                             max={20}
@@ -1169,7 +1153,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-comp-attack"
-                            label={t("Attack")}
+                            label={t("Compressor Attack ms")}
                             value={compressorAttack}
                             min={0}
                             max={100}
@@ -1179,7 +1163,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-comp-release"
-                            label={t("Release")}
+                            label={t("Compressor Release ms")}
                             value={compressorRelease}
                             min={0.01}
                             max={100}
@@ -1191,20 +1175,20 @@ export default function InferenceForm() {
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
                           checked={limiter}
                           onChange={(e) => setLimiter(e.target.checked)}
                         />
-                        <span>{t("Peak Limiter")}</span>
+                        <span>{t("Limiter")}</span>
                       </label>
                       {limiter && (
                         <div className="space-y-2">
                           <SliderField
                             id="fx-limiter-ceil"
-                            label={t("Ceiling")}
+                            label={t("Limiter Threshold dB")}
                             value={limiterThreshold}
                             min={-60}
                             max={0}
@@ -1214,7 +1198,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-limiter-release"
-                            label={t("Release Time")}
+                            label={t("Limiter Release Time")}
                             value={limiterReleaseTime}
                             min={0.01}
                             max={1}
@@ -1228,21 +1212,21 @@ export default function InferenceForm() {
                   </div>
 
                   {/* Chorus, Distortion & Gain */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
                           checked={chorus}
                           onChange={(e) => setChorus(e.target.checked)}
                         />
-                        <span>{t("Chorus / Detune")}</span>
+                        <span>{t("Chorus")}</span>
                       </label>
                       {chorus && (
                         <div className="space-y-2">
                           <SliderField
                             id="fx-chorus-rate"
-                            label={t("Rate")}
+                            label={t("Chorus Rate Hz")}
                             value={chorusRate}
                             min={0.1}
                             max={100}
@@ -1252,7 +1236,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-chorus-depth"
-                            label={t("Depth")}
+                            label={t("Chorus Depth")}
                             value={chorusDepth}
                             min={0.05}
                             max={1}
@@ -1261,7 +1245,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-chorus-center"
-                            label={t("Center Delay")}
+                            label={t("Chorus Center Delay ms")}
                             value={chorusCenterDelay}
                             min={7}
                             max={8}
@@ -1271,7 +1255,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-chorus-feedback"
-                            label={t("Feedback")}
+                            label={t("Chorus Feedback")}
                             value={chorusFeedback}
                             min={0}
                             max={1}
@@ -1280,7 +1264,7 @@ export default function InferenceForm() {
                           />
                           <SliderField
                             id="fx-chorus-mix"
-                            label={t("Mix")}
+                            label={t("Chorus Mix")}
                             value={chorusMix}
                             min={0}
                             max={1}
@@ -1291,7 +1275,7 @@ export default function InferenceForm() {
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
@@ -1303,7 +1287,7 @@ export default function InferenceForm() {
                       {distortion && (
                         <SliderField
                           id="fx-dist-gain"
-                          label={t("Drive Gain")}
+                          label={t("Distortion Gain")}
                           value={distortionGain}
                           min={-60}
                           max={60}
@@ -1314,15 +1298,15 @@ export default function InferenceForm() {
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input type="checkbox" checked={gain} onChange={(e) => setGain(e.target.checked)} />
-                        <span>{t("Output Gain")}</span>
+                        <span>{t("Gain")}</span>
                       </label>
                       {gain && (
                         <SliderField
                           id="fx-gain-db"
-                          label={t("Boost")}
+                          label={t("Gain dB")}
                           value={gainDb}
                           min={-60}
                           max={60}
@@ -1333,7 +1317,7 @@ export default function InferenceForm() {
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
@@ -1345,7 +1329,7 @@ export default function InferenceForm() {
                       {bitcrush && (
                         <SliderField
                           id="fx-bitcrush-depth"
-                          label={t("Bit Depth")}
+                          label={t("Bitcrush Bit Depth")}
                           value={bitcrushBitDepth}
                           min={1}
                           max={32}
@@ -1355,7 +1339,7 @@ export default function InferenceForm() {
                       )}
                     </div>
 
-                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <div className="space-y-3">
                       <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                         <input
                           type="checkbox"
@@ -1367,7 +1351,7 @@ export default function InferenceForm() {
                       {clipping && (
                         <SliderField
                           id="fx-clip-thresh"
-                          label={t("Threshold")}
+                          label={t("Clipping Threshold")}
                           value={clippingThreshold}
                           min={-60}
                           max={0}
@@ -1486,23 +1470,6 @@ export default function InferenceForm() {
         )}
       </div>
 
-      {/* Full Model Checkpoint Details Modal */}
-      {showFullInfoModal && pthPath && (
-        <Modal
-          isOpen={showFullInfoModal}
-          onClose={() => setShowFullInfoModal(false)}
-          title={t("Model Checkpoint Details")}
-          maxWidth="lg"
-        >
-          <ModelInfoCard
-            metadata={inspectMeta}
-            loading={inspectLoading}
-            error={inspectError}
-            pthPath={pthPath}
-            onClose={() => setShowFullInfoModal(false)}
-          />
-        </Modal>
-      )}
     </form>
   );
 }

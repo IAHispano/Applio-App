@@ -5,10 +5,10 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { killJobTree, runPythonJson, startCliJob, trackPid } from "../cli";
+import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "../cli";
 import { errMsg } from "../errors";
-import { appendLog, createJob, getJob, setDone, setError, setRunning } from "../jobs";
-import { getRepoRoot, getUploadsDir, resolveUserPath, runPythonModule } from "../python";
+import { appendLog, createJob, getJob, listJobs, setDone, setError, setRunning } from "../jobs";
+import { getRepoRoot, getUploadsDir, resolveUserPath } from "../python";
 
 const router = Router();
 const AUDIO_EXTS = [
@@ -80,12 +80,16 @@ router.get("/embedders", (_req: Request, res: Response) => {
 
 router.get("/gpus", async (_req: Request, res: Response) => {
   try {
+    const now = Date.now();
+    if (now - gpuCache.at < GPU_CACHE_TTL && gpuCache.data) return res.json(gpuCache.data);
     const code = [
       "import json",
       "from rvc.configs.config import get_gpu_info, get_number_of_gpus",
       "print('APPLIO_JSON:' + json.dumps({'count': get_number_of_gpus(), 'info': get_gpu_info()}))",
     ].join("; ");
-    res.json(await runPythonJson<{ count: number; info: string }>(code));
+    const data = await runPythonJson<{ count: number; info: string }>(code);
+    gpuCache = { at: now, data };
+    res.json(data);
   } catch (err) {
     res.status(500).json({ error: errMsg(err) || "GPU query failed" });
   }
@@ -185,28 +189,33 @@ router.post(
 );
 
 const maxCores = Math.min(os.cpus().length, 32);
-const modelName = z.string().min(1).max(120);
+const modelName = z
+  .string()
+  .trim()
+  .min(1)
+  .max(120)
+  .refine((n) => !/[\r\n]/.test(n), "Invalid model name");
 
-router.post("/preprocess", (req: Request, res: Response) => {
-  const parsed = z
-    .object({
-      modelName,
-      datasetPath: z.string().min(1),
-      sampleRate: z.enum(["32000", "40000", "48000"]).default("40000"),
-      cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
-      cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
-      processEffects: z.coerce.boolean().default(false),
-      noiseReduction: z.coerce.boolean().default(false),
-      cleanStrength: z.coerce.number().min(0).max(1).default(0.5),
-      chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
-      overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
-      normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
-    })
-    .safeParse(req.body);
-  if (!parsed.success)
-    return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
-  const p = parsed.data;
-  const job = startCliJob("train", { step: "preprocess", ...p }, [
+// Importing torch takes seconds: cache the GPU probe per process.
+const GPU_CACHE_TTL = 5 * 60 * 1000;
+let gpuCache: { at: number; data: { count: number; info: string } | null } = { at: 0, data: null };
+
+interface PreprocessParams {
+  modelName: string;
+  datasetPath: string;
+  sampleRate: string;
+  cpuCores: number;
+  cutPreprocess: string;
+  processEffects: boolean;
+  noiseReduction: boolean;
+  cleanStrength: number;
+  chunkLen: number;
+  overlapLen: number;
+  normalizationMode: string;
+}
+
+function buildPreprocessArgs(p: PreprocessParams): string[] {
+  return [
     "core.py",
     "preprocess",
     "--model-name",
@@ -229,7 +238,137 @@ router.post("/preprocess", (req: Request, res: Response) => {
     String(p.overlapLen),
     "--normalization-mode",
     p.normalizationMode,
-  ]);
+  ];
+}
+
+interface ExtractParams {
+  modelName: string;
+  f0Method: string;
+  cpuCores: number;
+  gpu: string;
+  sampleRate: string;
+  embedderModel: string;
+  embedderModelCustom?: string;
+  includeMutes: number;
+}
+
+function buildExtractArgs(p: ExtractParams): string[] {
+  const args = [
+    "core.py",
+    "extract",
+    "--model-name",
+    p.modelName,
+    "--f0-method",
+    p.f0Method,
+    "--cpu-cores",
+    String(p.cpuCores),
+    "--gpu",
+    p.gpu,
+    "--sample-rate",
+    p.sampleRate,
+    "--embedder-model",
+    p.embedderModel,
+    "--include-mutes",
+    String(p.includeMutes),
+  ];
+  if (p.embedderModelCustom) args.push("--embedder-model-custom", p.embedderModelCustom);
+  return args;
+}
+
+interface TrainStepParams {
+  modelName: string;
+  vocoder: string;
+  checkpointing: boolean;
+  saveEveryEpoch: number;
+  saveOnlyLatest: boolean;
+  saveEveryWeights: boolean;
+  totalEpoch: number;
+  sampleRate: string;
+  batchSize: number;
+  gpu: string;
+  pretrained: boolean;
+  customPretrained: boolean;
+  gPretrainedPath?: string;
+  dPretrainedPath?: string;
+  cleanup: boolean;
+  cacheDataInGpu: boolean;
+  indexAlgorithm: string;
+}
+
+function buildTrainArgs(p: TrainStepParams): string[] {
+  return [
+    "core.py",
+    "train",
+    "--model-name",
+    p.modelName,
+    "--vocoder",
+    p.vocoder,
+    ...(p.checkpointing ? ["--checkpointing"] : []),
+    "--save-every-epoch",
+    String(p.saveEveryEpoch),
+    ...(p.saveOnlyLatest ? ["--save-only-latest"] : []),
+    ...(p.saveEveryWeights ? ["--save-every-weights"] : []),
+    "--total-epoch",
+    String(p.totalEpoch),
+    "--sample-rate",
+    p.sampleRate,
+    "--batch-size",
+    String(p.batchSize),
+    "--gpu",
+    p.gpu,
+    p.pretrained ? "--pretrained" : "--no-pretrained",
+    ...(p.customPretrained
+      ? [
+          "--custom-pretrained",
+          "--g-pretrained-path",
+          p.gPretrainedPath || "",
+          "--d-pretrained-path",
+          p.dPretrainedPath || "",
+        ]
+      : []),
+    ...(p.cleanup ? ["--cleanup"] : []),
+    ...(p.cacheDataInGpu ? ["--cache-data-in-gpu"] : []),
+    "--index-algorithm",
+    p.indexAlgorithm,
+  ];
+}
+
+router.post("/preprocess", (req: Request, res: Response) => {
+  const parsed = z
+    .object({
+      modelName,
+      datasetPath: z.string().min(1),
+      sampleRate: z.enum(["32000", "40000", "48000"]).default("40000"),
+      cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
+      cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
+      processEffects: z.coerce.boolean().default(false),
+      noiseReduction: z.coerce.boolean().default(false),
+      cleanStrength: z.coerce.number().min(0).max(1).default(0.5),
+      chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
+      overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
+      normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
+    })
+    .safeParse(req.body);
+  if (!parsed.success)
+    return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
+  const p = parsed.data;
+  let ds: string;
+  try {
+    ds = resolveUserPath(p.datasetPath);
+  } catch (err) {
+    return res.status(400).json({ error: errMsg(err) });
+  }
+  if (!fs.existsSync(ds)) {
+    return res.status(400).json({ error: `Dataset directory not found: ${p.datasetPath}` });
+  }
+  const job = startCliJob(
+    "train",
+    { step: "preprocess", ...p },
+    buildPreprocessArgs({ ...p, datasetPath: ds }),
+    {
+      expectSuccess: `Model ${p.modelName} preprocessed successfully.`,
+    },
+  );
   return res.status(202).json({ jobId: job.id });
 });
 
@@ -259,26 +398,9 @@ router.post("/extract", (req: Request, res: Response) => {
   if (!parsed.success)
     return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
   const p = parsed.data;
-  const args = [
-    "core.py",
-    "extract",
-    "--model-name",
-    p.modelName,
-    "--f0-method",
-    p.f0Method,
-    "--cpu-cores",
-    String(p.cpuCores),
-    "--gpu",
-    p.gpu,
-    "--sample-rate",
-    p.sampleRate,
-    "--embedder-model",
-    p.embedderModel,
-    "--include-mutes",
-    String(p.includeMutes),
-  ];
-  if (p.embedderModelCustom) args.push("--embedder-model-custom", p.embedderModelCustom);
-  const job = startCliJob("train", { step: "extract", ...p }, args);
+  const job = startCliJob("train", { step: "extract", ...p }, buildExtractArgs(p), {
+    expectSuccess: `Model ${p.modelName} extracted successfully.`,
+  });
   return res.status(202).json({ jobId: job.id });
 });
 
@@ -319,37 +441,9 @@ router.post("/train", (req: Request, res: Response) => {
       .status(400)
       .json({ error: "gPretrainedPath and dPretrainedPath are required with customPretrained." });
   }
-  const gPre = p.gPretrainedPath || "";
-  const dPre = p.dPretrainedPath || "";
-  const job = startCliJob("train", { step: "train", ...p }, [
-    "core.py",
-    "train",
-    "--model-name",
-    p.modelName,
-    "--vocoder",
-    p.vocoder,
-    ...(p.checkpointing ? ["--checkpointing"] : []),
-    "--save-every-epoch",
-    String(p.saveEveryEpoch),
-    ...(p.saveOnlyLatest ? ["--save-only-latest"] : []),
-    ...(p.saveEveryWeights ? ["--save-every-weights"] : []),
-    "--total-epoch",
-    String(p.totalEpoch),
-    "--sample-rate",
-    p.sampleRate,
-    "--batch-size",
-    String(p.batchSize),
-    "--gpu",
-    p.gpu,
-    p.pretrained ? "--pretrained" : "--no-pretrained",
-    ...(p.customPretrained
-      ? ["--custom-pretrained", "--g-pretrained-path", gPre, "--d-pretrained-path", dPre]
-      : []),
-    ...(p.cleanup ? ["--cleanup"] : []),
-    ...(p.cacheDataInGpu ? ["--cache-data-in-gpu"] : []),
-    "--index-algorithm",
-    p.indexAlgorithm,
-  ]);
+  const job = startCliJob("train", { step: "train", ...p }, buildTrainArgs(p), {
+    expectSuccess: `Model ${p.modelName} trained successfully.`,
+  });
   return res.status(202).json({ jobId: job.id });
 });
 
@@ -369,7 +463,9 @@ router.post("/index", (req: Request, res: Response) => {
     parsed.data.modelName,
     "--index-algorithm",
     parsed.data.indexAlgorithm,
-  ]);
+  ], {
+    expectSuccess: `Index file for ${parsed.data.modelName} generated successfully.`,
+  });
   return res.status(202).json({ jobId: job.id });
 });
 
@@ -379,6 +475,14 @@ router.post("/pipeline", (req: Request, res: Response) => {
       modelName,
       datasetPath: z.string().min(1, "datasetPath is required"),
       sampleRate: z.enum(["32000", "40000", "44100", "48000"]).default("40000"),
+      cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
+      cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
+      chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
+      overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
+      processEffects: z.coerce.boolean().default(false),
+      noiseReduction: z.coerce.boolean().default(false),
+      cleanStrength: z.coerce.number().min(0).max(1).default(0.7),
+      normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
       f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe"]).default("rmvpe"),
       embedderModel: z
         .enum([
@@ -391,13 +495,23 @@ router.post("/pipeline", (req: Request, res: Response) => {
           "custom",
         ])
         .default("contentvec"),
+      embedderModelCustom: z.string().optional(),
+      includeMutes: z.coerce.number().int().min(0).max(10).default(2),
       vocoder: z.enum(["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"]).default("HiFi-GAN"),
       totalEpoch: z.coerce.number().int().min(1).max(10000).default(200),
       batchSize: z.coerce.number().int().min(1).max(64).default(4),
       saveEveryEpoch: z.coerce.number().int().min(1).max(100).default(10),
+      saveOnlyLatest: z.coerce.boolean().default(true),
+      saveEveryWeights: z.coerce.boolean().default(true),
+      pretrained: z.coerce.boolean().default(true),
+      customPretrained: z.coerce.boolean().default(false),
+      gPretrainedPath: z.string().optional(),
+      dPretrainedPath: z.string().optional(),
+      cleanup: z.coerce.boolean().default(false),
+      cacheDataInGpu: z.coerce.boolean().default(false),
+      checkpointing: z.coerce.boolean().default(false),
       gpu: z.string().default("0"),
       indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans"]).default("Auto"),
-      noiseReduction: z.coerce.boolean().default(false),
     })
     .safeParse(req.body);
 
@@ -406,6 +520,17 @@ router.post("/pipeline", (req: Request, res: Response) => {
   }
 
   const p = parsed.data;
+  if (p.customPretrained && (!p.gPretrainedPath || !p.dPretrainedPath)) {
+    return res
+      .status(400)
+      .json({ error: "gPretrainedPath and dPretrainedPath are required with customPretrained." });
+  }
+  const allowedSr = p.vocoder === "RefineGAN" ? ["24000", "32000"] : ["32000", "40000", "48000"];
+  if (!allowedSr.includes(p.sampleRate)) {
+    return res
+      .status(400)
+      .json({ error: `sampleRate must be one of ${allowedSr.join(", ")} for ${p.vocoder}` });
+  }
   let ds: string;
   try {
     ds = resolveUserPath(p.datasetPath);
@@ -419,124 +544,36 @@ router.post("/pipeline", (req: Request, res: Response) => {
   const job = createJob("train", { pipeline: true, ...p });
   void (async () => {
     setRunning(job);
+    const aborted = () => getJob(job.id)?.status !== "running";
     try {
       appendLog(job, `=== Starting 1-Click Training Pipeline for model '${p.modelName}' ===`);
 
       appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
-      const prepArgs = [
-        "core.py",
-        "preprocess",
-        "--model-name",
-        p.modelName,
-        "--dataset-path",
-        ds,
-        "--sample-rate",
-        p.sampleRate,
-        "--cpu-cores",
-        String(maxCores),
-        "--cut-preprocess",
-        "Automatic",
-        ...(p.noiseReduction ? ["--noise-reduction"] : []),
-        "--noise-reduction-strength",
-        "0.7",
-        "--chunk-len",
-        "3.0",
-        "--overlap-len",
-        "0.3",
-        "--normalization-mode",
-        "post",
-      ];
+      const prepArgs = buildPreprocessArgs({ ...p, datasetPath: ds });
       appendLog(job, `$ python ${prepArgs.join(" ")}`);
-      let r = await runPythonModule(prepArgs, {
-        onData: (chunk, stream) => appendLog(job, `[${stream}] ${chunk.trim().slice(0, 1000)}`),
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (r.code !== 0) throw new Error(`Preprocess failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
+      await runJobStep(job, prepArgs, `Model ${p.modelName} preprocessed successfully.`, "Preprocess");
+      if (aborted()) return;
 
       appendLog(job, "\n>>> [2/4] Extracting Features...");
-      const extractArgs = [
-        "core.py",
-        "extract",
-        "--model-name",
-        p.modelName,
-        "--f0-method",
-        p.f0Method,
-        "--cpu-cores",
-        String(maxCores),
-        "--gpu",
-        p.gpu,
-        "--sample-rate",
-        p.sampleRate,
-        "--embedder-model",
-        p.embedderModel,
-        "--include-mutes",
-        "2",
-      ];
+      const extractArgs = buildExtractArgs(p);
       appendLog(job, `$ python ${extractArgs.join(" ")}`);
-      r = await runPythonModule(extractArgs, {
-        onData: (chunk, stream) => appendLog(job, `[${stream}] ${chunk.trim().slice(0, 1000)}`),
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (r.code !== 0) throw new Error(`Extract failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
+      await runJobStep(job, extractArgs, `Model ${p.modelName} extracted successfully.`, "Extract");
+      if (aborted()) return;
 
       appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
-      const trainArgs = [
-        "core.py",
-        "train",
-        "--model-name",
-        p.modelName,
-        "--vocoder",
-        p.vocoder,
-        "--save-every-epoch",
-        String(p.saveEveryEpoch),
-        "--save-only-latest",
-        "--save-every-weights",
-        "--total-epoch",
-        String(p.totalEpoch),
-        "--sample-rate",
-        p.sampleRate,
-        "--batch-size",
-        String(p.batchSize),
-        "--gpu",
-        p.gpu,
-        "--pretrained",
-        "--index-algorithm",
-        p.indexAlgorithm,
-      ];
+      const trainArgs = buildTrainArgs(p);
       appendLog(job, `$ python ${trainArgs.join(" ")}`);
-      r = await runPythonModule(trainArgs, {
-        onData: (chunk, stream) => appendLog(job, `[${stream}] ${chunk.trim().slice(0, 1000)}`),
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (r.code !== 0) throw new Error(`Training failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
+      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
+      if (aborted()) return;
 
-      const logsDir = path.join(getRepoRoot(), "logs", p.modelName);
-      const hasIndex =
-        fs.existsSync(logsDir) &&
-        fs.readdirSync(logsDir).some((f) => f.endsWith(".index") && !f.includes("trained"));
-      if (!hasIndex) {
-        appendLog(job, "\n>>> [4/4] Generating Feature Index...");
-        const idxArgs = [
-          "core.py",
-          "index",
-          "--model-name",
-          p.modelName,
-          "--index-algorithm",
-          p.indexAlgorithm,
-        ];
-        r = await runPythonModule(idxArgs, {
-          onData: (chunk, stream) => appendLog(job, `[${stream}] ${chunk.trim().slice(0, 1000)}`),
-          onSpawn: (pid) => trackPid(job.id, pid),
-        });
-        trackPid(job.id, undefined);
-      } else {
-        appendLog(job, "\n>>> [4/4] Feature Index was automatically generated during training.");
+      appendLog(job, "\n>>> [4/4] Verifying artifacts...");
+      const pthAbs = path.join(getRepoRoot(), "logs", p.modelName, `${p.modelName}.pth`);
+      if (!fs.existsSync(pthAbs)) {
+        throw new Error(`Training produced no model file (missing ${p.modelName}.pth).`);
       }
 
       const pthRel = `logs/${p.modelName}/${p.modelName}.pth`;
+      if (aborted()) return;
       appendLog(job, `\n=== Pipeline Complete! Model saved at ${pthRel} ===`);
       setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
     } catch (err) {
@@ -552,7 +589,21 @@ router.post("/pipeline", (req: Request, res: Response) => {
 // {jobId} preferred; {modelName} falls back to the training pid file.
 router.post("/stop", (req: Request, res: Response) => {
   const { jobId, modelName: m } = (req.body || {}) as { jobId?: string; modelName?: string };
-  if (jobId && killJobTree(jobId)) return res.json({ ok: true, stopped: jobId });
+  const markStopped = (model?: string, id?: string) => {
+    for (const j of listJobs()) {
+      if (j.type !== "train") continue;
+      if (j.status !== "running" && j.status !== "queued") continue;
+      if (id && j.id !== id) continue;
+      if (model && j.params?.modelName !== model) continue;
+      appendLog(j, "Stopped by user.");
+      setError(j, "Stopped by user");
+    }
+  };
+  if (jobId) {
+    markStopped(undefined, jobId);
+    killJobTree(jobId);
+    return res.json({ ok: true, stopped: jobId });
+  }
   if (m) {
     try {
       const cfgPath = path.join(getRepoRoot(), "logs", path.basename(m), "config.json");
@@ -573,6 +624,7 @@ router.post("/stop", (req: Request, res: Response) => {
       }
       delete cfg.process_pids;
       fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+      markStopped(m);
       return res.json({ ok: true, killed });
     } catch (err) {
       return res.status(400).json({ error: errMsg(err) || "No pids found" });

@@ -245,7 +245,7 @@ export default function BatchForm() {
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           <SliderField
             id="batch-pitch"
-            label={t("Pitch Shift (Semitones)")}
+            label={t("Pitch")}
             value={pitch}
             min={-24}
             max={24}
@@ -256,7 +256,7 @@ export default function BatchForm() {
           />
           <SliderField
             id="batch-index-rate"
-            label={t("Search Feature Ratio (Index Accent)")}
+            label={t("Search Feature Ratio")}
             value={indexRate}
             min={0}
             max={1}
@@ -266,7 +266,7 @@ export default function BatchForm() {
           />
           <SliderField
             id="batch-volume-envelope"
-            label={t("Volume Envelope (Dynamic Loudness)")}
+            label={t("Volume Envelope")}
             value={volumeEnvelope}
             min={0}
             max={1}
@@ -402,7 +402,7 @@ export default function BatchForm() {
               checked={cleanAudio}
               onChange={(e) => setCleanAudio(e.target.checked)}
             />
-            <span>{t("Clean Artifacts")}</span>
+            <span>{t("Clean Audio")}</span>
           </label>
         </div>
       </div>

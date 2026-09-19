@@ -586,7 +586,7 @@ export default function RealtimePage() {
           <div>
             <SliderField
               id="rt-index-rate"
-              label={t("Index rate")}
+              label={t("Search Feature Ratio")}
               value={indexRate}
               min={0}
               max={1}
@@ -644,7 +644,7 @@ export default function RealtimePage() {
             </CustomSelect>
           </div>
           <div>
-            <label htmlFor="rt-f0-method">{t("Pitch extraction")}</label>
+            <label htmlFor="rt-f0-method">{t("Pitch extraction algorithm")}</label>
             <CustomSelect
               id="rt-f0-method"
               value={f0Method}
@@ -659,7 +659,7 @@ export default function RealtimePage() {
             </CustomSelect>
           </div>
           <div>
-            <label htmlFor="rt-embedder">{t("Embedder")}</label>
+            <label htmlFor="rt-embedder">{t("Embedder Model")}</label>
             <CustomSelect
               id="rt-embedder"
               value={embedder}
@@ -786,7 +786,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-chunk-ms"
-                label={`${t("Chunk")} ${t("(reconnect to apply)")}`}
+                label={`${t("Chunk Size (ms)")} ${t("(reconnect to apply)")}`}
                 value={chunkMs}
                 min={50}
                 max={1000}
@@ -798,7 +798,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-crossfade"
-                label={t("Crossfade")}
+                label={t("Crossfade Overlap Size (s)")}
                 value={crossfade}
                 min={0.05}
                 max={0.2}
@@ -813,7 +813,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-extra-size"
-                label={t("Extra convert")}
+                label={t("Extra Conversion Size (s)")}
                 value={extraSize}
                 min={0.1}
                 max={5}
@@ -828,7 +828,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-silent-threshold"
-                label={t("Silence threshold")}
+                label={t("Silence Threshold (dB)")}
                 value={silent}
                 min={-90}
                 max={-60}
@@ -843,7 +843,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-in-gain"
-                label={t("Input gain")}
+                label={t("Input Gain (%)")}
                 value={inGain}
                 min={0}
                 max={200}
@@ -855,7 +855,7 @@ export default function RealtimePage() {
             <div>
               <SliderField
                 id="rt-out-gain"
-                label={`${t("Output gain")} ${t("(local)")}`}
+                label={`${t("Output Gain (%)")} ${t("(local)")}`}
                 value={outGain}
                 min={0}
                 max={200}

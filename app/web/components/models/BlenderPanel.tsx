@@ -87,7 +87,7 @@ export default function BlenderPanel() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="blend-model-name">{t("New model name")}</label>
+              <label htmlFor="blend-model-name">{t("Model Name")}</label>
               <input
                 id="blend-model-name"
                 type="text"
@@ -99,7 +99,7 @@ export default function BlenderPanel() {
             <div>
               <SliderField
                 id="blend-ratio"
-                label={`${t("Blend ratio")} (0 = ${t("Model 1")}, 1 = ${t("Model 2")})`}
+                label={`${t("Blend Ratio")} (0 = ${t("Model 1")}, 1 = ${t("Model 2")})`}
                 value={ratio}
                 min={0}
                 max={1}
@@ -111,7 +111,7 @@ export default function BlenderPanel() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/5">
             <div className="space-y-2">
-              <label htmlFor="blend-model1-path">{t("Model 1")}</label>
+              <label htmlFor="blend-model1-path">{t("Path to first model")}</label>
               {models.length > 0 ? (
                 <CustomSelect
                   id="blend-model1-path"
@@ -148,7 +148,7 @@ export default function BlenderPanel() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="blend-model2-path">{t("Model 2")}</label>
+              <label htmlFor="blend-model2-path">{t("Path to second model")}</label>
               {models.length > 0 ? (
                 <CustomSelect
                   id="blend-model2-path"
