@@ -378,9 +378,7 @@ export default function CustomSelect({
                       onClick={() => !opt.disabled && handleSelect(opt.value)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
                       className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
-                        isSelected
-                          ? "text-white font-bold"
-                          : "text-neutral-400 hover:text-neutral-200"
+                        isSelected ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
                       } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}
                     >
                       <div className="min-w-0 flex-1 flex flex-col">
