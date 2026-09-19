@@ -51,5 +51,19 @@
     "input": "8px",
     "button": "10px",
     "pill": "999px"
+  },
+  "fonts": {
+    "display": ["ui-sans-serif", "system-ui", "sans-serif"],
+    "body": ["ui-sans-serif", "system-ui", "sans-serif"],
+    "mono": ["ui-monospace", "monospace"]
+  },
+  "titlebar": {
+    "bg": "#05140f",
+    "closeBg": "#e81123",
+    "closeText": "#ffffff"
+  },
+  "shadows": {
+    "card": "none",
+    "button": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
   }
 }

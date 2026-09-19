@@ -1,6 +1,17 @@
 "use client";
 
-import { Activity, Cpu, Download, Flame, FolderUp, Layers, Sliders, StopCircle, Zap } from "lucide-react";
+import {
+  Activity,
+  ChevronDown,
+  Cpu,
+  Download,
+  Flame,
+  FolderUp,
+  Layers,
+  Sliders,
+  StopCircle,
+  Zap,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import TrainingConsole from "../../components/train/TrainingConsole";
@@ -277,22 +288,6 @@ export default function TrainPage() {
                   "Runs Preprocess, Feature Extraction, Model Training, and Feature Indexing in a single automated flow.",
                 )}
               </p>
-            </div>
-
-            {/* Stepper overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-6">
-              {[
-                { step: "1", name: "Preprocess", desc: "Slice & normalize audio" },
-                { step: "2", name: "Extract", desc: "F0 pitch & embeddings" },
-                { step: "3", name: "Train", desc: "Generator & Discriminator" },
-                { step: "4", name: "Index", desc: "Faiss feature retrieval" },
-              ].map((s) => (
-                <div key={s.step} className="bg-white/5 border border-white/5 rounded-lg p-3">
-                  <span className="text-xs font-bold text-neutral-400 block">Step {s.step}</span>
-                  <span className="text-sm font-semibold text-white block">{t(s.name)}</span>
-                  <span className="text-xs text-neutral-500 block">{t(s.desc)}</span>
-                </div>
-              ))}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -746,51 +741,65 @@ export default function TrainPage() {
               />
               <span>{t("Use pretrained model")}</span>
             </label>
-            <label htmlFor="train-step-save-latest" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-save-latest"
-                type="checkbox"
-                checked={saveOnlyLatest}
-                onChange={(e) => setSaveOnlyLatest(e.target.checked)}
-              />
-              <span>{t("Save only latest checkpoint")}</span>
-            </label>
-            <label htmlFor="train-step-save-weights" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-save-weights"
-                type="checkbox"
-                checked={saveEveryWeights}
-                onChange={(e) => setSaveEveryWeights(e.target.checked)}
-              />
-              <span>{t("Save model weights every checkpoint")}</span>
-            </label>
-            <label htmlFor="train-step-cleanup" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-cleanup"
-                type="checkbox"
-                checked={cleanup}
-                onChange={(e) => setCleanup(e.target.checked)}
-              />
-              <span>{t("Fresh start (clean up previous attempt)")}</span>
-            </label>
-            <label htmlFor="train-step-cache-gpu" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-cache-gpu"
-                type="checkbox"
-                checked={cacheGpu}
-                onChange={(e) => setCacheGpu(e.target.checked)}
-              />
-              <span>{t("Cache Dataset in GPU")}</span>
-            </label>
-            <label htmlFor="train-step-checkpointing" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-checkpointing"
-                type="checkbox"
-                checked={checkpointing}
-                onChange={(e) => setCheckpointing(e.target.checked)}
-              />
-              <span>{t("Memory-efficient checkpointing")}</span>
-            </label>
+            <details>
+              <summary>{t("Checkpoints & performance")}</summary>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                <label
+                  htmlFor="train-step-save-latest"
+                  className="flex items-center gap-2 cursor-pointer mt-3"
+                >
+                  <input
+                    id="train-step-save-latest"
+                    type="checkbox"
+                    checked={saveOnlyLatest}
+                    onChange={(e) => setSaveOnlyLatest(e.target.checked)}
+                  />
+                  <span>{t("Save only latest checkpoint")}</span>
+                </label>
+                <label
+                  htmlFor="train-step-save-weights"
+                  className="flex items-center gap-2 cursor-pointer mt-3"
+                >
+                  <input
+                    id="train-step-save-weights"
+                    type="checkbox"
+                    checked={saveEveryWeights}
+                    onChange={(e) => setSaveEveryWeights(e.target.checked)}
+                  />
+                  <span>{t("Save model weights every checkpoint")}</span>
+                </label>
+                <label htmlFor="train-step-cleanup" className="flex items-center gap-2 cursor-pointer mt-3">
+                  <input
+                    id="train-step-cleanup"
+                    type="checkbox"
+                    checked={cleanup}
+                    onChange={(e) => setCleanup(e.target.checked)}
+                  />
+                  <span>{t("Fresh start (clean up previous attempt)")}</span>
+                </label>
+                <label htmlFor="train-step-cache-gpu" className="flex items-center gap-2 cursor-pointer mt-3">
+                  <input
+                    id="train-step-cache-gpu"
+                    type="checkbox"
+                    checked={cacheGpu}
+                    onChange={(e) => setCacheGpu(e.target.checked)}
+                  />
+                  <span>{t("Cache Dataset in GPU")}</span>
+                </label>
+                <label
+                  htmlFor="train-step-checkpointing"
+                  className="flex items-center gap-2 cursor-pointer mt-3"
+                >
+                  <input
+                    id="train-step-checkpointing"
+                    type="checkbox"
+                    checked={checkpointing}
+                    onChange={(e) => setCheckpointing(e.target.checked)}
+                  />
+                  <span>{t("Memory-efficient checkpointing")}</span>
+                </label>
+              </div>
+            </details>
             <label htmlFor="train-step-custom-pre" className="flex items-center gap-2 cursor-pointer mt-3">
               <input
                 id="train-step-custom-pre"
@@ -913,14 +922,14 @@ export default function TrainPage() {
         </div>
       )}
 
-      {/* Export Model */}
-      <div className="card space-y-4 mt-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
+      <details className="card mt-4 group">
+        <summary className="cursor-pointer flex items-center justify-between gap-2 select-none">
+          <span className="flex items-center gap-2">
             <Download size={18} className="text-white" />
-            <h2 className="text-base font-bold text-white m-0">{t("Export Model")}</h2>
-          </div>
-        </div>
+            <span className="text-base font-bold text-white">{t("Export Model")}</span>
+          </span>
+          <ChevronDown size={16} className="text-neutral-400 transition-transform group-open:rotate-180" />
+        </summary>
         <p className="muted text-sm m-0">{t("Download a trained .pth and its .index from logs/.")}</p>
         <div className="grid2">
           <div>
@@ -964,30 +973,31 @@ export default function TrainPage() {
             {t("Download .index")}
           </button>
         </div>
-      </div>
+      </details>
 
-      {/* Stop Controller Card */}
-      <div className="card space-y-4 mt-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2">
-            <StopCircle size={18} className="text-white" />
-            <h2 className="text-base font-bold text-white m-0">{t("Stop Training Process")}</h2>
+      {jobId && (
+        <div className="card space-y-4 mt-4">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2">
+              <StopCircle size={18} className="text-white" />
+              <h2 className="text-base font-bold text-white m-0">{t("Stop Training Process")}</h2>
+            </div>
+          </div>
+          <div className="row">
+            <input
+              type="text"
+              placeholder={t("model name (fallback)")}
+              aria-label={t("Model name (fallback)")}
+              value={stopTarget}
+              onChange={(e) => setStopTarget(e.target.value)}
+              style={{ maxWidth: 240 }}
+            />
+            <button type="button" className="ghost" onClick={stop}>
+              {t("Stop Training")}
+            </button>
           </div>
         </div>
-        <div className="row">
-          <input
-            type="text"
-            placeholder={t("model name (fallback)")}
-            aria-label={t("Model name (fallback)")}
-            value={stopTarget}
-            onChange={(e) => setStopTarget(e.target.value)}
-            style={{ maxWidth: 240 }}
-          />
-          <button type="button" className="ghost" onClick={stop}>
-            {t("Stop Training")}
-          </button>
-        </div>
-      </div>
+      )}
 
       <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />
     </div>

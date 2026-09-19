@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, pythonEnv } from "../python";
+import { getPythonBin, getRepoRoot, noEnv, pythonEnv } from "../python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);
@@ -123,6 +123,7 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
 }
 
 export function autoStartTensorboard(): void {
+  if (noEnv()) return;
   // Asynchronously launch in the background at startup without blocking
   void startTensorboard().catch((err) => {
     console.warn("[tensorboard] auto-start failed:", err);

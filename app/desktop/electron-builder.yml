@@ -16,6 +16,8 @@ publish:
 files:
   - dist/**/*
   - package.json
+  - "!**/.venv/**"
+  - "!**/venv/**"
   - from: ../..
     to: .
     filter:
@@ -32,16 +34,22 @@ files:
       - "**/*"
       - "!**/__pycache__"
       - "!**/*.pyc"
+      - "!**/.venv/**"
+      - "!**/venv/**"
   - from: ../../assets
     to: assets
     filter:
       - "**/*"
       - "!**/__pycache__"
       - "!**/*.pyc"
+      - "!**/.venv/**"
+      - "!**/venv/**"
   - from: ../../plugins
     to: plugins
     filter:
       - "**/*"
+      - "!**/.venv/**"
+      - "!**/venv/**"
   - from: ../../app/api/dist
     to: app/api/dist
   - from: ../../app/api/package.json

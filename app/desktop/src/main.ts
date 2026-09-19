@@ -24,6 +24,10 @@ const API_PORT: string = process.env.API_PORT || "8000";
 const WEB_PORT: string = process.env.WEB_PORT || "3000";
 const WEB_URL: string = process.env.WEB_URL || `http://127.0.0.1:${WEB_PORT}/`;
 
+function noEnv(): boolean {
+  return process.argv.includes("--no-env") || process.env.APPLIO_NO_ENV === "1";
+}
+
 let apiProc: ChildProcess | null = null;
 let webProc: ChildProcess | null = null;
 let mainWindow: BrowserWindow | null = null;
@@ -97,6 +101,7 @@ function seedDataRoot(code: string, data: string): void {
         }
       }
     }
+    syncShippedThemes(code, data);
     return;
   }
   for (const entry of codeEntries) {
@@ -121,6 +126,26 @@ function seedDataRoot(code: string, data: string): void {
   try {
     fs.mkdirSync(path.join(data, "logs"), { recursive: true });
     fs.writeFileSync(marker, `${version}\n`);
+  } catch {
+    /* non-fatal */
+  }
+  syncShippedThemes(code, data);
+}
+
+function syncShippedThemes(code: string, data: string): void {
+  try {
+    const srcDir = path.join(code, "assets", "themes");
+    if (!fs.existsSync(srcDir)) return;
+    const destDir = path.join(data, "assets", "themes");
+    fs.mkdirSync(destDir, { recursive: true });
+    for (const entry of fs.readdirSync(srcDir, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      try {
+        fs.copyFileSync(path.join(srcDir, entry.name), path.join(destDir, entry.name));
+      } catch {
+        /* non-fatal */
+      }
+    }
   } catch {
     /* non-fatal */
   }
@@ -164,6 +189,7 @@ function startProdBackends(): void {
     APPLIO_ROOT: data,
     APPLIO_CODE_ROOT: code,
     ...(isDev ? {} : { PACKAGED: "1" }),
+    ...(noEnv() ? { APPLIO_NO_ENV: "1" } : {}),
     PORT: WEB_PORT,
     HOSTNAME: "127.0.0.1",
   };

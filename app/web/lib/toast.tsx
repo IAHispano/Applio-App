@@ -51,7 +51,7 @@ export default function Toaster() {
             key={t.id}
             role={isError ? "alert" : "status"}
             aria-live={isError ? "assertive" : "polite"}
-            className={`pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border backdrop-blur-md shadow-xl text-xs transition-all ${
+            className={`toast-item pointer-events-auto flex items-start gap-3 p-3.5 rounded-xl border backdrop-blur-md shadow-xl text-xs ${
               isError
                 ? "bg-red-950/90 border-red-500/40 text-red-200"
                 : "bg-neutral-900/95 border-white/20 text-neutral-100"

@@ -50,6 +50,10 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
   return env;
 }
 
+export function noEnv(): boolean {
+  return process.argv.includes("--no-env") || process.env.APPLIO_NO_ENV === "1";
+}
+
 export function getUploadsDir(): string {
   const dir = process.env.UPLOADS_DIR || path.join(getRepoRoot(), "assets", "audios", "_uploads");
   fs.mkdirSync(dir, { recursive: true });

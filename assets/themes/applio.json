@@ -1,7 +1,7 @@
 {
   "name": "OG",
   "version": "1.0.0",
-  "description": "Port of the original Gradio theme (assets/themes/Applio.py): warm near-black background, neutral grays, blue focus accents, Syne typeface.",
+  "description": "Classic Applio look: warm near-black background, neutral grays, blue focus accents and Syne typeface.",
   "mode": "dark",
   "colors": {
     "primary": "#9e9e9e",

@@ -15,6 +15,7 @@ import {
   stopJob,
 } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { matchIndex } from "../../lib/model-index";
 import { useSpeakers } from "../../lib/useSpeakers";
 import AudioWavePlayer from "../AudioWavePlayer";
 import RadioRow from "../RadioRow";
@@ -38,6 +39,7 @@ export default function TtsForm() {
   const [voice, setVoice] = useState("");
   const [rate, setRate] = useState(0);
   const [pthPath, setPthPath] = useState("");
+  const [indexes, setIndexes] = useState<string[]>([]);
   const [indexPath, setIndexPath] = useState("");
   const [pitch, setPitch] = useState(0);
   const [indexRate, setIndexRate] = useState(0.75);
@@ -83,6 +85,29 @@ export default function TtsForm() {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
 
+  function handleModelSelect(selected: string, idxList = indexes) {
+    setPthPath(selected);
+    setIndexPath(matchIndex(selected, idxList));
+    setSid(0);
+  }
+
+  function handleUnloadModel() {
+    setPthPath("");
+    setIndexPath("");
+    setSid(0);
+  }
+
+  function loadModels() {
+    fetchModels()
+      .then((m) => {
+        setModels(m.models);
+        setIndexes(m.indexes);
+        if (m.models.length > 0) handleModelSelect(m.models[0], m.indexes);
+      })
+      .catch(() => {});
+  }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
   useEffect(() => {
     apiGet<{ voices: Voice[] }>("/api/tts/voices")
       .then((v) => {
@@ -90,12 +115,7 @@ export default function TtsForm() {
         if (v.voices[0]) setVoice(v.voices[0].shortName);
       })
       .catch((e) => setError(errMsg(e)));
-    fetchModels()
-      .then((m) => {
-        setModels(m.models);
-        if (m.models[0]) setPthPath(m.models[0]);
-      })
-      .catch(() => {});
+    loadModels();
   }, []);
 
   const resetDefaults = () => {
@@ -276,21 +296,30 @@ export default function TtsForm() {
             <ModelDropdown
               models={models}
               selectedModel={pthPath}
-              onSelect={setPthPath}
-              onUnload={() => setPthPath("")}
+              indexes={indexes}
+              onSelect={handleModelSelect}
+              onUnload={handleUnloadModel}
+              onRefresh={loadModels}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-              <div>
-                <label htmlFor="tts-index-input">{t("Index (optional)")}</label>
-                <input
-                  id="tts-index-input"
-                  type="text"
-                  value={indexPath}
-                  onChange={(e) => setIndexPath(e.target.value)}
-                  placeholder={t("logs/model_name/added_...index")}
-                />
-              </div>
+              {pthPath && (
+                <div>
+                  <label htmlFor="tts-index-file">{t("Index File")}</label>
+                  <select
+                    id="tts-index-file"
+                    value={indexPath}
+                    onChange={(e) => setIndexPath(e.target.value)}
+                  >
+                    <option value="">{t("None")}</option>
+                    {indexes.map((idx) => (
+                      <option key={idx} value={idx}>
+                        {fileBasename(idx)} ({idx})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="tts-speaker-id">{t("Speaker ID")}</label>

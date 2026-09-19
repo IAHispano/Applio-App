@@ -4,7 +4,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, getUploadsDir, pythonEnv } from "../python";
+import { getPythonBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "../python";
 
 const router = Router();
 
@@ -206,7 +206,7 @@ router.get("/language", (_req: Request, res: Response) => {
 });
 
 // Discord rich presence. The Gradio app started RPCManager in-process at boot;
-// here the API owns it instead: a detached python interpreter holds the
+// here the API owns it instead: a child python interpreter holds the
 // pypresence connection open for as long as it lives (set_activity persists
 // server-side until the connection closes).
 let presenceProc: ChildProcess | null = null;
@@ -216,6 +216,7 @@ function presencePidFile(): string {
   return path.join(dir, "discord_presence.pid");
 }
 function presenceAlive(): boolean {
+  if (noEnv()) return false;
   if (presenceProc && presenceProc.exitCode === null) return true;
   try {
     const pid = Number(fs.readFileSync(presencePidFile(), "utf-8"));
@@ -229,6 +230,7 @@ function presenceAlive(): boolean {
   return false;
 }
 export function startPresence(): boolean {
+  if (noEnv()) return false;
   if (presenceAlive()) return true;
   try {
     const code = [

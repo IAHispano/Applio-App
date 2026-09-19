@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "./jobs";
-import { getRepoRoot } from "./python";
+import { getRepoRoot, noEnv } from "./python";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.
@@ -199,6 +199,28 @@ function checkWebBuild(): { ok: boolean; detail: string } {
 }
 
 export async function getStatus(force = false): Promise<SetupStatus> {
+  if (noEnv()) {
+    const bypassed: SetupStatus = {
+      ready: true,
+      checks: [
+        { id: "node", label: `Node.js ${process.version}`, status: "ok", detail: "runtime OK" },
+        { id: "web", label: "Web interface build", status: "ok", detail: "checks bypassed with --no-env" },
+        { id: "python", label: "Python 3.10–3.12", status: "ok", detail: "checks bypassed with --no-env" },
+        {
+          id: "engine",
+          label: "Engine packages (torch, uvicorn, librosa)",
+          status: "ok",
+          detail: "checks bypassed with --no-env",
+        },
+        { id: "ffmpeg", label: "ffmpeg", status: "ok", detail: "checks bypassed with --no-env" },
+        { id: "models", label: "Voice models", status: "ok", detail: "checks bypassed with --no-env" },
+      ],
+      python: ["no-env"],
+      checkedAt: new Date().toISOString(),
+    };
+    cached = { at: Date.now(), status: bypassed };
+    return bypassed;
+  }
   if (!force && cached && Date.now() - cached.at < SLOW_CHECK_TTL_MS) return cached.status;
 
   const checks: SetupCheck[] = [];

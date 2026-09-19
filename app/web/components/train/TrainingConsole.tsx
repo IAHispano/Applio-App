@@ -374,8 +374,8 @@ export default function TrainingConsole({
           {progressPercent !== null && (
             <div className="w-full bg-white/10 rounded-full h-1 mt-2 overflow-hidden">
               <div
-                className="bg-white h-full rounded-full transition-all duration-300"
-                style={{ width: `${progressPercent}%` }}
+                className="bg-white h-full rounded-full origin-left transition-transform duration-300 ease-out"
+                style={{ transform: `scaleX(${progressPercent / 100})` }}
               />
             </div>
           )}

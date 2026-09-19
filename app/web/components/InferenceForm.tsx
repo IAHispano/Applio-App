@@ -17,6 +17,7 @@ import {
   submitInference,
 } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { matchIndex } from "../lib/model-index";
 import { useSpeakers } from "../lib/useSpeakers";
 import AudioWavePlayer from "./AudioWavePlayer";
 import AudioDropzone from "./ui/AudioDropzone";
@@ -46,23 +47,6 @@ const EMBEDDERS = [
 
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
 
-function matchIndex(model: string, indexes: string[]): string {
-  if (!model || indexes.length === 0) return "";
-  const normModel = model.replace(/\\/g, "/");
-  const dir = normModel.includes("/") ? normModel.slice(0, normModel.lastIndexOf("/")) : "";
-  const filename = normModel.split("/").pop() ?? "";
-  const stem = filename.replace(/\.(pth|onnx)$/i, "").toLowerCase();
-  const normIndexes = indexes.map((i) => i.replace(/\\/g, "/"));
-  const sameDir = normIndexes.filter((i) => (i.includes("/") ? i.slice(0, i.lastIndexOf("/")) : "") === dir);
-  const byStem = (list: string[]) =>
-    list.find((i) => (i.split("/").pop() ?? "").toLowerCase().startsWith(stem.slice(0, 8)));
-  const matchedNorm =
-    byStem(sameDir.length > 0 ? sameDir : normIndexes) || (sameDir.length === 1 ? sameDir[0] : "") || "";
-  if (!matchedNorm) return "";
-  const matchedIdx = normIndexes.indexOf(matchedNorm);
-  return matchedIdx >= 0 ? indexes[matchedIdx] : matchedNorm;
-}
-
 interface ModelDetail {
   pthPath: string;
   pthSize: number;
@@ -88,7 +72,6 @@ export default function InferenceForm() {
 
   const [pthPath, setPthPath] = useState("");
   const [indexPath, setIndexPath] = useState("");
-  const [customIndexOpen, setCustomIndexOpen] = useState(false);
   const [sid, setSid] = useState(0);
 
   // Audio input states
@@ -125,26 +108,42 @@ export default function InferenceForm() {
   const [postProcess, setPostProcess] = useState(false);
   const [reverb, setReverb] = useState(false);
   const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
-  const [reverbWetGain, setReverbWetGain] = useState(0.5);
-  const [reverbDryGain, setReverbDryGain] = useState(0.5);
+  const [reverbDamping, setReverbDamping] = useState(0.5);
+  const [reverbWetGain, setReverbWetGain] = useState(0.33);
+  const [reverbDryGain, setReverbDryGain] = useState(0.4);
+  const [reverbWidth, setReverbWidth] = useState(1.0);
+  const [reverbFreezeMode, setReverbFreezeMode] = useState(0.0);
+  const [pitchShift, setPitchShift] = useState(false);
+  const [pitchShiftSemitones, setPitchShiftSemitones] = useState(0);
 
   const [delay, setDelay] = useState(false);
-  const [delaySeconds, setDelaySeconds] = useState(0.3);
+  const [delaySeconds, setDelaySeconds] = useState(0.5);
+  const [delayFeedback, setDelayFeedback] = useState(0.0);
   const [delayMix, setDelayMix] = useState(0.4);
 
   const [compressor, setCompressor] = useState(false);
-  const [compressorThreshold, setCompressorThreshold] = useState(-12);
-  const [compressorRatio, setCompressorRatio] = useState(4);
+  const [compressorThreshold, setCompressorThreshold] = useState(0);
+  const [compressorRatio, setCompressorRatio] = useState(1);
+  const [compressorAttack, setCompressorAttack] = useState(1.0);
+  const [compressorRelease, setCompressorRelease] = useState(100);
 
   const [limiter, setLimiter] = useState(false);
-  const [limiterThreshold, setLimiterThreshold] = useState(-2);
+  const [limiterThreshold, setLimiterThreshold] = useState(-6);
+  const [limiterReleaseTime, setLimiterReleaseTime] = useState(0.05);
 
   const [chorus, setChorus] = useState(false);
   const [chorusRate, setChorusRate] = useState(1.0);
   const [chorusDepth, setChorusDepth] = useState(0.25);
+  const [chorusCenterDelay, setChorusCenterDelay] = useState(7);
+  const [chorusFeedback, setChorusFeedback] = useState(0.0);
+  const [chorusMix, setChorusMix] = useState(0.5);
+  const [bitcrush, setBitcrush] = useState(false);
+  const [bitcrushBitDepth, setBitcrushBitDepth] = useState(8);
+  const [clipping, setClipping] = useState(false);
+  const [clippingThreshold, setClippingThreshold] = useState(-6);
 
   const [distortion, setDistortion] = useState(false);
-  const [distortionGain, setDistortionGain] = useState(15);
+  const [distortionGain, setDistortionGain] = useState(25);
 
   const [gain, setGain] = useState(false);
   const [gainDb, setGainDb] = useState(0);
@@ -281,27 +280,49 @@ export default function InferenceForm() {
       if (reverb) {
         fd.append("reverb", "true");
         fd.append("reverbRoomSize", String(reverbRoomSize));
+        fd.append("reverbDamping", String(reverbDamping));
         fd.append("reverbWetGain", String(reverbWetGain));
         fd.append("reverbDryGain", String(reverbDryGain));
+        fd.append("reverbWidth", String(reverbWidth));
+        fd.append("reverbFreezeMode", String(reverbFreezeMode));
+      }
+      if (pitchShift) {
+        fd.append("pitchShift", "true");
+        fd.append("pitchShiftSemitones", String(pitchShiftSemitones));
       }
       if (delay) {
         fd.append("delay", "true");
         fd.append("delaySeconds", String(delaySeconds));
+        fd.append("delayFeedback", String(delayFeedback));
         fd.append("delayMix", String(delayMix));
       }
       if (compressor) {
         fd.append("compressor", "true");
         fd.append("compressorThreshold", String(compressorThreshold));
         fd.append("compressorRatio", String(compressorRatio));
+        fd.append("compressorAttack", String(compressorAttack));
+        fd.append("compressorRelease", String(compressorRelease));
       }
       if (limiter) {
         fd.append("limiter", "true");
         fd.append("limiterThreshold", String(limiterThreshold));
+        fd.append("limiterReleaseTime", String(limiterReleaseTime));
       }
       if (chorus) {
         fd.append("chorus", "true");
         fd.append("chorusRate", String(chorusRate));
         fd.append("chorusDepth", String(chorusDepth));
+        fd.append("chorusCenterDelay", String(chorusCenterDelay));
+        fd.append("chorusFeedback", String(chorusFeedback));
+        fd.append("chorusMix", String(chorusMix));
+      }
+      if (bitcrush) {
+        fd.append("bitcrush", "true");
+        fd.append("bitcrushBitDepth", String(bitcrushBitDepth));
+      }
+      if (clipping) {
+        fd.append("clipping", "true");
+        fd.append("clippingThreshold", String(clippingThreshold));
       }
       if (gain) {
         fd.append("gain", "true");
@@ -370,45 +391,23 @@ export default function InferenceForm() {
               onRefresh={loadAvailableModels}
             />
 
-            {/* Linked Index Status & Override */}
+            {/* Linked Index Picker — always visible like Gradio, auto-paired on select */}
             {pthPath && (
-              <div className="p-3 bg-white/[0.03] border border-white/10 rounded-xl space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-neutral-400">{t("Index File:")}</span>
-                  <button
-                    type="button"
-                    onClick={() => setCustomIndexOpen(!customIndexOpen)}
-                    className="text-[11px] text-neutral-300 hover:text-white underline"
-                  >
-                    {customIndexOpen ? t("Hide index picker") : t("Change index")}
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-white/70 shrink-0" />
-                  <span className="text-xs text-neutral-200 truncate flex-1">
-                    {indexPath
-                      ? indexPath.split("/").pop()
-                      : t("No index paired (using model features only)")}
-                  </span>
-                </div>
-
-                {customIndexOpen && (
-                  <div className="pt-2 border-t border-white/5">
-                    <select
-                      value={indexPath}
-                      onChange={(e) => setIndexPath(e.target.value)}
-                      className="w-full text-xs"
-                    >
-                      <option value="">{t("None (0.0 index rate)")}</option>
-                      {indexes.map((idx) => (
-                        <option key={idx} value={idx}>
-                          {fileBasename(idx)} ({idx})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
+              <div className="space-y-2">
+                <label htmlFor="infer-index-file">{t("Index File")}</label>
+                <select
+                  id="infer-index-file"
+                  value={indexPath}
+                  onChange={(e) => setIndexPath(e.target.value)}
+                  className="w-full text-xs"
+                >
+                  <option value="">{t("None")}</option>
+                  {indexes.map((idx) => (
+                    <option key={idx} value={idx}>
+                      {fileBasename(idx)} ({idx})
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -759,7 +758,7 @@ export default function InferenceForm() {
                     id="infer-autotune-strength"
                     label={t("Autotune Strength")}
                     value={f0AutotuneStrength}
-                    min={0.1}
+                    min={0}
                     max={1}
                     step={0.05}
                     onChange={setF0AutotuneStrength}
@@ -820,9 +819,9 @@ export default function InferenceForm() {
                     id="infer-formant-qfrency"
                     label={t("Formant Q-Frequency")}
                     value={formantQfrency}
-                    min={0.5}
-                    max={2.0}
-                    step={0.05}
+                    min={0}
+                    max={16.0}
+                    step={0.1}
                     onChange={setFormantQfrency}
                     description={t("Modifies formants width and spectral envelope")}
                   />
@@ -830,9 +829,9 @@ export default function InferenceForm() {
                     id="infer-formant-timbre"
                     label={t("Formant Timbre")}
                     value={formantTimbre}
-                    min={0.5}
-                    max={2.0}
-                    step={0.05}
+                    min={0}
+                    max={16.0}
+                    step={0.1}
                     onChange={setFormantTimbre}
                     description={t("Adjusts vocal tract length / timbre brightness")}
                   />
@@ -877,10 +876,19 @@ export default function InferenceForm() {
                           id="fx-reverb-room"
                           label={t("Room Size")}
                           value={reverbRoomSize}
-                          min={0.1}
+                          min={0}
                           max={1}
                           step={0.05}
                           onChange={setReverbRoomSize}
+                        />
+                        <SliderField
+                          id="fx-reverb-damping"
+                          label={t("Damping")}
+                          value={reverbDamping}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          onChange={setReverbDamping}
                         />
                         <SliderField
                           id="fx-reverb-wet"
@@ -900,7 +908,48 @@ export default function InferenceForm() {
                           step={0.05}
                           onChange={setReverbDryGain}
                         />
+                        <SliderField
+                          id="fx-reverb-width"
+                          label={t("Width")}
+                          value={reverbWidth}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          onChange={setReverbWidth}
+                        />
+                        <SliderField
+                          id="fx-reverb-freeze"
+                          label={t("Freeze Mode")}
+                          value={reverbFreezeMode}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          onChange={setReverbFreezeMode}
+                        />
                       </div>
+                    )}
+                  </div>
+
+                  {/* Pitch Shift */}
+                  <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input
+                        type="checkbox"
+                        checked={pitchShift}
+                        onChange={(e) => setPitchShift(e.target.checked)}
+                      />
+                      <span>{t("Pitch Shift")}</span>
+                    </label>
+                    {pitchShift && (
+                      <SliderField
+                        id="fx-pitch-semitones"
+                        label={t("Semitones")}
+                        value={pitchShiftSemitones}
+                        min={-12}
+                        max={12}
+                        step={1}
+                        onChange={setPitchShiftSemitones}
+                      />
                     )}
                   </div>
 
@@ -916,11 +965,20 @@ export default function InferenceForm() {
                           id="fx-delay-time"
                           label={t("Delay Time")}
                           value={delaySeconds}
-                          min={0.05}
-                          max={1.0}
+                          min={0}
+                          max={5.0}
                           step={0.05}
                           unit="s"
                           onChange={setDelaySeconds}
+                        />
+                        <SliderField
+                          id="fx-delay-feedback"
+                          label={t("Feedback")}
+                          value={delayFeedback}
+                          min={0}
+                          max={1.0}
+                          step={0.05}
+                          onChange={setDelayFeedback}
                         />
                         <SliderField
                           id="fx-delay-mix"
@@ -952,7 +1010,7 @@ export default function InferenceForm() {
                             id="fx-comp-thresh"
                             label={t("Threshold")}
                             value={compressorThreshold}
-                            min={-40}
+                            min={-60}
                             max={0}
                             step={1}
                             unit="dB"
@@ -968,6 +1026,26 @@ export default function InferenceForm() {
                             formatValue={(v) => `${v}:1`}
                             onChange={setCompressorRatio}
                           />
+                          <SliderField
+                            id="fx-comp-attack"
+                            label={t("Attack")}
+                            value={compressorAttack}
+                            min={0}
+                            max={100}
+                            step={1}
+                            unit="ms"
+                            onChange={setCompressorAttack}
+                          />
+                          <SliderField
+                            id="fx-comp-release"
+                            label={t("Release")}
+                            value={compressorRelease}
+                            min={0.01}
+                            max={100}
+                            step={0.5}
+                            unit="ms"
+                            onChange={setCompressorRelease}
+                          />
                         </div>
                       )}
                     </div>
@@ -982,16 +1060,28 @@ export default function InferenceForm() {
                         <span>{t("Peak Limiter")}</span>
                       </label>
                       {limiter && (
-                        <SliderField
-                          id="fx-limiter-ceil"
-                          label={t("Ceiling")}
-                          value={limiterThreshold}
-                          min={-12}
-                          max={0}
-                          step={0.5}
-                          unit="dB"
-                          onChange={setLimiterThreshold}
-                        />
+                        <div className="space-y-2">
+                          <SliderField
+                            id="fx-limiter-ceil"
+                            label={t("Ceiling")}
+                            value={limiterThreshold}
+                            min={-60}
+                            max={0}
+                            step={0.5}
+                            unit="dB"
+                            onChange={setLimiterThreshold}
+                          />
+                          <SliderField
+                            id="fx-limiter-release"
+                            label={t("Release Time")}
+                            value={limiterReleaseTime}
+                            min={0.01}
+                            max={1}
+                            step={0.01}
+                            unit="s"
+                            onChange={setLimiterReleaseTime}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1014,7 +1104,7 @@ export default function InferenceForm() {
                             label={t("Rate")}
                             value={chorusRate}
                             min={0.1}
-                            max={5}
+                            max={100}
                             step={0.1}
                             unit="Hz"
                             onChange={setChorusRate}
@@ -1027,6 +1117,34 @@ export default function InferenceForm() {
                             max={1}
                             step={0.05}
                             onChange={setChorusDepth}
+                          />
+                          <SliderField
+                            id="fx-chorus-center"
+                            label={t("Center Delay")}
+                            value={chorusCenterDelay}
+                            min={7}
+                            max={8}
+                            step={0.1}
+                            unit="ms"
+                            onChange={setChorusCenterDelay}
+                          />
+                          <SliderField
+                            id="fx-chorus-feedback"
+                            label={t("Feedback")}
+                            value={chorusFeedback}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            onChange={setChorusFeedback}
+                          />
+                          <SliderField
+                            id="fx-chorus-mix"
+                            label={t("Mix")}
+                            value={chorusMix}
+                            min={0}
+                            max={1}
+                            step={0.05}
+                            onChange={setChorusMix}
                           />
                         </div>
                       )}
@@ -1046,8 +1164,8 @@ export default function InferenceForm() {
                           id="fx-dist-gain"
                           label={t("Drive Gain")}
                           value={distortionGain}
-                          min={0}
-                          max={40}
+                          min={-60}
+                          max={60}
                           step={1}
                           unit="dB"
                           onChange={setDistortionGain}
@@ -1065,11 +1183,56 @@ export default function InferenceForm() {
                           id="fx-gain-db"
                           label={t("Boost")}
                           value={gainDb}
-                          min={-12}
-                          max={12}
+                          min={-60}
+                          max={60}
                           step={0.5}
                           unit="dB"
                           onChange={setGainDb}
+                        />
+                      )}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                        <input
+                          type="checkbox"
+                          checked={bitcrush}
+                          onChange={(e) => setBitcrush(e.target.checked)}
+                        />
+                        <span>{t("Bitcrush")}</span>
+                      </label>
+                      {bitcrush && (
+                        <SliderField
+                          id="fx-bitcrush-depth"
+                          label={t("Bit Depth")}
+                          value={bitcrushBitDepth}
+                          min={1}
+                          max={32}
+                          step={1}
+                          onChange={setBitcrushBitDepth}
+                        />
+                      )}
+                    </div>
+
+                    <div className="p-3.5 rounded-xl border border-white/10 bg-white/[0.02] space-y-3">
+                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                        <input
+                          type="checkbox"
+                          checked={clipping}
+                          onChange={(e) => setClipping(e.target.checked)}
+                        />
+                        <span>{t("Clipping")}</span>
+                      </label>
+                      {clipping && (
+                        <SliderField
+                          id="fx-clip-thresh"
+                          label={t("Threshold")}
+                          value={clippingThreshold}
+                          min={-60}
+                          max={0}
+                          step={0.5}
+                          unit="dB"
+                          onChange={setClippingThreshold}
                         />
                       )}
                     </div>

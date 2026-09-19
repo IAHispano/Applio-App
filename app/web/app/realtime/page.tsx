@@ -1,11 +1,13 @@
 "use client";
 
 import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import ModelDropdown from "../../components/ui/ModelDropdown";
 import SliderField from "../../components/ui/SliderField";
-import { apiGet, apiSend, errMsg, fetchModels } from "../../lib/api";
+import { apiGet, apiSend, errMsg, fetchModels, fileBasename } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { matchIndex } from "../../lib/model-index";
 import { useSpeakers } from "../../lib/useSpeakers";
 
 const API_HTTP = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
@@ -14,7 +16,6 @@ function apiWs(path: string): string {
   return `${u}${path}`;
 }
 
-// AudioWorklet processors for the realtime streaming client
 const INPUT_WORKLET = `
 class InputProcessor extends AudioWorkletProcessor {
   constructor() { super(); this.ring = new Float32Array(48000); this.pos = 0; this.block = 0;
@@ -56,6 +57,39 @@ interface RtStatus {
   running: boolean;
   startedAt: string | null;
   logs: string[];
+}
+
+function Stage({
+  step,
+  title,
+  description,
+  icon,
+  children,
+}: {
+  step: number;
+  title: string;
+  description: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="card space-y-4" aria-label={`${step}. ${title}`}>
+      <div className="border-b border-white/10 pb-3.5 space-y-1">
+        <div className="flex items-center gap-2.5">
+          <span
+            className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center"
+            aria-hidden="true"
+          >
+            {step}
+          </span>
+          {icon}
+          <h2 className="text-base font-bold text-white m-0">{title}</h2>
+        </div>
+        <p className="text-xs text-neutral-400 m-0 leading-relaxed">{description}</p>
+      </div>
+      <div>{children}</div>
+    </section>
+  );
 }
 
 export default function RealtimePage() {
@@ -100,6 +134,8 @@ export default function RealtimePage() {
 
   const speakers = useSpeakers(model);
 
+  const engineRunning = !!engine?.running;
+
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
@@ -121,18 +157,35 @@ export default function RealtimePage() {
     }
   }, []);
 
-  useEffect(() => {
-    refreshEngine();
+  function loadModels() {
     fetchModels()
       .then((m) => {
         setModels(m.models);
         setIndexes(m.indexes);
-        if (m.models[0]) setModel(m.models[0]);
+        if (m.models.length > 0) handleModelSelect(m.models[0], m.indexes);
       })
       .catch(() => {});
+  }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
+  useEffect(() => {
+    refreshEngine();
+    loadModels();
     const t = setInterval(refreshEngine, 5000);
     return () => clearInterval(t);
-  }, [refreshEngine]);
+  }, []);
+
+  function handleModelSelect(selected: string, idxList = indexes) {
+    setModel(selected);
+    setIndex(matchIndex(selected, idxList));
+    setSid(0);
+  }
+
+  function handleUnloadModel() {
+    setModel("");
+    setIndex("");
+    setSid(0);
+  }
 
   async function startEngine() {
     setMsg(t("Starting real-time audio service…"));
@@ -370,33 +423,6 @@ export default function RealtimePage() {
         <span className={`badge ${engine?.running ? "done" : "queued"}`}>
           {engine?.running ? t("active") : t("stopped")}
         </span>
-        {!engine?.running ? (
-          <button
-            type="button"
-            className="cta h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
-            onClick={startEngine}
-          >
-            <Play size={14} className="shrink-0" />
-            <span>{t("Start Service")}</span>
-          </button>
-        ) : (
-          <button
-            type="button"
-            className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
-            onClick={stopEngine}
-          >
-            <Square size={14} className="text-white shrink-0" />
-            <span>{t("Stop Service")}</span>
-          </button>
-        )}
-        <button
-          type="button"
-          className="ghost h-8 px-3 text-xs flex items-center gap-1.5 rounded-lg"
-          onClick={enumDevices}
-        >
-          <ListMusic size={14} className="text-white shrink-0" />
-          <span>{t("List Audio Devices")}</span>
-        </button>
       </PageHeader>
       <div>
         {msg && (
@@ -404,6 +430,38 @@ export default function RealtimePage() {
             {msg}
           </p>
         )}
+      </div>
+
+      <Stage
+        step={1}
+        title={t("Engine")}
+        description={t("Start the real-time audio service on the backend.")}
+        icon={<Radio size={18} className="text-white" />}
+      >
+        <div className="flex items-center gap-3 flex-wrap">
+          {!engineRunning ? (
+            <button
+              type="button"
+              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
+              onClick={startEngine}
+            >
+              <Play size={16} className="shrink-0" />
+              <span>{t("Start Service")}</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="ghost h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
+              onClick={stopEngine}
+            >
+              <Square size={16} className="text-white shrink-0" />
+              <span>{t("Stop Service")}</span>
+            </button>
+          )}
+          <span className="text-xs text-neutral-400" role="status">
+            {engineRunning ? t("Service running") : t("Service stopped")}
+          </span>
+        </div>
         {engine && engine.logs.length > 0 && (
           <details className="mt-2 text-xs text-neutral-400 group">
             <summary className="cursor-pointer hover:text-white transition-colors py-1 flex items-center gap-1 select-none">
@@ -419,52 +477,43 @@ export default function RealtimePage() {
             </pre>
           </details>
         )}
-      </div>
+      </Stage>
 
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Radio size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Model & Audio Devices")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t(
-              "Configure real-time low-latency inference inputs, target voice model, and DSP pitch parameters.",
-            )}
-          </p>
-        </div>
+      <Stage
+        step={2}
+        title={t("Voice & Devices")}
+        description={t("Pick the target voice model and your input/output devices.")}
+        icon={<ListMusic size={18} className="text-white" />}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div>
-            <label htmlFor="rt-model">{t("Voice Model")}</label>
-            <input
-              id="rt-model"
-              type="text"
-              list="rtmodels"
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
+          <div className="sm:col-span-2 xl:col-span-4 space-y-2">
+            <span className="block text-xs font-medium text-neutral-300">{t("Voice Model")}</span>
+            <ModelDropdown
+              models={models}
+              selectedModel={model}
+              indexes={indexes}
+              onSelect={handleModelSelect}
+              onUnload={handleUnloadModel}
+              onRefresh={loadModels}
             />
-            <datalist id="rtmodels">
-              {models.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label htmlFor="rt-index">{t("Index (optional)")}</label>
-            <input
-              id="rt-index"
-              type="text"
-              list="rtidx"
-              value={index}
-              onChange={(e) => setIndex(e.target.value)}
-            />
-            <datalist id="rtidx">
-              {indexes.map((m) => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
+            {model && (
+              <div className="space-y-2">
+                <label htmlFor="rt-index-file">{t("Index File")}</label>
+                <select
+                  id="rt-index-file"
+                  value={index}
+                  onChange={(e) => setIndex(e.target.value)}
+                  className="w-full text-xs"
+                >
+                  <option value="">{t("None")}</option>
+                  {indexes.map((idx) => (
+                    <option key={idx} value={idx}>
+                      {fileBasename(idx)} ({idx})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="rt-in-dev">{t("Input Device")}</label>
@@ -488,6 +537,26 @@ export default function RealtimePage() {
               ))}
             </select>
           </div>
+          <div className="flex items-end">
+            <button
+              type="button"
+              className="ghost h-10 px-4 flex items-center gap-2 text-xs font-medium rounded-xl text-neutral-200 hover:text-white"
+              onClick={enumDevices}
+            >
+              <ListMusic size={14} className="shrink-0" />
+              <span>{t("List Audio Devices")}</span>
+            </button>
+          </div>
+        </div>
+      </Stage>
+
+      <Stage
+        step={3}
+        title={t("Tune & Go Live")}
+        description={t("Shape the voice, then start streaming from your microphone.")}
+        icon={<Play size={18} className="text-white" />}
+      >
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <SliderField
               id="rt-pitch"
@@ -818,7 +887,7 @@ export default function RealtimePage() {
             </span>
           )}
         </div>
-      </div>
+      </Stage>
 
       <div className="card space-y-4">
         <div className="border-b border-white/10 pb-3.5 space-y-1">

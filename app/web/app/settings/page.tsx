@@ -330,7 +330,7 @@ export default function SettingsPage() {
   };
 
   const customThemes: ThemePreset[] = themes
-    .filter((th) => !THEME_PRESETS.some((p) => p.id === th.id))
+    .filter((th) => !th.example && !THEME_PRESETS.some((p) => p.id === th.id))
     .map((th) => ({
       id: th.id,
       name: th.name,
