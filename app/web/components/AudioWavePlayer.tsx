@@ -70,6 +70,17 @@ export default function AudioWavePlayer({
   const isLoopingRef = useRef(isLooping);
   isLoopingRef.current = isLooping;
 
+  // Live settings read by the WaveSurfer effect without retriggering it —
+  // volume / mute / rate apply imperatively so the waveform never rebuilds.
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  const isMutedRef = useRef(isMuted);
+  isMutedRef.current = isMuted;
+  const playbackRateRef = useRef(playbackRate);
+  playbackRateRef.current = playbackRate;
+  const tRef = useRef(t);
+  tRef.current = t;
+
   const pendingSeekTimeRef = useRef<number | null>(null);
   const shouldResumePlayRef = useRef<boolean>(false);
 
@@ -135,8 +146,8 @@ export default function AudioWavePlayer({
         setDuration(dur);
         setError(null);
         if (ws) {
-          ws.setVolume(isMuted ? 0 : volume);
-          ws.setPlaybackRate(playbackRate);
+          ws.setVolume(isMutedRef.current ? 0 : volumeRef.current);
+          ws.setPlaybackRate(playbackRateRef.current);
 
           // Restore playback position on A/B track switch
           if (pendingSeekTimeRef.current !== null && dur > 0) {
@@ -166,12 +177,12 @@ export default function AudioWavePlayer({
       ws.on("timeupdate", (time) => setCurrentTime(time));
       ws.on("error", (err) => {
         console.warn("WaveSurfer decode/load error:", err);
-        setError(t("Failed to decode audio file"));
+        setError(tRef.current("Failed to decode audio file"));
         setIsReady(false);
       });
     } catch (err) {
       console.warn("WaveSurfer initialization error:", err);
-      setError(t("Failed to initialize waveform"));
+      setError(tRef.current("Failed to initialize waveform"));
     }
 
     return () => {
@@ -187,7 +198,7 @@ export default function AudioWavePlayer({
         URL.revokeObjectURL(createdBlobUrl);
       }
     };
-  }, [activeSrc, file, activeTrack, compact, t, isMuted, volume, playbackRate]);
+  }, [activeSrc, file, activeTrack, compact]);
 
   // Play / Pause toggle
   const handlePlayPause = () => {
@@ -483,7 +494,7 @@ export default function AudioWavePlayer({
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Volume Control */}
           <div
-            className={`${pillContainer} inline-flex items-center gap-2 px-2.5 bg-white/5 border border-white/10 hover:border-white/20 transition-all shrink-0 shadow-xs`}
+            className={`${pillContainer} inline-flex items-center gap-2 px-2.5 transition-all shrink-0 shadow-xs`}
           >
             <button
               type="button"
