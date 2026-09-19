@@ -196,7 +196,11 @@ export default function ModelsPage() {
           {/* Controls bar: Search, Refresh, Download CTA */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="relative flex items-center flex-1 min-w-[240px] max-w-md 2xl:max-w-lg border-b border-white/10">
-              <Search size={15} className="absolute left-1 text-neutral-500 pointer-events-none" aria-hidden="true" />
+              <Search
+                size={15}
+                className="absolute left-1 text-neutral-500 pointer-events-none"
+                aria-hidden="true"
+              />
               <input
                 type="text"
                 placeholder={t("Search models by name or folder…")}
