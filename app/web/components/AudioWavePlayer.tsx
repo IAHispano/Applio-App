@@ -272,7 +272,6 @@ export default function AudioWavePlayer({
       aria-label={`Audio Waveplayer: ${displayName}`}
       className={`w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 shadow-xl space-y-3 transition-all ${className}`}
     >
-      {/* Header: Title, Track Metadata, Status Badges & Secondary File Actions */}
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div

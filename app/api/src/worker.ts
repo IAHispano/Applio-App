@@ -69,7 +69,6 @@ export class InferenceWorkerManager {
           this.handleIPCMessage(msg);
           return;
         } catch {
-          // fallback
         }
       }
       if (this.activeJob) {

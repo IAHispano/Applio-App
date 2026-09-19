@@ -72,11 +72,10 @@ export default function CustomSelect({
   const generatedId = useId();
   const id = propId || generatedId;
 
-  // Extract options from props and/or React children (<option>)
+  // Supports propOptions and <option> children.
   const parsedOptions = useMemo<CustomSelectOption[]>(() => {
     const list: CustomSelectOption[] = [];
 
-    // 1. From propOptions
     if (propOptions && propOptions.length > 0) {
       for (const item of propOptions) {
         if (typeof item === "string" || typeof item === "number") {
@@ -324,9 +323,7 @@ export default function CustomSelect({
         aria-expanded={open}
         aria-label={selectedOption ? selectedOption.label : placeholder}
         className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
-          open
-            ? "border-white/40 ring-1 ring-white/20 shadow-md"
-            : "border-[var(--border)] hover:border-white/20"
+          open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
         } ${
           disabled
             ? "opacity-40 cursor-not-allowed pointer-events-none"
@@ -400,7 +397,6 @@ export default function CustomSelect({
               ) : (
                 filteredOptions.map((opt, idx) => {
                   const isSelected = opt.value === selectedValue;
-                  const isHighlighted = idx === highlightedIndex;
 
                   return (
                     <button
@@ -411,12 +407,10 @@ export default function CustomSelect({
                       disabled={opt.disabled}
                       onClick={() => !opt.disabled && handleSelect(opt.value)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
-                      className={`w-full px-3.5 py-2 text-xs flex items-center justify-between text-left transition-colors cursor-pointer border-0 rounded-none ${
+                      className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
                         isSelected
                           ? "text-white font-medium"
-                          : "text-neutral-300 hover:text-white"
-                      } ${
-                        isHighlighted ? "bg-white/[0.05]" : "bg-transparent"
+                          : "text-neutral-400 hover:text-neutral-200"
                       } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}
                     >
                       <div className="min-w-0 flex-1 flex flex-col">

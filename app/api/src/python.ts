@@ -10,8 +10,7 @@ export function getRepoRoot(): string {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
-// Inspects pyvenv.cfg without spawning any child process, extracting
-// the real base Python interpreter executable path.
+// Inspects pyvenv.cfg without spawning a process.
 export function resolveBasePythonFromCfg(venvDir: string): string | null {
   try {
     const cfgPath = path.join(venvDir, "pyvenv.cfg");
@@ -43,12 +42,7 @@ export function resolveBasePythonFromCfg(venvDir: string): string | null {
   return null;
 }
 
-// Windows-only: standard venv and uv venvs ship python.exe as a trampoline shim
-// that re-execs the base interpreter WITHOUT hidden-console spawn flags, popping
-// a visible terminal for background child processes.
-// This function replaces the trampoline shim with the real base interpreter
-// and stages python.real.exe and pythonw.exe, synchronously and without
-// spawning any process (zero terminal flash).
+// Windows venv python.exe is a shim that flashes a terminal; use the real binary.
 export function ensureWindowsRealPythonSync(venvDir: string): string | null {
   if (process.platform !== "win32") return null;
   const probe = path.join(venvDir, "Scripts", "python.exe");
@@ -60,8 +54,7 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     return fs.existsSync(realTarget) ? realTarget : probe;
   }
 
-  // 1. Replace the venv python.exe shim with the real base python interpreter
-  // so all standard spawns with `python.exe` run the real binary without trampolines.
+  // 1. Replace the venv shim with the real interpreter.
   try {
     const probeStat = fs.statSync(probe);
     const baseStat = fs.statSync(base);
@@ -72,7 +65,6 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     // If probe is currently running or locked by Windows (EBUSY/EPERM), fall back to staging python.real.exe
   }
 
-  // 2. Also ensure python.real.exe is staged next to it.
   try {
     let stale = !fs.existsSync(realTarget);
     if (!stale) {
@@ -87,7 +79,6 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     /* non-fatal */
   }
 
-  // 3. Also un-shim pythonw.exe if base pythonw exists.
   try {
     const baseDir = path.dirname(base);
     const basePythonw = path.join(baseDir, "pythonw.exe");

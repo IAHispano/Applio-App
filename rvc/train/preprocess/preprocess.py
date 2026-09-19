@@ -287,7 +287,6 @@ def preprocess_training_set(
                 f'Speaker ID folder is expected to be integer, got "{os.path.basename(root)}" instead.'
             )
 
-    # print(f"Number of files: {len(files)}")
     if len(files) == 0:
         print(
             f"No audio files found in the dataset path: '{input_root}'. Please check that the path is correct and contains valid audio files."

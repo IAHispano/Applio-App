@@ -50,7 +50,6 @@ router.post("/drop", upload.single("file"), (req: Request, res: Response) => {
       fs.rmSync(req.file.path, { force: true });
       return res.status(400).json({ error: "Not a valid model file (need .pth, .onnx or .index)." });
     }
-    // Same sanitizing as the Gradio backend (rvc/lib/utils.py format_title).
     const fileName = formatTitle(path.basename(original));
     const lowerName = fileName.toLowerCase();
     let modelName = fileName;

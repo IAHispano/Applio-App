@@ -76,7 +76,6 @@ class RealtimeVoiceConverter:
             strip_parametrizations(self.net_g)
             self.net_g = self.net_g.to(self.config.device).to(self.dtype)
             self.net_g.eval()
-            # self.net_g.remove_weight_norm()
 
     def inference(
         self,
@@ -454,20 +453,10 @@ class Realtime_Pipeline:
         big_tsr: torch.Tensor,
         index_rate: float,
     ):
-        # skip_offset = skip_head // 2
-        # npy = feats[0][skip_offset:].cpu().numpy()
-        # if self.dtype == torch.float16:
         #     npy = npy.astype(np.float32)
-        # score, ix = index.search(npy, k=8)
-        # weight = np.square(1 / score)
-        # weight /= weight.sum(axis=1, keepdims=True)
-        # npy = np.sum(big_npy[ix] * np.expand_dims(weight, axis=2), axis=1)
-        # if self.dtype == torch.float16:
         #     npy = npy.astype(np.float16)
-        # feats[0][skip_offset:] = (
         #     torch.from_numpy(npy).unsqueeze(0).to(self.device) * index_rate
         #     + (1 - index_rate) * feats[0][skip_offset:]
-        # )
         skip_offset = skip_head // 2
         tsr = feats[0][skip_offset:]
         score, ix = index.search(tsr, k=8)
@@ -503,7 +492,6 @@ def create_pipeline(
     #     .strip('"')
     #     .strip()
     #     .replace("trained", "added")
-    # )
 
     index = IndexWrapper(
         index_path.strip()
@@ -540,7 +528,6 @@ def strip_parametrizations(module: torch.nn.Module):
     for name, submodule in module.named_modules():
         if hasattr(submodule, "parametrizations"):
             for pname, plist in list(submodule.parametrizations.items()):
-                # print(f"Removing parametrizations from {name}.{pname}: {[p.__class__.__name__ for p in plist]}")
                 torch.nn.utils.parametrize.remove_parametrizations(
                     submodule, pname, leave_parametrized=True
                 )

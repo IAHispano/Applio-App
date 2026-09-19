@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import path from "node:path";
 import { errMsg } from "./errors";
 import { appendLog, createJob, getJob, type Job, type JobType, setDone, setError, setRunning } from "./jobs";
-import { getRepoRoot, runPythonModule } from "./python";
+import { repoRel as sharedRepoRel } from "./lib/fsutils";
+import { runPythonModule } from "./python";
 
 const jobPids = new Map<string, number>();
 
@@ -11,7 +11,6 @@ export function trackPid(jobId: string, pid?: number) {
   else jobPids.delete(jobId);
 }
 
-// Best-effort kill of a tracked job's process tree.
 export function killJobTree(jobId: string): boolean {
   const pid = jobPids.get(jobId);
   if (!pid) return false;
@@ -87,5 +86,5 @@ export async function runPythonJson<T = unknown>(code: string, onData?: (line: s
 }
 
 export function repoRel(absPath: string): string {
-  return path.relative(getRepoRoot(), absPath).replace(/\\/g, "/");
+  return sharedRepoRel(absPath);
 }

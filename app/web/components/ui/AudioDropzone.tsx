@@ -58,7 +58,6 @@ export default function AudioDropzone({
 
   const hasAudio = !!audioFile || !!inputPath;
 
-  // Stable preview URL for the waveplayer
   const previewSrc = useMemo(() => {
     if (audioFile) {
       return URL.createObjectURL(audioFile);

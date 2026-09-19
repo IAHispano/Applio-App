@@ -468,7 +468,6 @@ export default function BatchForm() {
           </div>
         )}
 
-        {/* Error state */}
         {(error || (job && job.status === "error")) && (
           <div
             role="alert"
@@ -478,7 +477,6 @@ export default function BatchForm() {
           </div>
         )}
 
-        {/* Completed State */}
         {job && job.status === "done" && (
           <div className="space-y-4 pt-3 border-t border-white/5 animate-in fade-in duration-200">
             <div className="flex items-center gap-3 border-b border-white/10 pb-3">

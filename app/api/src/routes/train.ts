@@ -422,7 +422,6 @@ router.post("/pipeline", (req: Request, res: Response) => {
     try {
       appendLog(job, `=== Starting 1-Click Training Pipeline for model '${p.modelName}' ===`);
 
-      // Step 1: Preprocess
       appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
       const prepArgs = [
         "core.py",
@@ -455,7 +454,6 @@ router.post("/pipeline", (req: Request, res: Response) => {
       trackPid(job.id, undefined);
       if (r.code !== 0) throw new Error(`Preprocess failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
 
-      // Step 2: Extract
       appendLog(job, "\n>>> [2/4] Extracting Features...");
       const extractArgs = [
         "core.py",
@@ -483,7 +481,6 @@ router.post("/pipeline", (req: Request, res: Response) => {
       trackPid(job.id, undefined);
       if (r.code !== 0) throw new Error(`Extract failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
 
-      // Step 3: Train
       appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
       const trainArgs = [
         "core.py",
@@ -516,7 +513,6 @@ router.post("/pipeline", (req: Request, res: Response) => {
       trackPid(job.id, undefined);
       if (r.code !== 0) throw new Error(`Training failed (code ${r.code}): ${r.stderr.slice(-1000)}`);
 
-      // Step 4: Index
       const logsDir = path.join(getRepoRoot(), "logs", p.modelName);
       const hasIndex =
         fs.existsSync(logsDir) &&

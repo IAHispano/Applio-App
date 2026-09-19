@@ -217,7 +217,6 @@ export default function ModelDropdown({
             }}
             className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
           >
-            {/* Search Header */}
             <div
               className="p-2 flex items-center gap-2 shrink-0"
               style={{ borderBottom: "1px solid var(--border)" }}
@@ -255,7 +254,6 @@ export default function ModelDropdown({
               ) : (
                 filteredModels.map((m, i) => {
                   const isSelected = m === selectedModel;
-                  const isHighlighted = i === highlighted;
                   const hasIndex = hasIndexMatch(m);
                   return (
                     <button
@@ -269,11 +267,8 @@ export default function ModelDropdown({
                       aria-selected={isSelected}
                       onMouseEnter={() => setHighlighted(i)}
                       onClick={() => chooseModel(m)}
-                      style={{
-                        background: isHighlighted ? "rgba(255, 255, 255, 0.05)" : "transparent",
-                      }}
-                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors cursor-pointer border-0 rounded-none bg-transparent ${
-                        isSelected ? "text-white font-medium" : "text-neutral-300 hover:text-white"
+                      className={`menu-option w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left cursor-pointer border-0 rounded-none bg-transparent ${
+                        isSelected ? "text-white font-medium" : "text-neutral-400 hover:text-neutral-200"
                       }`}
                     >
                       <div className="min-w-0 flex-1">
@@ -367,11 +362,10 @@ export default function ModelDropdown({
         aria-expanded={open}
         style={{
           background: "var(--input-bg)",
-          borderColor: open ? "var(--focus-border)" : "var(--border)",
+          borderColor: "var(--border)",
           borderRadius: "var(--radius-input)",
-          boxShadow: open ? "0 0 0 1px var(--focus-border)" : undefined,
         }}
-        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-all hover:border-[var(--focus-border)] ${
+        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
           disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

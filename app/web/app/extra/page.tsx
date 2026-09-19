@@ -2,12 +2,13 @@
 
 import { Activity, AudioWaveform, LineChart } from "lucide-react";
 import { useEffect, useState } from "react";
-import AudioPlayer from "../../components/AudioPlayer";
+import AudioWavePlayer from "../../components/AudioWavePlayer";
 import AnalysisResultCard from "../../components/extra/AnalysisResultCard";
 import PageHeader from "../../components/layout/PageHeader";
 import CustomSelect from "../../components/ui/CustomSelect";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { usePreviewUrl } from "../../lib/usePreviewUrl";
 
 export default function ExtraPage() {
   const { t } = useI18n();
@@ -69,7 +70,7 @@ export default function ExtraPage() {
     }
   }
 
-  const previewUrl = audio ? URL.createObjectURL(audio) : inputPath ? `/${inputPath}` : null;
+  const previewUrl = usePreviewUrl(audio, audio ? undefined : inputPath);
 
   return (
     <div className="w-full max-w-[1920px] mx-auto space-y-6">
@@ -145,7 +146,7 @@ export default function ExtraPage() {
             <span className="text-xs text-neutral-400 block mb-1 font-medium">
               {t("Source Audio Preview:")}
             </span>
-            <AudioPlayer src={previewUrl} title={audio?.name || inputPath} showAnalyzerLink={false} />
+            <AudioWavePlayer src={previewUrl} title={audio?.name || inputPath} showAnalyzerLink={false} />
           </div>
         )}
       </div>

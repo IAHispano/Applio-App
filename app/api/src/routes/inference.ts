@@ -1,41 +1,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import multer from "multer";
 import { trackPid } from "../cli";
 import { errMsg } from "../errors";
 import { appendLog, createJob, getJob, setDone, setError, setRunning } from "../jobs";
-import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath, runPythonModule } from "../python";
+import { buildCommonInferArgs } from "../lib/inferArgs";
+import { audioUpload } from "../lib/upload";
+import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "../python";
 import { type InferenceParams, inferenceParamsSchema } from "../schemas";
 import { inferenceWorker } from "../worker";
 
 const router = Router();
 
-const AUDIO_EXTS = new Set(
-  ".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.alac,.wma,.aiff,.webm,.ac3".split(","),
-);
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, getUploadsDir()),
-  filename: (_req, file, cb) => {
-    const safe = path.basename(file.originalname).replace(/[^a-zA-Z0-9._-]/g, "_");
-    cb(null, `${Date.now()}_${safe}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
-  fileFilter: (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (!AUDIO_EXTS.has(ext)) return cb(new Error(`Unsupported audio type: ${ext}`));
-    cb(null, true);
-  },
-});
+const upload = audioUpload();
 
 function toCliArgs(p: InferenceParams, inputPath: string, outputPath: string): string[] {
-  const flag = (name: string, value: boolean) => (value ? [`--${name}`] : []);
-  const args: string[] = [
+  return [
     "core.py",
     "infer",
     "--input-path",
@@ -46,103 +26,8 @@ function toCliArgs(p: InferenceParams, inputPath: string, outputPath: string): s
     p.pthPath,
     "--index-path",
     p.indexPath || "",
-    "--pitch",
-    String(p.pitch),
-    "--index-rate",
-    String(p.indexRate),
-    "--volume-envelope",
-    String(p.volumeEnvelope),
-    "--protect",
-    String(p.protect),
-    "--f0-method",
-    p.f0Method,
-    "--export-format",
-    p.exportFormat,
-    "--embedder-model",
-    p.embedderModel,
-    "--sid",
-    String(p.sid),
-    ...flag("split-audio", p.splitAudio),
-    ...flag("f0-autotune", p.f0Autotune),
-    "--f0-autotune-strength",
-    String(p.f0AutotuneStrength),
-    ...flag("proposed-pitch", p.proposedPitch),
-    "--proposed-pitch-threshold",
-    String(p.proposedPitchThreshold),
-    ...flag("clean-audio", p.cleanAudio),
-    "--clean-strength",
-    String(p.cleanStrength),
-    ...flag("formant-shifting", p.formantShifting),
-    "--formant-qfrency",
-    String(p.formantQfrency),
-    "--formant-timbre",
-    String(p.formantTimbre),
-    ...flag("post-process", p.postProcess),
-    ...flag("reverb", p.reverb),
-    "--reverb-room-size",
-    String(p.reverbRoomSize),
-    "--reverb-damping",
-    String(p.reverbDamping),
-    "--reverb-wet-gain",
-    String(p.reverbWetGain),
-    "--reverb-dry-gain",
-    String(p.reverbDryGain),
-    "--reverb-width",
-    String(p.reverbWidth),
-    "--reverb-freeze-mode",
-    String(p.reverbFreezeMode),
-    ...flag("pitch-shift", p.pitchShift),
-    "--pitch-shift-semitones",
-    String(p.pitchShiftSemitones),
-    ...flag("limiter", p.limiter),
-    "--limiter-threshold",
-    String(p.limiterThreshold),
-    "--limiter-release-time",
-    String(p.limiterReleaseTime),
-    ...flag("gain", p.gain),
-    "--gain-db",
-    String(p.gainDb),
-    ...flag("distortion", p.distortion),
-    "--distortion-gain",
-    String(p.distortionGain),
-    ...flag("chorus", p.chorus),
-    "--chorus-rate",
-    String(p.chorusRate),
-    "--chorus-depth",
-    String(p.chorusDepth),
-    "--chorus-center-delay",
-    String(p.chorusCenterDelay),
-    "--chorus-feedback",
-    String(p.chorusFeedback),
-    "--chorus-mix",
-    String(p.chorusMix),
-    ...flag("bitcrush", p.bitcrush),
-    "--bitcrush-bit-depth",
-    String(p.bitcrushBitDepth),
-    ...flag("clipping", p.clipping),
-    "--clipping-threshold",
-    String(p.clippingThreshold),
-    ...flag("compressor", p.compressor),
-    "--compressor-threshold",
-    String(p.compressorThreshold),
-    "--compressor-ratio",
-    String(p.compressorRatio),
-    "--compressor-attack",
-    String(p.compressorAttack),
-    "--compressor-release",
-    String(p.compressorRelease),
-    ...flag("delay", p.delay),
-    "--delay-seconds",
-    String(p.delaySeconds),
-    "--delay-feedback",
-    String(p.delayFeedback),
-    "--delay-mix",
-    String(p.delayMix),
+    ...buildCommonInferArgs(p),
   ];
-  if (p.embedderModel === "custom" && p.embedderModelCustom) {
-    args.push("--embedder-model-custom", p.embedderModelCustom);
-  }
-  return args;
 }
 
 router.post("/", upload.single("audio"), async (req: Request, res: Response) => {

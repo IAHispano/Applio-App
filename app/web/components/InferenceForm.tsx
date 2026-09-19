@@ -68,7 +68,6 @@ function humanSize(bytes: number): string {
 export default function InferenceForm() {
   const { t } = useI18n();
 
-  // Model & Asset states
   const [models, setModels] = useState<string[]>([]);
   const [indexes, setIndexes] = useState<string[]>([]);
   const [sampleAudios, setSampleAudios] = useState<string[]>([]);

@@ -38,18 +38,16 @@ class VoiceConverter:
         """
         Initializes the VoiceConverter with default configuration, and sets up models and parameters.
         """
-        self.config = Config()  # Load configuration
-        self.hubert_model = (
-            None  # Initialize the Hubert model (for embedding extraction)
-        )
-        self.last_embedder_model = None  # Last used embedder model
-        self.tgt_sr = None  # Target sampling rate for the output audio
-        self.net_g = None  # Generator network for voice conversion
-        self.vc = None  # Voice conversion pipeline instance
-        self.cpt = None  # Checkpoint for loading model weights
-        self.version = None  # Model version
-        self.n_spk = None  # Number of speakers in the model
-        self.use_f0 = None  # Whether the model uses F0
+        self.config = Config()
+        self.hubert_model = None
+        self.last_embedder_model = None
+        self.tgt_sr = None
+        self.net_g = None
+        self.vc = None
+        self.cpt = None
+        self.version = None
+        self.n_spk = None
+        self.use_f0 = None
         self.loaded_model = None
 
     def load_hubert(self, embedder_model: str, embedder_model_custom: str = None):

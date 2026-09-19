@@ -1,20 +1,11 @@
 "use client";
 
-import { ChevronDown, Download, FileAudio, FileCheck, Image as ImageIcon, StopCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import {
-  errMsg,
-  fetchJob,
-  fileBasename,
-  isAudioFile,
-  isImageFile,
-  type Job,
-  outputUrl,
-  pollJob,
-  stopJob,
-} from "../lib/api";
+import { ChevronDown, Download } from "lucide-react";
+import { fileBasename, isAudioFile, isImageFile, outputUrl } from "../lib/api";
 import { useI18n } from "../lib/i18n";
-import AudioPlayer from "./AudioPlayer";
+import { useJob } from "../lib/useJob";
+import AudioWavePlayer from "./AudioWavePlayer";
+import { JobBadge, JobCancelButton, JobError, JobProgress } from "./JobStatus";
 
 export interface JobPanelProps {
   jobId: string | null;
@@ -26,36 +17,7 @@ export interface JobPanelProps {
 // Polls a job, shows status, and renders its output file cleanly without CLI clutter.
 export default function JobPanel({ jobId, compact, showLogs = false, embedded = false }: JobPanelProps) {
   const { t } = useI18n();
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      return;
-    }
-    setError("");
-    let stop = () => {};
-    fetchJob(jobId)
-      .then(({ job: j }) => {
-        setJob(j);
-        if (j.status !== "done" && j.status !== "error") stop = pollJob(jobId, setJob);
-      })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
-  }, [jobId]);
-
-  const cleanedLogs = useMemo(() => {
-    if (!job?.logs) return [];
-    return job.logs
-      .map((l) =>
-        l
-          .replace(/^\$ python.*$/i, "")
-          .replace(/^\[(stdout|stderr)\]\s*/i, "")
-          .trim(),
-      )
-      .filter((l) => l.length > 0);
-  }, [job?.logs]);
+  const { job, error, setError, cleanedLogs } = useJob(jobId);
 
   if (!jobId) return null;
   if (error) {
@@ -108,51 +70,17 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
     <section className={containerClasses} aria-label={t("Task Activity")}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className={`badge ${job.status}`} role="status" aria-label={`Status: ${job.status}`}>
-            {job.status === "done"
-              ? t("Completed")
-              : job.status === "running"
-                ? t("In Progress")
-                : job.status === "error"
-                  ? t("Failed")
-                  : t("Queued")}
-          </span>
+          <JobBadge status={job.status} />
           <span className="text-neutral-400 text-xs font-medium">{t("Activity")}</span>
         </div>
         {(job.status === "queued" || job.status === "running") && (
-          <button
-            type="button"
-            className="ghost text-xs h-7 px-2.5 text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1"
-            onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
-            aria-label={t("Cancel")}
-          >
-            <StopCircle size={13} />
-            <span>{t("Cancel")}</span>
-          </button>
+          <JobCancelButton jobId={job.id} onError={setError} />
         )}
       </div>
 
-      {job.status === "error" && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs"
-        >
-          {job.error || t("Operation failed.")}
-        </div>
-      )}
+      {job.status === "error" && <JobError message={job.error} />}
 
-      {(job.status === "queued" || job.status === "running") && (
-        <div
-          className="loader"
-          role="progressbar"
-          aria-label="Execution in progress"
-          aria-valuetext={job.status}
-          style={{ marginTop: 8 }}
-        >
-          <div className="loaderBar" />
-        </div>
-      )}
+      <JobProgress status={job.status} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
 
@@ -163,7 +91,7 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
         </div>
       )}
 
-      {out && isAudioFile(out) && <AudioPlayer src={outputUrl(out)} filename={fileBasename(out)} />}
+      {out && isAudioFile(out) && <AudioWavePlayer src={outputUrl(out)} filename={fileBasename(out)} />}
 
       {out && isImageFile(out) && (
         <div className="space-y-2">

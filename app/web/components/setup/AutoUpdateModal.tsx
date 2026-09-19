@@ -323,7 +323,6 @@ export default function AutoUpdateModal() {
           } pointer-events-none`}
         />
 
-        {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-white/10 bg-white/[0.02] flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div

@@ -607,7 +607,6 @@ export default function TtsForm() {
             </div>
           )}
 
-          {/* Error state */}
           {(error || (job && job.status === "error")) && (
             <div
               role="alert"

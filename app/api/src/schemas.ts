@@ -25,7 +25,7 @@ export const EMBEDDER_MODELS = [
   "custom",
 ] as const;
 
-export const inferenceParamsSchema = z.object({
+export const baseInferSchema = z.object({
   // Model selection (paths relative to repo root, e.g. logs/my-model/model.pth)
   pthPath: z.string().min(1, "pthPath is required"),
   indexPath: z.string().default(""),
@@ -90,11 +90,64 @@ export const inferenceParamsSchema = z.object({
   delayMix: z.coerce.number().default(0.5),
 });
 
-export type InferenceParams = z.infer<typeof inferenceParamsSchema>;
+export type InferenceParams = z.infer<typeof baseInferSchema>;
 
-export const batchInferenceSchema = inferenceParamsSchema.omit({}).extend({
+export const inferenceParamsSchema = baseInferSchema;
+export type BatchInferenceParamsInput = z.infer<typeof baseInferSchema>;
+
+export const batchInferenceSchema = baseInferSchema.extend({
   inputFolder: z.string().min(1),
   outputFolder: z.string().min(1),
 });
 
 export type BatchInferenceParams = z.infer<typeof batchInferenceSchema>;
+
+export const ttsInferSchema = baseInferSchema.omit({
+  formantShifting: true,
+  formantQfrency: true,
+  formantTimbre: true,
+  postProcess: true,
+  reverb: true,
+  reverbRoomSize: true,
+  reverbDamping: true,
+  reverbWetGain: true,
+  reverbDryGain: true,
+  reverbWidth: true,
+  reverbFreezeMode: true,
+  pitchShift: true,
+  pitchShiftSemitones: true,
+  limiter: true,
+  limiterThreshold: true,
+  limiterReleaseTime: true,
+  gain: true,
+  gainDb: true,
+  distortion: true,
+  distortionGain: true,
+  chorus: true,
+  chorusRate: true,
+  chorusDepth: true,
+  chorusCenterDelay: true,
+  chorusFeedback: true,
+  chorusMix: true,
+  bitcrush: true,
+  bitcrushBitDepth: true,
+  clipping: true,
+  clippingThreshold: true,
+  compressor: true,
+  compressorThreshold: true,
+  compressorRatio: true,
+  compressorAttack: true,
+  compressorRelease: true,
+  delay: true,
+  delaySeconds: true,
+  delayFeedback: true,
+  delayMix: true,
+});
+
+export const ttsSchema = ttsInferSchema.extend({
+  ttsText: z.string().default(""),
+  ttsVoice: z.string().min(1),
+  ttsRate: z.coerce.number().int().min(-100).max(100).default(0),
+});
+
+export type TtsParams = z.infer<typeof ttsSchema>;

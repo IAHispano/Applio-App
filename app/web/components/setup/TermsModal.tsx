@@ -95,7 +95,6 @@ export default function TermsModal() {
         {/* Top ambient highlight line */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
 
-        {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-11 h-11 rounded-xl bg-white/[0.08] border border-white/15 flex items-center justify-center text-white shrink-0 shadow-inner">

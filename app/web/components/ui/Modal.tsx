@@ -114,7 +114,6 @@ export default function Modal({
           danger ? "border-red-500/30 shadow-red-500/10" : "border-white/15"
         } rounded-2xl p-6 shadow-2xl space-y-4 focus:outline-none`}
       >
-        {/* Modal Header */}
         <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">
             {icon && (
@@ -137,7 +136,7 @@ export default function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close dialog"
-            className="w-8 h-8 p-0 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-2 focus-visible:outline-white shrink-0"
+            className="w-8 h-8 p-0 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none shrink-0"
           >
             <X size={16} aria-hidden="true" />
           </button>

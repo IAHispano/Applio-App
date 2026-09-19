@@ -20,7 +20,7 @@ export default function Sidebar() {
         <Link
           href="/"
           prefetch={true}
-          className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2"
+          className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none"
           aria-label="Applio - Home"
         >
           <span className="text-lg font-semibold tracking-tight text-[var(--heading)] group-hover:opacity-80 transition-opacity">
@@ -54,7 +54,7 @@ export default function Sidebar() {
                       href={item.to}
                       prefetch={true}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-2 focus-visible:outline-[var(--accent)] focus-visible:outline-offset-2 ${
+                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-none ${
                         active
                           ? "bg-[var(--accent-soft)] text-[var(--accent)] font-medium shadow-xs"
                           : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"

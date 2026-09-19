@@ -54,7 +54,127 @@ def get_config():
     return Config()
 
 
-# Infer
+def _base_infer_kwargs(
+    pitch=0,
+    index_rate=0.3,
+    volume_envelope=1.0,
+    protect=0.33,
+    f0_method="rmvpe",
+    pth_path="",
+    index_path="",
+    split_audio=False,
+    f0_autotune=False,
+    f0_autotune_strength=1.0,
+    proposed_pitch=False,
+    proposed_pitch_threshold=155.0,
+    clean_audio=False,
+    clean_strength=0.7,
+    export_format="WAV",
+    embedder_model="contentvec",
+    embedder_model_custom=None,
+    formant_shifting=False,
+    formant_qfrency=1.0,
+    formant_timbre=1.0,
+    post_process=False,
+    reverb=False,
+    pitch_shift=False,
+    limiter=False,
+    gain=False,
+    distortion=False,
+    chorus=False,
+    bitcrush=False,
+    clipping=False,
+    compressor=False,
+    delay=False,
+    reverb_room_size=0.5,
+    reverb_damping=0.5,
+    reverb_wet_gain=0.5,
+    reverb_dry_gain=0.5,
+    reverb_width=0.5,
+    reverb_freeze_mode=0.5,
+    pitch_shift_semitones=0.0,
+    limiter_threshold=-6,
+    limiter_release_time=0.01,
+    gain_db=0.0,
+    distortion_gain=25,
+    chorus_rate=1.0,
+    chorus_depth=0.25,
+    chorus_center_delay=7,
+    chorus_feedback=0.0,
+    chorus_mix=0.5,
+    bitcrush_bit_depth=8,
+    clipping_threshold=-6,
+    compressor_threshold=0,
+    compressor_ratio=1,
+    compressor_attack=1.0,
+    compressor_release=100,
+    delay_seconds=0.5,
+    delay_feedback=0.0,
+    delay_mix=0.5,
+    sid=0,
+):
+    """Shared inference options for single / batch / TTS (was 3x copy-pasted)."""
+    return {
+        "model_path": pth_path,
+        "index_path": index_path,
+        "volume_envelope": volume_envelope,
+        "pitch": pitch,
+        "index_rate": index_rate,
+        "protect": protect,
+        "f0_method": f0_method,
+        "split_audio": split_audio,
+        "f0_autotune": f0_autotune,
+        "f0_autotune_strength": f0_autotune_strength,
+        "proposed_pitch": proposed_pitch,
+        "proposed_pitch_threshold": proposed_pitch_threshold,
+        "clean_audio": clean_audio,
+        "clean_strength": clean_strength,
+        "export_format": export_format,
+        "embedder_model": embedder_model,
+        "embedder_model_custom": embedder_model_custom,
+        "post_process": post_process,
+        "formant_shifting": formant_shifting,
+        "formant_qfrency": formant_qfrency,
+        "formant_timbre": formant_timbre,
+        "reverb": reverb,
+        "pitch_shift": pitch_shift,
+        "limiter": limiter,
+        "gain": gain,
+        "distortion": distortion,
+        "chorus": chorus,
+        "bitcrush": bitcrush,
+        "clipping": clipping,
+        "compressor": compressor,
+        "delay": delay,
+        "reverb_room_size": reverb_room_size,
+        "reverb_damping": reverb_damping,
+        "reverb_wet_level": reverb_wet_gain,
+        "reverb_dry_level": reverb_dry_gain,
+        "reverb_width": reverb_width,
+        "reverb_freeze_mode": reverb_freeze_mode,
+        "pitch_shift_semitones": pitch_shift_semitones,
+        "limiter_threshold": limiter_threshold,
+        "limiter_release": limiter_release_time,
+        "gain_db": gain_db,
+        "distortion_gain": distortion_gain,
+        "chorus_rate": chorus_rate,
+        "chorus_depth": chorus_depth,
+        "chorus_delay": chorus_center_delay,
+        "chorus_feedback": chorus_feedback,
+        "chorus_mix": chorus_mix,
+        "bitcrush_bit_depth": bitcrush_bit_depth,
+        "clipping_threshold": clipping_threshold,
+        "compressor_threshold": compressor_threshold,
+        "compressor_ratio": compressor_ratio,
+        "compressor_attack": compressor_attack,
+        "compressor_release": compressor_release,
+        "delay_seconds": delay_seconds,
+        "delay_feedback": delay_feedback,
+        "delay_mix": delay_mix,
+        "sid": sid,
+    }
+
+
 def run_infer_script(
     pitch: int,
     index_rate: float,
@@ -116,67 +236,67 @@ def run_infer_script(
     delay_mix: float = 0.5,
     sid: int = 0,
 ):
-    kwargs = {
-        "audio_input_path": input_path,
-        "audio_output_path": output_path,
-        "model_path": pth_path,
-        "index_path": index_path,
-        "volume_envelope": volume_envelope,
-        "pitch": pitch,
-        "index_rate": index_rate,
-        "protect": protect,
-        "f0_method": f0_method,
-        "split_audio": split_audio,
-        "f0_autotune": f0_autotune,
-        "f0_autotune_strength": f0_autotune_strength,
-        "proposed_pitch": proposed_pitch,
-        "proposed_pitch_threshold": proposed_pitch_threshold,
-        "clean_audio": clean_audio,
-        "clean_strength": clean_strength,
-        "export_format": export_format,
-        "embedder_model": embedder_model,
-        "embedder_model_custom": embedder_model_custom,
-        "post_process": post_process,
-        "formant_shifting": formant_shifting,
-        "formant_qfrency": formant_qfrency,
-        "formant_timbre": formant_timbre,
-        "reverb": reverb,
-        "pitch_shift": pitch_shift,
-        "limiter": limiter,
-        "gain": gain,
-        "distortion": distortion,
-        "chorus": chorus,
-        "bitcrush": bitcrush,
-        "clipping": clipping,
-        "compressor": compressor,
-        "delay": delay,
-        "reverb_room_size": reverb_room_size,
-        "reverb_damping": reverb_damping,
-        "reverb_wet_level": reverb_wet_gain,
-        "reverb_dry_level": reverb_dry_gain,
-        "reverb_width": reverb_width,
-        "reverb_freeze_mode": reverb_freeze_mode,
-        "pitch_shift_semitones": pitch_shift_semitones,
-        "limiter_threshold": limiter_threshold,
-        "limiter_release": limiter_release_time,
-        "gain_db": gain_db,
-        "distortion_gain": distortion_gain,
-        "chorus_rate": chorus_rate,
-        "chorus_depth": chorus_depth,
-        "chorus_delay": chorus_center_delay,
-        "chorus_feedback": chorus_feedback,
-        "chorus_mix": chorus_mix,
-        "bitcrush_bit_depth": bitcrush_bit_depth,
-        "clipping_threshold": clipping_threshold,
-        "compressor_threshold": compressor_threshold,
-        "compressor_ratio": compressor_ratio,
-        "compressor_attack": compressor_attack,
-        "compressor_release": compressor_release,
-        "delay_seconds": delay_seconds,
-        "delay_feedback": delay_feedback,
-        "delay_mix": delay_mix,
-        "sid": sid,
-    }
+    kwargs = _base_infer_kwargs(
+        pitch=pitch,
+        index_rate=index_rate,
+        volume_envelope=volume_envelope,
+        protect=protect,
+        f0_method=f0_method,
+        pth_path=pth_path,
+        index_path=index_path,
+        split_audio=split_audio,
+        f0_autotune=f0_autotune,
+        f0_autotune_strength=f0_autotune_strength,
+        proposed_pitch=proposed_pitch,
+        proposed_pitch_threshold=proposed_pitch_threshold,
+        clean_audio=clean_audio,
+        clean_strength=clean_strength,
+        export_format=export_format,
+        embedder_model=embedder_model,
+        embedder_model_custom=embedder_model_custom,
+        formant_shifting=formant_shifting,
+        formant_qfrency=formant_qfrency,
+        formant_timbre=formant_timbre,
+        post_process=post_process,
+        reverb=reverb,
+        pitch_shift=pitch_shift,
+        limiter=limiter,
+        gain=gain,
+        distortion=distortion,
+        chorus=chorus,
+        bitcrush=bitcrush,
+        clipping=clipping,
+        compressor=compressor,
+        delay=delay,
+        reverb_room_size=reverb_room_size,
+        reverb_damping=reverb_damping,
+        reverb_wet_gain=reverb_wet_gain,
+        reverb_dry_gain=reverb_dry_gain,
+        reverb_width=reverb_width,
+        reverb_freeze_mode=reverb_freeze_mode,
+        pitch_shift_semitones=pitch_shift_semitones,
+        limiter_threshold=limiter_threshold,
+        limiter_release_time=limiter_release_time,
+        gain_db=gain_db,
+        distortion_gain=distortion_gain,
+        chorus_rate=chorus_rate,
+        chorus_depth=chorus_depth,
+        chorus_center_delay=chorus_center_delay,
+        chorus_feedback=chorus_feedback,
+        chorus_mix=chorus_mix,
+        bitcrush_bit_depth=bitcrush_bit_depth,
+        clipping_threshold=clipping_threshold,
+        compressor_threshold=compressor_threshold,
+        compressor_ratio=compressor_ratio,
+        compressor_attack=compressor_attack,
+        compressor_release=compressor_release,
+        delay_seconds=delay_seconds,
+        delay_feedback=delay_feedback,
+        delay_mix=delay_mix,
+        sid=sid,
+    )
+    kwargs["audio_input_path"] = input_path
+    kwargs["audio_output_path"] = output_path
     infer_pipeline = import_voice_converter()
     infer_pipeline.convert_audio(**kwargs)
     return f"File {input_path} inferred successfully.", output_path.replace(
@@ -184,7 +304,6 @@ def run_infer_script(
     )
 
 
-# Batch infer
 def run_batch_infer_script(
     pitch: int,
     index_rate: float,
@@ -246,73 +365,72 @@ def run_batch_infer_script(
     delay_mix: float = 0.5,
     sid: int = 0,
 ):
-    kwargs = {
-        "audio_input_paths": input_folder,
-        "audio_output_path": output_folder,
-        "model_path": pth_path,
-        "index_path": index_path,
-        "pitch": pitch,
-        "index_rate": index_rate,
-        "volume_envelope": volume_envelope,
-        "protect": protect,
-        "f0_method": f0_method,
-        "split_audio": split_audio,
-        "f0_autotune": f0_autotune,
-        "f0_autotune_strength": f0_autotune_strength,
-        "proposed_pitch": proposed_pitch,
-        "proposed_pitch_threshold": proposed_pitch_threshold,
-        "clean_audio": clean_audio,
-        "clean_strength": clean_strength,
-        "export_format": export_format,
-        "embedder_model": embedder_model,
-        "embedder_model_custom": embedder_model_custom,
-        "post_process": post_process,
-        "formant_shifting": formant_shifting,
-        "formant_qfrency": formant_qfrency,
-        "formant_timbre": formant_timbre,
-        "reverb": reverb,
-        "pitch_shift": pitch_shift,
-        "limiter": limiter,
-        "gain": gain,
-        "distortion": distortion,
-        "chorus": chorus,
-        "bitcrush": bitcrush,
-        "clipping": clipping,
-        "compressor": compressor,
-        "delay": delay,
-        "reverb_room_size": reverb_room_size,
-        "reverb_damping": reverb_damping,
-        "reverb_wet_level": reverb_wet_gain,
-        "reverb_dry_level": reverb_dry_gain,
-        "reverb_width": reverb_width,
-        "reverb_freeze_mode": reverb_freeze_mode,
-        "pitch_shift_semitones": pitch_shift_semitones,
-        "limiter_threshold": limiter_threshold,
-        "limiter_release": limiter_release_time,
-        "gain_db": gain_db,
-        "distortion_gain": distortion_gain,
-        "chorus_rate": chorus_rate,
-        "chorus_depth": chorus_depth,
-        "chorus_delay": chorus_center_delay,
-        "chorus_feedback": chorus_feedback,
-        "chorus_mix": chorus_mix,
-        "bitcrush_bit_depth": bitcrush_bit_depth,
-        "clipping_threshold": clipping_threshold,
-        "compressor_threshold": compressor_threshold,
-        "compressor_ratio": compressor_ratio,
-        "compressor_attack": compressor_attack,
-        "compressor_release": compressor_release,
-        "delay_seconds": delay_seconds,
-        "delay_feedback": delay_feedback,
-        "delay_mix": delay_mix,
-        "sid": sid,
-    }
+    kwargs = _base_infer_kwargs(
+        pitch=pitch,
+        index_rate=index_rate,
+        volume_envelope=volume_envelope,
+        protect=protect,
+        f0_method=f0_method,
+        pth_path=pth_path,
+        index_path=index_path,
+        split_audio=split_audio,
+        f0_autotune=f0_autotune,
+        f0_autotune_strength=f0_autotune_strength,
+        proposed_pitch=proposed_pitch,
+        proposed_pitch_threshold=proposed_pitch_threshold,
+        clean_audio=clean_audio,
+        clean_strength=clean_strength,
+        export_format=export_format,
+        embedder_model=embedder_model,
+        embedder_model_custom=embedder_model_custom,
+        formant_shifting=formant_shifting,
+        formant_qfrency=formant_qfrency,
+        formant_timbre=formant_timbre,
+        post_process=post_process,
+        reverb=reverb,
+        pitch_shift=pitch_shift,
+        limiter=limiter,
+        gain=gain,
+        distortion=distortion,
+        chorus=chorus,
+        bitcrush=bitcrush,
+        clipping=clipping,
+        compressor=compressor,
+        delay=delay,
+        reverb_room_size=reverb_room_size,
+        reverb_damping=reverb_damping,
+        reverb_wet_gain=reverb_wet_gain,
+        reverb_dry_gain=reverb_dry_gain,
+        reverb_width=reverb_width,
+        reverb_freeze_mode=reverb_freeze_mode,
+        pitch_shift_semitones=pitch_shift_semitones,
+        limiter_threshold=limiter_threshold,
+        limiter_release_time=limiter_release_time,
+        gain_db=gain_db,
+        distortion_gain=distortion_gain,
+        chorus_rate=chorus_rate,
+        chorus_depth=chorus_depth,
+        chorus_center_delay=chorus_center_delay,
+        chorus_feedback=chorus_feedback,
+        chorus_mix=chorus_mix,
+        bitcrush_bit_depth=bitcrush_bit_depth,
+        clipping_threshold=clipping_threshold,
+        compressor_threshold=compressor_threshold,
+        compressor_ratio=compressor_ratio,
+        compressor_attack=compressor_attack,
+        compressor_release=compressor_release,
+        delay_seconds=delay_seconds,
+        delay_feedback=delay_feedback,
+        delay_mix=delay_mix,
+        sid=sid,
+    )
+    kwargs["audio_input_paths"] = input_folder
+    kwargs["audio_output_path"] = output_folder
     infer_pipeline = import_voice_converter()
     infer_pipeline.convert_audio_batch(**kwargs)
     return f"Files from {input_folder} inferred successfully."
 
 
-# TTS
 def run_tts_script(
     tts_file: str,
     tts_text: str,
@@ -407,7 +525,6 @@ def run_tts_script(
     )
 
 
-# Preprocess
 def run_preprocess_script(
     model_name: str,
     dataset_path: str,
@@ -449,7 +566,6 @@ def run_preprocess_script(
     return f"Model {model_name} preprocessed successfully."
 
 
-# Extract
 def run_extract_script(
     model_name: str,
     f0_method: str,
@@ -492,25 +608,21 @@ def shutdown_after_training():
     os_name = sys.platform
     shutdown_time = None
 
-    # Windows
     if os_name == "win32":
         delay_seconds = 300
         shutdown_time = datetime.now() + timedelta(seconds=delay_seconds)
         # run_quiet: os.system would flash a cmd window.
         run_quiet(["shutdown", "/s", "/t", str(delay_seconds)])
 
-    # MacOS
     elif os_name == "darwin":
         shutdown_time = datetime.now()
         os.system("osascript -e 'tell app \"System Events\" to shut down'")
 
-    # Linux
     elif os_name.startswith("linux"):
         delay_minutes = 5
         shutdown_time = datetime.now() + timedelta(minutes=delay_minutes)
         os.system(f"shutdown -h +{delay_minutes}")
 
-    # Unknown
     else:
         print("Unsupported OS")
         return os_name, None
@@ -538,7 +650,6 @@ def append_data_shutdown_log(
         f.write(log_entry)
 
 
-# Train
 def run_train_script(
     model_name: str,
     save_every_epoch: int,
@@ -624,7 +735,6 @@ def run_train_script(
     return f"Model {model_name} trained successfully."
 
 
-# Index
 def run_index_script(model_name: str, index_algorithm: str):
     index_script_path = os.path.join("rvc", "train", "process", "extract_index.py")
     command = [
@@ -641,7 +751,6 @@ def run_index_script(model_name: str, index_algorithm: str):
     return f"Index file for {model_name} generated successfully."
 
 
-# Model information
 def run_model_information_script(pth_path: str):
     from rvc.train.process.model_information import model_information as model_info
 
@@ -649,7 +758,6 @@ def run_model_information_script(pth_path: str):
     return model_info(pth_path)
 
 
-# Model blender
 def run_model_blender_script(
     model_name: str, pth_path_1: str, pth_path_2: str, ratio: float
 ):
@@ -659,14 +767,12 @@ def run_model_blender_script(
     return message, model_blended
 
 
-# Tensorboard
 def run_tensorboard_script():
     from rvc.lib.tools.launch_tensorboard import launch_tensorboard_pipeline
 
     launch_tensorboard_pipeline()
 
 
-# Download
 def run_download_script(model_link: str):
     from rvc.lib.tools.model_download import model_download_pipeline
 
@@ -676,7 +782,6 @@ def run_download_script(model_link: str):
     return "Model downloaded successfully."
 
 
-# Prerequisites
 def run_prerequisites_script(
     pretraineds_hifigan: bool,
     models: bool,
@@ -692,7 +797,6 @@ def run_prerequisites_script(
     return "Prerequisites installed successfully."
 
 
-# Audio analyzer
 def run_audio_analyzer_script(
     input_path: str, save_plot_path: str = "logs/audio_analysis.png"
 ):

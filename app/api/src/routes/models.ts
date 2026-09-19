@@ -4,22 +4,17 @@ import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { runPythonJson } from "../cli";
 import { errMsg } from "../errors";
+import { repoRel, walkDir } from "../lib/fsutils";
 import { getRepoRoot, resolveUserPath } from "../python";
 
 const router = Router();
 
 function walk(dir: string, exts: string[], out: string[] = []): string[] {
-  if (!fs.existsSync(dir)) return out;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) walk(full, exts, out);
-    else if (exts.some((e) => entry.name.endsWith(e))) out.push(full);
-  }
-  return out;
+  return walkDir(dir, exts, out);
 }
 
 function toRepoRelative(abs: string): string {
-  return path.relative(getRepoRoot(), abs).replace(/\\/g, "/");
+  return repoRel(abs);
 }
 
 router.get("/", (_req: Request, res: Response) => {
@@ -88,7 +83,6 @@ router.get("/library", (_req: Request, res: Response) => {
       const stem = path.basename(pth).replace(/\.(pth|onnx)$/i, "");
       const folder = path.relative(logsDir, path.dirname(pth)).replace(/\\/g, "/");
 
-      // Match index in same folder or with similar name
       const matchedIdx = allIndexes.find((idx) => {
         const idxDir = path.dirname(idx);
         if (idxDir === path.dirname(pth)) return true;

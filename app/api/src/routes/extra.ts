@@ -1,40 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import multer from "multer";
 import { z } from "zod";
 import { runPythonJson, startCliJob } from "../cli";
 import { errMsg } from "../errors";
 import { appendLog, createJob, setDone, setError, setRunning } from "../jobs";
-import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "../python";
+import { audioUpload } from "../lib/upload";
+import { getOutputsDir, getRepoRoot, resolveUserPath } from "../python";
 
 const router = Router();
 
-const AUDIO_EXTS = [
-  ".wav",
-  ".mp3",
-  ".flac",
-  ".ogg",
-  ".opus",
-  ".m4a",
-  ".mp4",
-  ".aac",
-  ".alac",
-  ".wma",
-  ".aiff",
-  ".webm",
-  ".ac3",
-];
-const upload = multer({
-  dest: getUploadsDir(),
-  limits: { fileSize: 200 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    if (!AUDIO_EXTS.includes(path.extname(file.originalname).toLowerCase())) {
-      return cb(new Error("Unsupported audio type"));
-    }
-    cb(null, true);
-  },
-});
+const upload = audioUpload();
 
 function inputFrom(req: Request): string {
   if (req.file) return req.file.path;

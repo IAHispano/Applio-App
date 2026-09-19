@@ -25,9 +25,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { errMsg, fetchJob, type Job, pollJob, stopJob } from "../../lib/api";
+import { errMsg, type Job, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
+import { cleanJobLogs, useJob } from "../../lib/useJob";
 
 interface TrainingConsoleProps {
   jobId: string | null;
@@ -54,8 +55,7 @@ export default function TrainingConsole({
   const { t } = useI18n();
   const router = useRouter();
 
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState("");
+  const { job, error, setError } = useJob(jobId);
   const [filterText, setFilterText] = useState("");
   const [level, setLevel] = useState<LogLevel>("all");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -66,27 +66,10 @@ export default function TrainingConsole({
   const logEndRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  // Poll active training job
   useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      setElapsedSeconds(0);
-      return;
-    }
-    setError("");
-    let stop = () => {};
-    fetchJob(jobId)
-      .then(({ job: j }) => {
-        setJob(j);
-        if (j.status !== "done" && j.status !== "error") {
-          stop = pollJob(jobId, setJob);
-        }
-      })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
+    if (!jobId) setElapsedSeconds(0);
   }, [jobId]);
 
-  // Elapsed timer while job is active
   useEffect(() => {
     if (!job || (job.status !== "running" && job.status !== "queued")) return;
     const interval = setInterval(() => {
@@ -95,20 +78,8 @@ export default function TrainingConsole({
     return () => clearInterval(interval);
   }, [job?.status]);
 
-  // Clean and filter logs
-  const cleanedLogs = useMemo(() => {
-    if (!job?.logs) return [];
-    return job.logs
-      .map((l) =>
-        l
-          .replace(/^\$ python core\.py.*$/i, "")
-          .replace(/^\[(stdout|stderr)\]\s*/i, "")
-          .trim(),
-      )
-      .filter((l) => l.length > 0);
-  }, [job?.logs]);
+  const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 
-  // Real-time metric parser from logs
   const metrics: ParsedMetrics = useMemo(() => {
     let currentEpoch: number | null = null;
     let currentStep: number | null = null;
@@ -122,7 +93,6 @@ export default function TrainingConsole({
     for (let i = cleanedLogs.length - 1; i >= 0; i--) {
       const line = cleanedLogs[i];
 
-      // Parse phase if not done
       if (activePhase !== 5) {
         if (line.includes("index") || line.includes("faiss") || line.includes("trained_IVF")) {
           activePhase = 4;
@@ -140,19 +110,16 @@ export default function TrainingConsole({
         }
       }
 
-      // Parse epoch
       if (currentEpoch === null) {
         const mEpoch = line.match(/epoch=(\d+)/i) || line.match(/epoch:\s*(\d+)/i);
         if (mEpoch) currentEpoch = Number.parseInt(mEpoch[1], 10);
       }
 
-      // Parse step
       if (currentStep === null) {
         const mStep = line.match(/step=(\d+)/i) || line.match(/step:\s*(\d+)/i);
         if (mStep) currentStep = Number.parseInt(mStep[1], 10);
       }
 
-      // Parse loss
       if (loss === null) {
         const mLoss =
           line.match(/lowest_value=([0-9\.]+)/i) ||
@@ -169,10 +136,8 @@ export default function TrainingConsole({
     return { currentEpoch, currentStep, loss, activePhase };
   }, [cleanedLogs, job?.status]);
 
-  // Filter logs for user
   const displayedLogs = useMemo(() => {
     return cleanedLogs.filter((line) => {
-      // Level filter
       if (level === "epochs" && !line.includes("epoch=") && !line.includes("epoch:")) {
         return false;
       }
@@ -249,7 +214,6 @@ export default function TrainingConsole({
       className="card space-y-5 animate-in fade-in duration-200"
       aria-label={t("Training Activity Console")}
     >
-      {/* 1. Header Bar */}
       <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
@@ -284,7 +248,6 @@ export default function TrainingConsole({
           </div>
         </div>
 
-        {/* Header Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
           {(job?.status === "running" || job?.status === "queued") && (
             <button

@@ -1,9 +1,9 @@
 "use client";
 
 import { Download, FileText, Image as ImageIcon, LineChart, StopCircle, Waves } from "lucide-react";
-import { useEffect, useState } from "react";
-import { errMsg, fetchJob, fileBasename, type Job, outputUrl, pollJob, stopJob } from "../../lib/api";
+import { errMsg, fileBasename, outputUrl, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { useJob } from "../../lib/useJob";
 
 interface AnalysisResultCardProps {
   jobId: string | null;
@@ -19,24 +19,7 @@ export default function AnalysisResultCard({
   embedded = false,
 }: AnalysisResultCardProps) {
   const { t } = useI18n();
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      return;
-    }
-    setError("");
-    let stop = () => {};
-    fetchJob(jobId)
-      .then(({ job: j }) => {
-        setJob(j);
-        if (j.status !== "done" && j.status !== "error") stop = pollJob(jobId, setJob);
-      })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
-  }, [jobId]);
+  const { job, error, setError } = useJob(jobId);
 
   if (!jobId) return null;
 
@@ -71,7 +54,6 @@ export default function AnalysisResultCard({
 
   return (
     <div className={containerClasses}>
-      {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
           {type === "analyzer" ? (
@@ -103,7 +85,6 @@ export default function AnalysisResultCard({
         )}
       </div>
 
-      {/* Error state */}
       {job.status === "error" && (
         <div
           role="alert"
@@ -113,7 +94,6 @@ export default function AnalysisResultCard({
         </div>
       )}
 
-      {/* Running Progress Bar */}
       {isRunning && (
         <div className="py-4 space-y-3">
           <div className="loader" role="progressbar" aria-label={t("Analyzing audio…")}>
@@ -127,10 +107,8 @@ export default function AnalysisResultCard({
         </div>
       )}
 
-      {/* Done State: Visual Display */}
       {job.status === "done" && out && (
         <div className="space-y-4">
-          {/* Plot Image */}
           <div className="rounded-xl overflow-hidden border border-white/10 bg-black/60 p-2">
             {/* biome-ignore lint/performance/noImgElement: user-generated analysis plot */}
             <img
