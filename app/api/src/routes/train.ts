@@ -444,7 +444,7 @@ router.post("/pipeline", (req: Request, res: Response) => {
         "--overlap-len",
         "0.3",
         "--normalization-mode",
-        "None",
+        "post",
       ];
       appendLog(job, `$ python ${prepArgs.join(" ")}`);
       let r = await runPythonModule(prepArgs, {
