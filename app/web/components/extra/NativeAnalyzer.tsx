@@ -135,8 +135,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   const viewRef = useRef({ start: 0, end: 0 });
   const isReadyRef = useRef(false);
 
-  const displayName =
-    file?.name || fallbackPath?.split(/[\\/]/).pop() || t("Audio");
+  const displayName = file?.name || fallbackPath?.split(/[\\/]/).pop() || t("Audio");
 
   function fitPxPerSec(): number {
     const w = waveRef.current?.clientWidth || 600;
@@ -436,7 +435,10 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
             </div>
           )}
           {error && (
-            <div role="alert" className="absolute inset-0 flex items-center justify-center text-red-400 text-xs px-3 text-center bg-red-950/40">
+            <div
+              role="alert"
+              className="absolute inset-0 flex items-center justify-center text-red-400 text-xs px-3 text-center bg-red-950/40"
+            >
               <span>{error}</span>
             </div>
           )}
@@ -450,8 +452,8 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
               </p>
               {stats && (
                 <p className="text-[11px] text-neutral-500 m-0 mt-0.5">
-                  {t("Stream 1/1")}: {codecName(displayName)}, {stats.sampleRate} {t("Hz")},{" "}
-                  {bits ?? "–"}, {t("channel")} 1 / {stats.channels}, W:{FFT_SAMPLES}, F:Hann
+                  {t("Stream 1/1")}: {codecName(displayName)}, {stats.sampleRate} {t("Hz")}, {bits ?? "–"},{" "}
+                  {t("channel")} 1 / {stats.channels}, W:{FFT_SAMPLES}, F:Hann
                 </p>
               )}
             </div>
@@ -460,7 +462,12 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
             </div>
           </div>
           <div className="flex gap-2">
-            <canvas ref={freqRef} className="block w-11 shrink-0" style={{ height: SPEC_HEIGHT }} aria-hidden="true" />
+            <canvas
+              ref={freqRef}
+              className="block w-11 shrink-0"
+              style={{ height: SPEC_HEIGHT }}
+              aria-hidden="true"
+            />
             <div className="flex-1 min-w-0">
               <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
                 <div ref={specRef} className="w-full" />
@@ -476,7 +483,8 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
               <div
                 className="w-3 rounded-full"
                 style={{
-                  background: "linear-gradient(to bottom, #ffffff, #ffff96, #ffcc00, #ff6e00, #c81414, #6e006e, #14003c, #000000)",
+                  background:
+                    "linear-gradient(to bottom, #ffffff, #ffff96, #ffcc00, #ff6e00, #c81414, #6e006e, #14003c, #000000)",
                 }}
               />
               <div className="flex flex-col justify-between py-0.5">
@@ -488,7 +496,9 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
               </div>
             </div>
           </div>
-          <p className="text-[11px] text-neutral-600 m-0">{t("Scroll over the views to zoom • Double-click to reset • Click the spectrogram to seek.")}</p>
+          <p className="text-[11px] text-neutral-600 m-0">
+            {t("Scroll over the views to zoom • Double-click to reset • Click the spectrogram to seek.")}
+          </p>
         </div>
       </div>
 
