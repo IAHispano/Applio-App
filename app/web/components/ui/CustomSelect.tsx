@@ -346,17 +346,16 @@ export default function CustomSelect({
             }}
             className="z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none"
           >
-            {/* Optional Search Bar for long lists */}
             {isSearchable && (
-              <div className="p-2 border-b border-white/10 flex items-center gap-2 bg-black/40">
-                <Search size={13} className="text-neutral-400 shrink-0" />
+              <div className="flex items-center gap-2 px-3.5 py-2 border-b border-white/10">
+                <Search size={13} className="text-neutral-500 shrink-0" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full bg-transparent border-0 text-xs text-white placeholder-neutral-500 focus:outline-hidden p-0"
+                  className="w-full bg-transparent border-0 text-xs text-white placeholder-neutral-600 focus:outline-hidden p-0"
                 />
               </div>
             )}

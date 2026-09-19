@@ -1,6 +1,5 @@
 "use client";
 
-import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 interface ModalProps {
@@ -132,14 +131,6 @@ export default function Modal({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="w-8 h-8 p-0 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors focus-visible:outline-none shrink-0"
-          >
-            <X size={16} aria-hidden="true" />
-          </button>
         </div>
 
         {/* Modal Content */}

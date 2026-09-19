@@ -452,14 +452,14 @@ export default function TrainingConsole({
                 ))}
               </div>
 
-              {/* Filter search input */}
-              <div className="relative">
+              <div className="relative flex items-center gap-1.5 border-b border-white/10 px-1">
+                <Search size={12} className="text-neutral-500 shrink-0" aria-hidden="true" />
                 <input
                   type="text"
                   placeholder={t("Filter logs…")}
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
-                  className="h-7 w-32 sm:w-44 text-xs px-2 rounded-lg bg-black/40 border border-white/5 text-white placeholder:text-neutral-400"
+                  className="h-7 w-32 sm:w-44 text-xs bg-transparent border-0 rounded-none px-0 text-white placeholder:text-neutral-600 focus:outline-none"
                 />
               </div>
 

@@ -218,17 +218,17 @@ export default function ModelDropdown({
             className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
           >
             <div
-              className="p-2 flex items-center gap-2 shrink-0"
+              className="px-3.5 py-2 flex items-center gap-2 shrink-0"
               style={{ borderBottom: "1px solid var(--border)" }}
             >
-              <Search size={14} className="ml-1 shrink-0" style={{ color: "var(--muted)" }} />
+              <Search size={13} className="shrink-0" style={{ color: "var(--muted)", opacity: 0.7 }} />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("Search models…")}
-                className="w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0"
+                className="w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0 placeholder:text-neutral-600"
                 style={{ color: "var(--text)" }}
               />
               {search && (

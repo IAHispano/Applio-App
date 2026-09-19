@@ -195,22 +195,22 @@ export default function ModelsPage() {
         <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" className="space-y-4">
           {/* Controls bar: Search, Refresh, Download CTA */}
           <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-1 min-w-[240px] max-w-md 2xl:max-w-lg bg-white/5 border border-white/10 rounded-lg px-3 py-2">
-              <Search size={16} className="text-neutral-400" aria-hidden="true" />
+            <div className="relative flex items-center flex-1 min-w-[240px] max-w-md 2xl:max-w-lg border-b border-white/10">
+              <Search size={15} className="absolute left-1 text-neutral-500 pointer-events-none" aria-hidden="true" />
               <input
                 type="text"
                 placeholder={t("Search models by name or folder…")}
                 aria-label={t("Search models by name or folder")}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="bg-transparent border-0 p-0 text-sm text-white focus:outline-none w-full"
+                className="bg-transparent border-0 py-2 pl-7 pr-7 text-sm text-white placeholder:text-neutral-600 focus:outline-none w-full"
               />
               {search && (
                 <button
                   type="button"
                   onClick={() => setSearch("")}
                   aria-label={t("Clear search")}
-                  className="text-neutral-400 hover:text-white"
+                  className="absolute right-1 p-1 flex items-center text-neutral-500 hover:text-white"
                 >
                   <X size={14} aria-hidden="true" />
                 </button>

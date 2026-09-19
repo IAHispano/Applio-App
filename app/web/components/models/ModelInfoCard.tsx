@@ -13,7 +13,6 @@ import {
   Sliders,
   Sparkles,
   User,
-  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -113,19 +112,6 @@ export default function ModelInfoCard({
               {pthPath ? pthPath : t("Checkpoint architecture metadata")}
             </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {onClose && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="ghost h-8 w-8 p-0 rounded-lg flex items-center justify-center text-neutral-400 hover:text-white"
-              aria-label={t("Close")}
-            >
-              <X size={16} />
-            </button>
-          )}
         </div>
       </div>
 
