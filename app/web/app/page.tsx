@@ -347,10 +347,13 @@ export default function Home() {
             })}
           </div>
         )}
-      </section>
 
-      {/* Active Setup / Prerequisite Job */}
-      <JobPanel jobId={jobId} />
+        {jobId && (
+          <div className="px-4 pb-4">
+            <JobPanel jobId={jobId} embedded />
+          </div>
+        )}
+      </section>
     </div>
   );
 }

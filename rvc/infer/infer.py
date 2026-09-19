@@ -7,20 +7,6 @@ import librosa
 import logging
 import numpy as np
 import soundfile as sf
-import noisereduce as nr
-from pedalboard import (
-    Pedalboard,
-    Chorus,
-    Distortion,
-    Reverb,
-    PitchShift,
-    Limiter,
-    Gain,
-    Bitcrush,
-    Clipping,
-    Compressor,
-    Delay,
-)
 
 now_dir = os.getcwd()
 sys.path.append(now_dir)
@@ -89,6 +75,8 @@ class VoiceConverter:
             reduction_strength (float): Strength of the noise reduction. Default is 0.7.
         """
         try:
+            import noisereduce as nr
+
             reduced_noise = nr.reduce_noise(
                 y=data, sr=sr, prop_decrease=reduction_strength
             )
@@ -137,6 +125,20 @@ class VoiceConverter:
         sample_rate,
         **kwargs,
     ):
+        from pedalboard import (
+            Pedalboard,
+            Chorus,
+            Distortion,
+            Reverb,
+            PitchShift,
+            Limiter,
+            Gain,
+            Bitcrush,
+            Clipping,
+            Compressor,
+            Delay,
+        )
+
         board = Pedalboard()
         if kwargs.get("reverb", False):
             reverb = Reverb(

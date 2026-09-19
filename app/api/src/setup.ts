@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "./jobs";
-import { getRepoRoot, noEnv } from "./python";
+import { ensureWindowsRealPythonSync, getRepoRoot, noEnv } from "./python";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.
@@ -49,7 +49,7 @@ interface RunResult {
   stderr: string;
 }
 
-function runCmd(
+export function runCmd(
   cmd: string,
   args: string[],
   opts: { timeoutMs?: number; cwd?: string; shell?: boolean } = {},
@@ -105,6 +105,11 @@ function pySupported(version: string): boolean {
 
 export async function findPython(): Promise<PythonInfo | null> {
   const root = getRepoRoot();
+  if (process.platform === "win32") {
+    for (const sub of [".venv", "venv", "env"]) {
+      ensureWindowsRealPythonSync(path.join(root, sub));
+    }
+  }
   const candidates: Array<{ cmd: string[]; source: string }> = [];
   if (process.env.PYTHON_BIN) candidates.push({ cmd: [process.env.PYTHON_BIN], source: "PYTHON_BIN" });
   if (process.platform === "win32") {
@@ -112,12 +117,30 @@ export async function findPython(): Promise<PythonInfo | null> {
       cmd: [path.join(root, ".venv", "Scripts", "python.real.exe")],
       source: "app .venv (real)",
     });
+    candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.exe")], source: "app .venv" });
+    candidates.push({
+      cmd: [path.join(root, ".venv", "Scripts", "pythonw.exe")],
+      source: "app .venv (pythonw)",
+    });
+    candidates.push({
+      cmd: [path.join(root, "venv", "Scripts", "python.real.exe")],
+      source: "app venv/ (real)",
+    });
+    candidates.push({ cmd: [path.join(root, "venv", "Scripts", "python.exe")], source: "app venv/" });
+    candidates.push({
+      cmd: [path.join(root, "venv", "Scripts", "pythonw.exe")],
+      source: "app venv/ (pythonw)",
+    });
     candidates.push({
       cmd: [path.join(root, "env", "Scripts", "python.real.exe")],
       source: "app env/ (real)",
     });
     candidates.push({ cmd: [path.join(root, "env", "python.exe")], source: "app env/" });
-    candidates.push({ cmd: [path.join(root, ".venv", "Scripts", "python.exe")], source: "app .venv" });
+    candidates.push({ cmd: [path.join(root, "env", "Scripts", "python.exe")], source: "app env/" });
+    candidates.push({
+      cmd: [path.join(root, "env", "Scripts", "pythonw.exe")],
+      source: "app env/ (pythonw)",
+    });
     candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
     candidates.push({ cmd: ["py", "-3.11"], source: "py launcher" });
     candidates.push({ cmd: ["py", "-3"], source: "py launcher" });
@@ -125,6 +148,7 @@ export async function findPython(): Promise<PythonInfo | null> {
   } else {
     candidates.push({ cmd: [path.join(root, "env", "bin", "python")], source: "app env/" });
     candidates.push({ cmd: [path.join(root, ".venv", "bin", "python")], source: "app .venv" });
+    candidates.push({ cmd: [path.join(root, "venv", "bin", "python")], source: "app venv" });
     candidates.push({ cmd: ["python3"], source: "PATH" });
     candidates.push({ cmd: ["python"], source: "PATH" });
   }
@@ -408,21 +432,24 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   throw new Error(manual);
 }
 
-// Windows-only: a uv-created venv ships python.exe as a trampoline shim
-// that re-execs the base interpreter WITHOUT our hidden-console spawn
-// flags, popping a visible terminal for every engine process. Copy the
-// real base interpreter next to it (python.real.exe) and prefer that copy
-// for all our spawns. Safe to re-run: skips when already in place, warns
-// (never throws) when the venv python is busy.
+// Windows-only: standard venv and uv venvs ship python.exe as a trampoline shim
+// that re-execs the base interpreter WITHOUT hidden-console spawn
+// flags, popping a visible terminal for every engine process. Replace it with
+// the real base interpreter and stage python.real.exe next to it.
 export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promise<string | null> {
   if (process.platform !== "win32") return null;
-  const probe = path.join(venvDir, "Scripts", "python.exe");
-  const target = path.join(venvDir, "Scripts", "python.real.exe");
-  if (!exists(probe)) return null;
   const note = (m: string) => {
     if (job) appendLog(job, m);
     else console.warn(`[setup] ${m}`);
   };
+  const fast = ensureWindowsRealPythonSync(venvDir);
+  if (fast) return fast;
+
+  // Fallback: if pyvenv.cfg was missing or didn't specify base, probe with pythonw.exe (to avoid popping a console) or python.exe
+  const probeW = path.join(venvDir, "Scripts", "pythonw.exe");
+  const probe = exists(probeW) ? probeW : path.join(venvDir, "Scripts", "python.exe");
+  const target = path.join(venvDir, "Scripts", "python.real.exe");
+  if (!exists(probe)) return null;
   try {
     const r = await runCmd(probe, ["-c", "import sys; print(sys._base_executable)"], { timeoutMs: 30000 });
     const base = (r.stdout.trim().split("\n").pop() || "").trim();
@@ -439,6 +466,12 @@ export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promi
     if (stale) {
       note("Staging a real venv Python next to the launcher shim (stops popup terminals)…");
       fs.copyFileSync(base, target);
+      try {
+        const probeExe = path.join(venvDir, "Scripts", "python.exe");
+        if (exists(probeExe)) fs.copyFileSync(base, probeExe);
+      } catch {
+        /* locked */
+      }
     }
     return target;
   } catch (err) {
@@ -606,8 +639,7 @@ export function startPrerequisites(py: string[] | null): Job {
 export function venvPythonPath(): string {
   const root = getRepoRoot();
   if (process.platform === "win32") {
-    // Prefer the staged real interpreter (see ensureWindowsRealPython):
-    // the default venv shim re-execs without hidden-console flags.
+    ensureWindowsRealPythonSync(path.join(root, ".venv"));
     const real = path.join(root, ".venv", "Scripts", "python.real.exe");
     if (exists(real)) return real;
     return path.join(root, ".venv", "Scripts", "python.exe");

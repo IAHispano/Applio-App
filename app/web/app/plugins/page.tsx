@@ -161,9 +161,9 @@ export default function PluginsPage() {
             <span>{t("Install Plugin")}</span>
           </button>
         </div>
-      </div>
 
-      <JobPanel jobId={jobId} />
+        <JobPanel jobId={jobId} embedded />
+      </div>
     </div>
   );
 }

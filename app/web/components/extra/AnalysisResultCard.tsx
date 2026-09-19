@@ -9,9 +9,15 @@ interface AnalysisResultCardProps {
   jobId: string | null;
   title: string;
   type: "analyzer" | "f0";
+  embedded?: boolean;
 }
 
-export default function AnalysisResultCard({ jobId, title, type }: AnalysisResultCardProps) {
+export default function AnalysisResultCard({
+  jobId,
+  title,
+  type,
+  embedded = false,
+}: AnalysisResultCardProps) {
   const { t } = useI18n();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -35,19 +41,36 @@ export default function AnalysisResultCard({ jobId, title, type }: AnalysisResul
   if (!jobId) return null;
 
   if (error) {
-    return <div className="card border-red-500/30 bg-red-500/10 text-red-400 text-xs p-4">{error}</div>;
+    return (
+      <div
+        role="alert"
+        className={`rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs p-3.5 ${
+          embedded ? "mt-3" : "card"
+        }`}
+      >
+        {error}
+      </div>
+    );
   }
 
   if (!job) {
-    return <div className="card p-5 text-center text-xs text-neutral-400">{t("Loading analysis…")}</div>;
+    return (
+      <div className={`p-4 text-center text-xs text-neutral-400 ${embedded ? "pt-3 mt-3 border-t border-white/10" : "card"}`}>
+        {t("Loading analysis…")}
+      </div>
+    );
   }
 
   const isRunning = job.status === "running" || job.status === "queued";
   const out = job.outputFile;
   const curveFile = typeof job.result?.curveFile === "string" ? job.result.curveFile : null;
 
+  const containerClasses = embedded
+    ? "space-y-4 pt-4 mt-4 border-t border-white/10 animate-in fade-in duration-200"
+    : "card space-y-4 animate-in fade-in duration-200";
+
   return (
-    <div className="card space-y-4 animate-in fade-in duration-200">
+    <div className={containerClasses}>
       {/* Header */}
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">

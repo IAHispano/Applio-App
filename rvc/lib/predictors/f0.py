@@ -3,8 +3,6 @@ import json
 import torch
 
 from rvc.lib.predictors.RMVPE import RMVPE0Predictor
-from torchfcpe import spawn_infer_model_from_pt
-import torchcrepe
 import numpy as np
 import librosa
 
@@ -124,6 +122,8 @@ class CREPE:
         self.hop_size = hop_size
 
     def get_f0(self, x, f0_min=50, f0_max=1100, p_len=None, model="full"):
+        import torchcrepe
+
         if p_len is None:
             p_len = x.shape[0] // self.hop_size
 
@@ -153,6 +153,8 @@ class CREPE:
 
 class FCPE:
     def __init__(self, device, sample_rate=16000, hop_size=160):
+        from torchfcpe import spawn_infer_model_from_pt
+
         self.device = device
         self.sample_rate = sample_rate
         self.hop_size = hop_size

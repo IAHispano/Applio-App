@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { apiGet, apiSend, errMsg, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";
+import CustomSelect from "../ui/CustomSelect";
 
 export default function DownloadPanel() {
   const { t } = useI18n();
@@ -119,8 +120,9 @@ export default function DownloadPanel() {
             <span>{t("Download")}</span>
           </button>
         </div>
+
+        <JobPanel jobId={linkJob} compact embedded />
       </div>
-      <JobPanel jobId={linkJob} compact />
 
       {/* Card 2: Upload Files */}
       <div className="card space-y-4">
@@ -182,7 +184,7 @@ export default function DownloadPanel() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
               <label htmlFor="dl-pretrained-select">{t("Pretrained Model")}</label>
-              <select
+              <CustomSelect
                 id="dl-pretrained-select"
                 value={model}
                 onChange={(e) => {
@@ -190,23 +192,29 @@ export default function DownloadPanel() {
                   const m = pretrained.find((p) => p.name === e.target.value);
                   if (m?.sampleRates[0]) setSr(m.sampleRates[0]);
                 }}
+                className="w-full mt-1"
               >
                 {pretrained.map((p) => (
                   <option key={p.name} value={p.name}>
                     {p.name}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
             <div>
               <label htmlFor="dl-sr-select">{t("Sampling Rate")}</label>
-              <select id="dl-sr-select" value={sr} onChange={(e) => setSr(e.target.value)}>
+              <CustomSelect
+                id="dl-sr-select"
+                value={sr}
+                onChange={(e) => setSr(e.target.value)}
+                className="w-full mt-1"
+              >
                 {(pretrained.find((p) => p.name === model)?.sampleRates || [sr]).map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
           </div>
         ) : (
@@ -245,8 +253,9 @@ export default function DownloadPanel() {
             <span>{t("Download Pretrained")}</span>
           </button>
         </div>
+
+        <JobPanel jobId={preJob} embedded />
       </div>
-      <JobPanel jobId={preJob} />
     </div>
   );
 }

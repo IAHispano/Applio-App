@@ -19,6 +19,7 @@ import { matchIndex } from "../../lib/model-index";
 import { useSpeakers } from "../../lib/useSpeakers";
 import AudioWavePlayer from "../AudioWavePlayer";
 import RadioRow from "../RadioRow";
+import CustomSelect from "../ui/CustomSelect";
 import ModelDropdown from "../ui/ModelDropdown";
 import SliderField from "../ui/SliderField";
 
@@ -253,13 +254,19 @@ export default function TtsForm() {
 
               <div>
                 <label htmlFor="tts-voice-select">{t("Voice")}</label>
-                <select id="tts-voice-select" value={voice} onChange={(e) => setVoice(e.target.value)}>
+                <CustomSelect
+                  id="tts-voice-select"
+                  value={voice}
+                  onChange={(e) => setVoice(e.target.value)}
+                  className="w-full mt-1"
+                  searchable
+                >
                   {shown.slice(0, 400).map((v) => (
                     <option key={v.shortName} value={v.shortName}>
                       {v.friendlyName} ({v.gender})
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
 
               <div>
@@ -306,10 +313,11 @@ export default function TtsForm() {
               {pthPath && (
                 <div>
                   <label htmlFor="tts-index-file">{t("Index File")}</label>
-                  <select
+                  <CustomSelect
                     id="tts-index-file"
                     value={indexPath}
                     onChange={(e) => setIndexPath(e.target.value)}
+                    className="w-full mt-1"
                   >
                     <option value="">{t("None")}</option>
                     {indexes.map((idx) => (
@@ -317,39 +325,41 @@ export default function TtsForm() {
                         {fileBasename(idx)} ({idx})
                       </option>
                     ))}
-                  </select>
+                  </CustomSelect>
                 </div>
               )}
 
               <div>
                 <label htmlFor="tts-speaker-id">{t("Speaker ID")}</label>
-                <select
+                <CustomSelect
                   id="tts-speaker-id"
-                  value={sid}
+                  value={String(sid)}
                   onChange={(e) => setSid(Number(e.target.value))}
                   disabled={speakers.length <= 1}
+                  className="w-full mt-1"
                 >
                   {speakers.map((s) => (
-                    <option key={s} value={s}>
+                    <option key={s} value={String(s)}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
 
               <div>
                 <label htmlFor="tts-export-format">{t("Export Format")}</label>
-                <select
+                <CustomSelect
                   id="tts-export-format"
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
                     <option key={m} value={m}>
                       {m}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             </div>
           </div>
@@ -545,66 +555,84 @@ export default function TtsForm() {
           </details>
         </div>
 
-        {/* Card 4: Action Card */}
-        <div className="card flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <Volume2 size={16} className="text-white" />
-            <span>{t("Synthesize speech text and perform timbre conversion.")}</span>
+        {/* Card 4: Action & Output Card */}
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <button
+                type="submit"
+                className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
+                disabled={busy}
+              >
+                <Wand2 size={16} className="shrink-0" />
+                <span>{busy ? t("Submitting…") : t("Convert Speech")}</span>
+              </button>
+
+              {job && (job.status === "running" || job.status === "queued") && (
+                <button
+                  type="button"
+                  className="ghost h-10 px-4 flex items-center gap-1.5 text-xs font-medium rounded-xl text-red-400 hover:text-red-300 border-red-500/30"
+                  onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
+                >
+                  {t("Cancel")}
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {job && (
+                <span className={`badge ${job.status}`} role="status">
+                  {job.status === "done"
+                    ? t("Completed")
+                    : job.status === "running"
+                      ? t("In Progress")
+                      : job.status === "error"
+                        ? t("Failed")
+                        : t("Queued")}
+                </span>
+              )}
+            </div>
           </div>
-          <button
-            type="submit"
-            className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-            disabled={busy}
-          >
-            <Wand2 size={16} className="shrink-0" />
-            <span>{busy ? t("Submitting…") : t("Convert Speech")}</span>
-          </button>
+
+          {/* Conversion In Progress Live Progress Bar */}
+          {job && (job.status === "running" || job.status === "queued") && (
+            <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200" role="status">
+              <div className="flex items-center justify-between text-xs text-neutral-300">
+                <span className="font-medium">{t("Synthesizing speech & converting timbre…")}</span>
+                <span className="text-neutral-400 capitalize">{job.status}</span>
+              </div>
+              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
+              </div>
+            </div>
+          )}
+
+          {/* Error state */}
+          {(error || (job && job.status === "error")) && (
+            <div
+              role="alert"
+              className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs animate-in fade-in duration-200"
+            >
+              {error || job?.error || t("Speech conversion failed.")}
+            </div>
+          )}
+
+          {/* Synthesized Output Waveform Player */}
+          {job && job.outputFile && job.status === "done" && (
+            <div className="space-y-2 pt-2 border-t border-white/5 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
+                <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>
+                <span className="badge done text-[10px]">{t("Ready")}</span>
+              </div>
+              <AudioWavePlayer
+                src={outputUrl(job.outputFile)}
+                title={`${t("TTS Output:")} ${fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}`}
+                filename={fileBasename(job.outputFile)}
+              />
+            </div>
+          )}
         </div>
       </form>
-
-      {/* Conversion In Progress */}
-      {job && (job.status === "running" || job.status === "queued") && (
-        <div className="card space-y-3" role="status">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-white">{t("Synthesizing Speech…")}</span>
-            <button
-              type="button"
-              className="ghost h-7 px-2.5 text-xs text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1"
-              onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
-            >
-              {t("Cancel")}
-            </button>
-          </div>
-          <div className="loader" role="progressbar" aria-label={t("Synthesizing speech…")}>
-            <div className="loaderBar" />
-          </div>
-        </div>
-      )}
-
-      {/* Error state */}
-      {job && job.status === "error" && (
-        <div
-          role="alert"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-        >
-          {job.error || t("Speech conversion failed.")}
-        </div>
-      )}
-
-      {/* Synthesized Output Waveform Player */}
-      {job && job.outputFile && job.status === "done" && (
-        <div className="card space-y-3 animate-in fade-in duration-200">
-          <div className="flex items-center justify-between text-xs text-neutral-400">
-            <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>
-            <span className="badge done text-[10px]">{t("Ready")}</span>
-          </div>
-          <AudioWavePlayer
-            src={outputUrl(job.outputFile)}
-            title={`${t("TTS Output:")} ${fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}`}
-            filename={fileBasename(job.outputFile)}
-          />
-        </div>
-      )}
     </div>
   );
 }

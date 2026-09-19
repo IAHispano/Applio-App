@@ -17,7 +17,8 @@
     "next": "^15.3.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "wavesurfer.js": "^7.12.12"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",

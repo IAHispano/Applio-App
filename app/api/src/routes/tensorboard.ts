@@ -4,7 +4,7 @@ import net from "node:net";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, noEnv, pythonEnv } from "../python";
+import { getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "../python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);
@@ -69,7 +69,7 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
         fs.mkdirSync(logsDir, { recursive: true });
       }
 
-      const pythonBin = getPythonBin();
+      const pythonBin = getPythonGuiBin();
       console.log(`[tensorboard] starting on ${tbUrl()} using ${pythonBin}`);
 
       tbProc = spawn(

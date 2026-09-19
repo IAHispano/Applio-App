@@ -20,6 +20,7 @@ import { useI18n } from "../lib/i18n";
 import { useSpeakers } from "../lib/useSpeakers";
 import ModelDropdown from "./ui/ModelDropdown";
 import SliderField from "./ui/SliderField";
+import CustomSelect from "./ui/CustomSelect";
 
 const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe"];
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
@@ -290,28 +291,28 @@ export default function BatchForm() {
             <label htmlFor="batch-f0-method" className="text-xs font-medium text-neutral-300">
               {t("Pitch Extraction Algorithm")}
             </label>
-            <select
+            <CustomSelect
               id="batch-f0-method"
               value={f0Method}
               onChange={(e) => setF0Method(e.target.value)}
-              className="w-full mt-1 text-xs"
+              className="w-full mt-1"
             >
               {F0.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label htmlFor="batch-embedder-model" className="text-xs font-medium text-neutral-300">
               {t("Speech Embedder Model")}
             </label>
-            <select
+            <CustomSelect
               id="batch-embedder-model"
               value={embedderModel}
               onChange={(e) => setEmbedderModel(e.target.value)}
-              className="w-full mt-1 text-xs"
+              className="w-full mt-1"
             >
               {[
                 "contentvec",
@@ -326,43 +327,43 @@ export default function BatchForm() {
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           {speakers.length > 1 && (
             <div>
               <label htmlFor="batch-speaker-id" className="text-xs font-medium text-neutral-300">
                 {t("Speaker ID")}
               </label>
-              <select
+              <CustomSelect
                 id="batch-speaker-id"
-                value={sid}
+                value={String(sid)}
                 onChange={(e) => setSid(Number(e.target.value))}
-                className="w-full mt-1 text-xs"
+                className="w-full mt-1"
               >
                 {speakers.map((s) => (
-                  <option key={s} value={s}>
+                  <option key={s} value={String(s)}>
                     {t("Speaker")} {s}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
           )}
           <div>
             <label htmlFor="batch-export-format" className="text-xs font-medium text-neutral-300">
               {t("Output Audio Format")}
             </label>
-            <select
+            <CustomSelect
               id="batch-export-format"
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value)}
-              className="w-full mt-1 text-xs"
+              className="w-full mt-1"
             >
               {FORMATS.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
 
@@ -406,7 +407,7 @@ export default function BatchForm() {
         </div>
       </div>
 
-      {/* 3. Action Card */}
+      {/* 3. Action & Batch Output Card */}
       <div className="card space-y-4">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
@@ -418,90 +419,99 @@ export default function BatchForm() {
               <Wand2 size={16} className="shrink-0" />
               <span>{busy ? t("Converting Batch…") : t("Convert Batch")}</span>
             </button>
+
+            {job && (job.status === "running" || job.status === "queued") && (
+              <button
+                type="button"
+                className="ghost h-10 px-4 flex items-center gap-1.5 text-xs font-medium rounded-xl text-red-400 hover:text-red-300 border-red-500/30"
+                onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
+              >
+                <StopCircle size={13} />
+                <span>{t("Cancel")}</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {job && (
+              <span className={`badge ${job.status}`} role="status">
+                {job.status === "done"
+                  ? t("Completed")
+                  : job.status === "running"
+                    ? t("In Progress")
+                    : job.status === "error"
+                      ? t("Failed")
+                      : t("Queued")}
+              </span>
+            )}
           </div>
         </div>
 
-        {error && (
+        {/* Running State Live Progress Bar */}
+        {job && (job.status === "running" || job.status === "queued") && (
+          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3 animate-in fade-in duration-200" role="status">
+            <div className="flex items-center justify-between text-xs text-neutral-300">
+              <span className="font-medium">{t("Batch Conversion in Progress…")}</span>
+              <span className="text-neutral-400 capitalize">{job.status}</span>
+            </div>
+            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
+            </div>
+            <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
+              <span>
+                {t("Input:")} {inputFolder}
+              </span>
+              <span>
+                {t("Output:")} {outputFolder}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Error state */}
+        {(error || (job && job.status === "error")) && (
           <div
             role="alert"
-            className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
+            className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs animate-in fade-in duration-200"
           >
-            {error}
+            {error || job?.error || t("Batch conversion failed.")}
+          </div>
+        )}
+
+        {/* Completed State */}
+        {job && job.status === "done" && (
+          <div className="space-y-4 pt-3 border-t border-white/5 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                <CheckCircle2 size={18} className="text-white" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white m-0">{t("Batch Conversion Complete")}</h3>
+                <p className="text-xs text-neutral-400 m-0 mt-0.5">
+                  {t("All audio files in the folder have been converted with the selected voice timbre.")}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
+              <span className="text-xs text-neutral-400 block">{t("Saved Output Directory")}</span>
+              <span className="text-xs text-neutral-200 font-medium select-all block break-all">
+                {outputFolder}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <Link
+                href={`/inference?model=${encodeURIComponent(pthPath)}`}
+                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5"
+              >
+                <span>{t("Test in Single Inference")}</span>
+                <ArrowRight size={14} />
+              </Link>
+            </div>
           </div>
         )}
       </div>
-
-      {/* Running State */}
-      {job && (job.status === "running" || job.status === "queued") && (
-        <div className="card space-y-3 animate-in fade-in duration-200" role="status">
-          <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-white">{t("Batch Conversion in Progress…")}</span>
-            <button
-              type="button"
-              className="ghost h-7 px-2.5 text-xs text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1"
-              onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
-            >
-              <StopCircle size={13} />
-              <span>{t("Cancel")}</span>
-            </button>
-          </div>
-          <div className="loader" role="progressbar" aria-label={t("Batch conversion in progress…")}>
-            <div className="loaderBar" />
-          </div>
-          <div className="flex items-center justify-between text-[11px] text-neutral-400 pt-1">
-            <span>
-              {t("Input:")} {inputFolder}
-            </span>
-            <span>
-              {t("Output:")} {outputFolder}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Error state */}
-      {job && job.status === "error" && (
-        <div
-          role="alert"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-        >
-          {job.error || t("Batch conversion failed.")}
-        </div>
-      )}
-
-      {/* Completed State */}
-      {job && job.status === "done" && (
-        <div className="card space-y-4 animate-in fade-in duration-200">
-          <div className="flex items-center gap-3 border-b border-white/10 pb-3">
-            <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-              <CheckCircle2 size={18} className="text-white" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white m-0">{t("Batch Conversion Complete")}</h3>
-              <p className="text-xs text-neutral-400 m-0 mt-0.5">
-                {t("All audio files in the folder have been converted with the selected voice timbre.")}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
-            <span className="text-xs text-neutral-400 block">{t("Saved Output Directory")}</span>
-            <span className="text-xs text-neutral-200 font-medium select-all block break-all">
-              {outputFolder}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <Link
-              href={`/inference?model=${encodeURIComponent(pthPath)}`}
-              className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5"
-            >
-              <span>{t("Test in Single Inference")}</span>
-              <ArrowRight size={14} />
-            </Link>
-          </div>
-        </div>
-      )}
     </form>
   );
 }

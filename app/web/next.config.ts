@@ -18,7 +18,11 @@ const nextConfig: NextConfig = {
     middlewareClientMaxBodySize: "1024mb",
   },
   async rewrites() {
-    return [{ source: "/api/:path*", destination: `${API_URL}/api/:path*` }];
+    return [
+      { source: "/api/:path*", destination: `${API_URL}/api/:path*` },
+      { source: "/outputs/:path*", destination: `${API_URL}/outputs/:path*` },
+      { source: "/assets/:path*", destination: `${API_URL}/assets/:path*` },
+    ];
   },
 };
 

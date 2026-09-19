@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";
+import CustomSelect from "../ui/CustomSelect";
 import SliderField from "../ui/SliderField";
 
 export default function BlenderPanel() {
@@ -110,15 +111,31 @@ export default function BlenderPanel() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/5">
             <div className="space-y-2">
-              <label htmlFor="blend-model1-path">{t("Model 1 path")}</label>
-              <input
-                id="blend-model1-path"
-                type="text"
-                list="vmodels"
-                value={p1}
-                onChange={(e) => setP1(e.target.value)}
-                placeholder="logs/model1.pth"
-              />
+              <label htmlFor="blend-model1-path">{t("Model 1")}</label>
+              {models.length > 0 ? (
+                <CustomSelect
+                  id="blend-model1-path"
+                  value={p1}
+                  onChange={(e) => setP1(e.target.value)}
+                  placeholder={t("Select Model 1…")}
+                  className="w-full"
+                >
+                  <option value="">{t("Select Model 1…")}</option>
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </CustomSelect>
+              ) : (
+                <input
+                  id="blend-model1-path"
+                  type="text"
+                  value={p1}
+                  onChange={(e) => setP1(e.target.value)}
+                  placeholder="logs/model1.pth"
+                />
+              )}
               <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 1 file")}
               </label>
@@ -131,15 +148,31 @@ export default function BlenderPanel() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="blend-model2-path">{t("Model 2 path")}</label>
-              <input
-                id="blend-model2-path"
-                type="text"
-                list="vmodels"
-                value={p2}
-                onChange={(e) => setP2(e.target.value)}
-                placeholder="logs/model2.pth"
-              />
+              <label htmlFor="blend-model2-path">{t("Model 2")}</label>
+              {models.length > 0 ? (
+                <CustomSelect
+                  id="blend-model2-path"
+                  value={p2}
+                  onChange={(e) => setP2(e.target.value)}
+                  placeholder={t("Select Model 2…")}
+                  className="w-full"
+                >
+                  <option value="">{t("Select Model 2…")}</option>
+                  {models.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </CustomSelect>
+              ) : (
+                <input
+                  id="blend-model2-path"
+                  type="text"
+                  value={p2}
+                  onChange={(e) => setP2(e.target.value)}
+                  placeholder="logs/model2.pth"
+                />
+              )}
               <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 2 file")}
               </label>
@@ -151,32 +184,28 @@ export default function BlenderPanel() {
               />
             </div>
           </div>
-
-          <datalist id="vmodels">
-            {models.map((m) => (
-              <option key={m} value={m} />
-            ))}
-          </datalist>
         </div>
 
         {/* Action card */}
-        <div className="card flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-xs text-neutral-400">
-            <Sparkles size={16} className="text-white" />
-            <span>{t("Interpolate weights between two checkpoint files.")}</span>
+        <div className="card space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2 text-xs text-neutral-400">
+              <Sparkles size={16} className="text-white" />
+              <span>{t("Interpolate weights between two checkpoint files.")}</span>
+            </div>
+            <button
+              type="submit"
+              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
+              disabled={busy}
+            >
+              <Layers size={16} className="shrink-0" />
+              <span>{busy ? t("Blending…") : t("Fuse Models")}</span>
+            </button>
           </div>
-          <button
-            type="submit"
-            className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-            disabled={busy}
-          >
-            <Layers size={16} className="shrink-0" />
-            <span>{busy ? t("Blending…") : t("Fuse Models")}</span>
-          </button>
+
+          <JobPanel jobId={jobId} embedded />
         </div>
       </form>
-
-      <JobPanel jobId={jobId} />
     </div>
   );
 }

@@ -176,10 +176,80 @@ function appNativeIcon(): Electron.NativeImage | undefined {
   }
 }
 
+function unshimWindowsVenv(venvDir: string): void {
+  if (process.platform !== "win32") return;
+  const cfgPath = path.join(venvDir, "pyvenv.cfg");
+  if (!fs.existsSync(cfgPath)) return;
+  try {
+    const content = fs.readFileSync(cfgPath, "utf-8");
+    let home: string | null = null;
+    let executable: string | null = null;
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (line.startsWith("executable =") || line.startsWith("executable=")) {
+        executable = line.replace(/^executable\s*=\s*/, "").trim();
+      }
+      if (line.startsWith("home =") || line.startsWith("home=")) {
+        home = line.replace(/^home\s*=\s*/, "").trim();
+      }
+    }
+    const base =
+      executable && fs.existsSync(executable)
+        ? executable
+        : home && fs.existsSync(path.join(home, "python.exe"))
+          ? path.join(home, "python.exe")
+          : null;
+    if (!base) return;
+
+    const probe = path.join(venvDir, "Scripts", "python.exe");
+    const realTarget = path.join(venvDir, "Scripts", "python.real.exe");
+
+    if (fs.existsSync(probe)) {
+      try {
+        if (fs.statSync(probe).size !== fs.statSync(base).size) {
+          fs.copyFileSync(base, probe);
+        }
+      } catch {
+        /* locked */
+      }
+    }
+    try {
+      let stale = !fs.existsSync(realTarget);
+      if (!stale) {
+        stale = fs.statSync(realTarget).size !== fs.statSync(base).size;
+      }
+      if (stale) fs.copyFileSync(base, realTarget);
+    } catch {
+      /* non-fatal */
+    }
+
+    const basePythonw = path.join(path.dirname(base), "pythonw.exe");
+    const targetPythonw = path.join(venvDir, "Scripts", "pythonw.exe");
+    if (fs.existsSync(basePythonw) && fs.existsSync(targetPythonw)) {
+      try {
+        if (fs.statSync(basePythonw).size !== fs.statSync(targetPythonw).size) {
+          fs.copyFileSync(basePythonw, targetPythonw);
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+}
+
 function startProdBackends(): void {
   const code = repoRoot();
   const data = isDev ? code : dataRoot();
   if (!isDev) seedDataRoot(code, data);
+  if (process.platform === "win32") {
+    for (const rootDir of [data, code]) {
+      for (const sub of [".venv", "venv", "env"]) {
+        unshimWindowsVenv(path.join(rootDir, sub));
+      }
+    }
+  }
   const serverEntry = path.join(code, "app", "api", "dist", "index.js");
   const nextStandalone = path.join(code, "app", "web", ".next", "standalone", "server.js");
   const env: NodeJS.ProcessEnv = {
@@ -293,17 +363,26 @@ function findPythonBin(): { path: string; source: string; exists: boolean } {
   if (process.env.PYTHON_BIN) {
     candidates.push({ path: process.env.PYTHON_BIN, source: "PYTHON_BIN env" });
   }
-  if (process.platform === "win32") {
-    candidates.push(
-      { path: path.join(root, ".venv", "Scripts", "python.real.exe"), source: "bundled .venv (real)" },
-      { path: path.join(root, ".venv", "Scripts", "python.exe"), source: "bundled .venv" },
-      { path: path.join(root, "env", "python.exe"), source: "bundled env" },
-    );
-  } else {
-    candidates.push(
-      { path: path.join(root, ".venv", "bin", "python"), source: "bundled .venv" },
-      { path: path.join(root, "env", "bin", "python"), source: "bundled env" },
-    );
+  for (const r of roots) {
+    if (process.platform === "win32") {
+      candidates.push(
+        { path: path.join(r.dir, ".venv", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
+        { path: path.join(r.dir, ".venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, ".venv", "Scripts", "python.exe"), source: r.label },
+        { path: path.join(r.dir, "venv", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
+        { path: path.join(r.dir, "venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, "venv", "Scripts", "python.exe"), source: r.label },
+        { path: path.join(r.dir, "env", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
+        { path: path.join(r.dir, "env", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, "env", "python.exe"), source: `${r.label} (bundled env)` },
+      );
+    } else {
+      candidates.push(
+        { path: path.join(r.dir, ".venv", "bin", "python"), source: r.label },
+        { path: path.join(r.dir, "venv", "bin", "python"), source: r.label },
+        { path: path.join(r.dir, "env", "bin", "python"), source: r.label },
+      );
+    }
   }
   for (const c of candidates) {
     if (fs.existsSync(c.path)) return { path: c.path, source: c.source, exists: true };
@@ -837,6 +916,19 @@ function initAutoUpdater(): void {
     }
   });
 
+  ipcMain.handle("updater:download", async () => {
+    if (isDev) {
+      return { status: "dev-mode", message: "Auto-updater is disabled in development mode." };
+    }
+    try {
+      await autoUpdater.downloadUpdate();
+      return { status: "ok" };
+    } catch (err) {
+      const message = (err as Error).message || String(err);
+      return { status: "error", message };
+    }
+  });
+
   ipcMain.on("updater:quit-and-install", () => {
     stopBackends();
     autoUpdater.quitAndInstall(false, true);
@@ -1032,13 +1124,13 @@ async function createWindow(): Promise<void> {
     saveWindowState();
   });
 
-  // Check for updates in production
+  // Check for updates on startup
   if (!isDev) {
     setTimeout(() => {
       autoUpdater.checkForUpdates().catch((err) => {
-        console.warn("[updater] Background check error:", err.message);
+        console.warn("[updater] Launch check error:", err.message);
       });
-    }, 15_000);
+    }, 2_000);
 
     setInterval(
       () => {

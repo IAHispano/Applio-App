@@ -1,11 +1,12 @@
 "use client";
 
-import { Activity, AudioWaveform, ChevronDown, Layers, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
+import { Activity, AudioWaveform, ChevronDown, Info, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import {
   apiGet,
+  apiSend,
   errMsg,
   fetchJob,
   fetchModels,
@@ -20,7 +21,10 @@ import { useI18n } from "../lib/i18n";
 import { matchIndex } from "../lib/model-index";
 import { useSpeakers } from "../lib/useSpeakers";
 import AudioWavePlayer from "./AudioWavePlayer";
+import ModelInfoCard, { type ModelMetadata } from "./models/ModelInfoCard";
 import AudioDropzone from "./ui/AudioDropzone";
+import CustomSelect from "./ui/CustomSelect";
+import Modal from "./ui/Modal";
 import ModelDropdown from "./ui/ModelDropdown";
 import SliderField from "./ui/SliderField";
 
@@ -165,6 +169,55 @@ export default function InferenceForm() {
   }, []);
 
   const selectedMeta = useMemo(() => library.find((m) => m.pthPath === pthPath) ?? null, [library, pthPath]);
+
+  // Deep model metadata extracted by running inspection script
+  const [inspectMeta, setInspectMeta] = useState<ModelMetadata | null>(null);
+  const [inspectLoading, setInspectLoading] = useState(false);
+  const [inspectError, setInspectError] = useState("");
+  const [showFullInfoModal, setShowFullInfoModal] = useState(false);
+
+  // Extract model information when checkpoint is loaded
+  useEffect(() => {
+    if (!pthPath) {
+      setInspectMeta(null);
+      setInspectLoading(false);
+      setInspectError("");
+      return;
+    }
+
+    let cancelled = false;
+    setInspectLoading(true);
+    setInspectError("");
+
+    apiSend<{ ok: boolean; metadata: ModelMetadata }>("/api/models/inspect", "POST", { pthPath })
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.metadata) {
+          setInspectMeta(res.metadata);
+          // Auto-sync embedder model if detected in checkpoint metadata
+          if (res.metadata.embedder_model && res.metadata.embedder_model !== "None") {
+            const emb = res.metadata.embedder_model.toLowerCase();
+            if (EMBEDDERS.includes(emb)) {
+              setEmbedderModel(emb);
+            }
+          }
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setInspectError(errMsg(err));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setInspectLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pthPath]);
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
@@ -395,7 +448,7 @@ export default function InferenceForm() {
             {pthPath && (
               <div className="space-y-2">
                 <label htmlFor="infer-index-file">{t("Index File")}</label>
-                <select
+                <CustomSelect
                   id="infer-index-file"
                   value={indexPath}
                   onChange={(e) => setIndexPath(e.target.value)}
@@ -407,37 +460,115 @@ export default function InferenceForm() {
                       {fileBasename(idx)} ({idx})
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             )}
 
-            {/* With a model picked, the card would otherwise end well above the
-                audio card next to it — show what is actually loaded instead. */}
-            {pthPath && selectedMeta && (
-              <dl className="model-meta">
-                <div>
-                  <dt>{t("Checkpoint")}</dt>
-                  <dd>{humanSize(selectedMeta.pthSize)}</dd>
+            {/* Enriched Model Metadata with deep inspection extraction */}
+            {pthPath && (
+              <div className="space-y-2 pt-2 border-t border-white/10">
+                <div className="flex items-center justify-between text-xs text-neutral-400 px-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="font-semibold text-neutral-300">{t("Model Architecture")}</span>
+                    {inspectLoading && (
+                      <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+                        <Loader2 size={11} className="animate-spin text-neutral-300" />
+                        <span>{t("Extracting info…")}</span>
+                      </span>
+                    )}
+                    {inspectMeta?.version && inspectMeta.version !== "None" && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white font-mono uppercase border border-white/10">
+                        {inspectMeta.version}
+                      </span>
+                    )}
+                  </div>
+                  {inspectMeta && (
+                    <button
+                      type="button"
+                      onClick={() => setShowFullInfoModal(true)}
+                      className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      <Info size={12} />
+                      <span>{t("Full info")}</span>
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <dt>{t("Index")}</dt>
-                  <dd>{selectedMeta.indexSize ? humanSize(selectedMeta.indexSize) : "—"}</dd>
-                </div>
-                <div>
-                  <dt>{t("Speakers")}</dt>
-                  <dd>{speakers.length}</dd>
-                </div>
-                <div>
-                  <dt>{t("Folder")}</dt>
-                  <dd className="truncate" title={selectedMeta.folder}>
-                    {selectedMeta.folder}
-                  </dd>
-                </div>
-                <div>
-                  <dt>{t("Modified")}</dt>
-                  <dd>{new Date(selectedMeta.modifiedAt).toLocaleDateString()}</dd>
-                </div>
-              </dl>
+
+                <dl className="model-meta">
+                  <div>
+                    <dt>{t("Checkpoint")}</dt>
+                    <dd>{selectedMeta ? humanSize(selectedMeta.pthSize) : fileBasename(pthPath)}</dd>
+                  </div>
+                  <div>
+                    <dt>{t("Index")}</dt>
+                    <dd>
+                      {selectedMeta?.indexSize
+                        ? humanSize(selectedMeta.indexSize)
+                        : indexPath
+                          ? fileBasename(indexPath)
+                          : "—"}
+                    </dd>
+                  </div>
+                  {inspectMeta?.epochs && inspectMeta.epochs !== "None" && (
+                    <div>
+                      <dt>{t("Epochs")}</dt>
+                      <dd className="text-white font-medium">{inspectMeta.epochs}</dd>
+                    </div>
+                  )}
+                  {inspectMeta?.step && inspectMeta.step !== "None" && (
+                    <div>
+                      <dt>{t("Training Steps")}</dt>
+                      <dd>{Number(inspectMeta.step).toLocaleString()}</dd>
+                    </div>
+                  )}
+                  {inspectMeta?.sr && inspectMeta.sr !== "None" && (
+                    <div>
+                      <dt>{t("Sample Rate")}</dt>
+                      <dd>
+                        {inspectMeta.sr.endsWith("k")
+                          ? `${inspectMeta.sr}Hz`
+                          : `${Number(inspectMeta.sr) / 1000} kHz`}
+                      </dd>
+                    </div>
+                  )}
+                  {inspectMeta?.f0 && inspectMeta.f0 !== "None" && (
+                    <div>
+                      <dt>{t("Pitch Guidance (F0)")}</dt>
+                      <dd>
+                        {inspectMeta.f0 === "1" || inspectMeta.f0 === "True" || inspectMeta.f0 === "true"
+                          ? t("Yes")
+                          : t("No (pitchless)")}
+                      </dd>
+                    </div>
+                  )}
+                  {inspectMeta?.embedder_model && inspectMeta.embedder_model !== "None" && (
+                    <div>
+                      <dt>{t("Feature Embedder")}</dt>
+                      <dd className="truncate" title={inspectMeta.embedder_model}>
+                        {inspectMeta.embedder_model}
+                      </dd>
+                    </div>
+                  )}
+                  <div>
+                    <dt>{t("Speakers")}</dt>
+                    <dd>{speakers.length > 0 ? speakers.length : (inspectMeta?.speakers_id || 1)}</dd>
+                  </div>
+                  {selectedMeta?.folder && (
+                    <div>
+                      <dt>{t("Folder")}</dt>
+                      <dd className="truncate" title={selectedMeta.folder}>
+                        {selectedMeta.folder}
+                      </dd>
+                    </div>
+                  )}
+                  {selectedMeta?.modifiedAt && (
+                    <div>
+                      <dt>{t("Modified")}</dt>
+                      <dd>{new Date(selectedMeta.modifiedAt).toLocaleDateString()}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
             )}
 
             {/* Empty state: the card is as tall as the audio one, so use the
@@ -464,18 +595,18 @@ export default function InferenceForm() {
                 <label htmlFor="speaker-id-select" className="text-xs font-medium text-neutral-300">
                   {t("Speaker ID (Multi-Speaker Model)")}
                 </label>
-                <select
+                <CustomSelect
                   id="speaker-id-select"
-                  value={sid}
+                  value={String(sid)}
                   onChange={(e) => setSid(Number(e.target.value))}
                   className="w-full mt-1"
                 >
                   {speakers.map((s) => (
-                    <option key={s} value={s}>
+                    <option key={s} value={String(s)}>
                       {t("Speaker")} {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             )}
           </div>
@@ -635,7 +766,7 @@ export default function InferenceForm() {
             <label htmlFor="f0-method-select" className="text-xs font-medium text-neutral-300">
               {t("Pitch Extraction Algorithm")}
             </label>
-            <select
+            <CustomSelect
               id="f0-method-select"
               value={f0Method}
               onChange={(e) => setF0Method(e.target.value)}
@@ -646,14 +777,14 @@ export default function InferenceForm() {
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
 
           <div>
             <label htmlFor="embedder-model-select" className="text-xs font-medium text-neutral-300">
               {t("Speech Embedder Model")}
             </label>
-            <select
+            <CustomSelect
               id="embedder-model-select"
               value={embedderModel}
               onChange={(e) => setEmbedderModel(e.target.value)}
@@ -664,14 +795,14 @@ export default function InferenceForm() {
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
 
           <div>
             <label htmlFor="export-format-select" className="text-xs font-medium text-neutral-300">
               {t("Output Audio Format")}
             </label>
-            <select
+            <CustomSelect
               id="export-format-select"
               value={exportFormat}
               onChange={(e) => setExportFormat(e.target.value)}
@@ -682,7 +813,7 @@ export default function InferenceForm() {
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
 
@@ -1344,6 +1475,24 @@ export default function InferenceForm() {
           </div>
         )}
       </div>
+
+      {/* Full Model Checkpoint Details Modal */}
+      {showFullInfoModal && pthPath && (
+        <Modal
+          isOpen={showFullInfoModal}
+          onClose={() => setShowFullInfoModal(false)}
+          title={t("Model Checkpoint Details")}
+          maxWidth="lg"
+        >
+          <ModelInfoCard
+            metadata={inspectMeta}
+            loading={inspectLoading}
+            error={inspectError}
+            pthPath={pthPath}
+            onClose={() => setShowFullInfoModal(false)}
+          />
+        </Modal>
+      )}
     </form>
   );
 }

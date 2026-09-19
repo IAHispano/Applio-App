@@ -4,6 +4,16 @@ export function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
+export function cleanVersion(v?: string | null): string {
+  if (!v) return "";
+  return String(v).trim().replace(/^v+/i, "");
+}
+
+export function displayVersion(v?: string | null): string {
+  const c = cleanVersion(v);
+  return c ? `v${c}` : "";
+}
+
 export interface ModelLists {
   models: string[];
   indexes: string[];
@@ -136,7 +146,7 @@ export function pollJob(id: string, onUpdate: (job: Job) => void): () => void {
   };
   timer = setInterval(() => {
     if (!stopped) void tick();
-  }, 2000);
+  }, 500);
   void tick();
   const timeout = setTimeout(
     () => {
@@ -169,4 +179,21 @@ export function isAudioFile(rel: string): boolean {
 
 export function isImageFile(rel: string): boolean {
   return [".png", ".jpg", ".jpeg"].some((e) => rel.toLowerCase().endsWith(e));
+}
+
+export function resolveAudioUrl(input: string): string {
+  if (!input) return "";
+  if (
+    input.startsWith("blob:") ||
+    input.startsWith("http://") ||
+    input.startsWith("https://") ||
+    input.startsWith("data:")
+  ) {
+    return input;
+  }
+  const clean = input.replace(/^[\\/]+/, "").replace(/\\/g, "/");
+  if (clean.startsWith("assets/") || clean.startsWith("outputs/")) {
+    return `/${clean}`;
+  }
+  return `/api/audio/raw?path=${encodeURIComponent(input)}`;
 }

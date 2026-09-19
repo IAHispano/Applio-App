@@ -10,31 +10,144 @@ export function getRepoRoot(): string {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
+// Inspects pyvenv.cfg without spawning any child process, extracting
+// the real base Python interpreter executable path.
+export function resolveBasePythonFromCfg(venvDir: string): string | null {
+  try {
+    const cfgPath = path.join(venvDir, "pyvenv.cfg");
+    if (!fs.existsSync(cfgPath)) return null;
+    const content = fs.readFileSync(cfgPath, "utf-8");
+    let home: string | null = null;
+    let executable: string | null = null;
+    for (const rawLine of content.split("\n")) {
+      const line = rawLine.trim();
+      if (line.startsWith("executable =") || line.startsWith("executable=")) {
+        executable = line.replace(/^executable\s*=\s*/, "").trim();
+      }
+      if (line.startsWith("home =") || line.startsWith("home=")) {
+        home = line.replace(/^home\s*=\s*/, "").trim();
+      }
+    }
+    if (executable && fs.existsSync(executable)) {
+      return executable;
+    }
+    if (home) {
+      for (const sub of ["python.exe", path.join("Scripts", "python.exe"), path.join("bin", "python.exe")]) {
+        const cand = path.join(home, sub);
+        if (fs.existsSync(cand)) return cand;
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+// Windows-only: standard venv and uv venvs ship python.exe as a trampoline shim
+// that re-execs the base interpreter WITHOUT hidden-console spawn flags, popping
+// a visible terminal for background child processes.
+// This function replaces the trampoline shim with the real base interpreter
+// and stages python.real.exe and pythonw.exe, synchronously and without
+// spawning any process (zero terminal flash).
+export function ensureWindowsRealPythonSync(venvDir: string): string | null {
+  if (process.platform !== "win32") return null;
+  const probe = path.join(venvDir, "Scripts", "python.exe");
+  if (!fs.existsSync(probe)) return null;
+
+  const realTarget = path.join(venvDir, "Scripts", "python.real.exe");
+  const base = resolveBasePythonFromCfg(venvDir);
+  if (!base || !fs.existsSync(base)) {
+    return fs.existsSync(realTarget) ? realTarget : probe;
+  }
+
+  // 1. Replace the venv python.exe shim with the real base python interpreter
+  // so all standard spawns with `python.exe` run the real binary without trampolines.
+  try {
+    const probeStat = fs.statSync(probe);
+    const baseStat = fs.statSync(base);
+    if (probeStat.size !== baseStat.size) {
+      fs.copyFileSync(base, probe);
+    }
+  } catch {
+    // If probe is currently running or locked by Windows (EBUSY/EPERM), fall back to staging python.real.exe
+  }
+
+  // 2. Also ensure python.real.exe is staged next to it.
+  try {
+    let stale = !fs.existsSync(realTarget);
+    if (!stale) {
+      const ts = fs.statSync(realTarget);
+      const bs = fs.statSync(base);
+      stale = ts.size !== bs.size || ts.mtimeMs < bs.mtimeMs - 1000;
+    }
+    if (stale) {
+      fs.copyFileSync(base, realTarget);
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  // 3. Also un-shim pythonw.exe if base pythonw exists.
+  try {
+    const baseDir = path.dirname(base);
+    const basePythonw = path.join(baseDir, "pythonw.exe");
+    const targetPythonw = path.join(venvDir, "Scripts", "pythonw.exe");
+    if (fs.existsSync(basePythonw) && fs.existsSync(targetPythonw)) {
+      if (fs.statSync(basePythonw).size !== fs.statSync(targetPythonw).size) {
+        fs.copyFileSync(basePythonw, targetPythonw);
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  return fs.existsSync(realTarget) ? realTarget : probe;
+}
+
 export function getPythonBin(): string {
   if (process.env.PYTHON_BIN) return process.env.PYTHON_BIN;
   const root = getRepoRoot();
-  const venvCandidates =
-    process.platform === "win32"
-      ? [
-          // Staged real interpreter first (see ensureWindowsRealPython in
-          // setup.ts): the default venv shim re-execs without hidden-console
-          // flags and pops a visible terminal per process.
-          path.join(root, ".venv", "Scripts", "python.real.exe"),
-          path.join(root, "venv", "Scripts", "python.real.exe"),
-          path.join(root, "env", "Scripts", "python.real.exe"),
-          path.join(root, ".venv", "Scripts", "python.exe"),
-          path.join(root, "venv", "Scripts", "python.exe"),
-          path.join(root, "env", "Scripts", "python.exe"),
-        ]
-      : [
-          path.join(root, ".venv", "bin", "python"),
-          path.join(root, "venv", "bin", "python"),
-          path.join(root, "env", "bin", "python"),
-        ];
+  if (process.platform === "win32") {
+    for (const sub of [".venv", "venv", "env"]) {
+      ensureWindowsRealPythonSync(path.join(root, sub));
+    }
+    const venvCandidates = [
+      path.join(root, ".venv", "Scripts", "python.real.exe"),
+      path.join(root, ".venv", "Scripts", "python.exe"),
+      path.join(root, ".venv", "Scripts", "pythonw.exe"),
+      path.join(root, "venv", "Scripts", "python.real.exe"),
+      path.join(root, "venv", "Scripts", "python.exe"),
+      path.join(root, "venv", "Scripts", "pythonw.exe"),
+      path.join(root, "env", "Scripts", "python.real.exe"),
+      path.join(root, "env", "Scripts", "python.exe"),
+      path.join(root, "env", "Scripts", "pythonw.exe"),
+    ];
+    for (const candidate of venvCandidates) {
+      if (fs.existsSync(candidate)) return candidate;
+    }
+    return "python";
+  }
+  const venvCandidates = [
+    path.join(root, ".venv", "bin", "python"),
+    path.join(root, "venv", "bin", "python"),
+    path.join(root, "env", "bin", "python"),
+  ];
   for (const candidate of venvCandidates) {
     if (fs.existsSync(candidate)) return candidate;
   }
-  return process.platform === "win32" ? "python" : "python3";
+  return "python3";
+}
+
+// For pure background services that run daemons/servers (TensorBoard, Discord presence)
+// where a GUI subsystem binary (pythonw.exe on Windows) is preferred to guarantee
+// no console window is ever opened.
+export function getPythonGuiBin(): string {
+  const py = getPythonBin();
+  if (process.platform === "win32") {
+    const pw = path.join(path.dirname(py), "pythonw.exe");
+    if (fs.existsSync(pw)) return pw;
+  }
+  return py;
 }
 
 // Base environment for every spawned Python process. On Apple Silicon,

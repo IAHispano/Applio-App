@@ -148,6 +148,18 @@ test("settings get/put round-trip (restores value)", async () => {
   assert.equal((put.json.config as Record<string, unknown>).model_index_filter, current);
 });
 
+test("version-check endpoint returns update info", async () => {
+  const res = await req("GET", "/api/settings/version-check");
+  assert.ok(res.status === 200 || res.status === 502);
+  if (res.status === 200) {
+    const d = res.json as { local: string; latest: string; status: string; versionsBehind: number };
+    assert.ok(d.local);
+    assert.ok(d.latest);
+    assert.ok(["up-to-date", "behind", "ahead"].includes(d.status));
+    assert.equal(typeof d.versionsBehind, "number");
+  }
+});
+
 test("misc status endpoints", async () => {
   for (const p of [
     "/api/tensorboard/status",

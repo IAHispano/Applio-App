@@ -1,10 +1,19 @@
 import "dotenv/config";
+import fs from "node:fs";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import { killJobTree } from "./cli";
 import { errMsg } from "./errors";
 import { getJob, setError } from "./jobs";
-import { getOutputsDir, getPythonBin, getRepoRoot, runPythonModule } from "./python";
+import {
+  ensureWindowsRealPythonSync,
+  getOutputsDir,
+  getPythonBin,
+  getRepoRoot,
+  resolveUserPath,
+  runPythonModule,
+} from "./python";
 import batchRouter from "./routes/batch";
 import blenderRouter from "./routes/blender";
 import downloadRouter from "./routes/download";
@@ -28,9 +37,30 @@ const PORT = Number(process.env.API_PORT || process.env.PORT || 8000);
 app.use(cors());
 app.use(express.json({ limit: "2mb" }));
 
-// Static files produced by jobs (audio, plots, clips).
+// Static files produced by jobs (audio, plots, clips) and repo assets (samples).
+const repoRoot = getRepoRoot();
 const outputsDir = getOutputsDir();
 app.use("/outputs", express.static(outputsDir, { maxAge: "1h", fallthrough: true }));
+app.use("/assets", express.static(path.join(repoRoot, "assets"), { maxAge: "1h", fallthrough: true }));
+
+// Safe raw audio streaming endpoint for any relative/repo audio path
+app.get("/api/audio/raw", (req, res) => {
+  const p = req.query.path;
+  if (typeof p !== "string" || !p) {
+    res.status(400).json({ error: "Missing path parameter" });
+    return;
+  }
+  try {
+    const abs = resolveUserPath(p);
+    if (!fs.existsSync(abs)) {
+      res.status(404).json({ error: "Audio file not found" });
+      return;
+    }
+    res.sendFile(abs);
+  } catch (e) {
+    res.status(400).json({ error: errMsg(e) });
+  }
+});
 
 app.get("/api/health", (_req, res) => {
   res.json({
@@ -92,6 +122,13 @@ app.post("/api/jobs/:id/stop", (req, res) => {
   }
   return res.status(404).json({ error: "Job has no running process (may have finished starting)." });
 });
+
+if (process.platform === "win32") {
+  const root = getRepoRoot();
+  for (const sub of [".venv", "venv", "env"]) {
+    ensureWindowsRealPythonSync(path.join(root, sub));
+  }
+}
 
 const server = app.listen(PORT, "127.0.0.1", () => {
   // eslint-disable-next-line no-console

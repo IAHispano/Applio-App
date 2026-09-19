@@ -4,7 +4,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "../python";
+import { getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "../python";
 
 const router = Router();
 
@@ -238,7 +238,7 @@ export function startPresence(): boolean {
       "RPCManager.start_presence()",
       "import threading; threading.Event().wait()",
     ].join("; ");
-    presenceProc = spawn(getPythonBin(), ["-c", code], {
+    presenceProc = spawn(getPythonGuiBin(), ["-c", code], {
       cwd: getRepoRoot(),
       detached: true,
       stdio: "ignore",
@@ -404,25 +404,147 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     const local = loadConfig().version || "unknown";
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
-    const r = await fetch("https://api.github.com/repos/IAHispano/Applio-app/releases/latest", {
+    const r = await fetch("https://api.github.com/repos/IAHispano/Applio-App/releases?per_page=30", {
+      headers: { "User-Agent": "Applio" },
       signal: ctrl.signal,
     });
     clearTimeout(t);
     if (!r.ok) throw new Error(`GitHub API ${r.status}`);
-    const latest = ((await r.json()) as { tag_name: string }).tag_name;
+    const releases = (await r.json()) as Array<{
+      tag_name: string;
+      name?: string;
+      body?: string;
+      published_at?: string;
+      html_url?: string;
+      assets?: Array<{ name: string; browser_download_url: string; size: number }>;
+    }>;
+
+    const isDev = process.env.NODE_ENV === "development" || process.env.APPLIO_DEV === "1";
+
+    if (!releases || releases.length === 0) {
+      return res.json({
+        local,
+        latest: local,
+        status: "up-to-date",
+        versionsBehind: 0,
+        isOutdated: false,
+        isDev,
+      });
+    }
+
+    const latestRelease = releases[0];
+    const rawLatest = latestRelease.tag_name || "";
+    const cleanLatest = String(rawLatest).replace(/^v+/i, "");
+    const cleanLocal = String(local).replace(/^v+/i, "");
+    const latest = cleanLatest ? `v${cleanLatest}` : "unknown";
+
     const cmp = (a: string, b: string) => {
-      const pa = a.replace(/^v/, "").split(".").map(Number);
-      const pb = b.replace(/^v/, "").split(".").map(Number);
+      const pa = String(a)
+        .replace(/^v+/i, "")
+        .split(".")
+        .map((n) => Number(n) || 0);
+      const pb = String(b)
+        .replace(/^v+/i, "")
+        .split(".")
+        .map((n) => Number(n) || 0);
       for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
         const d = (pa[i] || 0) - (pb[i] || 0);
         if (d !== 0) return d > 0 ? 1 : -1;
       }
       return 0;
     };
-    const c = cmp(String(local), String(latest));
-    res.json({ local, latest, status: c === 0 ? "up-to-date" : c < 0 ? "behind" : "ahead" });
+
+    const c = cmp(String(cleanLocal || local), String(cleanLatest || latest));
+    const status = c === 0 ? "up-to-date" : c < 0 ? "behind" : "ahead";
+
+    let versionsBehind = 0;
+    if (status === "behind") {
+      const newerCount = releases.filter((rel) => cmp(rel.tag_name, String(local)) > 0).length;
+      const pa = String(cleanLocal || local)
+        .split(".")
+        .map((n) => Number(n) || 0);
+      const pb = String(cleanLatest || latest)
+        .split(".")
+        .map((n) => Number(n) || 0);
+      const majorDiff = Math.max(0, (pb[0] || 0) - (pa[0] || 0));
+      const minorDiff = Math.max(0, (pb[1] || 0) - (pa[1] || 0));
+      const patchDiff = Math.max(0, (pb[2] || 0) - (pa[2] || 0));
+      const semverGap = majorDiff > 0 ? majorDiff * 10 : minorDiff > 0 ? minorDiff * 2 : patchDiff;
+      versionsBehind = Math.max(newerCount, semverGap > 0 ? semverGap : 1);
+    }
+
+    // A few updates older (e.g. >= 2 versions behind) means outdated -> requires auto-update for security
+    const isOutdated = status === "behind" && versionsBehind >= 2;
+
+    const winAsset = latestRelease.assets?.find((a) => a.name.toLowerCase().endsWith(".exe"));
+    const downloadUrl =
+      winAsset?.browser_download_url ||
+      latestRelease.assets?.[0]?.browser_download_url ||
+      latestRelease.html_url ||
+      `https://github.com/IAHispano/Applio-App/releases/tag/${latest}`;
+
+    res.json({
+      local: cleanLocal ? `v${cleanLocal}` : local,
+      latest,
+      status,
+      versionsBehind,
+      isOutdated,
+      isDev,
+      releaseName: latestRelease.name || `Applio ${latest}`,
+      releaseNotes: latestRelease.body || "",
+      publishedAt: latestRelease.published_at || "",
+      htmlUrl: latestRelease.html_url || `https://github.com/IAHispano/Applio-App/releases/tag/${latest}`,
+      downloadUrl,
+    });
   } catch (err) {
     res.status(502).json({ error: errMsg(err) || "Version check failed (offline?)" });
+  }
+});
+
+router.post("/apply-update", async (_req: Request, res: Response) => {
+  try {
+    const isGit = fs.existsSync(path.join(getRepoRoot(), ".git"));
+    if (isGit) {
+      const { runCmd } = await import("../setup");
+      const gitRes = await runCmd("git", ["pull", "--ff-only"], { cwd: getRepoRoot(), timeoutMs: 45000 });
+      if (gitRes.code !== 0) {
+        const fallbackRes = await runCmd("git", ["pull", "origin", "main"], {
+          cwd: getRepoRoot(),
+          timeoutMs: 45000,
+        });
+        if (fallbackRes.code !== 0) {
+          throw new Error(`Git update failed: ${fallbackRes.stderr || gitRes.stderr}`);
+        }
+      }
+
+      let newVersion = "";
+      try {
+        const tpl = JSON.parse(fs.readFileSync(templatePath(), "utf-8"));
+        if (tpl.version) {
+          newVersion = tpl.version;
+          const cfg = loadConfig();
+          cfg.version = tpl.version;
+          saveConfig(cfg);
+        }
+      } catch {
+        /* non-fatal */
+      }
+
+      return res.json({
+        success: true,
+        method: "git",
+        version: newVersion,
+        message: "Updated successfully via git.",
+      });
+    }
+
+    res.json({
+      success: false,
+      method: "manual",
+      message: "Not a git repository. Please download and run the latest installer.",
+    });
+  } catch (err) {
+    res.status(500).json({ error: errMsg(err) });
   }
 });
 

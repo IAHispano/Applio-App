@@ -4,6 +4,7 @@ import "./globals.css";
 import PageTransition from "../components/layout/PageTransition";
 import RoutePrewarm from "../components/layout/RoutePrewarm";
 import Sidebar from "../components/layout/Sidebar";
+import AutoUpdateModal from "../components/setup/AutoUpdateModal";
 import TermsModal from "../components/setup/TermsModal";
 import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
@@ -40,12 +41,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <main
                 id="main-content"
                 tabIndex={-1}
-                className="flex-1 min-h-0 min-w-0 overflow-y-auto px-3 sm:px-5 lg:px-6 2xl:px-8 pt-5 pb-4 outline-none"
+                className="flex-1 min-h-0 min-w-0 overflow-y-auto px-3 sm:px-5 lg:px-6 2xl:px-8 pt-5 pb-4 outline-none flex flex-col h-full"
               >
                 <PageTransition>{children}</PageTransition>
               </main>
             </div>
             <TermsModal />
+            <AutoUpdateModal />
             <Toaster />
             <RoutePrewarm />
           </ThemeProvider>

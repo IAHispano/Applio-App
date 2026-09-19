@@ -69,7 +69,7 @@ export default function TensorboardPage() {
   const isRunning = status?.running ?? false;
 
   return (
-    <div className="w-full max-w-[2400px] mx-auto h-full flex flex-col min-h-0 space-y-4">
+    <div className="w-full max-w-[2400px] mx-auto flex-1 h-full flex flex-col min-h-0 space-y-3 pb-1">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
         <PageHeader
           title={t("TensorBoard")}
@@ -128,7 +128,7 @@ export default function TensorboardPage() {
         </div>
       )}
 
-      <div className="flex-1 min-h-[500px] 2xl:min-h-[750px] relative rounded-xl border border-white/10 overflow-hidden bg-black/40">
+      <div className="flex-1 min-h-[400px] w-full relative rounded-xl border border-white/10 overflow-hidden bg-black/40">
         {isRunning ? (
           <iframe
             key={iframeKey}

@@ -3,6 +3,7 @@
 import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import CustomSelect from "../../components/ui/CustomSelect";
 import ModelDropdown from "../../components/ui/ModelDropdown";
 import SliderField from "../../components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels, fileBasename } from "../../lib/api";
@@ -499,11 +500,11 @@ export default function RealtimePage() {
             {model && (
               <div className="space-y-2">
                 <label htmlFor="rt-index-file">{t("Index File")}</label>
-                <select
+                <CustomSelect
                   id="rt-index-file"
                   value={index}
                   onChange={(e) => setIndex(e.target.value)}
-                  className="w-full text-xs"
+                  className="w-full"
                 >
                   <option value="">{t("None")}</option>
                   {indexes.map((idx) => (
@@ -511,31 +512,41 @@ export default function RealtimePage() {
                       {fileBasename(idx)} ({idx})
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             )}
           </div>
           <div>
             <label htmlFor="rt-in-dev">{t("Input Device")}</label>
-            <select id="rt-in-dev" value={inDev} onChange={(e) => setInDev(e.target.value)}>
+            <CustomSelect
+              id="rt-in-dev"
+              value={inDev}
+              onChange={(e) => setInDev(e.target.value)}
+              className="w-full mt-1"
+            >
               <option value="">{t("Default")}</option>
               {inputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label htmlFor="rt-out-dev">{t("Output Device")}</label>
-            <select id="rt-out-dev" value={outDev} onChange={(e) => setOutDev(e.target.value)}>
+            <CustomSelect
+              id="rt-out-dev"
+              value={outDev}
+              onChange={(e) => setOutDev(e.target.value)}
+              className="w-full mt-1"
+            >
               <option value="">{t("Default")}</option>
               {outputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div className="flex items-end">
             <button
@@ -616,34 +627,45 @@ export default function RealtimePage() {
           </div>
           <div>
             <label htmlFor="rt-speaker-id">{t("Speaker ID")}</label>
-            <select
+            <CustomSelect
               id="rt-speaker-id"
-              value={sid}
+              value={String(sid)}
               onChange={(e) => {
                 setSid(Number(e.target.value));
                 if (streaming) changeConfig("sid", Number(e.target.value));
               }}
+              className="w-full mt-1"
             >
               {speakers.map((s) => (
-                <option key={s} value={s}>
+                <option key={s} value={String(s)}>
                   {s}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label htmlFor="rt-f0-method">{t("Pitch extraction")}</label>
-            <select id="rt-f0-method" value={f0Method} onChange={(e) => setF0Method(e.target.value)}>
+            <CustomSelect
+              id="rt-f0-method"
+              value={f0Method}
+              onChange={(e) => setF0Method(e.target.value)}
+              className="w-full mt-1"
+            >
               {["rmvpe", "fcpe", "crepe", "crepe-tiny"].map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label htmlFor="rt-embedder">{t("Embedder")}</label>
-            <select id="rt-embedder" value={embedder} onChange={(e) => setEmbedder(e.target.value)}>
+            <CustomSelect
+              id="rt-embedder"
+              value={embedder}
+              onChange={(e) => setEmbedder(e.target.value)}
+              className="w-full mt-1"
+            >
               {[
                 "contentvec",
                 "spin",
@@ -657,7 +679,7 @@ export default function RealtimePage() {
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           {embedder === "custom" && (
             <div>
@@ -913,13 +935,18 @@ export default function RealtimePage() {
           </div>
           <div>
             <label htmlFor="rt-rec-format">{t("Export Format")}</label>
-            <select id="rt-rec-format" value={recFormat} onChange={(e) => setRecFormat(e.target.value)}>
+            <CustomSelect
+              id="rt-rec-format"
+              value={recFormat}
+              onChange={(e) => setRecFormat(e.target.value)}
+              className="w-full mt-1"
+            >
               {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
         <div className="pt-3.5 border-t border-white/5 flex justify-end">

@@ -1,21 +1,14 @@
-// Shown while a route chunk or view is loading, matching the Applio app style.
+import { Loader2 } from "lucide-react";
+
 export default function Loading() {
   return (
     <div
       role="status"
       aria-live="polite"
-      className="h-full w-full min-h-[260px] flex flex-col items-center justify-center select-none p-6"
+      className="h-full w-full min-h-[160px] flex items-center justify-center p-6 text-neutral-400 select-none"
     >
-      <div className="flex flex-col gap-3.5 p-5 rounded-2xl bg-[var(--panel)] border border-[var(--border)] max-w-xs w-full shadow-lg">
-        <div className="flex items-center justify-between">
-          <span className="text-base font-semibold tracking-tight text-[var(--heading)]">Applio</span>
-          <span className="text-xs text-[var(--muted)] animate-pulse">Loading…</span>
-        </div>
-
-        <div className="w-full h-1.5 bg-white/15 rounded-full overflow-hidden relative">
-          <div className="loaderBar" />
-        </div>
-      </div>
+      <Loader2 className="w-6 h-6 animate-spin text-white/50" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }

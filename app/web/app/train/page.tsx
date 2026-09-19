@@ -15,6 +15,7 @@ import {
 import { useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import TrainingConsole from "../../components/train/TrainingConsole";
+import CustomSelect from "../../components/ui/CustomSelect";
 import SegmentedControl from "../../components/ui/SegmentedControl";
 import SliderField from "../../components/ui/SliderField";
 import { apiGet, errMsg, submitJob } from "../../lib/api";
@@ -293,34 +294,46 @@ export default function TrainPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="pipeline-dataset-path">{t("Dataset Folder (in assets/datasets)")}</label>
-                <input
-                  id="pipeline-dataset-path"
-                  type="text"
-                  list="datasets"
-                  value={datasetPath}
-                  onChange={(e) => setDatasetPath(e.target.value)}
-                  placeholder="assets/datasets/my_vocal_data"
-                />
-                <datalist id="datasets">
-                  {datasets.map((d) => (
-                    <option key={d} value={d} />
-                  ))}
-                </datalist>
+                {datasets.length > 0 ? (
+                  <CustomSelect
+                    id="pipeline-dataset-path"
+                    value={datasetPath}
+                    onChange={(e) => setDatasetPath(e.target.value)}
+                    placeholder={t("Select dataset…")}
+                    className="w-full mt-1"
+                  >
+                    <option value="">{t("Select dataset…")}</option>
+                    {datasets.map((d) => (
+                      <option key={d} value={d}>
+                        {d.split(/[\\/]/).pop() || d}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                ) : (
+                  <input
+                    id="pipeline-dataset-path"
+                    type="text"
+                    value={datasetPath}
+                    onChange={(e) => setDatasetPath(e.target.value)}
+                    placeholder="assets/datasets/my_vocal_data"
+                  />
+                )}
               </div>
 
               <div>
                 <label htmlFor="pipeline-sample-rate">{t("Target Sampling Rate")}</label>
-                <select
+                <CustomSelect
                   id="pipeline-sample-rate"
                   value={sampleRate}
                   onChange={(e) => setSampleRate(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {srOptions.map((s) => (
                     <option key={s} value={s}>
                       {s} Hz
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
 
               <div>
@@ -349,28 +362,34 @@ export default function TrainPage() {
 
               <div>
                 <label htmlFor="pipeline-f0-method">{t("Pitch Extraction (F0)")}</label>
-                <select
+                <CustomSelect
                   id="pipeline-f0-method"
                   value={f0Method}
                   onChange={(e) => setF0Method(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {["rmvpe", "crepe", "crepe-tiny"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
 
               <div>
                 <label htmlFor="pipeline-vocoder">{t("Vocoder Architecture")}</label>
-                <select id="pipeline-vocoder" value={vocoder} onChange={(e) => pickVocoder(e.target.value)}>
+                <CustomSelect
+                  id="pipeline-vocoder"
+                  value={vocoder}
+                  onChange={(e) => pickVocoder(e.target.value)}
+                  className="w-full mt-1"
+                >
                   {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             </div>
 
@@ -433,42 +452,60 @@ export default function TrainPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="prep-dataset-path">{t("Dataset (assets/datasets)")}</label>
-                <input
-                  id="prep-dataset-path"
-                  type="text"
-                  list="datasets"
-                  value={datasetPath}
-                  onChange={(e) => setDatasetPath(e.target.value)}
-                />
-                <datalist id="datasets">
-                  {datasets.map((d) => (
-                    <option key={d} value={d} />
-                  ))}
-                </datalist>
+                {datasets.length > 0 ? (
+                  <CustomSelect
+                    id="prep-dataset-path"
+                    value={datasetPath}
+                    onChange={(e) => setDatasetPath(e.target.value)}
+                    placeholder={t("Select dataset…")}
+                    className="w-full mt-1"
+                  >
+                    <option value="">{t("Select dataset…")}</option>
+                    {datasets.map((d) => (
+                      <option key={d} value={d}>
+                        {d.split(/[\\/]/).pop() || d}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                ) : (
+                  <input
+                    id="prep-dataset-path"
+                    type="text"
+                    value={datasetPath}
+                    onChange={(e) => setDatasetPath(e.target.value)}
+                    placeholder="assets/datasets/my_vocal_data"
+                  />
+                )}
               </div>
               <div>
                 <label htmlFor="prep-sample-rate">{t("Sample Rate")}</label>
-                <select
+                <CustomSelect
                   id="prep-sample-rate"
                   value={sampleRate}
                   onChange={(e) => setSampleRate(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {srOptions.map((s) => (
                     <option key={s} value={s}>
                       {s} Hz
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div>
                 <label htmlFor="prep-cut-method">{t("Cut Method")}</label>
-                <select id="prep-cut-method" value={cut} onChange={(e) => setCut(e.target.value)}>
+                <CustomSelect
+                  id="prep-cut-method"
+                  value={cut}
+                  onChange={(e) => setCut(e.target.value)}
+                  className="w-full mt-1"
+                >
                   {["Skip", "Simple", "Automatic"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div>
                 <SliderField
@@ -528,17 +565,18 @@ export default function TrainPage() {
             </label>
             <div className="mt-2">
               <label htmlFor="prep-norm-mode">{t("Normalization mode")}</label>
-              <select
+              <CustomSelect
                 id="prep-norm-mode"
                 value={normalizationMode}
                 onChange={(e) => setNormalizationMode(e.target.value)}
+                className="w-full mt-1"
               >
                 {["none", "pre", "post"].map((s) => (
                   <option key={s} value={s}>
                     {s}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
             <div className="row mt-4">
               <button
@@ -585,27 +623,33 @@ export default function TrainPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="ext-pitch-method">{t("Pitch Method (F0)")}</label>
-                <select id="ext-pitch-method" value={f0Method} onChange={(e) => setF0Method(e.target.value)}>
+                <CustomSelect
+                  id="ext-pitch-method"
+                  value={f0Method}
+                  onChange={(e) => setF0Method(e.target.value)}
+                  className="w-full mt-1"
+                >
                   {["crepe", "crepe-tiny", "rmvpe"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div>
                 <label htmlFor="ext-embedder-model">{t("Embedder Model")}</label>
-                <select
+                <CustomSelect
                   id="ext-embedder-model"
                   value={embedder}
                   onChange={(e) => setEmbedder(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {["contentvec", "spin-v2", "custom"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               {embedder === "custom" && (
                 <div>
@@ -675,13 +719,18 @@ export default function TrainPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label htmlFor="train-step-vocoder">{t("Vocoder")}</label>
-                <select id="train-step-vocoder" value={vocoder} onChange={(e) => pickVocoder(e.target.value)}>
+                <CustomSelect
+                  id="train-step-vocoder"
+                  value={vocoder}
+                  onChange={(e) => pickVocoder(e.target.value)}
+                  className="w-full mt-1"
+                >
                   {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
               <div>
                 <SliderField
@@ -718,17 +767,18 @@ export default function TrainPage() {
               </div>
               <div>
                 <label htmlFor="train-step-index-algo">{t("Index Algorithm")}</label>
-                <select
+                <CustomSelect
                   id="train-step-index-algo"
                   value={indexAlgo}
                   onChange={(e) => setIndexAlgo(e.target.value)}
+                  className="w-full mt-1"
                 >
                   {["Auto", "Faiss", "KMeans"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
                   ))}
-                </select>
+                </CustomSelect>
               </div>
             </div>
 
@@ -813,33 +863,57 @@ export default function TrainPage() {
               <div className="grid2 mt-2">
                 <div>
                   <label htmlFor="train-step-gpath">{t("G path")}</label>
-                  <input
-                    id="train-step-gpath"
-                    type="text"
-                    list="preG"
-                    value={gPath}
-                    onChange={(e) => setGPath(e.target.value)}
-                  />
-                  <datalist id="preG">
-                    {pretG.map((p) => (
-                      <option key={p} value={p} />
-                    ))}
-                  </datalist>
+                  {pretG.length > 0 ? (
+                    <CustomSelect
+                      id="train-step-gpath"
+                      value={gPath}
+                      onChange={(e) => setGPath(e.target.value)}
+                      placeholder={t("Select pretrained G…")}
+                      className="w-full mt-1"
+                    >
+                      <option value="">{t("Select pretrained G model…")}</option>
+                      {pretG.map((p) => (
+                        <option key={p} value={p}>
+                          {p.split(/[\\/]/).pop() || p}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  ) : (
+                    <input
+                      id="train-step-gpath"
+                      type="text"
+                      value={gPath}
+                      onChange={(e) => setGPath(e.target.value)}
+                      placeholder="assets/pretrained_v2/f0G40k.pth"
+                    />
+                  )}
                 </div>
                 <div>
                   <label htmlFor="train-step-dpath">{t("D path")}</label>
-                  <input
-                    id="train-step-dpath"
-                    type="text"
-                    list="preD"
-                    value={dPath}
-                    onChange={(e) => setDPath(e.target.value)}
-                  />
-                  <datalist id="preD">
-                    {pretD.map((p) => (
-                      <option key={p} value={p} />
-                    ))}
-                  </datalist>
+                  {pretD.length > 0 ? (
+                    <CustomSelect
+                      id="train-step-dpath"
+                      value={dPath}
+                      onChange={(e) => setDPath(e.target.value)}
+                      placeholder={t("Select pretrained D…")}
+                      className="w-full mt-1"
+                    >
+                      <option value="">{t("Select pretrained D model…")}</option>
+                      {pretD.map((p) => (
+                        <option key={p} value={p}>
+                          {p.split(/[\\/]/).pop() || p}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  ) : (
+                    <input
+                      id="train-step-dpath"
+                      type="text"
+                      value={dPath}
+                      onChange={(e) => setDPath(e.target.value)}
+                      placeholder="assets/pretrained_v2/f0D40k.pth"
+                    />
+                  )}
                 </div>
               </div>
             )}
@@ -934,25 +1008,35 @@ export default function TrainPage() {
         <div className="grid2">
           <div>
             <label htmlFor="train-exp-model">{t("Model (.pth)")}</label>
-            <select id="train-exp-model" value={expModel} onChange={(e) => setExpModel(e.target.value)}>
+            <CustomSelect
+              id="train-exp-model"
+              value={expModel}
+              onChange={(e) => setExpModel(e.target.value)}
+              className="w-full mt-1"
+            >
               <option value="">—</option>
               {expModels.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
           <div>
             <label htmlFor="train-exp-index">{t("Index (.index)")}</label>
-            <select id="train-exp-index" value={expIndex} onChange={(e) => setExpIndex(e.target.value)}>
+            <CustomSelect
+              id="train-exp-index"
+              value={expIndex}
+              onChange={(e) => setExpIndex(e.target.value)}
+              className="w-full mt-1"
+            >
               <option value="">—</option>
               {expIndexes.map((m) => (
                 <option key={m} value={m}>
                   {m}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
         <div className="row mt-4">

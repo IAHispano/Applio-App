@@ -7,6 +7,7 @@ import { errMsg } from "../errors";
 import { appendLog, createJob, getJob, setDone, setError, setRunning } from "../jobs";
 import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath, runPythonModule } from "../python";
 import { type InferenceParams, inferenceParamsSchema } from "../schemas";
+import { inferenceWorker } from "../worker";
 
 const router = Router();
 
@@ -195,24 +196,59 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
     const outAbs = path.join(getOutputsDir(), `web_output_${ts}.${ext === "m4a" ? "m4a" : ext}`);
     // core.py expects a .wav output path then renames by export format; give .wav stem
     const outWav = outAbs.replace(/\.[a-z0-9]+$/i, ".wav");
-    const args = toCliArgs(params, inputAbs, outWav);
-    const result = await runPythonModule(args, {
-      onData: (chunk) => {
-        const trimmed = chunk.trim().slice(0, 1000);
-        if (trimmed) appendLog(job, trimmed);
-      },
-      onSpawn: (pid) => trackPid(job.id, pid),
-    });
-    trackPid(job.id, undefined);
-    if (result.code !== 0) {
-      throw new Error(result.stderr.slice(-3000) || `Inference failed with code ${result.code}`);
+
+    let finalServed: string | null = null;
+    let runStdout = "";
+
+    try {
+      trackPid(job.id, inferenceWorker.getPid());
+      const res = await inferenceWorker.infer(
+        job.id,
+        params,
+        inputAbs,
+        outWav,
+        (chunk) => {
+          const trimmed = chunk.trim().slice(0, 1000);
+          if (trimmed) {
+            appendLog(job, trimmed);
+            runStdout += trimmed + "\n";
+          }
+        },
+      );
+      trackPid(job.id, undefined);
+      finalServed = res.outputPath || outWav;
+    } catch (workerErr) {
+      appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
+      const args = toCliArgs(params, inputAbs, outWav);
+      const result = await runPythonModule(args, {
+        onData: (chunk) => {
+          const trimmed = chunk.trim().slice(0, 1000);
+          if (trimmed) {
+            appendLog(job, trimmed);
+            runStdout += trimmed + "\n";
+          }
+        },
+        onSpawn: (pid) => trackPid(job.id, pid),
+      });
+      trackPid(job.id, undefined);
+      if (result.code !== 0) {
+        throw new Error(result.stderr.slice(-3000) || `Inference failed with code ${result.code}`);
+      }
+      runStdout += result.stdout;
     }
+
     const finalAbs = outWav.replace(/\.wav$/i, `.${ext}`);
-    const served = fs.existsSync(finalAbs) ? finalAbs : outWav;
+    const served =
+      finalServed && fs.existsSync(finalServed)
+        ? finalServed
+        : fs.existsSync(finalAbs)
+          ? finalAbs
+          : outWav;
+
     if (!fs.existsSync(served)) throw new Error("Inference finished but no output file was found.");
     const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
     appendLog(job, `Done -> ${rel}`);
-    setDone(job, { stdout: result.stdout.slice(-2000) }, rel);
+    setDone(job, { stdout: runStdout.slice(-2000) }, rel);
   } catch (err) {
     trackPid(job.id, undefined);
     appendLog(job, `ERROR: ${errMsg(err)}`);

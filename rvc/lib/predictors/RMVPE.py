@@ -494,6 +494,7 @@ class RMVPE0Predictor:
         f0[f0 == 10] = 0
         return f0
 
+    @torch.inference_mode()
     def infer_from_audio(self, audio, thred=0.03):
         """
         Infers F0 from audio.
@@ -505,8 +506,6 @@ class RMVPE0Predictor:
         audio = torch.from_numpy(audio).float().to(self.device).unsqueeze(0)
         mel = self.mel_extractor(audio, center=True)
         del audio
-        with torch.no_grad():
-            torch.cuda.empty_cache()
         hidden = self.mel2hidden(mel)
         hidden = hidden.squeeze(0).cpu().numpy()
         f0 = self.decode(hidden, thred=thred)

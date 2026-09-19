@@ -20,10 +20,11 @@ export interface JobPanelProps {
   jobId: string | null;
   compact?: boolean;
   showLogs?: boolean;
+  embedded?: boolean;
 }
 
 // Polls a job, shows status, and renders its output file cleanly without CLI clutter.
-export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelProps) {
+export default function JobPanel({ jobId, compact, showLogs = false, embedded = false }: JobPanelProps) {
   const { t } = useI18n();
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -57,8 +58,25 @@ export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelP
   }, [job?.logs]);
 
   if (!jobId) return null;
-  if (error) return <p style={{ color: "var(--err)" }}>{error}</p>;
-  if (!job) return <p className="muted text-xs">{t("Loading activity…")}</p>;
+  if (error) {
+    return (
+      <div
+        role="alert"
+        className={`p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs ${
+          embedded ? "mt-3" : ""
+        }`}
+      >
+        {error}
+      </div>
+    );
+  }
+  if (!job) {
+    return (
+      <div className={embedded ? "pt-3 mt-3 border-t border-white/10" : "card p-4"}>
+        <p className="text-xs text-neutral-400 m-0">{t("Loading activity…")}</p>
+      </div>
+    );
+  }
 
   const out = job.outputFile;
   const sidecars: Array<{ label: string; file: string }> = [];
@@ -82,8 +100,12 @@ export default function JobPanel({ jobId, compact, showLogs = false }: JobPanelP
   const resultMsg = typeof job.result?.message === "string" ? job.result.message : null;
   const resultInfo = typeof job.result?.info === "string" ? job.result.info : null;
 
+  const containerClasses = embedded
+    ? "space-y-3 pt-3.5 mt-3.5 border-t border-white/10 animate-in fade-in duration-200"
+    : "card space-y-3 animate-in fade-in duration-200";
+
   return (
-    <section className="card space-y-3 animate-in fade-in duration-200" aria-label={t("Task Activity")}>
+    <section className={containerClasses} aria-label={t("Task Activity")}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className={`badge ${job.status}`} role="status" aria-label={`Status: ${job.status}`}>

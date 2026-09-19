@@ -23,6 +23,7 @@ export type UpdateState =
 export interface UpdaterBridge {
   getStatus: () => Promise<UpdateState>;
   check: () => Promise<unknown>;
+  download: () => Promise<unknown>;
   quitAndInstall: () => void;
   onStatusChange: (cb: (state: UpdateState) => void) => () => void;
 }
@@ -59,6 +60,7 @@ contextBridge.exposeInMainWorld("applio", {
   updater: {
     getStatus: () => ipcRenderer.invoke("updater:get-status"),
     check: () => ipcRenderer.invoke("updater:check"),
+    download: () => ipcRenderer.invoke("updater:download"),
     quitAndInstall: () => ipcRenderer.send("updater:quit-and-install"),
     onStatusChange: (cb: (state: UpdateState) => void) => {
       const listener = (_event: unknown, state: UpdateState) => cb(state);

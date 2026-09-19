@@ -9,7 +9,7 @@ export default function PageTransition({ children }: { children: ReactNode }) {
   // Keying on the path remounts the wrapper, which replays the enter
   // animation on every tab switch.
   return (
-    <div key={pathname} className="page-transition">
+    <div key={pathname} className="page-transition flex-1 flex flex-col min-h-0 h-full">
       {children}
     </div>
   );

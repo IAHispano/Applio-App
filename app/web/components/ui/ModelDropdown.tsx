@@ -245,7 +245,7 @@ export default function ModelDropdown({
             </div>
 
             {/* Model Items List */}
-            <div className="max-h-60 overflow-y-auto p-1.5 space-y-1 grow">
+            <div className="max-h-64 overflow-y-auto py-1 grow">
               {filteredModels.length === 0 ? (
                 <div className="p-4 text-center">
                   <p className="text-xs m-0" style={{ color: "var(--muted)" }}>
@@ -255,7 +255,7 @@ export default function ModelDropdown({
               ) : (
                 filteredModels.map((m, i) => {
                   const isSelected = m === selectedModel;
-                  const isHighlighted = i === highlighted && !isSelected;
+                  const isHighlighted = i === highlighted;
                   const hasIndex = hasIndexMatch(m);
                   return (
                     <button
@@ -270,15 +270,11 @@ export default function ModelDropdown({
                       onMouseEnter={() => setHighlighted(i)}
                       onClick={() => chooseModel(m)}
                       style={{
-                        background: isSelected
-                          ? "var(--cta-bg)"
-                          : isHighlighted
-                            ? "var(--button-bg-hover)"
-                            : "transparent",
-                        color: isSelected ? "var(--cta-text)" : "var(--text)",
-                        borderRadius: "var(--radius-input)",
+                        background: isHighlighted ? "rgba(255, 255, 255, 0.05)" : "transparent",
                       }}
-                      className="w-full flex items-center justify-between gap-3 px-3 py-2 text-left transition-all cursor-pointer"
+                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 text-left transition-colors cursor-pointer border-0 rounded-none bg-transparent ${
+                        isSelected ? "text-white font-medium" : "text-neutral-300 hover:text-white"
+                      }`}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
@@ -290,33 +286,21 @@ export default function ModelDropdown({
                               border: hasIndex ? "none" : "1px solid var(--checkbox-border)",
                             }}
                           />
-                          <span className="text-xs font-semibold truncate">{modelDisplayName(m)}</span>
-                          <span
-                            className="text-[9px] px-1 py-0.2 rounded shrink-0"
-                            style={
-                              isSelected
-                                ? { border: "1px solid currentColor", opacity: 0.7 }
-                                : {
-                                    background: "var(--accent-soft)",
-                                    color: "var(--muted)",
-                                  }
-                            }
-                          >
+                          <span className={`text-xs truncate ${isSelected ? "font-semibold text-white" : "font-medium"}`}>
+                            {modelDisplayName(m)}
+                          </span>
+                          <span className="text-[10px] font-mono text-neutral-500 shrink-0">
                             {m.endsWith(".onnx") ? "ONNX" : "PTH"}
                           </span>
                         </div>
                         <p
-                          className="text-[10px] truncate m-0 leading-tight mt-0.5"
-                          style={{
-                            color: isSelected ? "inherit" : "var(--muted)",
-                            opacity: isSelected ? 0.75 : 1,
-                          }}
+                          className="text-[10px] truncate m-0 leading-tight mt-0.5 text-neutral-500"
                         >
                           {m} {hasIndex ? `• ${t("Index paired")}` : ""}
                         </p>
                       </div>
 
-                      {isSelected && <Check size={14} className="shrink-0" />}
+                      {isSelected && <Check size={14} className="text-white shrink-0" />}
                     </button>
                   );
                 })

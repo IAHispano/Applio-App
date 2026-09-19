@@ -34,6 +34,7 @@ export interface ModelMetadata {
   model_hash?: string;
   dataset_length?: string;
   speakers_id?: string | number;
+  version?: string;
 }
 
 interface ModelInfoCardProps {
@@ -101,6 +102,11 @@ export default function ModelInfoCard({
               {metadata && (
                 <span className="badge done text-[10px] px-2 py-0.5 font-medium">
                   {t("Valid Checkpoint")}
+                </span>
+              )}
+              {metadata?.version && metadata.version !== "None" && (
+                <span className="badge text-[10px] px-2 py-0.5 font-mono uppercase bg-white/10 text-white border border-white/10">
+                  {metadata.version}
                 </span>
               )}
             </div>

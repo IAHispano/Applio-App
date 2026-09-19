@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import AudioPlayer from "../../components/AudioPlayer";
 import AnalysisResultCard from "../../components/extra/AnalysisResultCard";
 import PageHeader from "../../components/layout/PageHeader";
+import CustomSelect from "../../components/ui/CustomSelect";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
@@ -118,22 +119,23 @@ export default function ExtraPage() {
           </div>
           <div>
             <label htmlFor="extra-audio-path">{t("…or pick from assets/audios")}</label>
-            <input
+            <CustomSelect
               id="extra-audio-path"
-              type="text"
-              list="ext-audios"
               value={inputPath}
               onChange={(e) => {
                 setInputPath(e.target.value);
                 if (e.target.value) setAudio(null);
               }}
-              placeholder="assets/audios/input.wav"
-            />
-            <datalist id="ext-audios">
+              placeholder={t("Choose from assets/audios…")}
+              className="w-full mt-1"
+            >
+              <option value="">{t("None (use uploaded file)")}</option>
               {audios.map((a) => (
-                <option key={a} value={a} />
+                <option key={a} value={a}>
+                  {a.split(/[\\/]/).pop() || a}
+                </option>
               ))}
-            </datalist>
+            </CustomSelect>
           </div>
         </div>
 
@@ -179,6 +181,8 @@ export default function ExtraPage() {
               <span>{busy ? t("Generating Spectrogram…") : t("Generate Spectrogram & Analysis")}</span>
             </button>
           </div>
+
+          <AnalysisResultCard jobId={jobId} title={t("Acoustic Spectrogram Analysis")} type="analyzer" embedded />
         </div>
 
         {/* Tool 2: F0 Curve Extractor */}
@@ -200,13 +204,18 @@ export default function ExtraPage() {
 
             <div className="max-w-md">
               <label htmlFor="extra-f0-method">{t("Extraction Method")}</label>
-              <select id="extra-f0-method" value={method} onChange={(e) => setMethod(e.target.value)}>
+              <CustomSelect
+                id="extra-f0-method"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                className="w-full mt-1"
+              >
                 {["rmvpe", "fcpe", "crepe"].map((m) => (
                   <option key={m} value={m}>
                     {m.toUpperCase()}
                   </option>
                 ))}
-              </select>
+              </CustomSelect>
             </div>
           </div>
 
@@ -220,11 +229,10 @@ export default function ExtraPage() {
               <span>{t("Extract F0 Curve")}</span>
             </button>
           </div>
+
+          <AnalysisResultCard jobId={f0Job} title={t("Fundamental Pitch Contour (F0)")} type="f0" embedded />
         </div>
       </div>
-
-      <AnalysisResultCard jobId={jobId} title={t("Acoustic Spectrogram Analysis")} type="analyzer" />
-      <AnalysisResultCard jobId={f0Job} title={t("Fundamental Pitch Contour (F0)")} type="f0" />
     </div>
   );
 }

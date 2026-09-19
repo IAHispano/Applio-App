@@ -1,9 +1,11 @@
 "use client";
 
-import { FileAudio, Mic, Music, UploadCloud } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Check, ChevronDown, Mic, Music, UploadCloud } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { resolveAudioUrl } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import AudioWavePlayer from "../AudioWavePlayer";
+import CustomSelect from "./CustomSelect";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;
@@ -48,6 +50,7 @@ export default function AudioDropzone({
   const [recording, setRecording] = useState(false);
   const [recDuration, setRecDuration] = useState(0);
   const [micError, setMicError] = useState("");
+  const [showSourcePicker, setShowSourcePicker] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
@@ -55,12 +58,32 @@ export default function AudioDropzone({
 
   const hasAudio = !!audioFile || !!inputPath;
 
+  // Stable preview URL for the waveplayer
+  const previewSrc = useMemo(() => {
+    if (audioFile) {
+      return URL.createObjectURL(audioFile);
+    }
+    if (inputPath) {
+      return resolveAudioUrl(inputPath);
+    }
+    return "";
+  }, [audioFile, inputPath]);
+
+  // Clean up object URL when file changes or unmounts
+  useEffect(() => {
+    return () => {
+      if (previewSrc && previewSrc.startsWith("blob:")) {
+        URL.revokeObjectURL(previewSrc);
+      }
+    };
+  }, [previewSrc]);
+
   // Cleanup mic recording on unmount
   useEffect(() => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      recRef.current?.stream.getTracks().forEach((t) => {
-        t.stop();
+      recRef.current?.stream.getTracks().forEach((trk) => {
+        trk.stop();
       });
     };
   }, []);
@@ -86,9 +109,13 @@ export default function AudioDropzone({
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles && droppedFiles.length > 0) {
       const file = droppedFiles[0];
-      if (file.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)) {
+      if (
+        file.type.startsWith("audio/") ||
+        /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)
+      ) {
         onFileSelect(file);
         onPathSelect("");
+        setShowSourcePicker(false);
       }
     }
   };
@@ -98,6 +125,7 @@ export default function AudioDropzone({
     if (file) {
       onFileSelect(file);
       onPathSelect("");
+      setShowSourcePicker(false);
     }
   };
 
@@ -114,8 +142,8 @@ export default function AudioDropzone({
       };
 
       rec.onstop = () => {
-        stream.getTracks().forEach((t) => {
-          t.stop();
+        stream.getTracks().forEach((trk) => {
+          trk.stop();
         });
         setRecording(false);
         if (timerRef.current) clearInterval(timerRef.current);
@@ -126,6 +154,7 @@ export default function AudioDropzone({
         });
         onFileSelect(file);
         onPathSelect("");
+        setShowSourcePicker(false);
       };
 
       recRef.current = { rec, chunks, stream };
@@ -149,93 +178,255 @@ export default function AudioDropzone({
   const clearAudio = () => {
     onFileSelect(null);
     onPathSelect("");
+    setShowSourcePicker(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  // Preview URL for the waveplayer
-  const previewSrc = audioFile ? URL.createObjectURL(audioFile) : inputPath ? `/${inputPath}` : "";
+  const activeTitle = audioFile
+    ? audioFile.name
+    : inputPath.split(/[\\/]/).pop()?.split("?")[0] || inputPath;
 
   return (
     <div className="w-full space-y-3">
-      {/* Tab Switcher: Upload / Samples / Mic */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-2">
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => setTab("upload")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              tab === "upload"
-                ? "bg-white text-black font-semibold shadow-sm"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <UploadCloud size={14} />
-              <span>{t("Upload / Drag & Drop")}</span>
-            </span>
-          </button>
+      {/* Hidden file input always available */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.aiff,.webm"
+        onChange={handleFileChange}
+        disabled={disabled}
+        className="hidden"
+      />
 
-          <button
-            type="button"
-            onClick={() => setTab("samples")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              tab === "samples"
-                ? "bg-white text-black font-semibold shadow-sm"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <Music size={14} />
-              <span>{t("Sample Library")}</span>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setTab("mic")}
-            className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all ${
-              tab === "mic"
-                ? "bg-white text-black font-semibold shadow-sm"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            <span className="flex items-center gap-1.5">
-              <Mic size={14} />
-              <span>{t("Microphone")}</span>
-            </span>
-          </button>
-        </div>
-
-        {hasAudio && (
-          <button
-            type="button"
-            onClick={clearAudio}
-            className="text-xs text-neutral-400 hover:text-red-400 transition-colors"
-          >
-            {t("Clear audio")}
-          </button>
-        )}
-      </div>
-
-      {/* When audio is active, show the AudioWavePlayer preview */}
+      {/* When audio is active, show the modern WaveSurfer player preview */}
       {hasAudio ? (
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
-            <span>{t("Active Input Audio Preview")}</span>
-            {audioFile && <span>{formatBytes(audioFile.size)}</span>}
+            <span className="flex items-center gap-1.5 font-medium text-neutral-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span>{t("Audio Source Preview")}</span>
+            </span>
+            <div className="flex items-center gap-3">
+              {audioFile && (
+                <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowSourcePicker((prev) => !prev)}
+                className="text-xs text-white/80 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+              >
+                <span>{showSourcePicker ? t("Hide selector") : t("Change source")}</span>
+                <ChevronDown
+                  size={13}
+                  className={`transition-transform duration-200 ${
+                    showSourcePicker ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           <AudioWavePlayer
             src={previewSrc}
             file={audioFile}
-            title={audioFile ? audioFile.name : inputPath.split(/[\\/]/).pop() || inputPath}
+            title={activeTitle}
             showAnalyzerLink={false}
             onRemove={clearAudio}
+            onReplace={() => fileInputRef.current?.click()}
           />
+
+          {/* Quick source selector when toggled */}
+          {showSourcePicker && (
+            <div className="p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200">
+              <div className="flex items-center gap-1.5 border-b border-white/10 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setTab("upload")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    tab === "upload"
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <UploadCloud size={14} />
+                    <span>{t("Upload file")}</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTab("samples")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    tab === "samples"
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Music size={14} />
+                    <span>{t("Sample Library")}</span>
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setTab("mic")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    tab === "mic"
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Mic size={14} />
+                    <span>{t("Microphone")}</span>
+                  </span>
+                </button>
+              </div>
+
+              {tab === "upload" && (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className="py-6 px-4 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.05] text-center cursor-pointer transition-all"
+                >
+                  <p className="text-xs font-medium text-white m-0">
+                    {t("Click to choose a new audio file or drag & drop here")}
+                  </p>
+                </div>
+              )}
+
+              {tab === "samples" && (
+                <div className="space-y-2">
+                  <label htmlFor="change-sample-audio-select" className="text-xs font-medium text-neutral-300">
+                    {t("Pick a sample audio from assets/audios")}
+                  </label>
+                  {sampleAudios.length === 0 ? (
+                    <p className="text-xs text-neutral-400 m-0 py-2">
+                      {t("No sample files found in assets/audios")}
+                    </p>
+                  ) : (
+                    <CustomSelect
+                      id="change-sample-audio-select"
+                      value={inputPath}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          onPathSelect(e.target.value);
+                          onFileSelect(null);
+                          setShowSourcePicker(false);
+                        }
+                      }}
+                      placeholder={t("Choose a sample audio…")}
+                      className="w-full"
+                    >
+                      <option value="">{t("Select an audio file…")}</option>
+                      {sampleAudios.map((s) => {
+                        const name = s.split(/[\\/]/).pop() || s;
+                        return (
+                          <option key={s} value={s}>
+                            {name}
+                          </option>
+                        );
+                      })}
+                    </CustomSelect>
+                  )}
+                </div>
+              )}
+
+              {tab === "mic" && (
+                <div className="py-4 flex flex-col items-center justify-center text-center space-y-3">
+                  <div
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                      recording
+                        ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110"
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
+                  >
+                    <Mic size={22} />
+                  </div>
+                  <p className="text-xs text-neutral-300 m-0">
+                    {recording
+                      ? `${t("Recording")} (${Math.floor(recDuration / 60)}:${
+                          recDuration % 60 < 10 ? "0" : ""
+                        }${recDuration % 60})`
+                      : t("Record a new take to replace current audio")}
+                  </p>
+                  {!recording ? (
+                    <button type="button" onClick={startMic} className="cta text-xs py-1.5 px-4 cursor-pointer">
+                      {t("Start recording")}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={stopMic}
+                      className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors shadow-md cursor-pointer"
+                    >
+                      {t("Stop recording")}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
-        /* When no audio is selected, render tab contents */
-        <div>
+        /* When no audio is selected, render tab switcher and picker contents */
+        <div className="space-y-3">
+          {/* Tab Switcher: Upload / Samples / Mic */}
+          <div className="flex items-center justify-between border-b border-white/10 pb-2">
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setTab("upload")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  tab === "upload"
+                    ? "bg-white/10 text-white font-medium"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <UploadCloud size={14} />
+                  <span>{t("Upload / Drag & Drop")}</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab("samples")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  tab === "samples"
+                    ? "bg-white/10 text-white font-medium"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Music size={14} />
+                  <span>{t("Sample Library")}</span>
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setTab("mic")}
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  tab === "mic"
+                    ? "bg-white/10 text-white font-medium"
+                    : "text-neutral-400 hover:text-white"
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Mic size={14} />
+                  <span>{t("Microphone")}</span>
+                </span>
+              </button>
+            </div>
+          </div>
+
           {tab === "upload" && (
             // biome-ignore lint/a11y/useSemanticElements: interactive dropzone container
             <div
@@ -251,21 +442,12 @@ export default function AudioDropzone({
               }}
               role="button"
               tabIndex={0}
-              className={`relative w-full py-8 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none ${
+              className={`relative w-full py-9 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none ${
                 isDragging
                   ? "border-white bg-white/15 scale-[1.01] shadow-2xl"
                   : "border-white/15 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.06]"
               } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
             >
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.aiff,.webm"
-                onChange={handleFileChange}
-                disabled={disabled}
-                className="hidden"
-              />
-
               <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-3 shadow-inner">
                 <UploadCloud size={24} />
               </div>
@@ -291,7 +473,7 @@ export default function AudioDropzone({
           )}
 
           {tab === "samples" && (
-            <div className="p-3 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2">
+            <div className="space-y-2 py-1">
               <label htmlFor="sample-audio-select" className="text-xs font-medium text-neutral-300">
                 {t("Pick a sample audio from assets/audios")}
               </label>
@@ -300,27 +482,28 @@ export default function AudioDropzone({
                   {t("No sample files found in assets/audios")}
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                <CustomSelect
+                  id="sample-audio-select"
+                  value={inputPath}
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      onPathSelect(e.target.value);
+                      onFileSelect(null);
+                    }
+                  }}
+                  placeholder={t("Choose a sample audio…")}
+                  className="w-full"
+                >
+                  <option value="">{t("Select an audio file…")}</option>
                   {sampleAudios.map((s) => {
                     const name = s.split(/[\\/]/).pop() || s;
                     return (
-                      <button
-                        key={s}
-                        type="button"
-                        onClick={() => {
-                          onPathSelect(s);
-                          onFileSelect(null);
-                        }}
-                        className="flex items-center gap-2.5 p-2 rounded-xl text-left border border-white/5 bg-white/5 hover:bg-white/10 hover:border-white/20 transition-all group"
-                      >
-                        <FileAudio size={16} className="text-neutral-400 group-hover:text-white shrink-0" />
-                        <span className="text-xs font-medium text-neutral-200 group-hover:text-white truncate">
-                          {name}
-                        </span>
-                      </button>
+                      <option key={s} value={s}>
+                        {name}
+                      </option>
                     );
                   })}
-                </div>
+                </CustomSelect>
               )}
             </div>
           )}
@@ -350,14 +533,14 @@ export default function AudioDropzone({
 
               <div className="flex items-center gap-2">
                 {!recording ? (
-                  <button type="button" onClick={startMic} className="cta text-xs">
+                  <button type="button" onClick={startMic} className="cta text-xs cursor-pointer">
                     {t("Start recording")}
                   </button>
                 ) : (
                   <button
                     type="button"
                     onClick={stopMic}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors shadow-md"
+                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors shadow-md cursor-pointer"
                   >
                     {t("Stop recording")}
                   </button>

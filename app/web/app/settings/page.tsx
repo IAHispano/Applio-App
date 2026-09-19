@@ -3,8 +3,9 @@
 import { Activity, Check, Cpu, Palette, Power, RefreshCw, Sliders } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import CustomSelect from "../../components/ui/CustomSelect";
 import SliderField from "../../components/ui/SliderField";
-import { apiGet, apiSend, errMsg } from "../../lib/api";
+import { apiGet, apiSend, displayVersion, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { applyTheme, type ThemeFile } from "../../lib/theme";
 
@@ -429,9 +430,11 @@ export default function SettingsPage() {
             <label htmlFor="settings-lang" className="block text-xs font-medium text-neutral-300 mb-1.5">
               {t("Interface Language")} ({langs.length} {t("available")})
             </label>
-            <select
+            <CustomSelect
               id="settings-lang"
               value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
+              searchable
+              searchPlaceholder={t("Search languages…")}
               onChange={(e) => {
                 const nextLang = !e.target.value
                   ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
@@ -446,7 +449,7 @@ export default function SettingsPage() {
                   {l.name} ({l.code})
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
       </div>
@@ -571,7 +574,7 @@ export default function SettingsPage() {
             <label htmlFor="settings-precision" className="block text-xs font-medium text-neutral-300 mb-1.5">
               {t("Precision")}
             </label>
-            <select
+            <CustomSelect
               id="settings-precision"
               value={cfg.precision}
               onChange={(e) => {
@@ -585,7 +588,7 @@ export default function SettingsPage() {
                   {p}
                 </option>
               ))}
-            </select>
+            </CustomSelect>
           </div>
         </div>
       </div>
@@ -635,7 +638,7 @@ export default function SettingsPage() {
               >
                 {t("Mode")}
               </label>
-              <select
+              <CustomSelect
                 id="settings-rmvpe-mode"
                 value={cfg.rmvpe_high_register?.mode}
                 onChange={(e) => {
@@ -651,7 +654,7 @@ export default function SettingsPage() {
               >
                 <option value="true_pitch">true_pitch</option>
                 <option value="fold">fold</option>
-              </select>
+              </CustomSelect>
             </div>
             <div>
               <SliderField
@@ -685,7 +688,7 @@ export default function SettingsPage() {
               <RefreshCw size={18} className="text-white shrink-0" />
               <h2 className="text-base font-bold text-white m-0">{t("Version & Updates")}</h2>
               <span className="text-xs text-neutral-400 tabular-nums px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-                v{cfg.version}
+                {displayVersion(cfg.version)}
               </span>
             </div>
             <p className="text-xs text-neutral-400 m-0 leading-relaxed">
@@ -743,16 +746,15 @@ export default function SettingsPage() {
 
           {updaterState?.status === "available" && (
             <p className="text-xs text-neutral-300 m-0" role="status" aria-live="polite">
-              {t("Update available: v")}
-              {updaterState.version}
+              {t("Update available:")} {displayVersion(updaterState.version)}
               {t(". Ready to download.")}
             </p>
           )}
 
           {updaterState?.status === "not-available" && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-              {t("Applio is up to date (v")}
-              {updaterState.version || cfg.version}
+              {t("Applio is up to date (")}
+              {displayVersion(updaterState.version || cfg.version)}
               {")"}
             </p>
           )}
@@ -766,8 +768,7 @@ export default function SettingsPage() {
           {updaterState?.status === "downloaded" && updaterState.releaseNotes && (
             <div className="max-w-xl p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
               <p className="text-xs text-neutral-400 font-medium m-0">
-                {t("What's new in v")}
-                {updaterState.version}
+                {t("What's new in")} {displayVersion(updaterState.version)}
               </p>
               <p className="text-xs text-neutral-300 leading-relaxed m-0 whitespace-pre-wrap">
                 {updaterState.releaseNotes}
@@ -777,7 +778,7 @@ export default function SettingsPage() {
 
           {ver && (!updaterState || updaterState.status === "dev-mode") && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-              {ver.error || `${ver.latest} — ${ver.status}`}
+              {ver.error || `${displayVersion(ver.latest)} — ${ver.status}`}
             </p>
           )}
 
