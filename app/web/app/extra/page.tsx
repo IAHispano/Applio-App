@@ -4,6 +4,7 @@ import { Activity, AudioWaveform, LineChart } from "lucide-react";
 import { useEffect, useState } from "react";
 import AudioWavePlayer from "../../components/AudioWavePlayer";
 import AnalysisResultCard from "../../components/extra/AnalysisResultCard";
+import NativeAnalyzer from "../../components/extra/NativeAnalyzer";
 import PageHeader from "../../components/layout/PageHeader";
 import CustomSelect from "../../components/ui/CustomSelect";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
@@ -16,10 +17,8 @@ export default function ExtraPage() {
   const [audios, setAudios] = useState<string[]>([]);
   const [inputPath, setInputPath] = useState("");
   const [method, setMethod] = useState("rmvpe");
-  const [jobId, setJobId] = useState<string | null>(null);
   const [f0Job, setF0Job] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     fetchModels()
@@ -36,23 +35,6 @@ export default function ExtraPage() {
       return false;
     }
     return true;
-  }
-
-  async function analyze() {
-    setError("");
-    if (!checkAudio()) return;
-    setBusy(true);
-    try {
-      const fd = new FormData();
-      if (audio) fd.append("audio", audio);
-      if (inputPath) fd.append("inputPath", inputPath);
-      const { jobId: id } = await postForm<{ jobId: string }>("/api/extra/analyze", fd);
-      setJobId(id);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function f0() {
@@ -165,30 +147,13 @@ export default function ExtraPage() {
               </div>
               <p className="text-xs text-neutral-400 m-0 leading-relaxed">
                 {t(
-                  "Generates a full 3-panel acoustic plot containing: Spectrogram (frequency vs time), Waveform amplitude envelope, and Spectral Centroid/Bandwidth/Rolloff features.",
+                  "Waveform, spectrogram and file stats rendered instantly in your browser — no waiting on a server job.",
                 )}
               </p>
             </div>
           </div>
 
-          <div className="pt-3 border-t border-white/5">
-            <button
-              type="button"
-              className="cta w-full h-10 px-4 flex items-center justify-center gap-2 text-sm font-medium rounded-xl"
-              onClick={analyze}
-              disabled={busy}
-            >
-              <Activity size={16} className="shrink-0" />
-              <span>{busy ? t("Generating Spectrogram…") : t("Generate Spectrogram & Analysis")}</span>
-            </button>
-          </div>
-
-          <AnalysisResultCard
-            jobId={jobId}
-            title={t("Acoustic Spectrogram Analysis")}
-            type="analyzer"
-            embedded
-          />
+          <NativeAnalyzer file={audio} fallbackPath={audio ? undefined : inputPath} />
         </div>
 
         {/* Tool 2: F0 Curve Extractor */}
