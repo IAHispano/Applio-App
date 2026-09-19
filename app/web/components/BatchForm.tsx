@@ -18,9 +18,9 @@ import { useEffect, useState } from "react";
 import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useSpeakers } from "../lib/useSpeakers";
+import CustomSelect from "./ui/CustomSelect";
 import ModelDropdown from "./ui/ModelDropdown";
 import SliderField from "./ui/SliderField";
-import CustomSelect from "./ui/CustomSelect";
 
 const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe"];
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
@@ -449,7 +449,10 @@ export default function BatchForm() {
 
         {/* Running State Live Progress Bar */}
         {job && (job.status === "running" || job.status === "queued") && (
-          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3 animate-in fade-in duration-200" role="status">
+          <div
+            className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3 animate-in fade-in duration-200"
+            role="status"
+          >
             <div className="flex items-center justify-between text-xs text-neutral-300">
               <span className="font-medium">{t("Batch Conversion in Progress…")}</span>
               <span className="text-neutral-400 capitalize">{job.status}</span>

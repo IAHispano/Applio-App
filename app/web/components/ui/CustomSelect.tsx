@@ -1,14 +1,7 @@
 "use client";
 
 import { Check, ChevronDown, Search } from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 export interface CustomSelectOption {
@@ -125,8 +118,7 @@ export default function CustomSelect({
     return parsedOptions[0]?.value || "";
   });
 
-  const selectedValue =
-    controlledValue !== undefined ? String(controlledValue) : internalValue;
+  const selectedValue = controlledValue !== undefined ? String(controlledValue) : internalValue;
 
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -143,8 +135,7 @@ export default function CustomSelect({
   }, []);
 
   // Filter options if searchable
-  const isSearchable =
-    explicitSearchable ?? (parsedOptions.length > 10);
+  const isSearchable = explicitSearchable ?? parsedOptions.length > 10;
 
   const filteredOptions = useMemo(() => {
     if (!isSearchable || !search.trim()) return parsedOptions;
@@ -153,13 +144,11 @@ export default function CustomSelect({
       (opt) =>
         opt.label.toLowerCase().includes(q) ||
         opt.value.toLowerCase().includes(q) ||
-        opt.description?.toLowerCase().includes(q)
+        opt.description?.toLowerCase().includes(q),
     );
   }, [parsedOptions, search, isSearchable]);
 
-  const selectedOption = parsedOptions.find(
-    (opt) => opt.value === selectedValue
-  );
+  const selectedOption = parsedOptions.find((opt) => opt.value === selectedValue);
 
   const displayLabel = selectedOption
     ? selectedOption.label
@@ -233,10 +222,7 @@ export default function CustomSelect({
     if (!open) return;
     const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (
-        triggerRef.current?.contains(target) ||
-        menuRef.current?.contains(target)
-      ) {
+      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) {
         return;
       }
       handleClose();
@@ -280,20 +266,13 @@ export default function CustomSelect({
       handleClose();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlightedIndex((prev) =>
-        prev < filteredOptions.length - 1 ? prev + 1 : 0
-      );
+      setHighlightedIndex((prev) => (prev < filteredOptions.length - 1 ? prev + 1 : 0));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlightedIndex((prev) =>
-        prev > 0 ? prev - 1 : filteredOptions.length - 1
-      );
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (
-        highlightedIndex >= 0 &&
-        highlightedIndex < filteredOptions.length
-      ) {
+      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
         const target = filteredOptions[highlightedIndex];
         if (!target.disabled) handleSelect(target.value);
       }
@@ -367,9 +346,7 @@ export default function CustomSelect({
               left: menuPos.left,
               width: menuPos.width,
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
-              ...(menuPos.bottom !== undefined
-                ? { bottom: menuPos.bottom }
-                : {}),
+              ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
             className="z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none"
           >
@@ -391,9 +368,7 @@ export default function CustomSelect({
             {/* Options List */}
             <div className="max-h-64 overflow-y-auto scrollbar-thin py-1">
               {filteredOptions.length === 0 ? (
-                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">
-                  No matching options
-                </div>
+                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">No matching options</div>
               ) : (
                 filteredOptions.map((opt, idx) => {
                   const isSelected = opt.value === selectedValue;
@@ -416,24 +391,15 @@ export default function CustomSelect({
                       <div className="min-w-0 flex-1 flex flex-col">
                         <span className="truncate">{opt.label}</span>
                         {opt.description && (
-                          <span className="text-[10px] truncate text-neutral-500">
-                            {opt.description}
-                          </span>
+                          <span className="text-[10px] truncate text-neutral-500">{opt.description}</span>
                         )}
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {opt.badge && (
-                          <span className="text-[10px] font-mono text-neutral-500">
-                            {opt.badge}
-                          </span>
+                          <span className="text-[10px] font-mono text-neutral-500">{opt.badge}</span>
                         )}
-                        {isSelected && (
-                          <Check
-                            size={14}
-                            className="text-white shrink-0"
-                          />
-                        )}
+                        {isSelected && <Check size={14} className="text-white shrink-0" />}
                       </div>
                     </button>
                   );
@@ -441,7 +407,7 @@ export default function CustomSelect({
               )}
             </div>
           </div>,
-          document.body
+          document.body,
         )}
     </div>
   );

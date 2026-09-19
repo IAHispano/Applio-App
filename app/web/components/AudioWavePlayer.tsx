@@ -276,9 +276,7 @@ export default function AudioWavePlayer({
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div
             className={`${btnSquare} flex items-center justify-center shrink-0 border border-white/10 transition-all ${
-              isPlaying
-                ? "bg-white text-black shadow-md shadow-white/20"
-                : "bg-white/5 text-neutral-300"
+              isPlaying ? "bg-white text-black shadow-md shadow-white/20" : "bg-white/5 text-neutral-300"
             }`}
           >
             <Music className="w-4 h-4 shrink-0" />
@@ -441,9 +439,7 @@ export default function AudioWavePlayer({
               >
                 <span
                   className={`text-[9px] font-bold px-1 rounded ${
-                    activeTrack === "original"
-                      ? "bg-black/15 text-black"
-                      : "bg-white/10 text-neutral-300"
+                    activeTrack === "original" ? "bg-black/15 text-black" : "bg-white/10 text-neutral-300"
                   }`}
                 >
                   A
@@ -463,9 +459,7 @@ export default function AudioWavePlayer({
               >
                 <span
                   className={`text-[9px] font-bold px-1 rounded ${
-                    activeTrack === "converted"
-                      ? "bg-black/15 text-black"
-                      : "bg-white/10 text-neutral-300"
+                    activeTrack === "converted" ? "bg-black/15 text-black" : "bg-white/10 text-neutral-300"
                   }`}
                 >
                   B

@@ -1,6 +1,6 @@
 import { type ChildProcess, spawn } from "node:child_process";
-import readline from "node:readline";
 import path from "node:path";
+import readline from "node:readline";
 import { getPythonBin, getRepoRoot, pythonEnv } from "./python";
 import { type InferenceParams } from "./schemas";
 

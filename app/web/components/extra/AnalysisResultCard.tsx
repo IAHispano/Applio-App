@@ -38,7 +38,9 @@ export default function AnalysisResultCard({
 
   if (!job) {
     return (
-      <div className={`p-4 text-center text-xs text-neutral-400 ${embedded ? "pt-3 mt-3 border-t border-white/10" : "card"}`}>
+      <div
+        className={`p-4 text-center text-xs text-neutral-400 ${embedded ? "pt-3 mt-3 border-t border-white/10" : "card"}`}
+      >
         {t("Loading analysis…")}
       </div>
     );

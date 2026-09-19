@@ -108,10 +108,7 @@ export default function AudioDropzone({
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles && droppedFiles.length > 0) {
       const file = droppedFiles[0];
-      if (
-        file.type.startsWith("audio/") ||
-        /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)
-      ) {
+      if (file.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)) {
         onFileSelect(file);
         onPathSelect("");
         setShowSourcePicker(false);
@@ -181,9 +178,7 @@ export default function AudioDropzone({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const activeTitle = audioFile
-    ? audioFile.name
-    : inputPath.split(/[\\/]/).pop()?.split("?")[0] || inputPath;
+  const activeTitle = audioFile ? audioFile.name : inputPath.split(/[\\/]/).pop()?.split("?")[0] || inputPath;
 
   return (
     <div className="w-full space-y-3">
@@ -206,9 +201,7 @@ export default function AudioDropzone({
               <span>{t("Audio Source Preview")}</span>
             </span>
             <div className="flex items-center gap-3">
-              {audioFile && (
-                <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>
-              )}
+              {audioFile && <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>}
               <button
                 type="button"
                 onClick={() => setShowSourcePicker((prev) => !prev)}
@@ -217,9 +210,7 @@ export default function AudioDropzone({
                 <span>{showSourcePicker ? t("Hide selector") : t("Change source")}</span>
                 <ChevronDown
                   size={13}
-                  className={`transition-transform duration-200 ${
-                    showSourcePicker ? "rotate-180" : ""
-                  }`}
+                  className={`transition-transform duration-200 ${showSourcePicker ? "rotate-180" : ""}`}
                 />
               </button>
             </div>
@@ -272,9 +263,7 @@ export default function AudioDropzone({
                   type="button"
                   onClick={() => setTab("mic")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                    tab === "mic"
-                      ? "bg-white/10 text-white font-medium"
-                      : "text-neutral-400 hover:text-white"
+                    tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                   }`}
                 >
                   <span className="flex items-center gap-1.5">
@@ -302,7 +291,10 @@ export default function AudioDropzone({
 
               {tab === "samples" && (
                 <div className="space-y-2">
-                  <label htmlFor="change-sample-audio-select" className="text-xs font-medium text-neutral-300">
+                  <label
+                    htmlFor="change-sample-audio-select"
+                    className="text-xs font-medium text-neutral-300"
+                  >
                     {t("Pick a sample audio from assets/audios")}
                   </label>
                   {sampleAudios.length === 0 ? (
@@ -356,7 +348,11 @@ export default function AudioDropzone({
                       : t("Record a new take to replace current audio")}
                   </p>
                   {!recording ? (
-                    <button type="button" onClick={startMic} className="cta text-xs py-1.5 px-4 cursor-pointer">
+                    <button
+                      type="button"
+                      onClick={startMic}
+                      className="cta text-xs py-1.5 px-4 cursor-pointer"
+                    >
                       {t("Start recording")}
                     </button>
                   ) : (
@@ -413,9 +409,7 @@ export default function AudioDropzone({
                 type="button"
                 onClick={() => setTab("mic")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
-                  tab === "mic"
-                    ? "bg-white/10 text-white font-medium"
-                    : "text-neutral-400 hover:text-white"
+                  tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                 }`}
               >
                 <span className="flex items-center gap-1.5">
