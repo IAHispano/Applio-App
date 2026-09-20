@@ -35,8 +35,14 @@ fastapi>=0.110.0
 websockets>=13.0
 yt-dlp==2026.8.19
 
-# UVR stem separation (vendored engine in uvr/; weights download on first use)
-onnxruntime==1.30.0
+# UVR stem separation (vendored engine in uvr/; weights download on first use).
+# CPU fallback everywhere; CUDA acceleration on Windows via onnxruntime-gpu.
+onnxruntime==1.30.0; sys_platform != "win32"
+onnxruntime-gpu==1.22.0; sys_platform == "win32"
+nvidia-cublas-cu12==12.9.2.10; sys_platform == "win32"
+nvidia-cuda-runtime-cu12==12.9.79; sys_platform == "win32"
+nvidia-cudnn-cu12==9.26.0.51; sys_platform == "win32"
+nvidia-cufft-cu12==11.4.1.4; sys_platform == "win32"
 onnx==1.23.0
 onnx2torch==1.5.15
 audioread==3.1.0

@@ -41,6 +41,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--output-format", default="WAV", choices=["WAV", "MP3", "FLAC"])
     p.add_argument(
+        "--device",
+        default="auto",
+        help="'auto' (GPU if available), 'cpu', or a CUDA device index (e.g. '0').",
+    )
+    p.add_argument(
         "--single-stem",
         default=None,
         help="Only output this stem, e.g. Vocals or Instrumental.",
@@ -112,10 +117,38 @@ def list_models(args) -> int:
     return 0
 
 
+def apply_device(device: str) -> None:
+    """Map a device choice onto visibility env vars before CUDA initializes.
+
+    The engine itself always targets "cuda" (index 0): hiding devices selects
+    the CPU path, and exposing a single index remaps that GPU to cuda:0.
+    """
+    if device == "auto":
+        return
+    if device == "cpu":
+        # NOTE: recent torch builds ignore an empty CUDA_VISIBLE_DEVICES, so
+        # belt and suspenders: hide devices AND report CUDA as unavailable.
+        # The engine gates both its torch device and its ONNX provider on
+        # torch.cuda.is_available(), so this forces the full CPU path.
+        os.environ["CUDA_VISIBLE_DEVICES"] = ""
+        os.environ["HIP_VISIBLE_DEVICES"] = ""
+        import torch
+
+        torch.cuda.is_available = lambda: False  # noqa: E731
+        return
+    if device.isdigit():
+        os.environ["CUDA_VISIBLE_DEVICES"] = device
+        os.environ["HIP_VISIBLE_DEVICES"] = device
+        return
+    print(f"Invalid --device {device!r}: expected 'auto', 'cpu' or a GPU index.", file=sys.stderr)
+    sys.exit(2)
+
+
 def separate(args) -> int:
     if not os.path.isfile(args.input):
         print(f"Input file not found: {args.input}", file=sys.stderr)
         return 2
+    apply_device(args.device)
 
     sep = Separator(
         log_level=logging.INFO,

@@ -45,6 +45,28 @@ const outputsDir = getOutputsDir();
 app.use("/outputs", express.static(outputsDir, { maxAge: "1h", fallthrough: true }));
 app.use("/assets", express.static(path.join(repoRoot, "assets"), { maxAge: "1h", fallthrough: true }));
 
+// Drop stale analyzer/F0 byproducts on startup so assets/audios doesn't fill
+// with spectrogram pictures and pitch files. Only our generated filename
+// patterns — user audio is never touched.
+try {
+  const audioDir = path.join(repoRoot, "assets", "audios");
+  const staleRes = [/^audio_analysis_.*\.png$/, /^f0_plot_.*\.png$/, /^f0_curve_.*\.txt$/];
+  let removed = 0;
+  for (const f of fs.readdirSync(audioDir)) {
+    if (staleRes.some((re) => re.test(f))) {
+      try {
+        fs.rmSync(path.join(audioDir, f), { force: true });
+        removed++;
+      } catch {
+        /* keep going */
+      }
+    }
+  }
+  if (removed > 0) console.log(`[startup] removed ${removed} stale analysis files from assets/audios`);
+} catch {
+  /* audio dir missing — nothing to clean */
+}
+
 // Safe raw audio streaming endpoint for any relative/repo audio path
 app.get("/api/audio/raw", (req, res) => {
   const p = req.query.path;

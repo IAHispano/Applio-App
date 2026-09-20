@@ -5,9 +5,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import JobPanel from "@/components/JobPanel";
 import PageHeader from "@/components/layout/PageHeader";
+import type { GpuDevice } from "@/components/train/GpuSelect";
 import { Alert, Badge, Button, Card, CardHeader, CustomSelect, SliderField } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
-import { apiGet, errMsg, fetchModels, outputUrl, postForm } from "@/lib/api";
+import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob } from "@/lib/useJob";
 
@@ -22,6 +23,7 @@ interface UvrModel {
 interface UvrStem {
   label: string;
   file: string;
+  url: string;
 }
 
 const DEFAULT_MODEL = "UVR-MDX-NET-Voc_FT.onnx";
@@ -46,6 +48,8 @@ export default function UvrPage() {
   const [vrWindow, setVrWindow] = useState(512);
   const [mdxSegment, setMdxSegment] = useState(256);
   const [mdxOverlap, setMdxOverlap] = useState(0.25);
+  const [device, setDevice] = useState("auto");
+  const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
   const [jobId, setJobId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -70,9 +74,36 @@ export default function UvrPage() {
     fetchModels()
       .then((m) => setSampleAudios(m.audios))
       .catch(() => {});
+    apiGet<{
+      count: number | string;
+      info: string;
+      devices?: GpuDevice[];
+      gpus?: { id: string; name: string }[];
+    }>("/api/train/gpus")
+      .then((g) => {
+        if (g.devices && g.devices.length > 0) setGpuDevices(g.devices);
+        else if (g.gpus && g.gpus.length > 0) {
+          setGpuDevices(
+            g.gpus
+              .filter((x) => x.id !== "-" && !x.id.includes("-"))
+              .map((x) => ({ id: x.id, name: x.name })),
+          );
+        }
+      })
+      .catch(() => setGpuDevices([]));
   }, [loadModels]);
 
   const selectedModel = useMemo(() => models.find((m) => m.filename === model), [models, model]);
+  const modelStems = useMemo(() => {
+    const list = (selectedModel?.stems ?? []).filter((s) => s && s !== "Unknown");
+    return list.length > 0 ? list : ["Vocals", "Instrumental"];
+  }, [selectedModel]);
+  const arch = selectedModel?.type ?? "";
+
+  function handleModelChange(filename: string) {
+    setModel(filename);
+    setStemMode("all");
+  }
   const stems = useMemo(
     () => ((job?.result?.stems as UvrStem[] | undefined) ?? []).filter((s) => s?.file),
     [job],
@@ -99,6 +130,7 @@ export default function UvrPage() {
     fd.append("vrWindow", String(vrWindow));
     fd.append("mdxSegment", String(mdxSegment));
     fd.append("mdxOverlap", String(mdxOverlap));
+    fd.append("device", device);
     setBusy(true);
     try {
       const { jobId: id } = await postForm<{ jobId: string }>("/api/uvr/separate", fd);
@@ -159,7 +191,7 @@ export default function UvrPage() {
             <CustomSelect
               id="uvr-model"
               value={model}
-              onValueChange={setModel}
+              onValueChange={handleModelChange}
               disabled={modelsLoading || models.length === 0}
               placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
               className="w-full"
@@ -190,8 +222,7 @@ export default function UvrPage() {
               className="w-full"
               options={[
                 { value: "all", label: t("All stems") },
-                { value: "Vocals", label: t("Vocals only") },
-                { value: "Instrumental", label: t("Instrumental only") },
+                ...modelStems.map((s) => ({ value: s, label: `${s} · ${t("only")}` })),
               ]}
             />
           </div>
@@ -210,7 +241,23 @@ export default function UvrPage() {
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5">
+        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5 flex-wrap">
+          <div className="flex items-center gap-2">
+            <label htmlFor="uvr-device" className="text-xs text-neutral-400 whitespace-nowrap">
+              {t("Device")}
+            </label>
+            <CustomSelect
+              id="uvr-device"
+              value={device}
+              onValueChange={setDevice}
+              className="w-52"
+              options={[
+                { value: "auto", label: t("Auto (GPU if available)") },
+                { value: "cpu", label: t("CPU (saves VRAM)") },
+                ...gpuDevices.map((g) => ({ value: g.id, label: g.name })),
+              ]}
+            />
+          </div>
           <Button
             onClick={separate}
             disabled={busy || running || (!audioFile && !inputPath.trim()) || !model}
@@ -235,46 +282,63 @@ export default function UvrPage() {
           description={t("Quality / VRAM trade-offs. Defaults suit most songs.")}
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <SliderField
-            id="uvr-vr-aggr"
-            label={t("VR Aggression")}
-            value={vrAggression}
-            min={1}
-            max={20}
-            step={1}
-            onChange={setVrAggression}
-            description={t("Higher cuts vocals more aggressively (VR models).")}
-          />
-          <div className="space-y-1.5">
-            <label htmlFor="uvr-vr-window">{t("VR Window Size")}</label>
-            <CustomSelect
-              id="uvr-vr-window"
-              value={String(vrWindow)}
-              onValueChange={(v) => setVrWindow(Number(v))}
-              className="w-full"
-              options={["320", "512", "1024"]}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="uvr-mdx-seg">{t("MDX Segment Size")}</label>
-            <CustomSelect
-              id="uvr-mdx-seg"
-              value={String(mdxSegment)}
-              onValueChange={(v) => setMdxSegment(Number(v))}
-              className="w-full"
-              options={["64", "128", "256", "512"]}
-            />
-          </div>
-          <SliderField
-            id="uvr-mdx-overlap"
-            label={t("MDX Overlap")}
-            value={mdxOverlap}
-            min={0}
-            max={0.9}
-            step={0.05}
-            onChange={setMdxOverlap}
-            description={t("Higher overlap is cleaner but slower (MDX models).")}
-          />
+          {arch === "VR" && (
+            <>
+              <SliderField
+                id="uvr-vr-aggr"
+                label={t("VR Aggression")}
+                value={vrAggression}
+                min={1}
+                max={20}
+                step={1}
+                onChange={setVrAggression}
+                description={t("Higher cuts vocals more aggressively.")}
+              />
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-vr-window">{t("VR Window Size")}</label>
+                <CustomSelect
+                  id="uvr-vr-window"
+                  value={String(vrWindow)}
+                  onValueChange={(v) => setVrWindow(Number(v))}
+                  className="w-full"
+                  options={["320", "512", "1024"]}
+                />
+              </div>
+            </>
+          )}
+          {arch === "MDX" && (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-mdx-seg">{t("MDX Segment Size")}</label>
+                <CustomSelect
+                  id="uvr-mdx-seg"
+                  value={String(mdxSegment)}
+                  onValueChange={(v) => setMdxSegment(Number(v))}
+                  className="w-full"
+                  options={["64", "128", "256", "512"]}
+                />
+              </div>
+              <SliderField
+                id="uvr-mdx-overlap"
+                label={t("MDX Overlap")}
+                value={mdxOverlap}
+                min={0}
+                max={0.9}
+                step={0.05}
+                onChange={setMdxOverlap}
+                description={t("Higher overlap is cleaner but slower.")}
+              />
+            </>
+          )}
+          {arch !== "VR" && arch !== "MDX" && (
+            <p className="text-xs text-neutral-400 m-0 sm:col-span-2 xl:col-span-4">
+              {arch === "MDXC"
+                ? t("Roformer models separate with built-in settings.")
+                : arch === "Demucs"
+                  ? t("Demucs models separate with built-in settings.")
+                  : t("Pick a model above to tune its engine settings.")}
+            </p>
+          )}
         </div>
       </Card>
 
@@ -293,17 +357,11 @@ export default function UvrPage() {
                   <Badge variant={/vocals/i.test(s.label) ? "success" : "neutral"} dot>
                     {s.label}
                   </Badge>
-                  <Button
-                    href={outputUrl(s.file)}
-                    download
-                    variant="ghost"
-                    size="xs"
-                    icon={<Download size={13} />}
-                  >
+                  <Button href={s.url} download variant="ghost" size="xs" icon={<Download size={13} />}>
                     {t("Download")}
                   </Button>
                 </div>
-                <AudioWavePlayer src={outputUrl(s.file)} filename={s.file.split("/").pop() ?? s.file} />
+                <AudioWavePlayer src={s.url} filename={s.file.split("/").pop() ?? s.file} />
               </div>
             ))}
           </div>

@@ -95,13 +95,18 @@ const separateSchema = z.object({
   model: z.string().min(1),
   inputPath: z.string().optional(),
   outputFormat: z.enum(["WAV", "MP3", "FLAC"]).default("WAV"),
-  singleStem: z.enum(["all", "Vocals", "Instrumental"]).default("all"),
+  // "all" keeps every stem; otherwise a single stem name of the chosen model.
+  singleStem: z.string().min(1).max(64).default("all"),
   vrAggression: z.coerce.number().int().min(1).max(20).default(5),
   vrWindow: z.coerce.number().int().min(256).max(1024).default(512),
   vrBatch: z.coerce.number().int().min(1).max(8).default(1),
   mdxSegment: z.coerce.number().int().min(32).max(1024).default(256),
   mdxOverlap: z.coerce.number().min(0).max(0.99).default(0.25),
   mdxBatch: z.coerce.number().int().min(1).max(8).default(1),
+  device: z
+    .string()
+    .regex(/^(auto|cpu|\d+)$/)
+    .default("auto"),
 });
 
 // Separate stems (vocals / instrumental / more) as a tracked job.
@@ -141,11 +146,13 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
       String(p.mdxOverlap),
       "--mdx-batch",
       String(p.mdxBatch),
+      "--device",
+      p.device,
     ];
     if (p.singleStem !== "all") args.push("--single-stem", p.singleStem);
     const job = startCliJob(
       "other",
-      { inputPath: inputAbs, model: p.model, outputFormat: p.outputFormat },
+      { inputPath: inputAbs, model: p.model, outputFormat: p.outputFormat, device: p.device },
       args,
       {
         parse: (stdout) => {
@@ -158,18 +165,22 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
           const stems = data.outputs.map((abs) => ({
             label: stemLabel(abs, inputAbs),
             file: repoRel(abs),
+            // Ready-to-play URL: outputUrl() only handles flat basenames, so
+            // build the subdirectory-preserving URL here instead. Relative to
+            // the outputs root (not the per-job dir) to keep uvr_<ts>/ prefix.
+            url: `/outputs/${path
+              .relative(getOutputsDir(), abs)
+              .split(path.sep)
+              .map((seg) => encodeURIComponent(seg))
+              .join("/")}`,
           }));
-          const primaryAbs =
-            data.outputs.find((abs) => /vocals/i.test(stemLabel(abs, inputAbs))) ??
-            data.outputs.find((abs) => /instrumental/i.test(stemLabel(abs, inputAbs))) ??
-            data.outputs[0];
           return {
             result: {
               stems,
               message: `Separated ${stems.length} stems with ${p.model}.`,
             },
-            // Absolute here: startCliJob applies repoRel() once itself.
-            outputFile: primaryAbs,
+            // No outputFile on purpose: the page renders one player per stem
+            // already, so JobPanel stays a slim status card.
           };
         },
       },

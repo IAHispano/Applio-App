@@ -35,7 +35,10 @@ uvr/
   wheel, reinstall the pinned CUDA builds afterwards (versions from the root
   requirements.txt):
   `python -m pip install "torch==2.11.0" "torchaudio==2.11.0" "torchvision==0.26.0" --index-url https://download.pytorch.org/whl/cu128`
-- GPU users: replace `onnxruntime` with `onnxruntime-gpu` (same API, CUDA execution).
+- Compute device: on Windows the pinned `onnxruntime-gpu` + CUDA 12 wheels make the
+  engine pick CUDA automatically when an NVIDIA GPU is present (other platforms
+  use CPU `onnxruntime`). Pass `--device cpu` (or pick **CPU** in the UI) to force
+  CPU mode and save VRAM, or `--device <index>` to pin a specific GPU.
 - `ffmpeg` must be on PATH (or next to the app — Applio ships `ffmpeg.exe` at the repo root).
 - Model weights are **not** vendored (hundreds of MB). The engine downloads them on first
   use into `assets/uvr-models/` (override with `AUDIO_SEPARATOR_MODEL_DIR`), from the
