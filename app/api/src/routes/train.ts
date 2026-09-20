@@ -83,11 +83,35 @@ router.get("/gpus", async (_req: Request, res: Response) => {
     const now = Date.now();
     if (now - gpuCache.at < GPU_CACHE_TTL && gpuCache.data) return res.json(gpuCache.data);
     const code = [
-      "import json",
+      "import json, torch",
       "from rvc.configs.config import get_gpu_info, get_number_of_gpus",
-      "print('APPLIO_JSON:' + json.dumps({'count': get_number_of_gpus(), 'info': get_gpu_info()}))",
-    ].join("; ");
-    const data = await runPythonJson<{ count: number; info: string }>(code);
+      "devices = []",
+      "gpus = []",
+      "if torch.cuda.is_available():",
+      "    count = torch.cuda.device_count()",
+      "    for i in range(count):",
+      "        try:",
+      "            name = torch.cuda.get_device_name(i)",
+      "            mem = int(torch.cuda.get_device_properties(i).total_memory / 1024 / 1024 / 1024 + 0.4)",
+      "            item = {'id': str(i), 'name': f'GPU {i}: {name} ({mem} GB)', 'mem': mem}",
+      "            devices.append(item)",
+      "            gpus.append({'id': str(i), 'name': item['name']})",
+      "        except Exception:",
+      "            item = {'id': str(i), 'name': f'GPU {i}'}",
+      "            devices.append(item)",
+      "            gpus.append({'id': str(i), 'name': item['name']})",
+      "    if count > 1:",
+      "        all_id = '-'.join(map(str, range(count)))",
+      "        gpus.append({'id': all_id, 'name': f'All GPUs ({all_id})'})",
+      "gpus.append({'id': '-', 'name': 'CPU'})",
+      "print('APPLIO_JSON:' + json.dumps({'count': get_number_of_gpus(), 'info': get_gpu_info(), 'devices': devices, 'gpus': gpus}))",
+    ].join("\n");
+    const data = await runPythonJson<{
+      count: number | string;
+      info: string;
+      devices?: { id: string; name: string; mem?: number }[];
+      gpus?: { id: string; name: string }[];
+    }>(code);
     gpuCache = { at: now, data };
     res.json(data);
   } catch (err) {
@@ -198,7 +222,7 @@ const modelName = z
 
 // Importing torch takes seconds: cache the GPU probe per process.
 const GPU_CACHE_TTL = 5 * 60 * 1000;
-let gpuCache: { at: number; data: { count: number; info: string } | null } = { at: 0, data: null };
+let gpuCache: { at: number; data: { count: number | string; info: string; gpus?: { id: string; name: string }[] } | null } = { at: 0, data: null };
 
 interface PreprocessParams {
   modelName: string;
@@ -233,9 +257,9 @@ function buildPreprocessArgs(p: PreprocessParams): string[] {
     "--noise-reduction-strength",
     String(p.cleanStrength),
     "--chunk-len",
-    String(p.chunkLen),
+    p.chunkLen.toFixed(1),
     "--overlap-len",
-    String(p.overlapLen),
+    p.overlapLen.toFixed(1),
     "--normalization-mode",
     p.normalizationMode,
   ];

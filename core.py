@@ -1159,13 +1159,16 @@ def tts(**kwargs):
 )
 @click.option(
     "--chunk-len",
-    type=click.Choice([str(i * 0.5) for i in range(1, 11)]),
+    type=click.Choice(
+        [str(i * 0.5) for i in range(1, 11)]
+        + [str(int(i * 0.5)) for i in range(1, 11) if (i * 0.5).is_integer()]
+    ),
     default="3.0",
     help="Chunk length in seconds.",
 )
 @click.option(
     "--overlap-len",
-    type=click.Choice(["0.0", "0.1", "0.2", "0.3", "0.4"]),
+    type=click.Choice(["0", "0.0", "0.1", "0.2", "0.3", "0.4"]),
     default="0.3",
     help="Overlap length.",
 )

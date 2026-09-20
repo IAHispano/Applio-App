@@ -8,13 +8,13 @@ import {
   Flame,
   FolderUp,
   Layers,
-  RefreshCw,
   Sliders,
   StopCircle,
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import GpuSelect, { type GpuDevice } from "../../components/train/GpuSelect";
 import TrainingConsole from "../../components/train/TrainingConsole";
 import CustomSelect from "../../components/ui/CustomSelect";
 import SegmentedControl from "../../components/ui/SegmentedControl";
@@ -34,6 +34,7 @@ export default function TrainPage() {
   const [pretD, setPretD] = useState<string[]>([]);
   const [gpuInfo, setGpuInfo] = useState("");
   const [gpuCount, setGpuCount] = useState("0");
+  const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
 
   const [datasetPath, setDatasetPath] = useState("");
   const [sampleRate, setSampleRate] = useState("40000");
@@ -85,7 +86,7 @@ export default function TrainPage() {
     try {
       const d = await apiGet<{ datasets: string[] }>("/api/train/datasets");
       setDatasets(d.datasets);
-      if (selectFirst && d.datasets[0]) setDatasetPath(d.datasets[0]);
+      if (selectFirst) setDatasetPath((prev) => prev || d.datasets[0] || "");
       return d.datasets;
     } catch {
       return [];
@@ -101,13 +102,30 @@ export default function TrainPage() {
         setPretD(p.d);
       })
       .catch(() => {});
-    apiGet<{ count: number | string; info: string }>("/api/train/gpus")
+    apiGet<{
+      count: number | string;
+      info: string;
+      devices?: GpuDevice[];
+      gpus?: { id: string; name: string }[];
+    }>("/api/train/gpus")
       .then((g) => {
         setGpuInfo(g.info);
-        // NOTE: the API returns the GPU index spec as a string ("0", "0-1",
-        // ...), NOT a count — a raw `g.count > 0` is always false for those
-        // strings, which stuck every GPU host on "-" and crashed train.py's
-        // cuda parsing. Use a valid spec as-is; "-" only when there is none.
+        let devs: GpuDevice[] = [];
+        if (g.devices && Array.isArray(g.devices) && g.devices.length > 0) {
+          devs = g.devices;
+        } else if (g.gpus && Array.isArray(g.gpus) && g.gpus.length > 0) {
+          devs = g.gpus.filter((x) => x.id !== "-" && !x.id.includes("-"));
+        } else if (g.info && !g.info.toLowerCase().includes("no compatible gpu")) {
+          const lines = g.info.split("\n").map((l) => l.trim()).filter(Boolean);
+          for (const line of lines) {
+            const m = line.match(/^(\d+):\s*(.*)$/);
+            if (m) {
+              devs.push({ id: m[1], name: `GPU ${m[1]}: ${m[2]}` });
+            }
+          }
+        }
+        setGpuDevices(devs);
+
         const raw = g.count;
         const gpuId =
           typeof raw === "number"
@@ -116,10 +134,14 @@ export default function TrainPage() {
               : "-"
             : /^\d+(-\d+)*$/.test(String(raw).trim())
               ? String(raw).trim()
-              : "-";
+              : devs[0]?.id || "-";
         setGpuCount(gpuId);
       })
-      .catch(() => setGpuInfo(t("GPU query failed (CPU-only host)")));
+      .catch(() => {
+        setGpuInfo(t("GPU query failed (CPU-only host)"));
+        setGpuDevices([]);
+        setGpuCount("-");
+      });
     apiGet<{ models: string[]; indexes: string[] }>("/api/train/exports")
       .then((e) => {
         setExpModels(e.models || []);
@@ -140,8 +162,8 @@ export default function TrainPage() {
 
   function needDataset(): boolean {
     if (!needModel()) return false;
-    if (!datasetPath) {
-      toast(t("Please select or upload a dataset."), "error");
+    if (!datasetPath.trim()) {
+      toast(t("Please enter a dataset path."), "error");
       return false;
     }
     return true;
@@ -165,8 +187,9 @@ export default function TrainPage() {
       toast(t("Please enter a model name."), "error");
       return;
     }
-    if (!datasetPath) {
-      toast(t("Please select or upload a dataset."), "error");
+    const cleanDataset = datasetPath.trim().replace(/^["']|["']$/g, "");
+    if (!cleanDataset) {
+      toast(t("Please enter a dataset path."), "error");
       return;
     }
     setError("");
@@ -174,7 +197,7 @@ export default function TrainPage() {
     try {
       const { jobId: id } = await submitJob("/api/train/pipeline", {
         modelName: modelName.trim(),
-        datasetPath,
+        datasetPath: cleanDataset,
         sampleRate,
         ...(cpuCores ? { cpuCores: Number(cpuCores) } : {}),
         cutPreprocess: cut,
@@ -289,13 +312,13 @@ export default function TrainPage() {
             />
           </div>
           <div>
-            <label htmlFor="train-gpu-count">{t("GPU")}</label>
-            <input
-              id="train-gpu-count"
-              type="text"
+            <label htmlFor="train-gpu">{t("GPU")}</label>
+            <GpuSelect
+              id="train-gpu"
               value={gpuCount}
-              onChange={(e) => setGpuCount(e.target.value)}
-              placeholder={t("0 (or - for CPU)")}
+              onChange={setGpuCount}
+              devices={gpuDevices}
+              className="w-full"
             />
           </div>
           <div>
@@ -348,34 +371,20 @@ export default function TrainPage() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <div className="flex items-center justify-between gap-2">
-                  <label htmlFor="pipeline-dataset-path" className="m-0">
-                    {t("Dataset Folder (in assets/datasets)")}
-                  </label>
-                  <button
-                    type="button"
-                    className="ghost h-7 px-2 text-xs flex items-center gap-1"
-                    onClick={() => loadDatasets()}
-                    title={t("Refresh datasets")}
-                    aria-label={t("Refresh datasets")}
-                  >
-                    <RefreshCw size={13} />
-                  </button>
-                </div>
-                <CustomSelect
+                <label htmlFor="pipeline-dataset-path">{t("Dataset Path")}</label>
+                <input
                   id="pipeline-dataset-path"
+                  type="text"
+                  list="pipeline-dataset-list"
                   value={datasetPath}
                   onChange={(e) => setDatasetPath(e.target.value)}
-                  placeholder={t("Select dataset…")}
-                  className="w-full mt-1"
-                >
-                  <option value="">{t("Select dataset…")}</option>
+                  placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
+                />
+                <datalist id="pipeline-dataset-list">
                   {datasets.map((d) => (
-                    <option key={d} value={d}>
-                      {d.split(/[\\/]/).pop() || d}
-                    </option>
+                    <option key={d} value={d} />
                   ))}
-                </CustomSelect>
+                </datalist>
               </div>
 
               <div>
@@ -509,34 +518,20 @@ export default function TrainPage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
-                <div className="flex items-center justify-between gap-2">
-                  <label htmlFor="prep-dataset-path" className="m-0">
-                    {t("Dataset (assets/datasets)")}
-                  </label>
-                  <button
-                    type="button"
-                    className="ghost h-7 px-2 text-xs flex items-center gap-1"
-                    onClick={() => loadDatasets()}
-                    title={t("Refresh datasets")}
-                    aria-label={t("Refresh datasets")}
-                  >
-                    <RefreshCw size={13} />
-                  </button>
-                </div>
-                <CustomSelect
+                <label htmlFor="prep-dataset-path">{t("Dataset Path")}</label>
+                <input
                   id="prep-dataset-path"
+                  type="text"
+                  list="prep-dataset-list"
                   value={datasetPath}
                   onChange={(e) => setDatasetPath(e.target.value)}
-                  placeholder={t("Select dataset…")}
-                  className="w-full mt-1"
-                >
-                  <option value="">{t("Select dataset…")}</option>
+                  placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
+                />
+                <datalist id="prep-dataset-list">
                   {datasets.map((d) => (
-                    <option key={d} value={d}>
-                      {d.split(/[\\/]/).pop() || d}
-                    </option>
+                    <option key={d} value={d} />
                   ))}
-                </CustomSelect>
+                </datalist>
               </div>
               <div>
                 <label htmlFor="prep-sample-rate">{t("Sampling Rate")}</label>
@@ -648,7 +643,7 @@ export default function TrainPage() {
                   if (!needDataset()) return;
                   run("/api/train/preprocess", {
                     modelName,
-                    datasetPath,
+                    datasetPath: datasetPath.trim().replace(/^["']|["']$/g, ""),
                     sampleRate,
                     ...(cpuCores ? { cpuCores: Number(cpuCores) } : {}),
                     cutPreprocess: cut,

@@ -226,9 +226,10 @@ export function resolveInsideRepo(p: string): string {
 
 export function resolveUserPath(p: string): string {
   if (!p) return "";
-  if (path.isAbsolute(p)) {
-    if (!fs.existsSync(p)) throw new Error(`File not found: ${p}`);
-    return p;
+  const cleaned = p.trim().replace(/^["']|["']$/g, "");
+  if (path.isAbsolute(cleaned)) {
+    if (!fs.existsSync(cleaned)) throw new Error(`File not found: ${cleaned}`);
+    return cleaned;
   }
-  return resolveInsideRepo(p);
+  return resolveInsideRepo(cleaned);
 }
