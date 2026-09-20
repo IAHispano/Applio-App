@@ -71,6 +71,16 @@ export default function TrainingConsole({
     if (!jobId) setElapsedSeconds(0);
   }, [jobId]);
 
+  // Resume the elapsed counter from the job start time after remount/refresh.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot resume per job
+  useEffect(() => {
+    if (!job || elapsedSeconds !== 0) return;
+    const started = new Date(job.createdAt).getTime();
+    if (Number.isNaN(started)) return;
+    const s = Math.floor((Date.now() - started) / 1000);
+    if (s > 0) setElapsedSeconds(s);
+  }, [job?.id]);
+
   useEffect(() => {
     if (!job || (job.status !== "running" && job.status !== "queued")) return;
     const interval = setInterval(() => {

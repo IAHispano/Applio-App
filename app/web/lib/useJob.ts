@@ -3,6 +3,57 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { errMsg, fetchJob, type Job, pollJob, stopJob } from "./api";
 
+const JOB_ID_PREFIX = "applio:job:";
+
+// Persists only the job id (not the job payload) in localStorage so a
+// running or finished job survives route changes and page refreshes while
+// the API server is up. On mount the id is re-validated against the server:
+// ids the server no longer knows (e.g. after an API restart) are dropped
+// silently, so nothing stale is ever resurrected.
+export function usePersistentJobId(key: string) {
+  const storageKey = `${JOB_ID_PREFIX}${key}`;
+  const [jobId, setJobIdState] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(storageKey);
+    } catch {
+      return null;
+    }
+  });
+
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    fetchJob(jobId).catch(() => {
+      if (cancelled) return;
+      try {
+        window.localStorage.removeItem(storageKey);
+      } catch {
+        /* storage unavailable */
+      }
+      setJobIdState(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, storageKey]);
+
+  const setJobId = useCallback(
+    (id: string | null) => {
+      setJobIdState(id);
+      try {
+        if (id) window.localStorage.setItem(storageKey, id);
+        else window.localStorage.removeItem(storageKey);
+      } catch {
+        /* storage unavailable (SSR/private mode) */
+      }
+    },
+    [storageKey],
+  );
+
+  return [jobId, setJobId] as const;
+}
+
 // Shared job polling hook.
 export function cleanJobLogs(logs?: string[]): string[] {
   if (!logs) return [];

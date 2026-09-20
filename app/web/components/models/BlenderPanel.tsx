@@ -4,6 +4,7 @@ import { Layers, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { usePersistentJobId } from "../../lib/useJob";
 import JobPanel from "../JobPanel";
 import { Alert, Badge, Card, CardHeader } from "../ui";
 import CustomSelect from "../ui/CustomSelect";
@@ -18,7 +19,7 @@ export default function BlenderPanel() {
   const [f1, setF1] = useState<File | null>(null);
   const [f2, setF2] = useState<File | null>(null);
   const [ratio, setRatio] = useState(0.5);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistentJobId("blender");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 

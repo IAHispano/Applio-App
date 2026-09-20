@@ -16,6 +16,7 @@ import {
 } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { matchIndex } from "../../lib/model-index";
+import { usePersistentJobId } from "../../lib/useJob";
 import { useSpeakers } from "../../lib/useSpeakers";
 import AudioWavePlayer from "../AudioWavePlayer";
 import {
@@ -66,7 +67,7 @@ export default function TtsForm() {
   const [cleanAudio, setCleanAudio] = useState(false);
   const [cleanStrength, setCleanStrength] = useState(0.5);
   const [sid, setSid] = useState(0);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistentJobId("tts");
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);

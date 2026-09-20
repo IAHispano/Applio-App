@@ -29,6 +29,7 @@ import {
 } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { matchIndex } from "../lib/model-index";
+import { usePersistentJobId } from "../lib/useJob";
 import { useSpeakers } from "../lib/useSpeakers";
 import AudioWavePlayer from "./AudioWavePlayer";
 import type { ModelMetadata } from "./models/ModelInfoCard";
@@ -163,6 +164,7 @@ export default function InferenceForm() {
 
   // Job submission & status
   const [job, setJob] = useState<Job | null>(null);
+  const [persistedJobId, setPersistedJobId] = usePersistentJobId("inference");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -271,6 +273,22 @@ export default function InferenceForm() {
     const stop = pollJob(job.id, setJob);
     return stop;
   }, [job?.id]);
+
+  // Restore the last job (running or finished) after navigation/refresh.
+  useEffect(() => {
+    if (job || !persistedJobId) return;
+    let cancelled = false;
+    fetchJob(persistedJobId)
+      .then(({ job: j }) => {
+        if (!cancelled) setJob(j);
+      })
+      .catch(() => {
+        if (!cancelled) setPersistedJobId(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [job, persistedJobId, setPersistedJobId]);
 
   const handleModelSelect = (selected: string, idxList = indexes) => {
     setPthPath(selected);
@@ -400,6 +418,7 @@ export default function InferenceForm() {
       const { jobId } = await submitInference(fd);
       const { job: fresh } = await fetchJob(jobId);
       setJob(fresh);
+      setPersistedJobId(jobId);
     } catch (err) {
       setSubmitError(errMsg(err) || t("Submit failed"));
     } finally {

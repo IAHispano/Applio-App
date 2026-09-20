@@ -23,6 +23,7 @@ import SliderField from "../../components/ui/SliderField";
 import { apiGet, errMsg, submitJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
+import { usePersistentJobId } from "../../lib/useJob";
 
 type TrainMode = "pipeline" | "steps" | "uploads";
 
@@ -78,7 +79,7 @@ export default function TrainPage() {
     if (v !== "RefineGAN" && sampleRate === "24000") setSampleRate("40000");
   }
 
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistentJobId("train");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [stopTarget, setStopTarget] = useState("");

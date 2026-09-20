@@ -17,6 +17,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { usePersistentJobId } from "../lib/useJob";
 import { useSpeakers } from "../lib/useSpeakers";
 import { Alert, Badge, Card, CardHeader, ToggleField } from "./ui";
 import CustomSelect from "./ui/CustomSelect";
@@ -44,7 +45,7 @@ export default function BatchForm() {
   const [f0Autotune, setF0Autotune] = useState(false);
   const [cleanAudio, setCleanAudio] = useState(false);
   const [sid, setSid] = useState(0);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistentJobId("batch");
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
