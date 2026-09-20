@@ -561,7 +561,9 @@ export default function InferenceForm() {
                   )}
                   <div>
                     <dt>{t("Speakers")}</dt>
-                    <dd className="text-white font-medium">{speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}</dd>
+                    <dd className="text-white font-medium">
+                      {speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}
+                    </dd>
                   </div>
                   {selectedMeta?.folder && (
                     <div>
@@ -574,7 +576,9 @@ export default function InferenceForm() {
                   {selectedMeta?.modifiedAt && (
                     <div>
                       <dt>{t("Modified")}</dt>
-                      <dd className="text-white font-medium">{new Date(selectedMeta.modifiedAt).toLocaleDateString()}</dd>
+                      <dd className="text-white font-medium">
+                        {new Date(selectedMeta.modifiedAt).toLocaleDateString()}
+                      </dd>
                     </div>
                   )}
                 </dl>
