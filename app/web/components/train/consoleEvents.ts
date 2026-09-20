@@ -111,7 +111,6 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
   };
 
   for (const line of splitLogFragments(lines)) {
-
     const phase = line.match(PHASE_RE);
     if (phase) {
       currentPhase = phase[3].trim().replace(/\.*$/, "");
@@ -177,7 +176,8 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       continue;
     }
 
-    const epochLine = line.match(EPOCH_RE);    if (epochLine) {
+    const epochLine = line.match(EPOCH_RE);
+    if (epochLine) {
       const lossValue = epochLine[6];
       events.push({
         kind: "epoch",
@@ -225,9 +225,10 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
   // width transitions, making progress look like it starts over).
   events.forEach((ev, i) => {
     ev.key = `ev-${i}`;
-    if (ev.kind === "error") ev.lines.forEach((l, j) => {
-      l.key = `ev-${i}-l${j}`;
-    });
+    if (ev.kind === "error")
+      ev.lines.forEach((l, j) => {
+        l.key = `ev-${i}-l${j}`;
+      });
   });
 
   if (terminal) {

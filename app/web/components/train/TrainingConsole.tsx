@@ -179,7 +179,12 @@ export default function TrainingConsole({
     return events.filter((ev) => {
       const text = eventText(ev);
       const lower = text.toLowerCase();
-      if (level === "epochs" && ev.kind !== "epoch" && !lower.includes("epoch=") && !lower.includes("epoch:")) {
+      if (
+        level === "epochs" &&
+        ev.kind !== "epoch" &&
+        !lower.includes("epoch=") &&
+        !lower.includes("epoch:")
+      ) {
         return false;
       }
       if (
@@ -635,8 +640,7 @@ export default function TrainingConsole({
                   );
                 }
                 if (ev.kind === "epoch") {
-                  const isBest =
-                    ev.loss !== null && ev.loss.epoch === ev.epoch && ev.loss.step === ev.step;
+                  const isBest = ev.loss !== null && ev.loss.epoch === ev.epoch && ev.loss.step === ev.step;
                   return (
                     <div
                       key={ev.key}
@@ -659,7 +663,9 @@ export default function TrainingConsole({
                       {ev.loss && (
                         <span className="ml-auto flex items-center gap-1.5 text-[11px]">
                           <span className="text-neutral-500">{t("loss")}</span>
-                          <span className={`font-semibold ${isBest ? "text-emerald-400" : "text-neutral-200"}`}>
+                          <span
+                            className={`font-semibold ${isBest ? "text-emerald-400" : "text-neutral-200"}`}
+                          >
                             {ev.loss.value}
                           </span>
                           {isBest && (
