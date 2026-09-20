@@ -515,9 +515,7 @@ export default function InferenceForm() {
                   ).map((row) => {
                     const value = row.value ?? "";
                     const missing =
-                      value === "" ||
-                      value === "None" ||
-                      (row.numeric && Number.isNaN(Number(value)));
+                      value === "" || value === "None" || (row.numeric && Number.isNaN(Number(value)));
                     return (
                       <div key={row.label}>
                         <dt>{row.label}</dt>
@@ -532,7 +530,11 @@ export default function InferenceForm() {
                           ) : row.numeric ? (
                             Number(value).toLocaleString()
                           ) : row.sampleRate ? (
-                            value.endsWith("k") ? `${value}Hz` : `${Number(value) / 1000} kHz`
+                            value.endsWith("k") ? (
+                              `${value}Hz`
+                            ) : (
+                              `${Number(value) / 1000} kHz`
+                            )
                           ) : row.pitch ? (
                             value === "1" || value === "True" || value === "true" ? (
                               t("Yes")

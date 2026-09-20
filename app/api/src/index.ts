@@ -4,7 +4,6 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import { killJobTree } from "@/cli";
-import { inferenceWorker } from "@/worker";
 import { errMsg } from "@/errors";
 import { getJob, setError } from "@/jobs";
 import {
@@ -33,6 +32,7 @@ import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "@/rout
 import trainRouter from "@/routes/train";
 import ttsRouter from "@/routes/tts";
 import uvrRouter from "@/routes/uvr";
+import { inferenceWorker } from "@/worker";
 
 const app = express();
 const PORT = Number(process.env.API_PORT || process.env.PORT || 8000);

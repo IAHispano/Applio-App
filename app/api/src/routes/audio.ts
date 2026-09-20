@@ -48,30 +48,25 @@ router.post("/youtube", (req: Request, res: Response) => {
     ];
     const ffmpeg = bundledFfmpeg();
     if (ffmpeg) args.push("--ffmpeg-bin", ffmpeg);
-    const job = startCliJob(
-      "other",
-      { url, outputFormat },
-      args,
-      {
-        parse: (stdout) => {
-          // Regex (not line-split): progress output may use \r redraws that
-          // glue everything into one line.
-          const m = stdout.match(/APPLIO_JSON:([^\r\n]+)/);
-          if (!m) throw new Error("Download finished without reporting a file.");
-          const data = JSON.parse(m[1]) as { file?: string; title?: string };
-          if (!data.file || !fs.existsSync(data.file)) throw new Error("Downloaded file not found.");
-          return {
-            result: {
-              file: repoRel(data.file),
-              title: data.title ?? "",
-              message: data.title ? `Downloaded "${data.title}".` : "YouTube audio downloaded.",
-            },
-            // Absolute here: startCliJob applies repoRel() once itself.
-            outputFile: data.file,
-          };
-        },
+    const job = startCliJob("other", { url, outputFormat }, args, {
+      parse: (stdout) => {
+        // Regex (not line-split): progress output may use \r redraws that
+        // glue everything into one line.
+        const m = stdout.match(/APPLIO_JSON:([^\r\n]+)/);
+        if (!m) throw new Error("Download finished without reporting a file.");
+        const data = JSON.parse(m[1]) as { file?: string; title?: string };
+        if (!data.file || !fs.existsSync(data.file)) throw new Error("Downloaded file not found.");
+        return {
+          result: {
+            file: repoRel(data.file),
+            title: data.title ?? "",
+            message: data.title ? `Downloaded "${data.title}".` : "YouTube audio downloaded.",
+          },
+          // Absolute here: startCliJob applies repoRel() once itself.
+          outputFile: data.file,
+        };
       },
-    );
+    });
     return res.status(202).json({ jobId: job.id });
   } catch (err) {
     return res.status(400).json({ error: errMsg(err) });
