@@ -137,9 +137,9 @@ export async function runPythonJson<T = unknown>(code: string, onData?: (line: s
     },
   });
   if (r.code !== 0) throw new Error(r.stderr.slice(-3000) || "Python failed");
-  const marker = r.stdout.split("\n").find((l) => l.startsWith("APPLIO_JSON:"));
-  if (!marker) throw new Error(`Python did not return JSON: ${r.stdout.slice(-500)}`);
-  return JSON.parse(marker.slice("APPLIO_JSON:".length)) as T;
+  const m = r.stdout.match(/APPLIO_JSON:([^\r\n]+)/);
+  if (!m) throw new Error(`Python did not return JSON: ${r.stdout.slice(-500)}`);
+  return JSON.parse(m[1]) as T;
 }
 
 export function repoRel(absPath: string): string {

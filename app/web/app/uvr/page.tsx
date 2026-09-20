@@ -10,7 +10,7 @@ import { Alert, Badge, Button, Card, CardHeader, CustomSelect, SliderField } fro
 import AudioDropzone from "@/components/ui/AudioDropzone";
 import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { useJob } from "@/lib/useJob";
+import { useJob, usePersistentJobId } from "@/lib/useJob";
 
 interface UvrModel {
   filename: string;
@@ -50,7 +50,7 @@ export default function UvrPage() {
   const [mdxOverlap, setMdxOverlap] = useState(0.25);
   const [device, setDevice] = useState("auto");
   const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = usePersistentJobId("uvr");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const { job } = useJob(jobId);

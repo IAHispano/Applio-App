@@ -2,29 +2,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { repoRel, runPythonJson, startCliJob } from "@/cli";
+import { startCliJob } from "@/cli";
 import { errMsg } from "@/errors";
+import { setProgress } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
-import { getOutputsDir, getRepoRoot, resolveUserPath } from "@/python";
+import { getOutputsDir, resolveUserPath, runPythonModule } from "@/python";
 
 const router = Router();
 
 const upload = audioUpload();
-
-function uvrDir(): string {
-  return path.join(getRepoRoot(), "uvr");
-}
-
-function modelDir(): string {
-  return path.join(getRepoRoot(), "assets", "uvr-models");
-}
-
-function inputFrom(req: Request): string {
-  if (req.file) return req.file.path;
-  const p = (req.body as Record<string, unknown>).inputPath;
-  if (typeof p === "string" && p) return resolveUserPath(p);
-  throw new Error("Provide an 'audio' upload or 'inputPath'.");
-}
 
 export interface UvrModelEntry {
   filename: string;
@@ -34,61 +20,53 @@ export interface UvrModelEntry {
   target_stem: string | null;
 }
 
-// Simplified registry ({filename: {Name, Type, Stems, SDR}}) as produced by
-// Separator.get_simplified_model_list(), converted for the UI dropdown.
-function simplifyRegistry(
-  raw: Record<string, { Name?: string; Type?: string; Stems?: string[] }>,
-): UvrModelEntry[] {
-  const stemToken = (s: string) => s.split(" (")[0];
-  const models = Object.entries(raw).map(([filename, data]) => {
-    const tokens = (data.Stems ?? []).map(stemToken);
-    return {
-      filename,
-      name: data.Name ?? filename,
-      type: data.Type ?? "Unknown",
-      stems: tokens.map((t) => t.replace(/\*$/, "")),
-      target_stem: tokens.find((t) => t.endsWith("*"))?.replace(/\*$/, "") ?? null,
-    };
-  });
-  models.sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
-  return models;
+// Live registry from uvr/models.py (single source of truth). The catalog
+// script is dependency-free, so this answers in well under a second.
+async function fetchCatalog(): Promise<UvrModelEntry[]> {
+  const r = await runPythonModule([path.join("uvr", "separate.py"), "--list-models"]);
+  if (r.code !== 0) throw new Error(r.stderr.slice(-500) || "Model catalog failed.");
+  // Regex (not line-split): vendored libs may print warnings to stdout that
+  // glue onto the payload line.
+  const m = r.stdout.match(/APPLIO_JSON:([^\r\n]+)/);
+  if (!m) throw new Error("Model catalog returned no data.");
+  const data = JSON.parse(m[1]) as { models: CatalogModel[] };
+  if (!Array.isArray(data.models)) throw new Error("Model catalog returned no data.");
+  return data.models.map((m) => ({
+    filename: m.filename,
+    name: m.label,
+    type: m.arch.toUpperCase(),
+    stems: m.stems.map(titleCase),
+    target_stem: m.target ? titleCase(m.target) : null,
+  }));
 }
 
-let modelsCache: { at: number; models: UvrModelEntry[] } | null = null;
+interface CatalogModel {
+  key: string;
+  label: string;
+  arch: string;
+  filename: string;
+  stems: string[];
+  target: string | null;
+}
+
+function titleCase(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 // Curated model registry for the UI (weights download on first use).
 router.get("/models", async (_req: Request, res: Response) => {
   try {
-    if (modelsCache && Date.now() - modelsCache.at < 3600_000) {
-      return res.json({ models: modelsCache.models });
-    }
-    fs.mkdirSync(modelDir(), { recursive: true });
-    const code = [
-      "import sys, json, logging",
-      `sys.path.insert(0, ${JSON.stringify(uvrDir())})`,
-      "from audio_separator.separator import Separator",
-      `sep = Separator(log_level=logging.ERROR, model_file_dir=${JSON.stringify(modelDir())}, output_dir=${JSON.stringify(getOutputsDir())}, info_only=True)`,
-      "print('APPLIO_JSON:' + json.dumps({'models': sep.get_simplified_model_list()}))",
-    ].join("; ");
-    const data = await runPythonJson<{
-      models: Record<string, { Name?: string; Type?: string; Stems?: string[] }>;
-    }>(code);
-    const models = simplifyRegistry(data.models);
-    modelsCache = { at: Date.now(), models };
-    return res.json({ models });
+    res.json({ models: await fetchCatalog() });
   } catch (err) {
-    return res.status(500).json({ error: errMsg(err) || "Failed to load UVR model list." });
+    res.status(500).json({ error: errMsg(err) || "Failed to load UVR model list." });
   }
 });
 
-// Label a separated stem file: "song_(Vocals)_MODEL.wav" -> "Vocals".
-export function stemLabel(absPath: string, inputAbs: string): string {
-  const ext = path.extname(absPath);
-  const base = path.basename(absPath, ext);
-  const inputBase = path.basename(inputAbs, path.extname(inputAbs));
-  const rest = base.startsWith(`${inputBase}_`) ? base.slice(inputBase.length + 1) : base;
-  const m = rest.match(/\(([^)]+)\)[^()]*$/);
-  return (m ? m[1] : rest).trim() || base;
+function inputFrom(req: Request): string {
+  if (req.file) return req.file.path;
+  const p = (req.body as Record<string, unknown>).inputPath;
+  if (typeof p === "string" && p) return resolveUserPath(p);
+  throw new Error("Provide an 'audio' upload or 'inputPath'.");
 }
 
 const separateSchema = z.object({
@@ -119,21 +97,22 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
       return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
     }
     const p = parsed.data;
-    fs.mkdirSync(modelDir(), { recursive: true });
+    // Model key/filename validity is enforced by uvr/separate.py
+    // (catalog.resolve), which fails the job with a clear message.
     const outDir = path.join(getOutputsDir(), `uvr_${Date.now()}`);
     fs.mkdirSync(outDir, { recursive: true });
     const args = [
-      path.join(uvrDir(), "runner", "separate.py"),
-      "--input",
+      path.join("uvr", "separate.py"),
+      "--input-path",
       inputAbs,
       "--model",
       p.model,
       "--output-dir",
       outDir,
-      "--model-dir",
-      modelDir(),
       "--output-format",
-      p.outputFormat,
+      p.outputFormat.toLowerCase(),
+      "--single-stem",
+      p.singleStem,
       "--vr-aggression",
       String(p.vrAggression),
       "--vr-window",
@@ -149,28 +128,39 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
       "--device",
       p.device,
     ];
-    if (p.singleStem !== "all") args.push("--single-stem", p.singleStem);
     const job = startCliJob(
       "other",
       { inputPath: inputAbs, model: p.model, outputFormat: p.outputFormat, device: p.device },
       args,
       {
+        onChunk: (chunk) => {
+          // tqdm progress (" 45%|…") → real %. Take the last percentage in
+          // the chunk; only move forward.
+          const matches = chunk.match(/(\d{1,3})%\s*\|/g);
+          if (!matches || matches.length === 0) return;
+          const pct = Number(matches[matches.length - 1].replace(/[^0-9]/g, ""));
+          if (Number.isFinite(pct) && (job.progress ?? -1) < pct) setProgress(job, pct);
+        },
         parse: (stdout) => {
-          // Regex (not line-split): progress bars may use \r redraws that
-          // glue everything into one line.
+          // Regex (not line-split): progress output may use \r redraws that
+          // glue everything into one line, and vendored libs may print
+          // warnings to stdout.
           const m = stdout.match(/APPLIO_JSON:([^\r\n]+)/);
           if (!m) throw new Error("Separator finished without reporting outputs.");
-          const data = JSON.parse(m[1]) as { outputs?: string[] };
-          if (!data.outputs || data.outputs.length === 0) throw new Error("No stems produced.");
-          const stems = data.outputs.map((abs) => ({
-            label: stemLabel(abs, inputAbs),
-            file: repoRel(abs),
+          const data = JSON.parse(m[1]) as {
+            stems?: Record<string, string>;
+            outputFile?: string;
+          };
+          const entries = Object.entries(data.stems ?? {});
+          if (entries.length === 0) throw new Error("No stems produced.");
+          setProgress(job, 100);
+          const stems = entries.map(([label, file]) => ({
+            label,
+            file,
             // Ready-to-play URL: outputUrl() only handles flat basenames, so
-            // build the subdirectory-preserving URL here instead. Relative to
-            // the outputs root (not the per-job dir) to keep uvr_<ts>/ prefix.
-            url: `/outputs/${path
-              .relative(getOutputsDir(), abs)
-              .split(path.sep)
+            // build the subdirectory-preserving URL here instead.
+            url: `/${file
+              .split("/")
               .map((seg) => encodeURIComponent(seg))
               .join("/")}`,
           }));
@@ -180,7 +170,8 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
               message: `Separated ${stems.length} stems with ${p.model}.`,
             },
             // No outputFile on purpose: the page renders one player per stem
-            // already, so JobPanel stays a slim status card.
+            // already (JobPanel only resolves flat output basenames, so a
+            // subdirectory file here would render a duplicate broken player).
           };
         },
       },
