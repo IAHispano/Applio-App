@@ -1,5 +1,6 @@
 import {
   Activity,
+  AudioWaveform,
   Bug,
   Cpu,
   Database,
@@ -51,6 +52,12 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Tools & Extras",
     items: [
       { icon: SlidersHorizontal, label: "Extra", to: "/extra", blurb: "Audio analyzer and pitch extractor" },
+      {
+        icon: AudioWaveform,
+        label: "UVR Separator",
+        to: "/uvr",
+        blurb: "Split vocals, instrumental and stems",
+      },
     ],
   },
   {

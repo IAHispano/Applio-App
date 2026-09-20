@@ -33,3 +33,14 @@ psutil==7.2.2
 uvicorn>=0.30.0
 fastapi>=0.110.0
 websockets>=13.0
+yt-dlp==2026.8.19
+
+# UVR stem separation (vendored engine in uvr/; weights download on first use)
+onnxruntime==1.30.0
+onnx==1.23.0
+onnx2torch==1.5.15
+audioread==3.1.0
+pydub==0.25.1
+ml_collections==1.1.0
+rotary-embedding-torch==0.6.5
+beartype==0.22.9

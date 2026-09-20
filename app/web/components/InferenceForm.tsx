@@ -650,6 +650,7 @@ export default function InferenceForm() {
               onFileSelect={setAudioFile}
               onPathSelect={setInputPath}
               disabled={isConverting}
+              youtube
             />
           </Card>
         </div>

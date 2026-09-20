@@ -88,7 +88,7 @@ function seedDataRoot(code: string, data: string): void {
   } catch {
     /* first run */
   }
-  const codeEntries = ["requirements.txt", "LICENSE", "rvc", "plugins"];
+  const codeEntries = ["requirements.txt", "LICENSE", "rvc", "uvr", "tools", "plugins"];
   const dataEntries = ["assets"];
   const needsSeed = current !== version || !fs.existsSync(path.join(data, "rvc"));
   if (!needsSeed) {

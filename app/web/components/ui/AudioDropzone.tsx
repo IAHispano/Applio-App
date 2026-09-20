@@ -1,11 +1,14 @@
 "use client";
 
-import { Check, ChevronDown, Mic, Music, UploadCloud } from "lucide-react";
+import { ChevronDown, Mic, Music, SquarePlay, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { resolveAudioUrl } from "@/lib/api";
+import { apiSend, errMsg, resolveAudioUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useJob } from "@/lib/useJob";
+import Alert from "./Alert";
+import Button from "./Button";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;
@@ -14,7 +17,14 @@ export interface AudioDropzoneProps {
   onFileSelect: (file: File | null) => void;
   onPathSelect: (path: string) => void;
   disabled?: boolean;
+  /** Show the YouTube tab: paste a link, download to assets/audios, select it. */
+  youtube?: boolean;
 }
+
+const YOUTUBE_RE =
+  /^(https?:\/\/)?(www\.|m\.|music\.)?(youtube\.com\/(watch|shorts|live|embed)|youtu\.be\/)/i;
+
+type DropzoneTab = "upload" | "samples" | "youtube" | "mic";
 
 async function blobToWavFile(blob: Blob, baseName: string): Promise<File> {
   const ctx = new AudioContext();
@@ -81,14 +91,20 @@ export default function AudioDropzone({
   onFileSelect,
   onPathSelect,
   disabled = false,
+  youtube = false,
 }: AudioDropzoneProps) {
   const { t } = useI18n();
-  const [tab, setTab] = useState<"upload" | "samples" | "mic">("upload");
+  const [tab, setTab] = useState<DropzoneTab>("upload");
   const [isDragging, setIsDragging] = useState(false);
   const [recording, setRecording] = useState(false);
   const [recDuration, setRecDuration] = useState(0);
   const [micError, setMicError] = useState("");
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const [ytUrl, setYtUrl] = useState("");
+  const [ytJobId, setYtJobId] = useState<string | null>(null);
+  const [ytStarting, setYtStarting] = useState(false);
+  const [ytError, setYtError] = useState("");
+  const { job: ytJob } = useJob(youtube ? ytJobId : null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
@@ -109,7 +125,7 @@ export default function AudioDropzone({
   // Clean up object URL when file changes or unmounts
   useEffect(() => {
     return () => {
-      if (previewSrc && previewSrc.startsWith("blob:")) {
+      if (previewSrc?.startsWith("blob:")) {
         URL.revokeObjectURL(previewSrc);
       }
     };
@@ -149,6 +165,7 @@ export default function AudioDropzone({
       if (file.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)) {
         onFileSelect(file);
         onPathSelect("");
+        resetYoutube();
         setShowSourcePicker(false);
       }
     }
@@ -159,6 +176,7 @@ export default function AudioDropzone({
     if (file) {
       onFileSelect(file);
       onPathSelect("");
+      resetYoutube();
       setShowSourcePicker(false);
     }
   };
@@ -216,8 +234,98 @@ export default function AudioDropzone({
     onFileSelect(null);
     onPathSelect("");
     setShowSourcePicker(false);
+    setYtJobId(null);
+    setYtError("");
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
+
+  const resetYoutube = () => {
+    setYtJobId(null);
+    setYtError("");
+  };
+
+  const ytActive = ytStarting || ytJob?.status === "running" || ytJob?.status === "queued";
+
+  // Adopt a finished YouTube download as the selected source.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: adopt terminal states once
+  useEffect(() => {
+    if (!youtube || !ytJobId || !ytJob) return;
+    if (ytJob.status === "done") {
+      const file = (ytJob.result as { file?: string } | undefined)?.file;
+      if (file) {
+        onPathSelect(file);
+        onFileSelect(null);
+        setShowSourcePicker(false);
+        setYtUrl("");
+      } else {
+        setYtError(t("Download finished without an audio file."));
+      }
+      setYtJobId(null);
+    } else if (ytJob.status === "error") {
+      setYtError(ytJob.error || t("YouTube download failed."));
+      setYtJobId(null);
+    }
+  }, [youtube, ytJobId, ytJob]);
+
+  async function startYoutubeDownload() {
+    const url = ytUrl.trim();
+    if (!YOUTUBE_RE.test(url)) {
+      setYtError(t("Paste a single YouTube video link (watch, shorts or youtu.be)."));
+      return;
+    }
+    setYtError("");
+    setYtStarting(true);
+    try {
+      const { jobId } = await apiSend<{ jobId: string }>("/api/audio/youtube", "POST", {
+        url,
+        outputFormat: "wav",
+      });
+      setYtJobId(jobId);
+    } catch (e) {
+      setYtError(errMsg(e));
+    } finally {
+      setYtStarting(false);
+    }
+  }
+
+  function renderYoutubePanel(idSuffix: string) {
+    return (
+      <div className="space-y-2 py-1">
+        <label htmlFor={`yt-url-${idSuffix}`} className="text-xs font-medium text-neutral-300">
+          {t("Paste a YouTube link")}
+        </label>
+        <div className="flex items-center gap-2">
+          <input
+            id={`yt-url-${idSuffix}`}
+            type="url"
+            value={ytUrl}
+            disabled={disabled || ytActive}
+            onChange={(e) => setYtUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") startYoutubeDownload();
+            }}
+            placeholder="https://youtube.com/watch?v=…"
+            className="flex-1 min-w-0"
+          />
+          <Button
+            size="sm"
+            onClick={startYoutubeDownload}
+            disabled={disabled || ytActive || !ytUrl.trim()}
+            loading={ytActive}
+            icon={<SquarePlay size={14} />}
+          >
+            {t("Fetch audio")}
+          </Button>
+        </div>
+        <p className="text-[11px] text-neutral-500 m-0">
+          {ytActive
+            ? t("Downloading… the track is saved to assets/audios when done.")
+            : t("Single videos only — saved to assets/audios for reuse.")}
+        </p>
+        {ytError && <Alert variant="error">{ytError}</Alert>}
+      </div>
+    );
+  }
 
   const activeTitle = audioFile ? audioFile.name : inputPath.split(/[\\/]/).pop()?.split("?")[0] || inputPath;
 
@@ -312,9 +420,27 @@ export default function AudioDropzone({
                     <span>{t("Microphone")}</span>
                   </span>
                 </button>
+
+                {youtube && (
+                  <button
+                    type="button"
+                    onClick={() => setTab("youtube")}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                      tab === "youtube"
+                        ? "bg-white/10 text-white font-medium"
+                        : "text-neutral-400 hover:text-white"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <SquarePlay size={14} />
+                      <span>{t("YouTube")}</span>
+                    </span>
+                  </button>
+                )}
               </div>
 
               {tab === "upload" && (
+                // biome-ignore lint/a11y/useSemanticElements: interactive dropzone container
                 <div
                   onClick={() => fileInputRef.current?.click()}
                   onKeyDown={(e) => {
@@ -369,6 +495,8 @@ export default function AudioDropzone({
                   )}
                 </div>
               )}
+
+              {youtube && tab === "youtube" && renderYoutubePanel("change")}
 
               {tab === "mic" && (
                 <div className="py-4 flex flex-col items-center justify-center text-center space-y-3">
@@ -458,6 +586,23 @@ export default function AudioDropzone({
                   <span>{t("Microphone")}</span>
                 </span>
               </button>
+
+              {youtube && (
+                <button
+                  type="button"
+                  onClick={() => setTab("youtube")}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    tab === "youtube"
+                      ? "bg-white/10 text-white font-medium"
+                      : "text-neutral-400 hover:text-white"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <SquarePlay size={14} />
+                    <span>{t("YouTube")}</span>
+                  </span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -541,6 +686,8 @@ export default function AudioDropzone({
               )}
             </div>
           )}
+
+          {youtube && tab === "youtube" && renderYoutubePanel("empty")}
 
           {tab === "mic" && (
             <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center space-y-4">

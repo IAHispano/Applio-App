@@ -35,6 +35,18 @@ files:
       - "!**/*.pyc"
       - "!**/.venv/**"
       - "!**/venv/**"
+  - from: ../../uvr
+    to: uvr
+    filter:
+      - "**/*"
+      - "!**/__pycache__"
+      - "!**/*.pyc"
+  - from: ../../tools
+    to: tools
+    filter:
+      - "**/*"
+      - "!**/__pycache__"
+      - "!**/*.pyc"
   - from: ../../assets
     to: assets
     filter:

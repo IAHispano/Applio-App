@@ -14,6 +14,7 @@ import {
   resolveUserPath,
   runPythonModule,
 } from "@/python";
+import audioRouter from "@/routes/audio";
 import batchRouter from "@/routes/batch";
 import blenderRouter from "@/routes/blender";
 import downloadRouter from "@/routes/download";
@@ -30,6 +31,7 @@ import setupRouter from "@/routes/setup";
 import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "@/routes/tensorboard";
 import trainRouter from "@/routes/train";
 import ttsRouter from "@/routes/tts";
+import uvrRouter from "@/routes/uvr";
 
 const app = express();
 const PORT = Number(process.env.API_PORT || process.env.PORT || 8000);
@@ -100,7 +102,9 @@ app.use("/api/tts", ttsRouter);
 app.use("/api/voice-blender", blenderRouter);
 app.use("/api/download", downloadRouter);
 app.use("/api/extra", extraRouter);
+app.use("/api/audio", audioRouter);
 app.use("/api/train", trainRouter);
+app.use("/api/uvr", uvrRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/tensorboard", tensorboardRouter);
 app.use("/api/report", reportRouter);
