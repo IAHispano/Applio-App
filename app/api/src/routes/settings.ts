@@ -106,6 +106,21 @@ function saveConfig(cfg: JsonObject) {
   fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2));
 }
 
+// Single source of truth for the installed app version: the root
+// package.json (bumped with releases). The mutable assets/config.json
+// "version" field goes stale (user values override the template merge) and
+// must never drive update comparisons.
+function readPackageVersion(): string {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(getRepoRoot(), "package.json"), "utf-8")) as {
+      version?: unknown;
+    };
+    return typeof pkg.version === "string" && pkg.version ? pkg.version : "unknown";
+  } catch {
+    return "unknown";
+  }
+}
+
 const settingsSchema = z.object({
   model_index_filter: z.boolean().optional(),
   discord_presence: z.boolean().optional(),
@@ -401,11 +416,14 @@ router.get("/theme", (req: Request, res: Response) => {
 
 router.get("/version-check", async (_req: Request, res: Response) => {
   try {
-    const local = loadConfig().version || "unknown";
+    const local = readPackageVersion();
+    const headers: Record<string, string> = { "User-Agent": "Applio" };
+    // Authenticated requests get 5k/hr instead of 60 — avoids the 403 wall.
+    if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 8000);
     const r = await fetch("https://api.github.com/repos/IAHispano/Applio-App/releases?per_page=30", {
-      headers: { "User-Agent": "Applio" },
+      headers,
       signal: ctrl.signal,
     });
     clearTimeout(t);
@@ -501,6 +519,13 @@ router.get("/version-check", async (_req: Request, res: Response) => {
   }
 });
 
+// Local installed version. Never touches the network, so the UI can always
+// show the real version even when the GitHub comparison fails (offline,
+// rate-limited).
+router.get("/version", (_req: Request, res: Response) => {
+  res.json({ version: readPackageVersion() });
+});
+
 router.post("/apply-update", async (_req: Request, res: Response) => {
   try {
     const isGit = fs.existsSync(path.join(getRepoRoot(), ".git"));
@@ -519,11 +544,12 @@ router.post("/apply-update", async (_req: Request, res: Response) => {
 
       let newVersion = "";
       try {
-        const tpl = JSON.parse(fs.readFileSync(templatePath(), "utf-8"));
-        if (tpl.version) {
-          newVersion = tpl.version;
+        // Sync the (display-only) config version with the real installed
+        // version so every surface agrees after an update.
+        newVersion = readPackageVersion();
+        if (newVersion && newVersion !== "unknown") {
           const cfg = loadConfig();
-          cfg.version = tpl.version;
+          cfg.version = newVersion;
           saveConfig(cfg);
         }
       } catch {

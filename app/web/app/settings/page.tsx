@@ -150,6 +150,7 @@ export default function SettingsPage() {
     }>
   >([]);
   const [ver, setVer] = useState<VersionCheck | null>(null);
+  const [localVer, setLocalVer] = useState("");
   const [updaterState, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -228,6 +229,9 @@ export default function SettingsPage() {
   useEffect(() => {
     load();
     checkVersion();
+    apiGet<{ version: string }>("/api/settings/version")
+      .then((v) => setLocalVer(v.version))
+      .catch(() => {});
     if (typeof window !== "undefined") {
       const bridge = (
         window as unknown as {
@@ -647,7 +651,7 @@ export default function SettingsPage() {
           title={
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white m-0">{t("Version & Updates")}</h2>
-              <Badge variant="neutral">{displayVersion(cfg.version)}</Badge>
+              <Badge variant="neutral">{displayVersion(localVer || ver?.local || cfg.version)}</Badge>
             </div>
           }
           description={t("Check for official Applio updates and apply package releases.")}
