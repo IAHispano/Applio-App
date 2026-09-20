@@ -511,7 +511,7 @@ export default function InferenceForm() {
                   </div>
                   <div>
                     <dt>{t("Index")}</dt>
-                    <dd>
+                    <dd className="text-white font-medium">
                       {selectedMeta?.indexSize
                         ? humanSize(selectedMeta.indexSize)
                         : indexPath
@@ -528,13 +528,13 @@ export default function InferenceForm() {
                   {inspectMeta?.step && inspectMeta.step !== "None" && (
                     <div>
                       <dt>{t("Training Steps")}</dt>
-                      <dd>{Number(inspectMeta.step).toLocaleString()}</dd>
+                      <dd className="text-white font-medium">{Number(inspectMeta.step).toLocaleString()}</dd>
                     </div>
                   )}
                   {inspectMeta?.sr && inspectMeta.sr !== "None" && (
                     <div>
                       <dt>{t("Sample Rate")}</dt>
-                      <dd>
+                      <dd className="text-white font-medium">
                         {inspectMeta.sr.endsWith("k")
                           ? `${inspectMeta.sr}Hz`
                           : `${Number(inspectMeta.sr) / 1000} kHz`}
@@ -544,7 +544,7 @@ export default function InferenceForm() {
                   {inspectMeta?.f0 && inspectMeta.f0 !== "None" && (
                     <div>
                       <dt>{t("Pitch extraction algorithm")}</dt>
-                      <dd>
+                      <dd className="text-white font-medium">
                         {inspectMeta.f0 === "1" || inspectMeta.f0 === "True" || inspectMeta.f0 === "true"
                           ? t("Yes")
                           : t("No (pitchless)")}
@@ -554,19 +554,19 @@ export default function InferenceForm() {
                   {inspectMeta?.embedder_model && inspectMeta.embedder_model !== "None" && (
                     <div>
                       <dt>{t("Embedder Model")}</dt>
-                      <dd className="truncate" title={inspectMeta.embedder_model}>
+                      <dd className="text-white font-medium truncate" title={inspectMeta.embedder_model}>
                         {inspectMeta.embedder_model}
                       </dd>
                     </div>
                   )}
                   <div>
                     <dt>{t("Speakers")}</dt>
-                    <dd>{speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}</dd>
+                    <dd className="text-white font-medium">{speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}</dd>
                   </div>
                   {selectedMeta?.folder && (
                     <div>
                       <dt>{t("Folder")}</dt>
-                      <dd className="truncate" title={selectedMeta.folder}>
+                      <dd className="text-white font-medium truncate" title={selectedMeta.folder}>
                         {selectedMeta.folder}
                       </dd>
                     </div>
@@ -574,7 +574,7 @@ export default function InferenceForm() {
                   {selectedMeta?.modifiedAt && (
                     <div>
                       <dt>{t("Modified")}</dt>
-                      <dd>{new Date(selectedMeta.modifiedAt).toLocaleDateString()}</dd>
+                      <dd className="text-white font-medium">{new Date(selectedMeta.modifiedAt).toLocaleDateString()}</dd>
                     </div>
                   )}
                 </dl>
