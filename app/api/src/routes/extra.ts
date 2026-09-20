@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { runPythonJson, startCliJob } from "../cli";
-import { errMsg } from "../errors";
-import { appendLog, createJob, setDone, setError, setRunning } from "../jobs";
-import { audioUpload } from "../lib/upload";
-import { getOutputsDir, getRepoRoot, resolveUserPath } from "../python";
+import { runPythonJson, startCliJob } from "@/cli";
+import { errMsg } from "@/errors";
+import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
+import { audioUpload } from "@/lib/upload";
+import { getOutputsDir, getRepoRoot, resolveUserPath } from "@/python";
 
 const router = Router();
 

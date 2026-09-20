@@ -2,6 +2,20 @@
 
 import { FileText, Music, RotateCcw, Sliders, Volume2, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  FormField,
+  ModelDropdown,
+  RadioGroup,
+  SliderField,
+  ToggleField,
+} from "@/components/ui";
 import {
   apiGet,
   errMsg,
@@ -13,24 +27,11 @@ import {
   pollJob,
   postForm,
   stopJob,
-} from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { matchIndex } from "../../lib/model-index";
-import { usePersistentJobId } from "../../lib/useJob";
-import { useSpeakers } from "../../lib/useSpeakers";
-import AudioWavePlayer from "../AudioWavePlayer";
-import {
-  Alert,
-  Badge,
-  Card,
-  CardHeader,
-  CustomSelect,
-  FormField,
-  ModelDropdown,
-  RadioGroup,
-  SliderField,
-  ToggleField,
-} from "../ui";
+} from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { matchIndex } from "@/lib/model-index";
+import { usePersistentJobId } from "@/lib/useJob";
+import { useSpeakers } from "@/lib/useSpeakers";
 
 interface Voice {
   shortName: string;
@@ -520,23 +521,14 @@ export default function TtsForm() {
         <Card as="section" className="space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-                disabled={busy}
-              >
-                <Wand2 size={16} className="shrink-0" />
-                <span>{busy ? t("Submitting…") : t("Convert Speech")}</span>
-              </button>
+              <Button type="submit" disabled={busy} icon={<Wand2 size={16} />}>
+                {busy ? t("Submitting…") : t("Convert Speech")}
+              </Button>
 
               {job && (job.status === "running" || job.status === "queued") && (
-                <button
-                  type="button"
-                  className="ghost h-10 px-4 flex items-center gap-1.5 text-xs font-medium rounded-xl text-red-400 hover:text-red-300 border-red-500/30"
-                  onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
-                >
+                <Button variant="danger" onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}>
                   {t("Cancel")}
-                </button>
+                </Button>
               )}
             </div>
 

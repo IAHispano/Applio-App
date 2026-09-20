@@ -3,7 +3,7 @@
 import { Check, ChevronDown, Mic2, RefreshCw, Search, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useI18n } from "../../lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 export interface ModelDropdownProps {
   models: string[];

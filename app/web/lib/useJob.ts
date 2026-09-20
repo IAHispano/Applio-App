@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { errMsg, fetchJob, type Job, pollJob, stopJob } from "./api";
+import { errMsg, fetchJob, type Job, pollJob, stopJob } from "@/lib/api";
 
 const JOB_ID_PREFIX = "applio:job:";
 

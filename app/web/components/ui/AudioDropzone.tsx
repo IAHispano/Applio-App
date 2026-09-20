@@ -2,10 +2,10 @@
 
 import { Check, ChevronDown, Mic, Music, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { resolveAudioUrl } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import AudioWavePlayer from "../AudioWavePlayer";
-import CustomSelect from "./CustomSelect";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
+import CustomSelect from "@/components/ui/CustomSelect";
+import { resolveAudioUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;

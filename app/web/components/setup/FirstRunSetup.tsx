@@ -11,9 +11,9 @@ import {
   Sparkles,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { apiGet, apiSend, errMsg, fetchJob, type Job } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { Alert, Badge, Card } from "../ui";
+import { Alert, Badge, Button, Card } from "@/components/ui";
+import { apiGet, apiSend, errMsg, fetchJob, type Job } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface SetupCheck {
   id: string;
@@ -319,45 +319,31 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           <Alert variant="error" title={t("Setup Encountered an Issue")}>
             <div className="space-y-2">
               <p className="m-0 leading-relaxed text-xs">{error}</p>
-              <button
-                type="button"
-                className="cta text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
-                onClick={retry}
-              >
-                <RefreshCw size={13} />
-                <span>{t("Retry Automated Setup")}</span>
-              </button>
+              <Button size="xs" onClick={retry} icon={<RefreshCw size={13} />}>
+                {t("Retry Automated Setup")}
+              </Button>
             </div>
           </Alert>
         )}
 
         {/* Action Controls */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-          <button
-            type="button"
-            className="ghost text-xs px-3 py-1.5 flex items-center gap-1.5 text-neutral-400 hover:text-white rounded-lg"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => setShowLogs(!showLogs)}
             aria-expanded={showLogs}
             aria-controls="setup-console-logs"
+            icon={<Activity size={14} className="text-white" />}
+            iconAfter={showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           >
-            <Activity size={14} className="text-white shrink-0" />
-            <span>{showLogs ? t("Hide Activity Details") : t("View Activity Details")}</span>
-            {showLogs ? (
-              <ChevronUp size={14} className="shrink-0" />
-            ) : (
-              <ChevronDown size={14} className="shrink-0" />
-            )}
-          </button>
+            {showLogs ? t("Hide Activity Details") : t("View Activity Details")}
+          </Button>
 
           {job?.status === "done" && (
-            <button
-              type="button"
-              className="cta h-10 px-5 text-sm font-medium flex items-center gap-2 rounded-xl shadow-lg"
-              onClick={onComplete}
-            >
-              <span>{countdown !== null ? `Entering Applio (${countdown}s)…` : t("Launch Applio")}</span>
-              <ArrowRight size={16} className="shrink-0" />
-            </button>
+            <Button onClick={onComplete} className="shadow-lg" iconAfter={<ArrowRight size={16} />}>
+              {countdown !== null ? `Entering Applio (${countdown}s)…` : t("Launch Applio")}
+            </Button>
           )}
         </div>
 

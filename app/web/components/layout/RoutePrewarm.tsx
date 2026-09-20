@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { MENU } from "./nav";
+import { MENU } from "@/components/layout/nav";
 
 export default function RoutePrewarm() {
   const router = useRouter();

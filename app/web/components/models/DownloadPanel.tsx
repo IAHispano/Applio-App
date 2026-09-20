@@ -2,11 +2,11 @@
 
 import { Database, Download, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
-import { apiGet, apiSend, errMsg, postForm } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import JobPanel from "../JobPanel";
-import { Alert, Card, CardHeader, ToggleField } from "../ui";
-import CustomSelect from "../ui/CustomSelect";
+import JobPanel from "@/components/JobPanel";
+import { Alert, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import CustomSelect from "@/components/ui/CustomSelect";
+import { apiGet, apiSend, errMsg, postForm } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function DownloadPanel() {
   const { t } = useI18n();
@@ -100,14 +100,9 @@ export default function DownloadPanel() {
             placeholder={t("Model link (Drive, HuggingFace, direct zip)…")}
             className="flex-1 h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
           />
-          <button
-            type="button"
-            className="cta h-10 px-4 flex items-center justify-center gap-2 text-sm font-medium rounded-xl shrink-0"
-            onClick={downloadLink}
-          >
-            <Download size={16} className="shrink-0" />
-            <span>{t("Download")}</span>
-          </button>
+          <Button onClick={downloadLink} icon={<Download size={16} />}>
+            {t("Download")}
+          </Button>
         </div>
 
         <JobPanel jobId={linkJob} compact embedded />
@@ -132,15 +127,15 @@ export default function DownloadPanel() {
             onChange={(e) => setDropFile(e.target.files?.[0] || null)}
             className="flex-1"
           />
-          <button
-            type="button"
-            className="ghost h-10 px-4 flex items-center justify-center gap-2 text-sm font-medium rounded-xl shrink-0"
+          <Button
+            variant="ghost"
             onClick={drop}
             disabled={!dropFile || dropping}
+            loading={dropping}
+            icon={<Upload size={16} className="text-white" />}
           >
-            <Upload size={16} className="text-white shrink-0" />
-            <span>{dropping ? t("Uploading…") : t("Save File")}</span>
-          </button>
+            {dropping ? t("Uploading…") : t("Save File")}
+          </Button>
         </div>
         {dropMsg && (
           <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
@@ -216,14 +211,13 @@ export default function DownloadPanel() {
         />
 
         <div className="pt-3.5 border-t border-white/5 flex justify-end">
-          <button
-            type="button"
-            className="ghost h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
+          <Button
+            variant="ghost"
             onClick={downloadPretrained}
+            icon={<Download size={16} className="text-white" />}
           >
-            <Download size={16} className="text-white shrink-0" />
-            <span>{t("Download Pretrained")}</span>
-          </button>
+            {t("Download Pretrained")}
+          </Button>
         </div>
 
         <JobPanel jobId={preJob} embedded />

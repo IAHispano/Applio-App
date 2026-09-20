@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import { Syne } from "next/font/google";
-import "./globals.css";
-import PageTransition from "../components/layout/PageTransition";
-import RoutePrewarm from "../components/layout/RoutePrewarm";
-import Sidebar from "../components/layout/Sidebar";
-import AutoUpdateModal from "../components/setup/AutoUpdateModal";
-import TermsModal from "../components/setup/TermsModal";
-import { I18nProvider } from "../lib/i18n";
-import { ThemeProvider } from "../lib/theme";
-import Toaster from "../lib/toast";
+import "@/app/globals.css";
+import PageTransition from "@/components/layout/PageTransition";
+import RoutePrewarm from "@/components/layout/RoutePrewarm";
+import Sidebar from "@/components/layout/Sidebar";
+import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
+import TermsModal from "@/components/setup/TermsModal";
+import { I18nProvider } from "@/lib/i18n";
+import { ThemeProvider } from "@/lib/theme";
+import Toaster from "@/lib/toast";
 
 const syne = Syne({
   subsets: ["latin"],

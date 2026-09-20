@@ -4,8 +4,8 @@ import { Download, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
-import { useI18n } from "../../lib/i18n";
-import { StatTile } from "../ui";
+import { Button, StatTile } from "@/components/ui";
+import { useI18n } from "@/lib/i18n";
 
 interface NativeAnalyzerProps {
   file: File | null;
@@ -361,15 +361,15 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-between">
         <span className="text-xs text-neutral-400 font-medium">{t("Waveform")}</span>
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={downloadSpectrogram}
           disabled={!isReady}
-          className="ghost h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 disabled:opacity-40"
+          icon={<Download size={13} />}
         >
-          <Download size={13} />
-          <span>{t("Download Plot")}</span>
-        </button>
+          {t("Download Plot")}
+        </Button>
       </div>
 
       <div

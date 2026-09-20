@@ -15,14 +15,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { usePersistentJobId } from "../lib/useJob";
-import { useSpeakers } from "../lib/useSpeakers";
-import { Alert, Badge, Card, CardHeader, ToggleField } from "./ui";
-import CustomSelect from "./ui/CustomSelect";
-import ModelDropdown from "./ui/ModelDropdown";
-import SliderField from "./ui/SliderField";
+import { Alert, Badge, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import CustomSelect from "@/components/ui/CustomSelect";
+import ModelDropdown from "@/components/ui/ModelDropdown";
+import SliderField from "@/components/ui/SliderField";
+import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { usePersistentJobId } from "@/lib/useJob";
+import { useSpeakers } from "@/lib/useSpeakers";
 
 const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe"];
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
@@ -385,24 +385,18 @@ export default function BatchForm() {
       <Card>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <button
-              type="submit"
-              disabled={busy || !pthPath || !inputFolder}
-              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-            >
-              <Wand2 size={16} className="shrink-0" />
-              <span>{busy ? t("Converting Batch…") : t("Convert Batch")}</span>
-            </button>
+            <Button type="submit" disabled={busy || !pthPath || !inputFolder} icon={<Wand2 size={16} />}>
+              {busy ? t("Converting Batch…") : t("Convert Batch")}
+            </Button>
 
             {job && (job.status === "running" || job.status === "queued") && (
-              <button
-                type="button"
-                className="ghost h-10 px-4 flex items-center gap-1.5 text-xs font-medium rounded-xl text-red-400 hover:text-red-300 border-red-500/30"
+              <Button
+                variant="danger"
                 onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
+                icon={<StopCircle size={13} />}
               >
-                <StopCircle size={13} />
-                <span>{t("Cancel")}</span>
-              </button>
+                {t("Cancel")}
+              </Button>
             )}
           </div>
 

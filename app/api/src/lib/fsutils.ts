@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getRepoRoot } from "../python";
+import { getRepoRoot } from "@/python";
 
 export function repoRel(absPath: string): string {
   return path.relative(getRepoRoot(), absPath).replace(/\\/g, "/");

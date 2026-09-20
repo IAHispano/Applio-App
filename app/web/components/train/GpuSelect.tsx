@@ -4,7 +4,7 @@ import { Check, ChevronDown, Cpu } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useI18n } from "../../lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 export interface GpuDevice {
   id: string; // "0", "1", ...

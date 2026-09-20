@@ -735,12 +735,14 @@ button.icon-btn {
 button.icon-btn svg {
   flex-shrink: 0;
 }
-button.ghost {
+button.ghost,
+a.ghost {
   background: transparent;
   border: 1px solid var(--button-ghost-border);
   color: var(--button-ghost-text);
 }
-button.ghost:hover {
+button.ghost:hover,
+a.ghost:hover {
   background: var(--button-bg);
   border-color: var(--button-ghost-border-hover);
   color: var(--button-text-hover);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 // Radio group with Gradio gr.Radio look-and-feel (inline options).
 export default function RadioRow({

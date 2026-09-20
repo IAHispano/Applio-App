@@ -18,13 +18,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
-import BlenderPanel from "../../components/models/BlenderPanel";
-import DownloadPanel from "../../components/models/DownloadPanel";
-import ModelInfoCard, { type ModelMetadata } from "../../components/models/ModelInfoCard";
-import { Card, CardHeader, EmptyState, Modal, SegmentedControl } from "../../components/ui";
-import { apiGet, apiSend, errMsg } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import PageHeader from "@/components/layout/PageHeader";
+import BlenderPanel from "@/components/models/BlenderPanel";
+import DownloadPanel from "@/components/models/DownloadPanel";
+import ModelInfoCard, { type ModelMetadata } from "@/components/models/ModelInfoCard";
+import { Button, Card, CardHeader, EmptyState, IconButton, Modal, SegmentedControl } from "@/components/ui";
+import { apiGet, apiSend, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface ModelItem {
   id: string;
@@ -209,36 +209,23 @@ export default function ModelsPage() {
                 className="bg-transparent border-0 py-2 px-0 text-sm text-white placeholder:text-neutral-600 focus:outline-none w-full"
               />
               {search && (
-                <button
-                  type="button"
-                  onClick={() => setSearch("")}
-                  aria-label={t("Clear search")}
-                  className="p-1 flex items-center text-neutral-500 hover:text-white shrink-0 ml-1"
-                >
-                  <X size={14} aria-hidden="true" />
-                </button>
+                <IconButton icon={<X size={14} />} label={t("Clear search")} onClick={() => setSearch("")} />
               )}
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="ghost flex items-center gap-1.5"
+              <Button
+                variant="ghost"
                 onClick={loadLibrary}
                 disabled={loading}
+                icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
               >
-                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                <span>{t("Refresh models and indexes")}</span>
-              </button>
+                {t("Refresh models and indexes")}
+              </Button>
 
-              <button
-                type="button"
-                className="cta flex items-center gap-1.5"
-                onClick={() => setSection("download")}
-              >
-                <Download size={14} />
-                <span>{t("Get Models")}</span>
-              </button>
+              <Button onClick={() => setSection("download")} icon={<Download size={14} />}>
+                {t("Get Models")}
+              </Button>
             </div>
           </div>
 
@@ -257,14 +244,9 @@ export default function ModelsPage() {
                 }
                 action={
                   <div className="flex justify-center gap-3">
-                    <button
-                      type="button"
-                      className="cta flex items-center gap-2"
-                      onClick={() => setSection("download")}
-                    >
-                      <Download size={16} />
-                      <span>{t("Download a Model")}</span>
-                    </button>
+                    <Button onClick={() => setSection("download")} icon={<Download size={16} />}>
+                      {t("Download a Model")}
+                    </Button>
                     <Link href="/train" className="inline-flex">
                       <button type="button" className="ghost">
                         {t("Train New Model")}
@@ -322,35 +304,27 @@ export default function ModelsPage() {
 
                   {/* Actions Footer */}
                   <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => openInInference(m)}
-                      className="cta text-xs px-3 py-1.5 flex items-center gap-1.5"
-                    >
-                      <Sparkles size={13} />
-                      <span>{t("Use")}</span>
-                    </button>
+                    <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
+                      {t("Use")}
+                    </Button>
 
                     <div className="flex items-center gap-1">
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
                         onClick={() => openInspect(m)}
-                        className="ghost text-xs px-2.5 py-1.5 flex items-center gap-1"
                         title={t("View checkpoint metadata")}
                         aria-label={`${t("Inspect model metadata for")} ${m.name}`}
+                        icon={<Info size={13} aria-hidden="true" />}
                       >
-                        <Info size={13} aria-hidden="true" />
-                        <span>{t("Inspect")}</span>
-                      </button>
-                      <button
-                        type="button"
+                        {t("Inspect")}
+                      </Button>
+                      <IconButton
+                        variant="danger"
+                        icon={<Trash2 size={13} aria-hidden="true" />}
+                        label={`${t("Delete model")} ${m.name}`}
                         onClick={() => setDeleteTarget(m)}
-                        className="danger text-xs px-2.5 py-1.5"
-                        title={t("Delete model files")}
-                        aria-label={`${t("Delete model")} ${m.name}`}
-                      >
-                        <Trash2 size={13} aria-hidden="true" />
-                      </button>
+                      />
                     </div>
                   </div>
                 </div>
@@ -397,14 +371,9 @@ export default function ModelsPage() {
                 placeholder="logs/my-model/my-model.pth"
                 className="flex-1 h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
               />
-              <button
-                type="button"
-                className="cta h-10 px-4 flex items-center justify-center gap-2 text-sm font-medium rounded-xl shrink-0"
-                onClick={inspectCustom}
-              >
-                <Info size={16} className="shrink-0" />
-                <span>{t("Inspect File")}</span>
-              </button>
+              <Button onClick={inspectCustom} icon={<Info size={16} />}>
+                {t("Inspect File")}
+              </Button>
             </div>
           </Card>
           <ModelInfoCard
@@ -478,21 +447,19 @@ export default function ModelsPage() {
         )}
 
         <div className="flex justify-end gap-2 pt-2 border-t border-white/10 mt-4">
-          <button type="button" className="ghost" onClick={() => setInspectModal(null)}>
+          <Button variant="ghost" onClick={() => setInspectModal(null)}>
             {t("Close")}
-          </button>
-          <button
-            type="button"
-            className="cta flex items-center gap-1.5"
+          </Button>
+          <Button
             onClick={() => {
               const m = inspectModal;
               setInspectModal(null);
               if (m) openInInference(m);
             }}
+            iconAfter={<ArrowRight size={14} />}
           >
-            <span>{t("Use in Inference")}</span>
-            <ArrowRight size={14} />
-          </button>
+            {t("Use in Inference")}
+          </Button>
         </div>
       </Modal>
 
@@ -509,12 +476,12 @@ export default function ModelsPage() {
           {t("from disk? This will remove its .pth and .index files.")}
         </p>
         <div className="flex justify-end gap-2 pt-4 border-t border-white/10 mt-4">
-          <button type="button" className="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+          <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
             {t("Cancel")}
-          </button>
-          <button type="button" className="danger" onClick={confirmDelete} disabled={deleting}>
+          </Button>
+          <Button variant="danger" onClick={confirmDelete} loading={deleting}>
             {deleting ? t("Deleting…") : t("Delete Model")}
-          </button>
+          </Button>
         </div>
       </Modal>
     </div>

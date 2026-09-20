@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import { trackPid } from "../cli";
-import { errMsg } from "../errors";
-import { appendLog, createJob, getJob, setDone, setError, setRunning } from "../jobs";
-import { buildCommonInferArgs } from "../lib/inferArgs";
-import { audioUpload } from "../lib/upload";
-import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "../python";
-import { type InferenceParams, inferenceParamsSchema } from "../schemas";
-import { inferenceWorker } from "../worker";
+import { trackPid } from "@/cli";
+import { errMsg } from "@/errors";
+import { appendLog, createJob, getJob, setDone, setError, setRunning } from "@/jobs";
+import { buildCommonInferArgs } from "@/lib/inferArgs";
+import { audioUpload } from "@/lib/upload";
+import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
+import { type InferenceParams, inferenceParamsSchema } from "@/schemas";
+import { inferenceWorker } from "@/worker";
 
 const router = Router();
 

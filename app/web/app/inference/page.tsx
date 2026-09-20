@@ -2,11 +2,11 @@
 
 import { Layers, Music } from "lucide-react";
 import { useState } from "react";
-import BatchForm from "../../components/BatchForm";
-import InferenceForm from "../../components/InferenceForm";
-import PageHeader from "../../components/layout/PageHeader";
-import SegmentedControl from "../../components/ui/SegmentedControl";
-import { useI18n } from "../../lib/i18n";
+import BatchForm from "@/components/BatchForm";
+import InferenceForm from "@/components/InferenceForm";
+import PageHeader from "@/components/layout/PageHeader";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import { useI18n } from "@/lib/i18n";
 
 export default function InferencePage() {
   const [mode, setMode] = useState<"single" | "batch">("single");

@@ -2,19 +2,20 @@
 
 import { Activity, Check, Cpu, Palette, Power, RefreshCw, Sliders } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
+import PageHeader from "@/components/layout/PageHeader";
 import {
   Badge,
+  Button,
   Card,
   CardHeader,
   CustomSelect,
   FormField,
   SliderField,
   ToggleField,
-} from "../../components/ui";
-import { apiGet, apiSend, displayVersion, errMsg } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { applyTheme, type ThemeFile } from "../../lib/theme";
+} from "@/components/ui";
+import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { applyTheme, type ThemeFile } from "@/lib/theme";
 
 interface ThemePreset {
   id: string;
@@ -653,32 +654,33 @@ export default function SettingsPage() {
           action={
             <div className="flex items-center gap-2">
               {updaterState?.status === "downloaded" && (
-                <button
-                  type="button"
-                  className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
+                <Button
+                  size="md"
                   onClick={() => {
                     (
                       window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
                     ).applio?.updater?.quitAndInstall();
                   }}
+                  icon={<RefreshCw size={14} />}
                 >
-                  <RefreshCw size={14} className="shrink-0" />
-                  <span>{t("Restart and Update")}</span>
-                </button>
+                  {t("Restart and Update")}
+                </Button>
               )}
 
-              <button
-                type="button"
-                className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
+              <Button
+                size="md"
+                variant="ghost"
                 onClick={checkVersion}
                 disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
+                icon={
+                  <RefreshCw
+                    size={14}
+                    className={`text-white ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
+                  />
+                }
               >
-                <RefreshCw
-                  size={14}
-                  className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
-                />
-                <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
-              </button>
+                {updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}
+              </Button>
             </div>
           }
         />
@@ -763,14 +765,14 @@ export default function SettingsPage() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
+          <Button
+            size="md"
+            variant="ghost"
             onClick={restartApi}
+            icon={<Power size={14} className="text-white" />}
           >
-            <Power size={14} className="text-white shrink-0" />
-            <span>{t("Restart API")}</span>
-          </button>
+            {t("Restart API")}
+          </Button>
         </div>
       </Card>
     </div>

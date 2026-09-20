@@ -3,10 +3,10 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
-import { startCliJob } from "../cli";
-import { errMsg } from "../errors";
-import { appendLog, createJob, setDone, setError, setRunning } from "../jobs";
-import { getRepoRoot, getUploadsDir } from "../python";
+import { startCliJob } from "@/cli";
+import { errMsg } from "@/errors";
+import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
+import { getRepoRoot, getUploadsDir } from "@/python";
 
 const router = Router();
 

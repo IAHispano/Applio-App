@@ -1,12 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import { startCliJob } from "../cli";
-import { errMsg } from "../errors";
-import { buildTtsInferArgs } from "../lib/inferArgs";
-import { txtUpload } from "../lib/upload";
-import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "../python";
-import { ttsSchema } from "../schemas";
+import { startCliJob } from "@/cli";
+import { errMsg } from "@/errors";
+import { buildTtsInferArgs } from "@/lib/inferArgs";
+import { txtUpload } from "@/lib/upload";
+import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { ttsSchema } from "@/schemas";
 
 const router = Router();
 

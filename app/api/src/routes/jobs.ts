@@ -1,5 +1,5 @@
 import { type Request, type Response, Router } from "express";
-import { getJob, listJobs } from "../jobs";
+import { getJob, listJobs } from "@/jobs";
 
 const router = Router();
 

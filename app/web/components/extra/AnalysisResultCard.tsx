@@ -1,10 +1,10 @@
 "use client";
 
 import { Download, FileText, Image as ImageIcon, LineChart, StopCircle, Waves } from "lucide-react";
-import { errMsg, fileBasename, outputUrl, stopJob } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { useJob } from "../../lib/useJob";
-import { Alert, Badge, Card } from "../ui";
+import { Alert, Badge, Button, Card } from "@/components/ui";
+import { errMsg, fileBasename, outputUrl, stopJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { useJob } from "@/lib/useJob";
 
 interface AnalysisResultCardProps {
   jobId: string | null;
@@ -80,14 +80,14 @@ export default function AnalysisResultCard({
         </div>
 
         {isRunning && (
-          <button
-            type="button"
-            className="ghost h-7 px-2.5 text-xs text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1.5 cursor-pointer"
+          <Button
+            variant="danger"
+            size="xs"
             onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
+            icon={<StopCircle size={13} />}
           >
-            <StopCircle size={13} />
-            <span>{t("Cancel")}</span>
-          </button>
+            {t("Cancel")}
+          </Button>
         )}
       </div>
 
@@ -125,24 +125,20 @@ export default function AnalysisResultCard({
 
             <div className="flex items-center gap-2">
               {curveFile && (
-                <a
+                <Button
                   href={outputUrl(curveFile)}
                   download
-                  className="ghost h-9 px-3.5 rounded-xl text-xs font-medium flex items-center gap-1.5 text-neutral-200 hover:text-white"
+                  variant="ghost"
+                  size="md"
+                  icon={<FileText size={14} />}
                 >
-                  <FileText size={14} className="shrink-0" />
-                  <span>{t("Download F0 CSV")}</span>
-                </a>
+                  {t("Download F0 CSV")}
+                </Button>
               )}
 
-              <a
-                href={outputUrl(out)}
-                download
-                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5 shrink-0"
-              >
-                <Download size={14} className="shrink-0" />
-                <span>{t("Download Plot")}</span>
-              </a>
+              <Button href={outputUrl(out)} download size="md" icon={<Download size={14} />}>
+                {t("Download Plot")}
+              </Button>
             </div>
           </div>
         </div>

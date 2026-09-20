@@ -1,9 +1,9 @@
 "use client";
 
 import { StopCircle } from "lucide-react";
-import { errMsg, type Job, stopJob } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { Alert, Badge } from "./ui";
+import { Alert, Badge, Button } from "@/components/ui";
+import { errMsg, type Job, stopJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 // Shared job status UI: badge + error + cancel + progress.
 export function JobBadge({ status }: { status: Job["status"] }) {
@@ -33,15 +33,15 @@ export function JobError({ message }: { message?: string }) {
 export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (msg: string) => void }) {
   const { t } = useI18n();
   return (
-    <button
-      type="button"
-      className="ghost text-xs h-7 px-2.5 text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1"
+    <Button
+      variant="danger"
+      size="xs"
       onClick={() => stopJob(jobId).catch((e) => onError?.(errMsg(e)))}
       aria-label={t("Cancel")}
+      icon={<StopCircle size={13} />}
     >
-      <StopCircle size={13} />
-      <span>{t("Cancel")}</span>
-    </button>
+      {t("Cancel")}
+    </Button>
   );
 }
 

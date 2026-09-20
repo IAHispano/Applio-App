@@ -2,9 +2,9 @@
 
 import { ExternalLink, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, errMsg } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { Alert, Badge } from "./ui";
+import { Alert, Badge, Button } from "@/components/ui";
+import { apiGet, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function TensorboardPanel() {
   const { t } = useI18n();
@@ -63,25 +63,25 @@ export default function TensorboardPanel() {
         </div>
         {isRunning && (
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="ghost text-xs py-1 px-2 flex items-center gap-1"
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={() => setIframeKey((k) => k + 1)}
               title={t("Reload")}
+              icon={<RefreshCw className="w-3 h-3" />}
             >
-              <RefreshCw className="w-3 h-3" />
-              <span>{t("Reload")}</span>
-            </button>
-            <a
+              {t("Reload")}
+            </Button>
+            <Button
               href={iframeUrl}
               target="_blank"
-              rel="noreferrer"
-              className="ghost text-xs py-1 px-2 flex items-center gap-1"
+              variant="ghost"
+              size="xs"
               title={t("Open in browser tab")}
+              icon={<ExternalLink className="w-3 h-3" />}
             >
-              <ExternalLink className="w-3 h-3" />
-              <span>{t("Open Tab")}</span>
-            </a>
+              {t("Open Tab")}
+            </Button>
           </div>
         )}
       </div>

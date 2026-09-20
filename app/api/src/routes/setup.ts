@@ -1,5 +1,5 @@
 import { type Request, type Response, Router } from "express";
-import { findPython, getStatus, startInstall, startPrerequisites } from "../setup";
+import { findPython, getStatus, startInstall, startPrerequisites } from "@/setup";
 
 const router = Router();
 

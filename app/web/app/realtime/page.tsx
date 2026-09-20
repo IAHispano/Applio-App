@@ -2,15 +2,15 @@
 
 import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
-import { Alert, Badge, Card, CardHeader, ToggleField } from "../../components/ui";
-import CustomSelect from "../../components/ui/CustomSelect";
-import ModelDropdown from "../../components/ui/ModelDropdown";
-import SliderField from "../../components/ui/SliderField";
-import { apiGet, apiSend, errMsg, fetchModels, fileBasename } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { matchIndex } from "../../lib/model-index";
-import { useSpeakers } from "../../lib/useSpeakers";
+import PageHeader from "@/components/layout/PageHeader";
+import { Alert, Badge, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import CustomSelect from "@/components/ui/CustomSelect";
+import ModelDropdown from "@/components/ui/ModelDropdown";
+import SliderField from "@/components/ui/SliderField";
+import { apiGet, apiSend, errMsg, fetchModels, fileBasename } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { matchIndex } from "@/lib/model-index";
+import { useSpeakers } from "@/lib/useSpeakers";
 
 const API_HTTP = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 function apiWs(path: string): string {
@@ -430,23 +430,13 @@ export default function RealtimePage() {
       >
         <div className="flex items-center gap-3 flex-wrap">
           {!engineRunning ? (
-            <button
-              type="button"
-              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-              onClick={startEngine}
-            >
-              <Play size={16} className="shrink-0" />
-              <span>{t("Start Service")}</span>
-            </button>
+            <Button onClick={startEngine} icon={<Play size={16} />}>
+              {t("Start Service")}
+            </Button>
           ) : (
-            <button
-              type="button"
-              className="ghost h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
-              onClick={stopEngine}
-            >
-              <Square size={16} className="text-white shrink-0" />
-              <span>{t("Stop Service")}</span>
-            </button>
+            <Button variant="ghost" onClick={stopEngine} icon={<Square size={16} className="text-white" />}>
+              {t("Stop Service")}
+            </Button>
           )}
           <span className="text-xs text-neutral-400" role="status">
             {engineRunning ? t("Service running") : t("Service stopped")}
@@ -538,14 +528,9 @@ export default function RealtimePage() {
             </CustomSelect>
           </div>
           <div className="flex items-end">
-            <button
-              type="button"
-              className="ghost h-10 px-4 flex items-center gap-2 text-xs font-medium rounded-xl text-neutral-200 hover:text-white"
-              onClick={enumDevices}
-            >
-              <ListMusic size={14} className="shrink-0" />
-              <span>{t("List Audio Devices")}</span>
-            </button>
+            <Button variant="ghost" onClick={enumDevices} icon={<ListMusic size={14} />}>
+              {t("List Audio Devices")}
+            </Button>
           </div>
         </div>
       </Stage>
@@ -868,23 +853,17 @@ export default function RealtimePage() {
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
           <div className="flex items-center gap-3">
             {!streaming ? (
-              <button
-                type="button"
-                className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-                onClick={startStream}
-              >
-                <Play size={16} className="shrink-0" />
-                <span>{t("Start Streaming")}</span>
-              </button>
+              <Button onClick={startStream} icon={<Play size={16} />}>
+                {t("Start Streaming")}
+              </Button>
             ) : (
-              <button
-                type="button"
-                className="ghost h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
+              <Button
+                variant="ghost"
                 onClick={() => stopStream()}
+                icon={<Square size={16} className="text-white" />}
               >
-                <Square size={16} className="text-white shrink-0" />
-                <span>{t("Stop Streaming")}</span>
-              </button>
+                {t("Stop Streaming")}
+              </Button>
             )}
           </div>
           {streaming && (
@@ -928,18 +907,13 @@ export default function RealtimePage() {
           </div>
         </div>
         <div className="pt-3.5 border-t border-white/5 flex justify-end">
-          <button
-            type="button"
-            className={
-              recOn
-                ? "ghost h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
-                : "cta h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl"
-            }
+          <Button
+            variant={recOn ? "ghost" : "primary"}
             onClick={toggleRecord}
+            icon={<Disc size={16} className={recOn ? "animate-pulse text-white" : undefined} />}
           >
-            <Disc size={16} className={recOn ? "animate-pulse text-white shrink-0" : "shrink-0"} />
-            <span>{recOn ? t("Stop Recording") : t("Start Recording")}</span>
-          </button>
+            {recOn ? t("Stop Recording") : t("Start Recording")}
+          </Button>
         </div>
       </Card>
     </div>

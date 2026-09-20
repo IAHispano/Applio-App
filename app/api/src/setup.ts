@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "./jobs";
-import { ensureWindowsRealPythonSync, getRepoRoot, noEnv } from "./python";
+import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
+import { ensureWindowsRealPythonSync, getRepoRoot, noEnv } from "@/python";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.

@@ -16,10 +16,10 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { fileBasename } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { toast } from "../../lib/toast";
-import { Alert, Badge, StatTile } from "../ui";
+import { Alert, Badge, Button, StatTile } from "@/components/ui";
+import { fileBasename } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 
 export interface ModelMetadata {
   model_name?: string;
@@ -207,37 +207,28 @@ export default function ModelInfoCard({
                   {metadata.model_hash}
                 </span>
               </div>
-              <button
-                type="button"
-                className="ghost h-7 px-2.5 rounded-lg flex items-center gap-1.5 text-xs text-neutral-300 hover:text-white shrink-0"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={() => copyHash(metadata.model_hash || "")}
                 aria-label={t("Copy model hash")}
+                icon={copied ? <Check size={13} className="text-white" /> : <Copy size={13} />}
               >
-                {copied ? <Check size={13} className="text-white" /> : <Copy size={13} />}
-                <span>{copied ? t("Copied") : t("Copy")}</span>
-              </button>
+                {copied ? t("Copied") : t("Copy")}
+              </Button>
             </div>
           )}
 
           {/* Action Bar */}
           <div className="flex items-center justify-end gap-3 pt-2 border-t border-white/5">
             {onClose && (
-              <button
-                type="button"
-                className="ghost h-10 px-4 text-xs font-medium rounded-xl"
-                onClick={onClose}
-              >
+              <Button variant="ghost" onClick={onClose}>
                 {t("Close")}
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              className="cta h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl"
-              onClick={handleUseInInference}
-            >
-              <span>{t("Use in Inference")}</span>
-              <ArrowRight size={15} className="shrink-0" />
-            </button>
+            <Button onClick={handleUseInInference} iconAfter={<ArrowRight size={15} />}>
+              {t("Use in Inference")}
+            </Button>
           </div>
         </>
       )}

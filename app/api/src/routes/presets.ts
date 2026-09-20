@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { errMsg } from "../errors";
-import { getRepoRoot } from "../python";
+import { errMsg } from "@/errors";
+import { getRepoRoot } from "@/python";
 
 const router = Router();
 

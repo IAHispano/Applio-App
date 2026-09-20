@@ -3,8 +3,8 @@ import os from "node:os";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { errMsg } from "../errors";
-import { getOutputsDir, getRepoRoot, runPythonModule } from "../python";
+import { errMsg } from "@/errors";
+import { getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
 
 const router = Router();
 const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";

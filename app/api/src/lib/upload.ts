@@ -1,6 +1,6 @@
 import path from "node:path";
 import multer from "multer";
-import { getUploadsDir } from "../python";
+import { getUploadsDir } from "@/python";
 
 export const AUDIO_EXTS = new Set(
   ".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.alac,.wma,.aiff,.webm,.ac3".split(","),

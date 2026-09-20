@@ -2,14 +2,14 @@
 
 import { Activity, AudioWaveform, LineChart } from "lucide-react";
 import { useEffect, useState } from "react";
-import AudioWavePlayer from "../../components/AudioWavePlayer";
-import F0CurveExtractor from "../../components/extra/F0CurveExtractor";
-import NativeAnalyzer from "../../components/extra/NativeAnalyzer";
-import PageHeader from "../../components/layout/PageHeader";
-import { Card, CardHeader, CustomSelect } from "../../components/ui";
-import { fetchModels } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { usePreviewUrl } from "../../lib/usePreviewUrl";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
+import F0CurveExtractor from "@/components/extra/F0CurveExtractor";
+import NativeAnalyzer from "@/components/extra/NativeAnalyzer";
+import PageHeader from "@/components/layout/PageHeader";
+import { Card, CardHeader, CustomSelect } from "@/components/ui";
+import { fetchModels } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { usePreviewUrl } from "@/lib/usePreviewUrl";
 
 export default function ExtraPage() {
   const { t } = useI18n();

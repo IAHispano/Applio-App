@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { apiGet, apiSend, errMsg, fileBasename, outputUrl } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { StatTile } from "./ui";
+import { Button, StatTile } from "@/components/ui";
+import { apiGet, apiSend, errMsg, fileBasename, outputUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 interface SystemInfo {
   version: string;
@@ -91,22 +91,13 @@ export default function ReportPanel() {
         <p className="muted">{t("Collecting system info…")}</p>
       )}
       <div className="row" style={{ marginTop: 12 }}>
-        <button
-          type="button"
-          className={recording ? "cta" : "ghost"}
-          onClick={toggleRecord}
-          aria-pressed={recording}
-        >
+        <Button variant={recording ? "primary" : "ghost"} onClick={toggleRecord} aria-pressed={recording}>
           {recording ? t("Stop Recording") : t("Record Screen")}
-        </button>
+        </Button>
         {info && (
-          <button
-            type="button"
-            className="cta"
-            onClick={() => window.open(`${info.issueUrl}?body=${issueBody}`, "_blank")}
-          >
+          <Button onClick={() => window.open(`${info.issueUrl}?body=${issueBody}`, "_blank")}>
             {t("Open GitHub Issue")}
-          </button>
+          </Button>
         )}
       </div>
       {clip && (

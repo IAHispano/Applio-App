@@ -25,11 +25,11 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { errMsg, type Job, stopJob } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { toast } from "../../lib/toast";
-import { cleanJobLogs, useJob } from "../../lib/useJob";
-import { Alert, Badge, Card, StatTile } from "../ui";
+import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import { errMsg, type Job, stopJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
+import { cleanJobLogs, useJob } from "@/lib/useJob";
 
 interface TrainingConsoleProps {
   jobId: string | null;
@@ -293,26 +293,26 @@ export default function TrainingConsole({
 
         <div className="flex items-center gap-2 shrink-0">
           {(job?.status === "running" || job?.status === "queued") && (
-            <button
-              type="button"
-              className="ghost h-8 px-3 text-xs font-medium text-red-400 hover:text-red-300 border-red-500/30 rounded-xl flex items-center gap-1.5 cursor-pointer"
+            <Button
+              variant="danger"
+              size="sm"
               onClick={handleStop}
               aria-label={t("Stop training job")}
+              icon={<StopCircle size={14} />}
             >
-              <StopCircle size={14} className="shrink-0" />
-              <span>{t("Stop Training")}</span>
-            </button>
+              {t("Stop Training")}
+            </Button>
           )}
 
-          <button
-            type="button"
-            className="ghost h-8 px-2.5 text-xs text-neutral-400 hover:text-white rounded-xl flex items-center gap-1 cursor-pointer"
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? t("Expand console") : t("Collapse console")}
+            icon={collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           >
-            {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
             <span className="hidden sm:inline">{collapsed ? t("Expand") : t("Collapse")}</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -434,16 +434,15 @@ export default function TrainingConsole({
           </div>
 
           <div className="flex items-center gap-3 pt-1">
-            <button
-              type="button"
-              className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
+            <Button
+              size="md"
               onClick={() =>
                 router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)
               }
+              iconAfter={<ArrowRight size={14} />}
             >
-              <span>{t("Test in Inference")}</span>
-              <ArrowRight size={14} className="shrink-0" />
-            </button>
+              {t("Test in Inference")}
+            </Button>
             <Link
               href="/models"
               className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
@@ -516,15 +515,15 @@ export default function TrainingConsole({
               </button>
 
               {/* Copy logs */}
-              <button
-                type="button"
-                className="ghost h-7 px-2 text-[11px] text-neutral-300 hover:text-white rounded-lg flex items-center gap-1"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={copyAllLogs}
                 aria-label={t("Copy logs")}
+                icon={copied ? <Check size={12} className="text-white" /> : <Copy size={12} />}
               >
-                {copied ? <Check size={12} className="text-white" /> : <Copy size={12} />}
-                <span>{copied ? t("Copied") : t("Copy")}</span>
-              </button>
+                {copied ? t("Copied") : t("Copy")}
+              </Button>
             </div>
           </div>
 

@@ -2,10 +2,10 @@
 
 import { ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
-import { Alert, Badge } from "../../components/ui";
-import { apiGet, apiSend, errMsg } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import PageHeader from "@/components/layout/PageHeader";
+import { Alert, Badge, Button } from "@/components/ui";
+import { apiGet, apiSend, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export default function TensorboardPage() {
   const { t } = useI18n();
@@ -84,37 +84,37 @@ export default function TensorboardPage() {
               <Badge variant="info" dot size="sm">
                 {`:${tbPort}`}
               </Badge>
-              <button
-                type="button"
-                className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 cursor-pointer"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={handleReloadIframe}
                 title={t("Reload TensorBoard view")}
+                icon={<RefreshCw className="w-3.5 h-3.5" />}
               >
-                <RefreshCw className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">{t("Reload")}</span>
-              </button>
-              <a
+              </Button>
+              <Button
                 href={iframeUrl}
                 target="_blank"
-                rel="noreferrer"
-                className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5"
+                variant="ghost"
+                size="xs"
                 title={t("Open in browser tab")}
+                icon={<ExternalLink className="w-3.5 h-3.5" />}
               >
-                <ExternalLink className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">{t("Open Tab")}</span>
-              </a>
+              </Button>
             </>
           )}
-          <button
-            type="button"
-            className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 text-neutral-400 hover:text-white cursor-pointer"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={handleRestart}
             disabled={restarting}
             title={t("Restart TensorBoard backend service")}
+            icon={<RotateCcw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />}
           >
-            <RotateCcw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />
             <span className="hidden md:inline">{restarting ? t("Restarting…") : t("Restart")}</span>
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -1,8 +1,8 @@
 import { spawn } from "node:child_process";
-import { errMsg } from "./errors";
-import { appendLog, createJob, getJob, type Job, type JobType, setDone, setError, setRunning } from "./jobs";
-import { repoRel as sharedRepoRel } from "./lib/fsutils";
-import { runPythonModule } from "./python";
+import { errMsg } from "@/errors";
+import { appendLog, createJob, getJob, type Job, type JobType, setDone, setError, setRunning } from "@/jobs";
+import { repoRel as sharedRepoRel } from "@/lib/fsutils";
+import { runPythonModule } from "@/python";
 
 const jobPids = new Map<string, number>();
 const jobGroups = new Set<string>();

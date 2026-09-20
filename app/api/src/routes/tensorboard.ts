@@ -3,8 +3,8 @@ import fs from "node:fs";
 import net from "node:net";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import { errMsg } from "../errors";
-import { getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "../python";
+import { errMsg } from "@/errors";
+import { getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "@/python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);

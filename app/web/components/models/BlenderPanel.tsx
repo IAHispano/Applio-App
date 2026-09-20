@@ -2,13 +2,13 @@
 
 import { Layers, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import { errMsg, fetchModels, postForm } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { usePersistentJobId } from "../../lib/useJob";
-import JobPanel from "../JobPanel";
-import { Alert, Badge, Card, CardHeader } from "../ui";
-import CustomSelect from "../ui/CustomSelect";
-import SliderField from "../ui/SliderField";
+import JobPanel from "@/components/JobPanel";
+import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
+import CustomSelect from "@/components/ui/CustomSelect";
+import SliderField from "@/components/ui/SliderField";
+import { errMsg, fetchModels, postForm } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { usePersistentJobId } from "@/lib/useJob";
 
 export default function BlenderPanel() {
   const { t } = useI18n();
@@ -183,14 +183,9 @@ export default function BlenderPanel() {
               <Sparkles size={16} className="text-white" />
               <span>{t("Interpolate weights between two checkpoint files.")}</span>
             </div>
-            <button
-              type="submit"
-              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-              disabled={busy}
-            >
-              <Layers size={16} className="shrink-0" />
-              <span>{busy ? t("Blending…") : t("Fuse Models")}</span>
-            </button>
+            <Button type="submit" disabled={busy} icon={<Layers size={16} />}>
+              {busy ? t("Blending…") : t("Fuse Models")}
+            </Button>
           </div>
 
           <JobPanel jobId={jobId} embedded />

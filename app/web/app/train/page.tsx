@@ -13,17 +13,17 @@ import {
   Zap,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
-import GpuSelect, { type GpuDevice } from "../../components/train/GpuSelect";
-import TrainingConsole from "../../components/train/TrainingConsole";
-import { Alert, Card, CardHeader, ToggleField } from "../../components/ui";
-import CustomSelect from "../../components/ui/CustomSelect";
-import SegmentedControl from "../../components/ui/SegmentedControl";
-import SliderField from "../../components/ui/SliderField";
-import { apiGet, errMsg, submitJob } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { toast } from "../../lib/toast";
-import { usePersistentJobId } from "../../lib/useJob";
+import PageHeader from "@/components/layout/PageHeader";
+import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
+import TrainingConsole from "@/components/train/TrainingConsole";
+import { Alert, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import CustomSelect from "@/components/ui/CustomSelect";
+import SegmentedControl from "@/components/ui/SegmentedControl";
+import SliderField from "@/components/ui/SliderField";
+import { apiGet, errMsg, submitJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
+import { usePersistentJobId } from "@/lib/useJob";
 
 type TrainMode = "pipeline" | "steps" | "uploads";
 
@@ -459,25 +459,14 @@ export default function TrainPage() {
             </div>
 
             <div className="row mt-5 pt-3 border-t border-white/10">
-              <button
-                type="button"
-                className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
-                disabled={busy}
-                onClick={runPipeline}
-              >
-                <Zap size={16} className="shrink-0" />
-                <span>{busy ? t("Pipeline Running…") : t("Start 1-Click Pipeline")}</span>
-              </button>
+              <Button disabled={busy} onClick={runPipeline} icon={<Zap size={16} />}>
+                {busy ? t("Pipeline Running…") : t("Start 1-Click Pipeline")}
+              </Button>
 
               {busy && (
-                <button
-                  type="button"
-                  className="ghost h-10 px-4 text-red-400 hover:text-red-300 border-red-500/30 flex items-center gap-2 text-sm font-medium rounded-xl"
-                  onClick={stop}
-                >
-                  <StopCircle size={16} className="shrink-0" />
-                  <span>{t("Stop Pipeline")}</span>
-                </button>
+                <Button variant="danger" onClick={stop} icon={<StopCircle size={16} />}>
+                  {t("Stop Pipeline")}
+                </Button>
               )}
             </div>
           </Card>
@@ -610,9 +599,7 @@ export default function TrainPage() {
               </CustomSelect>
             </div>
             <div className="row mt-4">
-              <button
-                type="button"
-                className="cta"
+              <Button
                 disabled={busy}
                 onClick={() => {
                   if (!needDataset()) return;
@@ -632,7 +619,7 @@ export default function TrainPage() {
                 }}
               >
                 {t("Preprocess Dataset")}
-              </button>
+              </Button>
             </div>
           </Card>
 
@@ -700,9 +687,7 @@ export default function TrainPage() {
               </div>
             </div>
             <div className="row mt-4">
-              <button
-                type="button"
-                className="cta"
+              <Button
                 disabled={busy}
                 onClick={() => {
                   if (!needModel()) return;
@@ -721,7 +706,7 @@ export default function TrainPage() {
                 }}
               >
                 {t("Extract Features")}
-              </button>
+              </Button>
             </div>
           </Card>
 
@@ -913,9 +898,7 @@ export default function TrainPage() {
             )}
 
             <div className="row mt-4">
-              <button
-                type="button"
-                className="cta"
+              <Button
                 disabled={busy}
                 onClick={() => {
                   if (!needModel()) return;
@@ -941,17 +924,16 @@ export default function TrainPage() {
                 }}
               >
                 {t("Start Training")}
-              </button>
-              <button
-                type="button"
-                className="ghost"
+              </Button>
+              <Button
+                variant="ghost"
                 onClick={() => {
                   if (!needModel()) return;
                   run("/api/train/index", { modelName, indexAlgorithm: indexAlgo });
                 }}
               >
                 {t("Generate Index")}
-              </button>
+              </Button>
             </div>
           </Card>
         </div>
@@ -1032,22 +1014,12 @@ export default function TrainPage() {
           </div>
         </div>
         <div className="row mt-4">
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => downloadExport(expModel)}
-            disabled={!expModel}
-          >
+          <Button variant="ghost" onClick={() => downloadExport(expModel)} disabled={!expModel}>
             {t("Download .pth")}
-          </button>
-          <button
-            type="button"
-            className="ghost"
-            onClick={() => downloadExport(expIndex)}
-            disabled={!expIndex}
-          >
+          </Button>
+          <Button variant="ghost" onClick={() => downloadExport(expIndex)} disabled={!expIndex}>
             {t("Download .index")}
-          </button>
+          </Button>
         </div>
       </details>
 
@@ -1066,9 +1038,9 @@ export default function TrainPage() {
               onChange={(e) => setStopTarget(e.target.value)}
               style={{ maxWidth: 240 }}
             />
-            <button type="button" className="ghost" onClick={stop}>
+            <Button variant="ghost" onClick={stop}>
               {t("Stop Training")}
-            </button>
+            </Button>
           </div>
         </Card>
       )}
@@ -1141,9 +1113,9 @@ function UploadBox({
             onChange={(e) => setPicked2(e.target.files)}
           />
         )}
-        <button type="button" className="ghost text-xs" onClick={send}>
+        <Button variant="ghost" onClick={send}>
           {t("Upload")}
-        </button>
+        </Button>
         <span className="text-xs text-neutral-300">{msg}</span>
       </div>
     </div>

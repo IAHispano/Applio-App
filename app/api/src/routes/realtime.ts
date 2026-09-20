@@ -5,8 +5,8 @@ import net from "node:net";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
-import { errMsg } from "../errors";
-import { getPythonBin, getRepoRoot, pythonEnv } from "../python";
+import { errMsg } from "@/errors";
+import { getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);

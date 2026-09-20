@@ -2,10 +2,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { runPythonJson } from "../cli";
-import { errMsg } from "../errors";
-import { repoRel, walkDir } from "../lib/fsutils";
-import { getRepoRoot, resolveUserPath } from "../python";
+import { runPythonJson } from "@/cli";
+import { errMsg } from "@/errors";
+import { repoRel, walkDir } from "@/lib/fsutils";
+import { getRepoRoot, resolveUserPath } from "@/python";
 
 const router = Router();
 

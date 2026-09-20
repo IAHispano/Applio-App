@@ -15,7 +15,8 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useI18n } from "../../lib/i18n";
+import { Button } from "@/components/ui";
+import { useI18n } from "@/lib/i18n";
 
 const TERMS_STORAGE_KEY = "applio:terms-accepted";
 const TERMS_DATE_KEY = "applio:terms-accepted-at";
@@ -468,16 +469,13 @@ export default function TermsModal() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="cta flex items-center justify-center gap-2 py-2 px-6 text-xs font-semibold disabled:opacity-30 disabled:pointer-events-none shrink-0"
+          <Button
             disabled={!agreed || !scrolledToBottom}
             onClick={handleAccept}
-            style={{ transform: "none" }}
+            icon={<CheckCircle2 className="w-4 h-4" />}
           >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>{t("Accept & Continue")}</span>
-          </button>
+            {t("Accept & Continue")}
+          </Button>
         </div>
       </div>
     </div>

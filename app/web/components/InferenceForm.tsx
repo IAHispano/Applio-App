@@ -1,19 +1,16 @@
 "use client";
 
-import {
-  Activity,
-  AudioWaveform,
-  ChevronDown,
-  Layers,
-  Loader2,
-  Music,
-  Sliders,
-  Sparkles,
-  Wand2,
-} from "lucide-react";
+import { Activity, AudioWaveform, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
 import { useEffect, useMemo, useState } from "react";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
+import type { ModelMetadata } from "@/components/models/ModelInfoCard";
+import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
+import AudioDropzone from "@/components/ui/AudioDropzone";
+import CustomSelect from "@/components/ui/CustomSelect";
+import ModelDropdown from "@/components/ui/ModelDropdown";
+import SliderField from "@/components/ui/SliderField";
 import {
   apiGet,
   apiSend,
@@ -26,18 +23,11 @@ import {
   pollJob,
   stopJob,
   submitInference,
-} from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { matchIndex } from "../lib/model-index";
-import { usePersistentJobId } from "../lib/useJob";
-import { useSpeakers } from "../lib/useSpeakers";
-import AudioWavePlayer from "./AudioWavePlayer";
-import type { ModelMetadata } from "./models/ModelInfoCard";
-import { Alert, Badge, Card, CardHeader, ToggleField } from "./ui";
-import AudioDropzone from "./ui/AudioDropzone";
-import CustomSelect from "./ui/CustomSelect";
-import ModelDropdown from "./ui/ModelDropdown";
-import SliderField from "./ui/SliderField";
+} from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { matchIndex } from "@/lib/model-index";
+import { usePersistentJobId } from "@/lib/useJob";
+import { useSpeakers } from "@/lib/useSpeakers";
 
 const F0_METHODS = [
   "rmvpe",
@@ -848,529 +838,490 @@ export default function InferenceForm() {
         {/* Collapsible Accordions: Advanced Tuning, Formant, Audio FX */}
         <div className="space-y-3 pt-2">
           {/* Advanced Pitch & Tuning Accordion */}
-          <details className="group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
-            <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none">
-              <span className="flex items-center gap-2">
-                <Activity size={15} />
-                <span>{t("Advanced Pitch & Audio Cleanup")}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className="transition-transform duration-200 group-open:rotate-180 text-neutral-400"
+          <Disclosure title={t("Advanced Pitch & Audio Cleanup")} icon={<Activity size={15} />}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <ToggleField
+                id="infer-split-audio"
+                label={t("Split Audio")}
+                checked={splitAudio}
+                onChange={setSplitAudio}
               />
-            </summary>
-            <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <ToggleField
-                  id="infer-split-audio"
-                  label={t("Split Audio")}
-                  checked={splitAudio}
-                  onChange={setSplitAudio}
-                />
-                <ToggleField
-                  id="infer-autotune"
-                  label={t("Autotune")}
-                  checked={f0Autotune}
-                  onChange={setF0Autotune}
-                />
-                <ToggleField
-                  id="infer-clean-audio"
-                  label={t("Clean Audio")}
-                  checked={cleanAudio}
-                  onChange={setCleanAudio}
-                />
-                <ToggleField
-                  id="infer-proposed-pitch"
-                  label={t("Proposed Pitch")}
-                  checked={proposedPitch}
-                  onChange={setProposedPitch}
-                />
-              </div>
-
-              {(f0Autotune || cleanAudio || proposedPitch) && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-                  {f0Autotune && (
-                    <SliderField
-                      id="infer-autotune-strength"
-                      label={t("Autotune Strength")}
-                      value={f0AutotuneStrength}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={setF0AutotuneStrength}
-                    />
-                  )}
-                  {cleanAudio && (
-                    <SliderField
-                      id="infer-clean-strength"
-                      label={t("Clean Strength")}
-                      value={cleanStrength}
-                      min={0.1}
-                      max={1}
-                      step={0.05}
-                      onChange={setCleanStrength}
-                    />
-                  )}
-                  {proposedPitch && (
-                    <SliderField
-                      id="infer-pitch-thresh"
-                      label={t("Proposed Pitch Threshold")}
-                      value={proposedPitchThreshold}
-                      min={50}
-                      max={1200}
-                      step={1}
-                      unit="Hz"
-                      onChange={setProposedPitchThreshold}
-                    />
-                  )}
-                </div>
-              )}
+              <ToggleField
+                id="infer-autotune"
+                label={t("Autotune")}
+                checked={f0Autotune}
+                onChange={setF0Autotune}
+              />
+              <ToggleField
+                id="infer-clean-audio"
+                label={t("Clean Audio")}
+                checked={cleanAudio}
+                onChange={setCleanAudio}
+              />
+              <ToggleField
+                id="infer-proposed-pitch"
+                label={t("Proposed Pitch")}
+                checked={proposedPitch}
+                onChange={setProposedPitch}
+              />
             </div>
-          </details>
+
+            {(f0Autotune || cleanAudio || proposedPitch) && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                {f0Autotune && (
+                  <SliderField
+                    id="infer-autotune-strength"
+                    label={t("Autotune Strength")}
+                    value={f0AutotuneStrength}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={setF0AutotuneStrength}
+                  />
+                )}
+                {cleanAudio && (
+                  <SliderField
+                    id="infer-clean-strength"
+                    label={t("Clean Strength")}
+                    value={cleanStrength}
+                    min={0.1}
+                    max={1}
+                    step={0.05}
+                    onChange={setCleanStrength}
+                  />
+                )}
+                {proposedPitch && (
+                  <SliderField
+                    id="infer-pitch-thresh"
+                    label={t("Proposed Pitch Threshold")}
+                    value={proposedPitchThreshold}
+                    min={50}
+                    max={1200}
+                    step={1}
+                    unit="Hz"
+                    onChange={setProposedPitchThreshold}
+                  />
+                )}
+              </div>
+            )}
+          </Disclosure>
 
           {/* Formant Shifting Accordion */}
-          <details className="group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]">
-            <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none">
-              <span className="flex items-center gap-2">
-                <Sparkles size={15} />
-                <span>{t("Formant Shifting")}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className="transition-transform duration-200 group-open:rotate-180 text-neutral-400"
-              />
-            </summary>
-            <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
-              <ToggleField
-                id="infer-formant-shifting"
-                label={t("Enable Formant Shifting")}
-                checked={formantShifting}
-                onChange={setFormantShifting}
-              />
+          <Disclosure title={t("Formant Shifting")} icon={<Sparkles size={15} />}>
+            <ToggleField
+              id="infer-formant-shifting"
+              label={t("Enable Formant Shifting")}
+              checked={formantShifting}
+              onChange={setFormantShifting}
+            />
 
-              {formantShifting && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                  <SliderField
-                    id="infer-formant-qfrency"
-                    label={t("Quefrency for formant shifting")}
-                    value={formantQfrency}
-                    min={0}
-                    max={16.0}
-                    step={0.1}
-                    onChange={setFormantQfrency}
-                    description={t("Modifies formants width and spectral envelope")}
-                  />
-                  <SliderField
-                    id="infer-formant-timbre"
-                    label={t("Timbre for formant shifting")}
-                    value={formantTimbre}
-                    min={0}
-                    max={16.0}
-                    step={0.1}
-                    onChange={setFormantTimbre}
-                    description={t("Adjusts vocal tract length / timbre brightness")}
-                  />
-                </div>
-              )}
-            </div>
-          </details>
+            {formantShifting && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                <SliderField
+                  id="infer-formant-qfrency"
+                  label={t("Quefrency for formant shifting")}
+                  value={formantQfrency}
+                  min={0}
+                  max={16.0}
+                  step={0.1}
+                  onChange={setFormantQfrency}
+                  description={t("Modifies formants width and spectral envelope")}
+                />
+                <SliderField
+                  id="infer-formant-timbre"
+                  label={t("Timbre for formant shifting")}
+                  value={formantTimbre}
+                  min={0}
+                  max={16.0}
+                  step={0.1}
+                  onChange={setFormantTimbre}
+                  description={t("Adjusts vocal tract length / timbre brightness")}
+                />
+              </div>
+            )}
+          </Disclosure>
 
           {/* Audio FX Rack Accordion */}
-          <details
-            className="group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02]"
+          <Disclosure
+            title={t("Post-Process")}
+            icon={<Layers size={15} />}
             open={postProcess}
-            onToggle={(e) => setPostProcess(e.currentTarget.open)}
+            onToggle={setPostProcess}
           >
-            <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none">
-              <span className="flex items-center gap-2">
-                <Layers size={15} />
-                <span>{t("Post-Process")}</span>
-              </span>
-              <ChevronDown
-                size={16}
-                className="transition-transform duration-200 group-open:rotate-180 text-neutral-400"
-              />
-            </summary>
-            <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
-              {postProcess && (
-                <div className="space-y-4 pt-2">
-                  {/* Reverb */}
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                      <input type="checkbox" checked={reverb} onChange={(e) => setReverb(e.target.checked)} />
-                      <span>{t("Reverb")}</span>
-                    </label>
-                    {reverb && (
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <SliderField
-                          id="fx-reverb-room"
-                          label={t("Reverb Room Size")}
-                          value={reverbRoomSize}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbRoomSize}
-                        />
-                        <SliderField
-                          id="fx-reverb-damping"
-                          label={t("Reverb Damping")}
-                          value={reverbDamping}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbDamping}
-                        />
-                        <SliderField
-                          id="fx-reverb-wet"
-                          label={t("Reverb Wet Gain")}
-                          value={reverbWetGain}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbWetGain}
-                        />
-                        <SliderField
-                          id="fx-reverb-dry"
-                          label={t("Reverb Dry Gain")}
-                          value={reverbDryGain}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbDryGain}
-                        />
-                        <SliderField
-                          id="fx-reverb-width"
-                          label={t("Reverb Width")}
-                          value={reverbWidth}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbWidth}
-                        />
-                        <SliderField
-                          id="fx-reverb-freeze"
-                          label={t("Reverb Freeze Mode")}
-                          value={reverbFreezeMode}
-                          min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setReverbFreezeMode}
-                        />
-                      </div>
-                    )}
-                  </div>
+            {postProcess && (
+              <div className="space-y-4 pt-2">
+                {/* Reverb */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input type="checkbox" checked={reverb} onChange={(e) => setReverb(e.target.checked)} />
+                    <span>{t("Reverb")}</span>
+                  </label>
+                  {reverb && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <SliderField
+                        id="fx-reverb-room"
+                        label={t("Reverb Room Size")}
+                        value={reverbRoomSize}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbRoomSize}
+                      />
+                      <SliderField
+                        id="fx-reverb-damping"
+                        label={t("Reverb Damping")}
+                        value={reverbDamping}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbDamping}
+                      />
+                      <SliderField
+                        id="fx-reverb-wet"
+                        label={t("Reverb Wet Gain")}
+                        value={reverbWetGain}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbWetGain}
+                      />
+                      <SliderField
+                        id="fx-reverb-dry"
+                        label={t("Reverb Dry Gain")}
+                        value={reverbDryGain}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbDryGain}
+                      />
+                      <SliderField
+                        id="fx-reverb-width"
+                        label={t("Reverb Width")}
+                        value={reverbWidth}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbWidth}
+                      />
+                      <SliderField
+                        id="fx-reverb-freeze"
+                        label={t("Reverb Freeze Mode")}
+                        value={reverbFreezeMode}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setReverbFreezeMode}
+                      />
+                    </div>
+                  )}
+                </div>
 
-                  {/* Pitch Shift */}
+                {/* Pitch Shift */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={pitchShift}
+                      onChange={(e) => setPitchShift(e.target.checked)}
+                    />
+                    <span>{t("Pitch Shift")}</span>
+                  </label>
+                  {pitchShift && (
+                    <SliderField
+                      id="fx-pitch-semitones"
+                      label={t("Pitch Shift Semitones")}
+                      value={pitchShiftSemitones}
+                      min={-12}
+                      max={12}
+                      step={1}
+                      onChange={setPitchShiftSemitones}
+                    />
+                  )}
+                </div>
+
+                {/* Delay */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input type="checkbox" checked={delay} onChange={(e) => setDelay(e.target.checked)} />
+                    <span>{t("Delay")}</span>
+                  </label>
+                  {delay && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <SliderField
+                        id="fx-delay-time"
+                        label={t("Delay Seconds")}
+                        value={delaySeconds}
+                        min={0}
+                        max={5.0}
+                        step={0.05}
+                        unit="s"
+                        onChange={setDelaySeconds}
+                      />
+                      <SliderField
+                        id="fx-delay-feedback"
+                        label={t("Delay Feedback")}
+                        value={delayFeedback}
+                        min={0}
+                        max={1.0}
+                        step={0.05}
+                        onChange={setDelayFeedback}
+                      />
+                      <SliderField
+                        id="fx-delay-mix"
+                        label={t("Delay Mix")}
+                        value={delayMix}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={setDelayMix}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Compressor & Limiter */}
+                <div className="grid grid-cols-1 gap-3">
                   <div className="space-y-3">
                     <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
                       <input
                         type="checkbox"
-                        checked={pitchShift}
-                        onChange={(e) => setPitchShift(e.target.checked)}
+                        checked={compressor}
+                        onChange={(e) => setCompressor(e.target.checked)}
                       />
-                      <span>{t("Pitch Shift")}</span>
+                      <span>{t("Compressor")}</span>
                     </label>
-                    {pitchShift && (
-                      <SliderField
-                        id="fx-pitch-semitones"
-                        label={t("Pitch Shift Semitones")}
-                        value={pitchShiftSemitones}
-                        min={-12}
-                        max={12}
-                        step={1}
-                        onChange={setPitchShiftSemitones}
-                      />
-                    )}
-                  </div>
-
-                  {/* Delay */}
-                  <div className="space-y-3">
-                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                      <input type="checkbox" checked={delay} onChange={(e) => setDelay(e.target.checked)} />
-                      <span>{t("Delay")}</span>
-                    </label>
-                    {delay && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {compressor && (
+                      <div className="space-y-2">
                         <SliderField
-                          id="fx-delay-time"
-                          label={t("Delay Seconds")}
-                          value={delaySeconds}
-                          min={0}
-                          max={5.0}
-                          step={0.05}
-                          unit="s"
-                          onChange={setDelaySeconds}
+                          id="fx-comp-thresh"
+                          label={t("Compressor Threshold dB")}
+                          value={compressorThreshold}
+                          min={-60}
+                          max={0}
+                          step={1}
+                          unit="dB"
+                          onChange={setCompressorThreshold}
                         />
                         <SliderField
-                          id="fx-delay-feedback"
-                          label={t("Delay Feedback")}
-                          value={delayFeedback}
-                          min={0}
-                          max={1.0}
-                          step={0.05}
-                          onChange={setDelayFeedback}
+                          id="fx-comp-ratio"
+                          label={t("Compressor Ratio")}
+                          value={compressorRatio}
+                          min={1}
+                          max={20}
+                          step={0.5}
+                          formatValue={(v) => `${v}:1`}
+                          onChange={setCompressorRatio}
                         />
                         <SliderField
-                          id="fx-delay-mix"
-                          label={t("Delay Mix")}
-                          value={delayMix}
+                          id="fx-comp-attack"
+                          label={t("Compressor Attack ms")}
+                          value={compressorAttack}
                           min={0}
-                          max={1}
-                          step={0.05}
-                          onChange={setDelayMix}
+                          max={100}
+                          step={1}
+                          unit="ms"
+                          onChange={setCompressorAttack}
+                        />
+                        <SliderField
+                          id="fx-comp-release"
+                          label={t("Compressor Release ms")}
+                          value={compressorRelease}
+                          min={0.01}
+                          max={100}
+                          step={0.5}
+                          unit="ms"
+                          onChange={setCompressorRelease}
                         />
                       </div>
                     )}
                   </div>
 
-                  {/* Compressor & Limiter */}
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={compressor}
-                          onChange={(e) => setCompressor(e.target.checked)}
-                        />
-                        <span>{t("Compressor")}</span>
-                      </label>
-                      {compressor && (
-                        <div className="space-y-2">
-                          <SliderField
-                            id="fx-comp-thresh"
-                            label={t("Compressor Threshold dB")}
-                            value={compressorThreshold}
-                            min={-60}
-                            max={0}
-                            step={1}
-                            unit="dB"
-                            onChange={setCompressorThreshold}
-                          />
-                          <SliderField
-                            id="fx-comp-ratio"
-                            label={t("Compressor Ratio")}
-                            value={compressorRatio}
-                            min={1}
-                            max={20}
-                            step={0.5}
-                            formatValue={(v) => `${v}:1`}
-                            onChange={setCompressorRatio}
-                          />
-                          <SliderField
-                            id="fx-comp-attack"
-                            label={t("Compressor Attack ms")}
-                            value={compressorAttack}
-                            min={0}
-                            max={100}
-                            step={1}
-                            unit="ms"
-                            onChange={setCompressorAttack}
-                          />
-                          <SliderField
-                            id="fx-comp-release"
-                            label={t("Compressor Release ms")}
-                            value={compressorRelease}
-                            min={0.01}
-                            max={100}
-                            step={0.5}
-                            unit="ms"
-                            onChange={setCompressorRelease}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={limiter}
-                          onChange={(e) => setLimiter(e.target.checked)}
-                        />
-                        <span>{t("Limiter")}</span>
-                      </label>
-                      {limiter && (
-                        <div className="space-y-2">
-                          <SliderField
-                            id="fx-limiter-ceil"
-                            label={t("Limiter Threshold dB")}
-                            value={limiterThreshold}
-                            min={-60}
-                            max={0}
-                            step={0.5}
-                            unit="dB"
-                            onChange={setLimiterThreshold}
-                          />
-                          <SliderField
-                            id="fx-limiter-release"
-                            label={t("Limiter Release Time")}
-                            value={limiterReleaseTime}
-                            min={0.01}
-                            max={1}
-                            step={0.01}
-                            unit="s"
-                            onChange={setLimiterReleaseTime}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Chorus, Distortion & Gain */}
-                  <div className="grid grid-cols-1 gap-3">
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={chorus}
-                          onChange={(e) => setChorus(e.target.checked)}
-                        />
-                        <span>{t("Chorus")}</span>
-                      </label>
-                      {chorus && (
-                        <div className="space-y-2">
-                          <SliderField
-                            id="fx-chorus-rate"
-                            label={t("Chorus Rate Hz")}
-                            value={chorusRate}
-                            min={0.1}
-                            max={100}
-                            step={0.1}
-                            unit="Hz"
-                            onChange={setChorusRate}
-                          />
-                          <SliderField
-                            id="fx-chorus-depth"
-                            label={t("Chorus Depth")}
-                            value={chorusDepth}
-                            min={0.05}
-                            max={1}
-                            step={0.05}
-                            onChange={setChorusDepth}
-                          />
-                          <SliderField
-                            id="fx-chorus-center"
-                            label={t("Chorus Center Delay ms")}
-                            value={chorusCenterDelay}
-                            min={7}
-                            max={8}
-                            step={0.1}
-                            unit="ms"
-                            onChange={setChorusCenterDelay}
-                          />
-                          <SliderField
-                            id="fx-chorus-feedback"
-                            label={t("Chorus Feedback")}
-                            value={chorusFeedback}
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            onChange={setChorusFeedback}
-                          />
-                          <SliderField
-                            id="fx-chorus-mix"
-                            label={t("Chorus Mix")}
-                            value={chorusMix}
-                            min={0}
-                            max={1}
-                            step={0.05}
-                            onChange={setChorusMix}
-                          />
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={distortion}
-                          onChange={(e) => setDistortion(e.target.checked)}
-                        />
-                        <span>{t("Distortion")}</span>
-                      </label>
-                      {distortion && (
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input
+                        type="checkbox"
+                        checked={limiter}
+                        onChange={(e) => setLimiter(e.target.checked)}
+                      />
+                      <span>{t("Limiter")}</span>
+                    </label>
+                    {limiter && (
+                      <div className="space-y-2">
                         <SliderField
-                          id="fx-dist-gain"
-                          label={t("Distortion Gain")}
-                          value={distortionGain}
-                          min={-60}
-                          max={60}
-                          step={1}
-                          unit="dB"
-                          onChange={setDistortionGain}
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input type="checkbox" checked={gain} onChange={(e) => setGain(e.target.checked)} />
-                        <span>{t("Gain")}</span>
-                      </label>
-                      {gain && (
-                        <SliderField
-                          id="fx-gain-db"
-                          label={t("Gain dB")}
-                          value={gainDb}
-                          min={-60}
-                          max={60}
-                          step={0.5}
-                          unit="dB"
-                          onChange={setGainDb}
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={bitcrush}
-                          onChange={(e) => setBitcrush(e.target.checked)}
-                        />
-                        <span>{t("Bitcrush")}</span>
-                      </label>
-                      {bitcrush && (
-                        <SliderField
-                          id="fx-bitcrush-depth"
-                          label={t("Bitcrush Bit Depth")}
-                          value={bitcrushBitDepth}
-                          min={1}
-                          max={32}
-                          step={1}
-                          onChange={setBitcrushBitDepth}
-                        />
-                      )}
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                        <input
-                          type="checkbox"
-                          checked={clipping}
-                          onChange={(e) => setClipping(e.target.checked)}
-                        />
-                        <span>{t("Clipping")}</span>
-                      </label>
-                      {clipping && (
-                        <SliderField
-                          id="fx-clip-thresh"
-                          label={t("Clipping Threshold")}
-                          value={clippingThreshold}
+                          id="fx-limiter-ceil"
+                          label={t("Limiter Threshold dB")}
+                          value={limiterThreshold}
                           min={-60}
                           max={0}
                           step={0.5}
                           unit="dB"
-                          onChange={setClippingThreshold}
+                          onChange={setLimiterThreshold}
                         />
-                      )}
-                    </div>
+                        <SliderField
+                          id="fx-limiter-release"
+                          label={t("Limiter Release Time")}
+                          value={limiterReleaseTime}
+                          min={0.01}
+                          max={1}
+                          step={0.01}
+                          unit="s"
+                          onChange={setLimiterReleaseTime}
+                        />
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
-            </div>
-          </details>
+
+                {/* Chorus, Distortion & Gain */}
+                <div className="grid grid-cols-1 gap-3">
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input type="checkbox" checked={chorus} onChange={(e) => setChorus(e.target.checked)} />
+                      <span>{t("Chorus")}</span>
+                    </label>
+                    {chorus && (
+                      <div className="space-y-2">
+                        <SliderField
+                          id="fx-chorus-rate"
+                          label={t("Chorus Rate Hz")}
+                          value={chorusRate}
+                          min={0.1}
+                          max={100}
+                          step={0.1}
+                          unit="Hz"
+                          onChange={setChorusRate}
+                        />
+                        <SliderField
+                          id="fx-chorus-depth"
+                          label={t("Chorus Depth")}
+                          value={chorusDepth}
+                          min={0.05}
+                          max={1}
+                          step={0.05}
+                          onChange={setChorusDepth}
+                        />
+                        <SliderField
+                          id="fx-chorus-center"
+                          label={t("Chorus Center Delay ms")}
+                          value={chorusCenterDelay}
+                          min={7}
+                          max={8}
+                          step={0.1}
+                          unit="ms"
+                          onChange={setChorusCenterDelay}
+                        />
+                        <SliderField
+                          id="fx-chorus-feedback"
+                          label={t("Chorus Feedback")}
+                          value={chorusFeedback}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          onChange={setChorusFeedback}
+                        />
+                        <SliderField
+                          id="fx-chorus-mix"
+                          label={t("Chorus Mix")}
+                          value={chorusMix}
+                          min={0}
+                          max={1}
+                          step={0.05}
+                          onChange={setChorusMix}
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input
+                        type="checkbox"
+                        checked={distortion}
+                        onChange={(e) => setDistortion(e.target.checked)}
+                      />
+                      <span>{t("Distortion")}</span>
+                    </label>
+                    {distortion && (
+                      <SliderField
+                        id="fx-dist-gain"
+                        label={t("Distortion Gain")}
+                        value={distortionGain}
+                        min={-60}
+                        max={60}
+                        step={1}
+                        unit="dB"
+                        onChange={setDistortionGain}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input type="checkbox" checked={gain} onChange={(e) => setGain(e.target.checked)} />
+                      <span>{t("Gain")}</span>
+                    </label>
+                    {gain && (
+                      <SliderField
+                        id="fx-gain-db"
+                        label={t("Gain dB")}
+                        value={gainDb}
+                        min={-60}
+                        max={60}
+                        step={0.5}
+                        unit="dB"
+                        onChange={setGainDb}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input
+                        type="checkbox"
+                        checked={bitcrush}
+                        onChange={(e) => setBitcrush(e.target.checked)}
+                      />
+                      <span>{t("Bitcrush")}</span>
+                    </label>
+                    {bitcrush && (
+                      <SliderField
+                        id="fx-bitcrush-depth"
+                        label={t("Bitcrush Bit Depth")}
+                        value={bitcrushBitDepth}
+                        min={1}
+                        max={32}
+                        step={1}
+                        onChange={setBitcrushBitDepth}
+                      />
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                      <input
+                        type="checkbox"
+                        checked={clipping}
+                        onChange={(e) => setClipping(e.target.checked)}
+                      />
+                      <span>{t("Clipping")}</span>
+                    </label>
+                    {clipping && (
+                      <SliderField
+                        id="fx-clip-thresh"
+                        label={t("Clipping Threshold")}
+                        value={clippingThreshold}
+                        min={-60}
+                        max={0}
+                        step={0.5}
+                        unit="dB"
+                        onChange={setClippingThreshold}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </Disclosure>
         </div>
       </Card>
 
@@ -1379,23 +1330,21 @@ export default function InferenceForm() {
         {/* Action Header: Convert button & Status */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
-            <button
+            <Button
               type="submit"
               disabled={isConverting || !pthPath || (!audioFile && !inputPath)}
-              className="cta h-10 px-5 flex items-center gap-2 text-sm font-medium rounded-xl"
+              icon={<Wand2 size={16} />}
             >
-              <Wand2 size={16} className="shrink-0" />
-              <span>{isConverting ? t("Converting Audio…") : t("Convert Audio")}</span>
-            </button>
+              {isConverting ? t("Converting Audio…") : t("Convert Audio")}
+            </Button>
 
             {job && isConverting && (
-              <button
-                type="button"
-                className="ghost h-10 px-4 flex items-center gap-1.5 text-xs font-medium rounded-xl text-red-400 hover:text-red-300 border-red-500/30"
+              <Button
+                variant="danger"
                 onClick={() => stopJob(job.id).catch((e) => setSubmitError(errMsg(e)))}
               >
                 {t("Stop Conversion")}
-              </button>
+              </Button>
             )}
           </div>
 

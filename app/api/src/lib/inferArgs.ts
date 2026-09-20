@@ -1,4 +1,4 @@
-import type { InferenceParams } from "../schemas";
+import type { InferenceParams } from "@/schemas";
 
 // CLI flags for rvc/infer/infer.py inference.
 

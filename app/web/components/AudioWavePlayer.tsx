@@ -18,7 +18,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Hover from "wavesurfer.js/plugins/hover";
-import { useI18n } from "../lib/i18n";
+import { useI18n } from "@/lib/i18n";
 
 export interface AudioWavePlayerProps {
   src: string;

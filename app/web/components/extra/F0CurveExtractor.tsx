@@ -2,10 +2,10 @@
 
 import { AlertCircle, Download, FileText, LineChart, Loader2, RefreshCw, StopCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { useJob } from "../../lib/useJob";
-import { IconButton, SegmentedControl, StatTile } from "../ui";
+import { Button, IconButton, SegmentedControl, StatTile } from "@/components/ui";
+import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { useJob } from "@/lib/useJob";
 
 interface F0CurveExtractorProps {
   file: File | null;
@@ -132,37 +132,39 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
 
         <div className="flex items-center gap-2">
           {isRunning && (
-            <button
-              type="button"
+            <Button
+              variant="danger"
+              size="xs"
               onClick={handleCancel}
-              className="ghost h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-red-400 hover:text-red-300 border-red-500/30"
               aria-label={t("Cancel extraction")}
+              icon={<StopCircle size={13} />}
             >
-              <StopCircle size={13} />
-              <span>{t("Cancel")}</span>
-            </button>
+              {t("Cancel")}
+            </Button>
           )}
 
           {curveFile && (
-            <a
+            <Button
               href={outputUrl(curveFile)}
               download
-              className="ghost h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
+              variant="ghost"
+              size="xs"
+              icon={<FileText size={13} />}
             >
-              <FileText size={13} />
-              <span>{t("Download CSV")}</span>
-            </a>
+              {t("Download CSV")}
+            </Button>
           )}
 
           {plotUrl && (
-            <a
+            <Button
               href={outputUrl(plotUrl)}
               download
-              className="ghost h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
+              variant="ghost"
+              size="xs"
+              icon={<Download size={13} />}
             >
-              <Download size={13} />
-              <span>{t("Download Plot")}</span>
-            </a>
+              {t("Download Plot")}
+            </Button>
           )}
 
           <IconButton
@@ -200,13 +202,9 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
             <span className="leading-relaxed">
               {localError || jobError || job?.error || t("Failed to extract pitch curve.")}
             </span>
-            <button
-              type="button"
-              onClick={handleManualRefresh}
-              className="ghost mt-3 text-xs py-1.5 px-4 rounded-lg border border-white/10 text-white hover:bg-white/10"
-            >
+            <Button variant="ghost" size="xs" onClick={handleManualRefresh} className="mt-3">
               {t("Retry Extraction")}
-            </button>
+            </Button>
           </div>
         )}
 

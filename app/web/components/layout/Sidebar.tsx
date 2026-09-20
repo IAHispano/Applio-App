@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useI18n } from "../../lib/i18n";
-import webPackage from "../../package.json";
-import { NAV_SECTIONS } from "./nav";
+import { NAV_SECTIONS } from "@/components/layout/nav";
+import { useI18n } from "@/lib/i18n";
+import webPackage from "@/package.json";
 
 export default function Sidebar() {
   const pathname = usePathname();

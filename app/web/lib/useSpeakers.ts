@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiGet } from "./api";
+import { apiGet } from "@/lib/api";
 
 // Speaker IDs for multi-speaker models (Gradio get_speakers_id parity).
 // Falls back to [0] while loading or for single-speaker models.

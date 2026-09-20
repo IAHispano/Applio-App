@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { errMsg } from "../errors";
-import { getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "../python";
+import { errMsg } from "@/errors";
+import { getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
 
 const router = Router();
 
@@ -505,7 +505,7 @@ router.post("/apply-update", async (_req: Request, res: Response) => {
   try {
     const isGit = fs.existsSync(path.join(getRepoRoot(), ".git"));
     if (isGit) {
-      const { runCmd } = await import("../setup");
+      const { runCmd } = await import("@/setup");
       const gitRes = await runCmd("git", ["pull", "--ff-only"], { cwd: getRepoRoot(), timeoutMs: 45000 });
       if (gitRes.code !== 0) {
         const fallbackRes = await runCmd("git", ["pull", "origin", "main"], {

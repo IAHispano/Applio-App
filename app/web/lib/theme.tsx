@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect } from "react";
-import { apiGet } from "./api";
+import { apiGet } from "@/lib/api";
 
 export interface ThemeFile {
   name?: string;

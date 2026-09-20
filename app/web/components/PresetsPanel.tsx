@@ -2,10 +2,10 @@
 
 import { Bookmark, Download, RefreshCw, Save } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { apiGet, apiSend, errMsg } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { toast } from "../lib/toast";
-import { Alert, Card, CardHeader, EmptyState } from "./ui";
+import { Alert, Button, Card, CardHeader, EmptyState } from "@/components/ui";
+import { apiGet, apiSend, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 
 interface Preset {
   name: string;
@@ -95,10 +95,9 @@ export default function PresetsPanel() {
           </span>
         }
         action={
-          <button type="button" className="ghost" onClick={refresh}>
-            <RefreshCw size={14} />
-            <span>{t("Refresh Presets")}</span>
-          </button>
+          <Button variant="ghost" onClick={refresh} icon={<RefreshCw size={14} />}>
+            {t("Refresh Presets")}
+          </Button>
         }
       />
       {error && (
@@ -136,12 +135,12 @@ export default function PresetsPanel() {
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <button type="button" className="ghost preset-apply" onClick={() => apply(p, "single")}>
+                    <Button variant="ghost" onClick={() => apply(p, "single")} className="preset-apply">
                       {t("Single")}
-                    </button>
-                    <button type="button" className="ghost preset-apply" onClick={() => apply(p, "batch")}>
+                    </Button>
+                    <Button variant="ghost" onClick={() => apply(p, "batch")} className="preset-apply">
                       {t("Batch")}
-                    </button>
+                    </Button>
                   </div>
                 </>
               ) : (
@@ -160,10 +159,9 @@ export default function PresetsPanel() {
           onChange={(e) => setName(e.target.value)}
           className="max-w-[240px]"
         />
-        <button type="button" className="ghost" onClick={saveCurrent}>
-          <Save size={14} />
+        <Button variant="ghost" onClick={saveCurrent} icon={<Save size={14} />}>
           {t("Save current Single settings")}
-        </button>
+        </Button>
         <label className="file-import">
           <Download size={14} />
           <span>{t("Import file")}</span>

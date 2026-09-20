@@ -1,11 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
-import { startCliJob } from "../cli";
-import { errMsg } from "../errors";
-import { buildCommonInferArgs } from "../lib/inferArgs";
-import { resolveUserPath } from "../python";
-import { type BatchInferenceParams, batchInferenceSchema } from "../schemas";
+import { startCliJob } from "@/cli";
+import { errMsg } from "@/errors";
+import { buildCommonInferArgs } from "@/lib/inferArgs";
+import { resolveUserPath } from "@/python";
+import { type BatchInferenceParams, batchInferenceSchema } from "@/schemas";
 
 const router = Router();
 

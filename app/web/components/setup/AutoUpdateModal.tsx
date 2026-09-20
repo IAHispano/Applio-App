@@ -12,8 +12,9 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { apiGet, apiSend, cleanVersion, displayVersion, errMsg } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
+import { Button, IconButton } from "@/components/ui";
+import { apiGet, apiSend, cleanVersion, displayVersion, errMsg } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 
 export interface VersionCheckData {
   local: string;
@@ -365,14 +366,7 @@ export default function AutoUpdateModal() {
           </div>
 
           {/* Dismiss close button - always available and clickable */}
-          <button
-            type="button"
-            onClick={handleClose}
-            aria-label={t("Close")}
-            className="w-8 h-8 p-0 flex items-center justify-center rounded-lg bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer shrink-0"
-          >
-            <X size={16} />
-          </button>
+          <IconButton size="md" icon={<X size={16} />} label={t("Close")} onClick={handleClose} />
         </div>
 
         {/* Modal Body */}
@@ -498,42 +492,25 @@ export default function AutoUpdateModal() {
 
             {/* Action CTA Button */}
             {updateStep === "ready" ? (
-              <button
-                type="button"
-                onClick={handleRestartNow}
-                className="cta flex items-center gap-2 py-2 px-5 text-xs font-semibold cursor-pointer"
-              >
-                <RefreshCw size={13} className="shrink-0" />
-                <span>{t("Restart & Apply")}</span>
-              </button>
+              <Button onClick={handleRestartNow} icon={<RefreshCw size={13} />}>
+                {t("Restart & Apply")}
+              </Button>
             ) : updateStep === "done" ? (
-              <button
-                type="button"
-                onClick={handleRestartNow}
-                className="cta flex items-center gap-2 py-2 px-5 text-xs font-semibold cursor-pointer"
-              >
-                <RefreshCw size={13} className="shrink-0" />
-                <span>{t("Reload App")}</span>
-              </button>
+              <Button onClick={handleRestartNow} icon={<RefreshCw size={13} />}>
+                {t("Reload App")}
+              </Button>
             ) : updateStep === "downloading" ? (
-              <button
-                type="button"
-                disabled
-                className="cta flex items-center gap-2 py-2 px-5 text-xs font-semibold opacity-70 cursor-not-allowed"
-              >
-                <Loader2 size={13} className="animate-spin shrink-0" />
-                <span>{isOutdated ? t("Updating…") : t("Downloading…")}</span>
-              </button>
+              <Button disabled loading>
+                {isOutdated ? t("Updating…") : t("Downloading…")}
+              </Button>
             ) : (
-              <button
-                type="button"
-                onClick={() => void startUpdate()}
+              <Button
                 disabled={updating}
-                className="cta flex items-center gap-2 py-2 px-5 text-xs font-semibold cursor-pointer"
+                onClick={() => void startUpdate()}
+                icon={<ArrowDownCircle size={14} />}
               >
-                <ArrowDownCircle size={14} className="shrink-0" />
-                <span>{t("Update now")}</span>
-              </button>
+                {t("Update now")}
+              </Button>
             )}
           </div>
         </div>

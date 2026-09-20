@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
-import { apiGet } from "./api";
+import { apiGet } from "@/lib/api";
 
 // Minimal Gradio I18nAuto parity: the API resolves the active language
 // (settings override, else OS locale) and serves its dictionary from

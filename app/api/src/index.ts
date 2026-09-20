@@ -3,9 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 import cors from "cors";
 import express from "express";
-import { killJobTree } from "./cli";
-import { errMsg } from "./errors";
-import { getJob, setError } from "./jobs";
+import { killJobTree } from "@/cli";
+import { errMsg } from "@/errors";
+import { getJob, setError } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
   getOutputsDir,
@@ -13,23 +13,23 @@ import {
   getRepoRoot,
   resolveUserPath,
   runPythonModule,
-} from "./python";
-import batchRouter from "./routes/batch";
-import blenderRouter from "./routes/blender";
-import downloadRouter from "./routes/download";
-import extraRouter from "./routes/extra";
-import inferenceRouter from "./routes/inference";
-import jobsRouter from "./routes/jobs";
-import modelsRouter from "./routes/models";
-import pluginsRouter from "./routes/plugins";
-import presetsRouter from "./routes/presets";
-import realtimeRouter, { attachRealtimeProxy } from "./routes/realtime";
-import reportRouter from "./routes/report";
-import settingsRouter, { autoStartPresence, stopPresence } from "./routes/settings";
-import setupRouter from "./routes/setup";
-import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "./routes/tensorboard";
-import trainRouter from "./routes/train";
-import ttsRouter from "./routes/tts";
+} from "@/python";
+import batchRouter from "@/routes/batch";
+import blenderRouter from "@/routes/blender";
+import downloadRouter from "@/routes/download";
+import extraRouter from "@/routes/extra";
+import inferenceRouter from "@/routes/inference";
+import jobsRouter from "@/routes/jobs";
+import modelsRouter from "@/routes/models";
+import pluginsRouter from "@/routes/plugins";
+import presetsRouter from "@/routes/presets";
+import realtimeRouter, { attachRealtimeProxy } from "@/routes/realtime";
+import reportRouter from "@/routes/report";
+import settingsRouter, { autoStartPresence, stopPresence } from "@/routes/settings";
+import setupRouter from "@/routes/setup";
+import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "@/routes/tensorboard";
+import trainRouter from "@/routes/train";
+import ttsRouter from "@/routes/tts";
 
 const app = express();
 const PORT = Number(process.env.API_PORT || process.env.PORT || 8000);

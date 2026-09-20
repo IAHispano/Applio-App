@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Button } from "@/components/ui";
 
 interface CinematicSplashProps {
   title?: string;
@@ -136,13 +137,9 @@ export function CinematicSplash({
             <div className="mt-5 flex flex-col items-center gap-2 px-4 text-center">
               <p className="text-xs text-red-400 max-w-sm">{error}</p>
               {onRetry && (
-                <button
-                  type="button"
-                  className="ghost text-xs py-1.5 px-4 bg-black/70 border border-white/20 hover:border-white/40 text-white rounded-md"
-                  onClick={onRetry}
-                >
+                <Button variant="ghost" size="xs" onClick={onRetry}>
                   {retryLabel}
-                </button>
+                </Button>
               )}
             </div>
           )}

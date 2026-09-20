@@ -1,12 +1,12 @@
 "use client";
 
 import { ChevronDown, Download } from "lucide-react";
-import { fileBasename, isAudioFile, isImageFile, outputUrl } from "../lib/api";
-import { useI18n } from "../lib/i18n";
-import { useJob } from "../lib/useJob";
-import AudioWavePlayer from "./AudioWavePlayer";
-import { JobBadge, JobCancelButton, JobError, JobProgress } from "./JobStatus";
-import { Alert, Card } from "./ui";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
+import { JobBadge, JobCancelButton, JobError, JobProgress } from "@/components/JobStatus";
+import { Alert, Button, Card } from "@/components/ui";
+import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { useJob } from "@/lib/useJob";
 
 export interface JobPanelProps {
   jobId: string | null;
@@ -99,14 +99,9 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
           />
           <div className="flex items-center justify-between pt-1">
             <span className="text-xs text-neutral-400">({fileBasename(out)})</span>
-            <a
-              href={outputUrl(out)}
-              download
-              className="cta h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5"
-            >
-              <Download size={13} />
-              <span>{t("Download image")}</span>
-            </a>
+            <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+              {t("Download image")}
+            </Button>
           </div>
         </div>
       )}
@@ -114,14 +109,9 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
       {out && !isAudioFile(out) && !isImageFile(out) && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/5">
           <span className="text-xs text-neutral-300 font-medium truncate">{fileBasename(out)}</span>
-          <a
-            href={outputUrl(out)}
-            download
-            className="cta h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 shrink-0"
-          >
-            <Download size={13} />
-            <span>{t("Download")}</span>
-          </a>
+          <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+            {t("Download")}
+          </Button>
         </div>
       )}
 
@@ -133,14 +123,9 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
           <span className="text-xs text-neutral-300">
             {s.label}: {fileBasename(s.file)}
           </span>
-          <a
-            href={outputUrl(s.file)}
-            download
-            className="ghost h-7 px-2.5 rounded-lg text-xs font-medium flex items-center gap-1 text-neutral-300 hover:text-white shrink-0"
-          >
-            <Download size={12} />
-            <span>{t("Download")}</span>
-          </a>
+          <Button href={outputUrl(s.file)} download variant="ghost" size="xs" icon={<Download size={12} />}>
+            {t("Download")}
+          </Button>
         </div>
       ))}
 

@@ -2,11 +2,11 @@
 
 import { Bug, Copy, Cpu, Download, ExternalLink, Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import PageHeader from "../../components/layout/PageHeader";
-import { Alert, Card, CardHeader, StatTile } from "../../components/ui";
-import { apiGet, apiSend, errMsg, outputUrl } from "../../lib/api";
-import { useI18n } from "../../lib/i18n";
-import { toast } from "../../lib/toast";
+import PageHeader from "@/components/layout/PageHeader";
+import { Alert, Button, Card, CardHeader, StatTile } from "@/components/ui";
+import { apiGet, apiSend, errMsg, outputUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import { toast } from "@/lib/toast";
 
 interface SystemInfo {
   version: string;
@@ -116,28 +116,22 @@ export default function ReportPage() {
         </ol>
 
         <div className="flex items-center gap-3 pt-3.5 border-t border-white/5">
-          <button
-            type="button"
-            className={
-              recording
-                ? "ghost h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
-                : "cta h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl"
-            }
+          <Button
+            variant={recording ? "ghost" : "primary"}
             onClick={toggleRecord}
+            icon={<Video size={16} className={recording ? "animate-pulse" : undefined} />}
           >
-            <Video size={16} className={recording ? "animate-pulse shrink-0" : "shrink-0"} />
-            <span>{recording ? t("Stop Recording") : t("Record Screen")}</span>
-          </button>
+            {recording ? t("Stop Recording") : t("Record Screen")}
+          </Button>
           {info && (
-            <a
+            <Button
               href={`${info.issueUrl}?body=${issueBody}`}
               target="_blank"
-              rel="noreferrer"
-              className="ghost h-10 px-4 flex items-center gap-2 text-sm font-medium rounded-xl text-neutral-200 hover:text-white"
+              variant="ghost"
+              icon={<ExternalLink size={16} className="text-white" />}
             >
-              <ExternalLink size={16} className="text-white shrink-0" />
-              <span>{t("Open GitHub Issue")}</span>
-            </a>
+              {t("Open GitHub Issue")}
+            </Button>
           )}
         </div>
       </Card>
@@ -147,14 +141,9 @@ export default function ReportPage() {
           {/* biome-ignore lint/a11y/useMediaCaption: user-recorded screen capture has no caption track */}
           <video controls src={outputUrl(clip)} className="max-w-full rounded-xl border border-white/10" />
           <div className="flex items-center justify-between">
-            <a
-              href={outputUrl(clip)}
-              download
-              className="cta h-10 px-4 flex items-center gap-2 rounded-xl text-sm font-medium"
-            >
-              <Download size={16} className="shrink-0" />
-              <span>{t("Download Video")}</span>
-            </a>
+            <Button href={outputUrl(clip)} download icon={<Download size={16} />}>
+              {t("Download Video")}
+            </Button>
             <span className="text-xs text-neutral-400">{clip}</span>
           </div>
         </Card>
@@ -168,18 +157,18 @@ export default function ReportPage() {
           description={t("Environment details and system specifications to include in your issue report.")}
           action={
             info && (
-              <button
-                type="button"
-                className="ghost h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => {
                   const text = `Applio ${info.version}\n${info.platform}\nNode ${info.node}\n${info.python}\nCPUs: ${info.cpus} · RAM: ${info.totalMemGB}GB`;
                   navigator.clipboard.writeText(text);
                   toast(t("Diagnostics copied to clipboard"));
                 }}
+                icon={<Copy size={13} />}
               >
-                <Copy size={13} />
-                <span>{t("Copy Diagnostics")}</span>
-              </button>
+                {t("Copy Diagnostics")}
+              </Button>
             )
           }
         />
