@@ -17,6 +17,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  Save,
   Search,
   Sparkles,
   StopCircle,
@@ -26,7 +27,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { eventText, parseConsoleEvents } from "@/components/train/consoleEvents";
+import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import { errMsg, type Job, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -110,7 +111,7 @@ export default function TrainingConsole({
     const raisePhase = (cur: 1 | 2 | 3 | 4 | 5, p: 1 | 2 | 3 | 4 | 5): 1 | 2 | 3 | 4 | 5 =>
       cur !== 5 && p > cur ? p : cur;
 
-    for (const rawLine of cleanedLogs) {
+    for (const rawLine of splitLogFragments(cleanedLogs)) {
       const line = rawLine.toLowerCase();
 
       // The API's own pipeline markers are authoritative when present.
@@ -178,7 +179,7 @@ export default function TrainingConsole({
     return events.filter((ev) => {
       const text = eventText(ev);
       const lower = text.toLowerCase();
-      if (level === "epochs" && !lower.includes("epoch=") && !lower.includes("epoch:")) {
+      if (level === "epochs" && ev.kind !== "epoch" && !lower.includes("epoch=") && !lower.includes("epoch:")) {
         return false;
       }
       if (
@@ -629,6 +630,68 @@ export default function TrainingConsole({
                       </div>
                       {ev.detail && (
                         <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
+                      )}
+                    </div>
+                  );
+                }
+                if (ev.kind === "epoch") {
+                  const isBest =
+                    ev.loss !== null && ev.loss.epoch === ev.epoch && ev.loss.step === ev.step;
+                  return (
+                    <div
+                      key={ev.key}
+                      className="flex items-center gap-3 px-2.5 py-2 rounded-lg bg-white/[0.03] border border-white/5 tabular-nums flex-wrap"
+                    >
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white text-black shrink-0">
+                        {t("Epoch")} {ev.epoch}
+                      </span>
+                      <span className="text-[11px] text-neutral-300">
+                        {t("step")} {ev.step.toLocaleString()}
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-neutral-400">
+                        <Clock size={11} className="text-neutral-500" />
+                        {ev.time}
+                      </span>
+                      <span className="text-[11px] text-neutral-400">
+                        {ev.speed}
+                        {t("/ep")}
+                      </span>
+                      {ev.loss && (
+                        <span className="ml-auto flex items-center gap-1.5 text-[11px]">
+                          <span className="text-neutral-500">{t("loss")}</span>
+                          <span className={`font-semibold ${isBest ? "text-emerald-400" : "text-neutral-200"}`}>
+                            {ev.loss.value}
+                          </span>
+                          {isBest && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                              {t("best")}
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  );
+                }
+                if (ev.kind === "save") {
+                  return (
+                    <div
+                      key={ev.key}
+                      className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/[0.03] border border-white/5 tabular-nums flex-wrap"
+                      title={ev.filename}
+                    >
+                      <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                        <Save size={13} className="text-white" />
+                      </span>
+                      <span className="text-[11px] text-neutral-200 font-medium truncate min-w-0 flex-1">
+                        {ev.filename}
+                      </span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-white shrink-0">
+                        {t("Epoch")} {ev.epoch}
+                      </span>
+                      {ev.step !== null && (
+                        <span className="text-[10px] text-neutral-400 shrink-0">
+                          {t("step")} {ev.step.toLocaleString()}
+                        </span>
                       )}
                     </div>
                   );

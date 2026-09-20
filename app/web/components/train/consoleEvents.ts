@@ -12,14 +12,31 @@ export type ConsoleEvent =
       duration: string | null;
     }
   | { kind: "message"; key: string; text: string; tone: "info" | "success" | "muted" }
-  | { kind: "error"; key: string; lines: Array<{ key: string; text: string }> };
+  | { kind: "error"; key: string; lines: Array<{ key: string; text: string }> }
+  | {
+      kind: "epoch";
+      key: string;
+      model: string;
+      epoch: number;
+      step: number;
+      time: string;
+      speed: string;
+      loss: { value: string; epoch: number; step: number } | null;
+    }
+  | { kind: "save"; key: string; filename: string; epoch: number; step: number | null };
 
 const PHASE_RE = /^>>>\s*\[(\d+)\/(\d+)\]\s*(.*?)\s*\.?\s*$/;
 const TQDM_RE = /(\d{1,3})%\s*\|[^|]*\|\s*([\d.]+\/[\d.]+)?\s*\[([^\]]*)\]/;
-// "Starting pitch extraction on cuda:0 using rmvpe..." → task row.
+// "model | epoch=15 | step=360 | time=00:06:17 | training_speed=0:00:09
+//  | lowest_value=11.701 (epoch 14 and step 329)" — one structured row.
+const EPOCH_RE =
+  /^(.+?)\s*\|\s*epoch=(\d+)\s*\|\s*step=(\d+)\s*\|\s*time=([0-9:]+)\s*\|\s*training_speed=([0-9:]+)(?:\s*\|\s*lowest_value=([0-9.]+)\s*\(epoch\s*(\d+)\s*and\s*step\s*(\d+)\))?/;
 const TASK_START_RE = /^Starting (pitch|embedding) extraction\b\s*(.*?)\s*\.\.\.$/i;
 // "Pitch extraction completed in 10.10 seconds." → closes the task.
 const TASK_DONE_RE = /^(pitch|embedding) extraction completed in ([\d.]+) seconds\.$/i;
+// "Saved model 'C:\...\G_2333333.pth' (epoch 30)" and
+// "Saved model 'C:\...\model_30e_720s.pth' (epoch 30 and step 720)".
+const SAVE_RE = /^Saved model '(.+)' \(epoch (\d+)(?: and step (\d+))?\)\s*$/;
 const ERROR_RE = /error|fail|exception|traceback/i;
 
 function isContinuationOfError(line: string): boolean {
@@ -44,19 +61,34 @@ function messageTone(text: string): "info" | "success" | "muted" {
 }
 
 /**
+ * Split raw log entries into display fragments. Backend log entries are
+ * arbitrary stdout chunks: tqdm redraws glue many updates into one entry
+ * with \r separators, so anchored patterns (phase/task markers) would miss
+ * when sharing an entry. Splitting first makes every downstream match exact.
+ */
+export function splitLogFragments(lines: string[]): string[] {
+  const out: string[] = [];
+  for (const entry of lines) {
+    for (const frag of entry.split(/\r+\n?|\n/)) {
+      const text = frag.trim();
+      if (text) out.push(text);
+    }
+  }
+  return out;
+}
+
+/**
  * Turn raw terminal log lines into UI timeline events:
  * - `>>> [n/m] Title` markers become phase separators
  * - tqdm progress redraws collapse into one live bar per phase
  * - "Starting X extraction ..." / "X extraction completed in Ns" pairs merge
- *   into a single task row (no split start/completed lines)
+ *   into a single task row (no split lines)
  * - everything else becomes a message, errors merge into blocks
  */
 export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEvent[] {
   const events: ConsoleEvent[] = [];
   const progressByPhase = new Map<string, ConsoleEvent>();
   let currentPhase = "";
-  let counter = 0;
-  const key = () => `ev-${counter++}`;
 
   const pushProgress = (percent: number, detail: string) => {
     // tqdm lines inside an open extraction task feed that task's bar.
@@ -73,21 +105,19 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       existing.detail = detail;
       return;
     }
-    const ev: ConsoleEvent = { kind: "progress", key: key(), phase: currentPhase, percent, detail };
+    const ev: ConsoleEvent = { kind: "progress", key: "", phase: currentPhase, percent, detail };
     progressByPhase.set(phaseKey, ev);
     events.push(ev);
   };
 
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) continue;
+  for (const line of splitLogFragments(lines)) {
 
     const phase = line.match(PHASE_RE);
     if (phase) {
       currentPhase = phase[3].trim().replace(/\.*$/, "");
       events.push({
         kind: "phase",
-        key: key(),
+        key: "",
         index: Number(phase[1]),
         total: Number(phase[2]),
         title: currentPhase,
@@ -101,7 +131,7 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       const meta = taskStart[2].replace(/^(on|with)\s+/i, "").trim();
       events.push({
         kind: "task",
-        key: key(),
+        key: "",
         title: name,
         meta,
         status: "running",
@@ -125,7 +155,7 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       } else {
         events.push({
           kind: "task",
-          key: key(),
+          key: "",
           title: name,
           meta: "",
           status: "done",
@@ -147,16 +177,58 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       continue;
     }
 
-    const last = events[events.length - 1];
-    if (ERROR_RE.test(line) || (last?.kind === "error" && isContinuationOfError(line))) {
-      const numbered = { key: `errline-${counter++}`, text: line };
-      if (last?.kind === "error") last.lines.push(numbered);
-      else events.push({ kind: "error", key: key(), lines: [numbered] });
+    const epochLine = line.match(EPOCH_RE);    if (epochLine) {
+      const lossValue = epochLine[6];
+      events.push({
+        kind: "epoch",
+        key: "",
+        model: epochLine[1].trim(),
+        epoch: Number(epochLine[2]),
+        step: Number(epochLine[3]),
+        time: epochLine[4],
+        speed: epochLine[5],
+        loss:
+          lossValue !== undefined
+            ? { value: lossValue, epoch: Number(epochLine[7]), step: Number(epochLine[8]) }
+            : null,
+      });
       continue;
     }
 
-    events.push({ kind: "message", key: key(), text: line, tone: messageTone(line) });
+    const saveLine = line.match(SAVE_RE);
+    if (saveLine) {
+      const fullPath = saveLine[1];
+      const filename = fullPath.split(/[\\/]/).pop() || fullPath;
+      events.push({
+        kind: "save",
+        key: "",
+        filename,
+        epoch: Number(saveLine[2]),
+        step: saveLine[3] !== undefined ? Number(saveLine[3]) : null,
+      });
+      continue;
+    }
+
+    const last = events[events.length - 1];
+    if (ERROR_RE.test(line) || (last?.kind === "error" && isContinuationOfError(line))) {
+      const numbered = { key: "", text: line };
+      if (last?.kind === "error") last.lines.push(numbered);
+      else events.push({ kind: "error", key: "", lines: [numbered] });
+      continue;
+    }
+
+    events.push({ kind: "message", key: "", text: line, tone: messageTone(line) });
   }
+
+  // Stable positional keys: the parser re-runs on every log update, and React
+  // must reconcile rows instead of remounting them (remounts restart the bar
+  // width transitions, making progress look like it starts over).
+  events.forEach((ev, i) => {
+    ev.key = `ev-${i}`;
+    if (ev.kind === "error") ev.lines.forEach((l, j) => {
+      l.key = `ev-${i}-l${j}`;
+    });
+  });
 
   if (terminal) {
     // A killed/finished job must not leave a task row spinning forever.
@@ -177,6 +249,10 @@ export function eventText(ev: ConsoleEvent): string {
       return `${ev.phase} ${ev.percent} ${ev.detail}`;
     case "task":
       return `${ev.title} ${ev.meta} ${ev.detail} ${ev.duration ?? ""}`;
+    case "epoch":
+      return `${ev.model} epoch ${ev.epoch} step ${ev.step} ${ev.time} ${ev.speed} ${ev.loss ? `loss ${ev.loss.value}` : ""}`;
+    case "save":
+      return `saved ${ev.filename} checkpoint epoch ${ev.epoch} ${ev.step ?? ""}`;
     case "message":
       return ev.text;
     case "error":
