@@ -28,8 +28,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { errMsg, type Job, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
-import { Alert, Badge, Card, StatTile } from "../ui";
 import { cleanJobLogs, useJob } from "../../lib/useJob";
+import { Alert, Badge, Card, StatTile } from "../ui";
 
 interface TrainingConsoleProps {
   jobId: string | null;

@@ -287,7 +287,13 @@ export default function TtsForm() {
             icon={<Music size={18} className="text-white" />}
             title={t("Voice Model")}
             description={t("Select the target voice model and feature index for speech timbre conversion.")}
-            action={pthPath ? <Badge variant="success" size="sm" dot>{t("Ready")}</Badge> : undefined}
+            action={
+              pthPath ? (
+                <Badge variant="success" size="sm" dot>
+                  {t("Ready")}
+                </Badge>
+              ) : undefined
+            }
           />
 
           <div className="space-y-3">
@@ -465,26 +471,14 @@ export default function TtsForm() {
             </summary>
             <div className="space-y-4 pt-3">
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <ToggleField
-                  label={t("Split Audio")}
-                  checked={splitAudio}
-                  onChange={setSplitAudio}
-                />
-                <ToggleField
-                  label={t("Autotune")}
-                  checked={f0Autotune}
-                  onChange={setF0Autotune}
-                />
+                <ToggleField label={t("Split Audio")} checked={splitAudio} onChange={setSplitAudio} />
+                <ToggleField label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />
                 <ToggleField
                   label={t("Proposed Pitch")}
                   checked={proposedPitch}
                   onChange={setProposedPitch}
                 />
-                <ToggleField
-                  label={t("Clean Audio")}
-                  checked={cleanAudio}
-                  onChange={setCleanAudio}
-                />
+                <ToggleField label={t("Clean Audio")} checked={cleanAudio} onChange={setCleanAudio} />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -588,9 +582,7 @@ export default function TtsForm() {
           )}
 
           {(error || (job && job.status === "error")) && (
-            <Alert variant="error">
-              {error || job?.error || t("Speech conversion failed.")}
-            </Alert>
+            <Alert variant="error">{error || job?.error || t("Speech conversion failed.")}</Alert>
           )}
 
           {/* Synthesized Output Waveform Player */}

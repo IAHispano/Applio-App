@@ -3,9 +3,9 @@
 import { ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import { Alert, Badge } from "../../components/ui";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
-import { Alert, Badge } from "../../components/ui";
 
 export default function TensorboardPage() {
   const { t } = useI18n();

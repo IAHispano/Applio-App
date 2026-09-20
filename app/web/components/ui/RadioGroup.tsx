@@ -47,23 +47,14 @@ export function RadioGroup({
 
   return (
     <div className={`space-y-1.5 ${className}`}>
-      {label && (
-        <span className="block text-xs font-medium text-neutral-300">
-          {label}
-        </span>
-      )}
+      {label && <span className="block text-xs font-medium text-neutral-300">{label}</span>}
       <div
         role="radiogroup"
         aria-label={typeof label === "string" ? label : undefined}
-        className={
-          orientation === "horizontal"
-            ? "flex flex-wrap items-center gap-2"
-            : "flex flex-col gap-2"
-        }
+        className={orientation === "horizontal" ? "flex flex-wrap items-center gap-2" : "flex flex-col gap-2"}
       >
         {options.map((opt) => {
-          const item: RadioOption =
-            typeof opt === "string" ? { value: opt, label: opt } : opt;
+          const item: RadioOption = typeof opt === "string" ? { value: opt, label: opt } : opt;
           const isSelected = value === item.value;
           const isDisabled = disabled || item.disabled;
 
@@ -91,9 +82,7 @@ export function RadioGroup({
             <label
               key={item.value}
               className={`inline-flex items-center gap-2 text-xs select-none transition-colors ${
-                isSelected
-                  ? "text-white font-medium"
-                  : "text-neutral-400 hover:text-neutral-200"
+                isSelected ? "text-white font-medium" : "text-neutral-400 hover:text-neutral-200"
               } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
             >
               <input

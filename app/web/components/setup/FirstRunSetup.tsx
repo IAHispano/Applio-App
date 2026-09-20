@@ -316,10 +316,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 
         {/* Error Alert */}
         {error && (
-          <Alert
-            variant="error"
-            title={t("Setup Encountered an Issue")}
-          >
+          <Alert variant="error" title={t("Setup Encountered an Issue")}>
             <div className="space-y-2">
               <p className="m-0 leading-relaxed text-xs">{error}</p>
               <button

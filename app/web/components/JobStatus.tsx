@@ -9,13 +9,7 @@ import { Alert, Badge } from "./ui";
 export function JobBadge({ status }: { status: Job["status"] }) {
   const { t } = useI18n();
   const variant =
-    status === "done"
-      ? "success"
-      : status === "error"
-        ? "danger"
-        : status === "running"
-          ? "info"
-          : "neutral";
+    status === "done" ? "success" : status === "error" ? "danger" : status === "running" ? "info" : "neutral";
 
   return (
     <Badge variant={variant} dot size="sm" aria-label={`Status: ${status}`}>
@@ -33,11 +27,7 @@ export function JobBadge({ status }: { status: Job["status"] }) {
 export function JobError({ message }: { message?: string }) {
   const { t } = useI18n();
   if (!message) return null;
-  return (
-    <Alert variant="error">
-      {message || t("Operation failed.")}
-    </Alert>
-  );
+  return <Alert variant="error">{message || t("Operation failed.")}</Alert>;
 }
 
 export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (msg: string) => void }) {

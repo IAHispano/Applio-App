@@ -66,9 +66,7 @@ export default function BlenderPanel() {
           <CardHeader
             icon={<Layers size={18} className="text-white" />}
             title={t("Model Fusion & Blending")}
-            description={t(
-              "Merge and interpolate weights between two compatible voice model checkpoints.",
-            )}
+            description={t("Merge and interpolate weights between two compatible voice model checkpoints.")}
             action={
               <Badge variant="neutral" size="sm">
                 {models.length} {t("models detected")}

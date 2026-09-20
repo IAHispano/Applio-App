@@ -38,9 +38,7 @@ export default function AnalysisResultCard({
         {t("Loading analysis…")}
       </div>
     ) : (
-      <Card className="p-4 text-center text-xs text-neutral-400">
-        {t("Loading analysis…")}
-      </Card>
+      <Card className="p-4 text-center text-xs text-neutral-400">{t("Loading analysis…")}</Card>
     );
   }
 
@@ -94,9 +92,7 @@ export default function AnalysisResultCard({
       </div>
 
       {job.status === "error" && (
-        <Alert variant="error">
-          {job.error || t("Analysis operation failed.")}
-        </Alert>
+        <Alert variant="error">{job.error || t("Analysis operation failed.")}</Alert>
       )}
 
       {isRunning && (
