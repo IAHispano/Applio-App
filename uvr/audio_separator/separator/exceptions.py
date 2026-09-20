@@ -24,6 +24,10 @@ class BatchSeparationError(RuntimeError):
 
     def __init__(self, successful_files, failures):
         self.successful_files = list(successful_files)
-        self.failures = list(failures.items()) if isinstance(failures, dict) else list(failures)
+        self.failures = (
+            list(failures.items()) if isinstance(failures, dict) else list(failures)
+        )
         failure_details = "; ".join(f"{path}: {error}" for path, error in self.failures)
-        super().__init__(f"Separation failed for {len(self.failures)} input(s): {failure_details}")
+        super().__init__(
+            f"Separation failed for {len(self.failures)} input(s): {failure_details}"
+        )

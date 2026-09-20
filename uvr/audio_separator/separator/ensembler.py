@@ -23,27 +23,46 @@ class Ensembler:
         # Ensure all waveforms have the same number of channels
         num_channels = waveforms[0].shape[0]
         if any(w.shape[0] != num_channels for w in waveforms):
-            raise ValueError("All waveforms must have the same number of channels for ensembling.")
+            raise ValueError(
+                "All waveforms must have the same number of channels for ensembling."
+            )
 
         # Ensure all waveforms have the same length by padding with zeros
         max_length = max(w.shape[1] for w in waveforms)
-        waveforms = [np.pad(w, ((0, 0), (0, max_length - w.shape[1]))) if w.shape[1] < max_length else w for w in waveforms]
+        waveforms = [
+            (
+                np.pad(w, ((0, 0), (0, max_length - w.shape[1])))
+                if w.shape[1] < max_length
+                else w
+            )
+            for w in waveforms
+        ]
 
         if self.weights is None:
             weights = np.ones(len(waveforms))
         else:
             weights = np.array(self.weights)
             if len(weights) != len(waveforms):
-                self.logger.warning(f"Number of weights ({len(weights)}) does not match number of waveforms ({len(waveforms)}). Using equal weights.")
-                weights = np.ones(len(waveforms))
-            
-            # Validate weights are finite and sum is non-zero
-            weights_sum = np.sum(weights)
-            if not np.all(np.isfinite(weights)) or not np.isfinite(weights_sum) or weights_sum == 0:
-                self.logger.warning(f"Weights {self.weights} contain non-finite values or sum to zero. Falling back to equal weights.")
+                self.logger.warning(
+                    f"Number of weights ({len(weights)}) does not match number of waveforms ({len(waveforms)}). Using equal weights."
+                )
                 weights = np.ones(len(waveforms))
 
-        self.logger.debug(f"Ensembling {len(waveforms)} waveforms using algorithm {self.algorithm}")
+            # Validate weights are finite and sum is non-zero
+            weights_sum = np.sum(weights)
+            if (
+                not np.all(np.isfinite(weights))
+                or not np.isfinite(weights_sum)
+                or weights_sum == 0
+            ):
+                self.logger.warning(
+                    f"Weights {self.weights} contain non-finite values or sum to zero. Falling back to equal weights."
+                )
+                weights = np.ones(len(waveforms))
+
+        self.logger.debug(
+            f"Ensembling {len(waveforms)} waveforms using algorithm {self.algorithm}"
+        )
 
         if self.algorithm == "avg_wave":
             ensembled = np.zeros_like(waveforms[0])
@@ -52,15 +71,21 @@ class Ensembler:
             return ensembled / np.sum(weights)
         elif self.algorithm == "median_wave":
             if self.weights is not None and not np.all(weights == weights[0]):
-                self.logger.warning(f"Weights are ignored for algorithm {self.algorithm}")
+                self.logger.warning(
+                    f"Weights are ignored for algorithm {self.algorithm}"
+                )
             return np.median(waveforms, axis=0)
         elif self.algorithm == "min_wave":
             if self.weights is not None and not np.all(weights == weights[0]):
-                self.logger.warning(f"Weights are ignored for algorithm {self.algorithm}")
+                self.logger.warning(
+                    f"Weights are ignored for algorithm {self.algorithm}"
+                )
             return self._lambda_min(np.array(waveforms), axis=0, key=np.abs)
         elif self.algorithm == "max_wave":
             if self.weights is not None and not np.all(weights == weights[0]):
-                self.logger.warning(f"Weights are ignored for algorithm {self.algorithm}")
+                self.logger.warning(
+                    f"Weights are ignored for algorithm {self.algorithm}"
+                )
             return self._lambda_max(np.array(waveforms), axis=0, key=np.abs)
         elif self.algorithm in ["avg_fft", "median_fft", "min_fft", "max_fft"]:
             return self._ensemble_fft(waveforms, weights)
@@ -136,7 +161,9 @@ class Ensembler:
             ense_spec /= np.sum(weights)
         elif self.algorithm in ["median_fft", "min_fft", "max_fft"]:
             if self.weights is not None and not np.all(weights == weights[0]):
-                self.logger.warning(f"Weights are ignored for algorithm {self.algorithm}")
+                self.logger.warning(
+                    f"Weights are ignored for algorithm {self.algorithm}"
+                )
 
             if self.algorithm == "median_fft":
                 # For complex numbers, we take median of real and imag parts separately to be safe
@@ -148,7 +175,9 @@ class Ensembler:
             elif self.algorithm == "max_fft":
                 ense_spec = self._lambda_max(specs, axis=0, key=np.abs)
 
-        return self._istft(ense_spec, length=final_length, original_channels=num_channels)
+        return self._istft(
+            ense_spec, length=final_length, original_channels=num_channels
+        )
 
     def _ensemble_uvr(self, waveforms, uvr_algorithm):
         specs = [spec_utils.wave_to_spectrogram_no_mp(w) for w in waveforms]

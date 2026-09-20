@@ -9,7 +9,9 @@ def _is_dml_device(device: torch.device) -> bool:
     return device.type == "privateuseone"
 
 
-def _float32_frequencies(rotary_embed, *, seq_len: int, device: torch.device) -> torch.Tensor:
+def _float32_frequencies(
+    rotary_embed, *, seq_len: int, device: torch.device
+) -> torch.Tensor:
     """Build or retrieve rotary angles without allowing autocast to reduce precision."""
     # A compiled graph is shared by many regional Transformer instances. Their
     # time and frequency embeddings have different cache shapes, so reading or
@@ -67,13 +69,17 @@ def rotate_queries_or_keys(rotary_embed, tensor: torch.Tensor) -> torch.Tensor:
     seq_len = tensor.shape[seq_dim]
 
     with autocast_disabled(tensor.device):
-        frequencies = _float32_frequencies(rotary_embed, seq_len=seq_len, device=tensor.device)
+        frequencies = _float32_frequencies(
+            rotary_embed, seq_len=seq_len, device=tensor.device
+        )
 
         if seq_dim == -3:
             frequencies = frequencies[:, None, :]
 
         if _is_dml_device(tensor.device) and frequencies.shape[-1] == tensor.shape[-1]:
-            rotated = tensor * frequencies.cos() + rotate_half(tensor) * frequencies.sin()
+            rotated = (
+                tensor * frequencies.cos() + rotate_half(tensor) * frequencies.sin()
+            )
         else:
             rotated = apply_rotary_emb(frequencies, tensor, seq_dim=seq_dim)
 

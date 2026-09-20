@@ -28,19 +28,47 @@ from audio_separator.separator import Separator  # noqa: E402
 
 
 def build_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="Separate audio stems (vocals / instrumental / more).")
+    p = argparse.ArgumentParser(
+        description="Separate audio stems (vocals / instrumental / more)."
+    )
     p.add_argument("--input", required=True, help="Audio file to separate.")
-    p.add_argument("--model", required=True, help="Model filename, e.g. UVR-MDX-NET-Voc_FT.onnx")
+    p.add_argument(
+        "--model", required=True, help="Model filename, e.g. UVR-MDX-NET-Voc_FT.onnx"
+    )
     p.add_argument("--output-dir", required=True, help="Directory for separated stems.")
-    p.add_argument("--model-dir", required=True, help="Directory for downloaded model weights.")
+    p.add_argument(
+        "--model-dir", required=True, help="Directory for downloaded model weights."
+    )
     p.add_argument("--output-format", default="WAV", choices=["WAV", "MP3", "FLAC"])
-    p.add_argument("--single-stem", default=None, help="Only output this stem, e.g. Vocals or Instrumental.")
-    p.add_argument("--vr-aggression", type=int, default=5, help="VR architecture aggression (higher = stronger separation).")
-    p.add_argument("--vr-window", type=int, default=512, help="VR architecture window size.")
-    p.add_argument("--vr-batch", type=int, default=1, help="VR architecture batch size.")
-    p.add_argument("--mdx-segment", type=int, default=256, help="MDX architecture segment size.")
-    p.add_argument("--mdx-overlap", type=float, default=0.25, help="MDX architecture overlap ratio.")
-    p.add_argument("--mdx-batch", type=int, default=1, help="MDX architecture batch size.")
+    p.add_argument(
+        "--single-stem",
+        default=None,
+        help="Only output this stem, e.g. Vocals or Instrumental.",
+    )
+    p.add_argument(
+        "--vr-aggression",
+        type=int,
+        default=5,
+        help="VR architecture aggression (higher = stronger separation).",
+    )
+    p.add_argument(
+        "--vr-window", type=int, default=512, help="VR architecture window size."
+    )
+    p.add_argument(
+        "--vr-batch", type=int, default=1, help="VR architecture batch size."
+    )
+    p.add_argument(
+        "--mdx-segment", type=int, default=256, help="MDX architecture segment size."
+    )
+    p.add_argument(
+        "--mdx-overlap",
+        type=float,
+        default=0.25,
+        help="MDX architecture overlap ratio.",
+    )
+    p.add_argument(
+        "--mdx-batch", type=int, default=1, help="MDX architecture batch size."
+    )
     p.add_argument(
         "--list-models",
         action="store_true",
@@ -69,7 +97,11 @@ def list_models(args) -> int:
             "type": data.get("Type", "Unknown"),
             "stems": [stem_token(s).rstrip("*") for s in (data.get("Stems") or [])],
             "target_stem": next(
-                (stem_token(s).rstrip("*") for s in (data.get("Stems") or []) if "*" in stem_token(s)),
+                (
+                    stem_token(s).rstrip("*")
+                    for s in (data.get("Stems") or [])
+                    if "*" in stem_token(s)
+                ),
                 None,
             ),
         }

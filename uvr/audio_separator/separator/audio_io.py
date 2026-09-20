@@ -14,8 +14,12 @@ from audio_separator.separator.exceptions import AudioExportError, InvalidAudioD
 def validate_audio_source(stem_source):
     """Return audio as an array after validating mono/stereo frame layout."""
     stem_source = np.asarray(stem_source)
-    if stem_source.ndim not in (1, 2) or (stem_source.ndim == 2 and stem_source.shape[1] not in (1, 2)):
-        raise InvalidAudioDataError(f"Audio data has invalid shape {stem_source.shape}; expected mono or stereo frames")
+    if stem_source.ndim not in (1, 2) or (
+        stem_source.ndim == 2 and stem_source.shape[1] not in (1, 2)
+    ):
+        raise InvalidAudioDataError(
+            f"Audio data has invalid shape {stem_source.shape}; expected mono or stereo frames"
+        )
     return stem_source
 
 
@@ -29,7 +33,9 @@ def _published_file_mode(target_path, target_dir):
         pass
 
     for _ in range(10):
-        probe_path = os.path.join(target_dir, f".audio-output-mode-{secrets.token_hex(8)}")
+        probe_path = os.path.join(
+            target_dir, f".audio-output-mode-{secrets.token_hex(8)}"
+        )
         try:
             probe_fd = os.open(probe_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o666)
         except FileExistsError:
@@ -40,7 +46,9 @@ def _published_file_mode(target_path, target_dir):
             os.close(probe_fd)
             os.unlink(probe_path)
 
-    raise FileExistsError("Could not create a unique mode probe for atomic audio output")
+    raise FileExistsError(
+        "Could not create a unique mode probe for atomic audio output"
+    )
 
 
 @contextmanager
@@ -53,7 +61,9 @@ def atomic_output_path(target_path, backend):
     try:
         target_dir = os.path.dirname(target_path) or "."
         suffix = os.path.splitext(target_path)[1]
-        temp_fd, temp_path = tempfile.mkstemp(prefix=f".{os.path.basename(target_path)}.", suffix=suffix, dir=target_dir)
+        temp_fd, temp_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(target_path)}.", suffix=suffix, dir=target_dir
+        )
         published_mode = _published_file_mode(target_path, target_dir)
         if published_mode is not None:
             os.fchmod(temp_fd, published_mode)
@@ -82,11 +92,15 @@ def atomic_output_path(target_path, backend):
                 if error is None:
                     error = cleanup_error
                 elif hasattr(error, "add_note"):
-                    error.add_note(f"Failed to remove temporary audio output {temp_path}: {cleanup_error}")
+                    error.add_note(
+                        f"Failed to remove temporary audio output {temp_path}: {cleanup_error}"
+                    )
 
     if error is not None:
         if isinstance(error, AudioExportError):
             raise error
         raise AudioExportError(
-            f"Failed to publish audio output {target_path} with {backend}: {error}", path=target_path, backend=backend
+            f"Failed to publish audio output {target_path} with {backend}: {error}",
+            path=target_path,
+            backend=backend,
         ) from error
