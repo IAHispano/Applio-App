@@ -1,4 +1,4 @@
-""" This file contains the Separator class, to facilitate the separation of stems from audio. """
+"""This file contains the Separator class, to facilitate the separation of stems from audio."""
 
 from importlib import metadata, resources
 import os
@@ -25,7 +25,11 @@ import onnxruntime as ort
 from tqdm import tqdm
 from audio_separator.separator.audio_io import atomic_output_path, validate_audio_source
 from audio_separator.separator.ensembler import Ensembler
-from audio_separator.separator.exceptions import AudioExportError, BatchSeparationError, InvalidAudioDataError
+from audio_separator.separator.exceptions import (
+    AudioExportError,
+    BatchSeparationError,
+    InvalidAudioDataError,
+)
 from audio_separator.separator.execution_policy import AUTOCAST, FP32, NATIVE_FP16
 
 # Mapping of common stem name variations to canonical names for ensemble grouping.
@@ -51,7 +55,16 @@ STEM_NAME_MAP = {
     "secondary stem": "Secondary Stem",
 }
 
-SUPPORTED_AUDIO_EXTENSIONS = (".wav", ".flac", ".mp3", ".ogg", ".opus", ".m4a", ".aiff", ".ac3")
+SUPPORTED_AUDIO_EXTENSIONS = (
+    ".wav",
+    ".flac",
+    ".mp3",
+    ".ogg",
+    ".opus",
+    ".m4a",
+    ".aiff",
+    ".ac3",
+)
 
 
 def _iter_directory_audio_files(directory):
@@ -136,10 +149,35 @@ class Separator:
         use_autocast=False,
         use_directml=False,
         chunk_duration=None,
-        mdx_params={"hop_length": 1024, "segment_size": 256, "overlap": 0.25, "batch_size": 1, "enable_denoise": False},
-        vr_params={"batch_size": 1, "window_size": 512, "aggression": 5, "enable_tta": False, "enable_post_process": False, "post_process_threshold": 0.2, "high_end_process": False},
-        demucs_params={"segment_size": "Default", "shifts": 2, "overlap": 0.25, "segments_enabled": True},
-        mdxc_params={"segment_size": 256, "override_model_segment_size": False, "batch_size": None, "overlap": None, "pitch_shift": 0},
+        mdx_params={
+            "hop_length": 1024,
+            "segment_size": 256,
+            "overlap": 0.25,
+            "batch_size": 1,
+            "enable_denoise": False,
+        },
+        vr_params={
+            "batch_size": 1,
+            "window_size": 512,
+            "aggression": 5,
+            "enable_tta": False,
+            "enable_post_process": False,
+            "post_process_threshold": 0.2,
+            "high_end_process": False,
+        },
+        demucs_params={
+            "segment_size": "Default",
+            "shifts": 2,
+            "overlap": 0.25,
+            "segments_enabled": True,
+        },
+        mdxc_params={
+            "segment_size": 256,
+            "override_model_segment_size": False,
+            "batch_size": None,
+            "overlap": None,
+            "pitch_shift": 0,
+        },
         ensemble_algorithm=None,
         ensemble_weights=None,
         ensemble_preset=None,
@@ -149,7 +187,9 @@ class Separator:
     ):
         """Initialize the separator."""
         if use_autocast and use_native_fp16:
-            raise ValueError("use_autocast and use_native_fp16 are mutually exclusive precision modes.")
+            raise ValueError(
+                "use_autocast and use_native_fp16 are mutually exclusive precision modes."
+            )
 
         self.logger = logging.getLogger(__name__)
         self.logger.setLevel(log_level)
@@ -159,7 +199,9 @@ class Separator:
         self.log_handler = logging.StreamHandler()
 
         if self.log_formatter is None:
-            self.log_formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(module)s - %(message)s")
+            self.log_formatter = logging.Formatter(
+                "%(asctime)s - %(levelname)s - %(module)s - %(message)s"
+            )
 
         self.log_handler.setFormatter(self.log_formatter)
 
@@ -174,13 +216,19 @@ class Separator:
         if not info_only:
             # Applio: vendored copy is not pip-installed, so metadata may be absent.
             package_distribution = self.get_package_distribution("audio-separator")
-            package_version = package_distribution.version if package_distribution else "vendored"
-            self.logger.info(f"Separator version {package_version} instantiating with output_dir: {output_dir}, output_format: {output_format}")
+            package_version = (
+                package_distribution.version if package_distribution else "vendored"
+            )
+            self.logger.info(
+                f"Separator version {package_version} instantiating with output_dir: {output_dir}, output_format: {output_format}"
+            )
 
         if output_dir is None:
             output_dir = os.getcwd()
             if not info_only:
-                self.logger.info("Output directory not specified. Using current working directory.")
+                self.logger.info(
+                    "Output directory not specified. Using current working directory."
+                )
 
         self.output_dir = output_dir
 
@@ -188,11 +236,17 @@ class Separator:
         env_model_dir = os.environ.get("AUDIO_SEPARATOR_MODEL_DIR")
         if env_model_dir:
             self.model_file_dir = env_model_dir
-            self.logger.info(f"Using model directory from AUDIO_SEPARATOR_MODEL_DIR env var: {self.model_file_dir}")
+            self.logger.info(
+                f"Using model directory from AUDIO_SEPARATOR_MODEL_DIR env var: {self.model_file_dir}"
+            )
             if not os.path.exists(self.model_file_dir):
-                raise FileNotFoundError(f"The specified model directory does not exist: {self.model_file_dir}")
+                raise FileNotFoundError(
+                    f"The specified model directory does not exist: {self.model_file_dir}"
+                )
         else:
-            self.logger.info(f"Using model directory from model_file_dir parameter: {model_file_dir}")
+            self.logger.info(
+                f"Using model directory from model_file_dir parameter: {model_file_dir}"
+            )
             self.model_file_dir = model_file_dir
 
         # Create the model directory if it does not exist
@@ -207,28 +261,42 @@ class Separator:
 
         self.normalization_threshold = normalization_threshold
         if normalization_threshold <= 0 or normalization_threshold > 1:
-            raise ValueError("The normalization_threshold must be greater than 0 and less than or equal to 1.")
+            raise ValueError(
+                "The normalization_threshold must be greater than 0 and less than or equal to 1."
+            )
 
         self.amplification_threshold = amplification_threshold
         if amplification_threshold < 0 or amplification_threshold > 1:
-            raise ValueError("The amplification_threshold must be greater than or equal to 0 and less than or equal to 1.")
+            raise ValueError(
+                "The amplification_threshold must be greater than or equal to 0 and less than or equal to 1."
+            )
 
         self.output_single_stem = output_single_stem
         if output_single_stem is not None:
-            self.logger.debug(f"Single stem output requested, so only one output file ({output_single_stem}) will be written")
+            self.logger.debug(
+                f"Single stem output requested, so only one output file ({output_single_stem}) will be written"
+            )
 
         self.invert_using_spec = invert_using_spec
         if self.invert_using_spec:
-            self.logger.debug(f"Secondary step will be inverted using spectogram rather than waveform. This may improve quality but is slightly slower.")
+            self.logger.debug(
+                f"Secondary step will be inverted using spectogram rather than waveform. This may improve quality but is slightly slower."
+            )
 
         try:
             self.sample_rate = int(sample_rate)
             if self.sample_rate <= 0:
-                raise ValueError(f"The sample rate setting is {self.sample_rate} but it must be a non-zero whole number.")
+                raise ValueError(
+                    f"The sample rate setting is {self.sample_rate} but it must be a non-zero whole number."
+                )
             if self.sample_rate > 12800000:
-                raise ValueError(f"The sample rate setting is {self.sample_rate}. Enter something less ambitious.")
+                raise ValueError(
+                    f"The sample rate setting is {self.sample_rate}. Enter something less ambitious."
+                )
         except ValueError:
-            raise ValueError("The sample rate must be a non-zero whole number. Please provide a valid integer.")
+            raise ValueError(
+                "The sample rate must be a non-zero whole number. Please provide a valid integer."
+            )
 
         self.use_soundfile = use_soundfile
         self.use_autocast = use_autocast
@@ -262,7 +330,12 @@ class Separator:
 
         # These are parameters which users may want to configure so we expose them to the top-level Separator class,
         # even though they are specific to a single model architecture
-        self.arch_specific_params = {"MDX": mdx_params, "VR": vr_params, "Demucs": demucs_params, "MDXC": mdxc_params}
+        self.arch_specific_params = {
+            "MDX": mdx_params,
+            "VR": vr_params,
+            "Demucs": demucs_params,
+            "MDXC": mdxc_params,
+        }
 
         self.torch_device = None
         self.torch_device_cpu = None
@@ -297,9 +370,17 @@ class Separator:
         return bool(getattr(self.model_instance, "effective_torch_compile", False))
 
     VALID_ENSEMBLE_ALGORITHMS = [
-        "avg_wave", "median_wave", "min_wave", "max_wave",
-        "avg_fft", "median_fft", "min_fft", "max_fft",
-        "uvr_max_spec", "uvr_min_spec", "ensemble_wav",
+        "avg_wave",
+        "median_wave",
+        "min_wave",
+        "max_wave",
+        "avg_fft",
+        "median_fft",
+        "min_fft",
+        "max_fft",
+        "uvr_max_spec",
+        "uvr_min_spec",
+        "ensemble_wav",
     ]
 
     def _load_ensemble_preset(self, preset_name):
@@ -313,32 +394,44 @@ class Separator:
             with resources.open_text("audio_separator", "ensemble_presets.json") as f:
                 presets_data = json.load(f)
         except FileNotFoundError:
-            raise ValueError("Ensemble presets file not found. The package may be corrupted or improperly installed.")
+            raise ValueError(
+                "Ensemble presets file not found. The package may be corrupted or improperly installed."
+            )
 
         presets = presets_data.get("presets", {})
         if preset_name not in presets:
             available = ", ".join(sorted(presets.keys()))
-            raise ValueError(f"Unknown ensemble preset: '{preset_name}'. Available presets: {available}")
+            raise ValueError(
+                f"Unknown ensemble preset: '{preset_name}'. Available presets: {available}"
+            )
 
         preset = presets[preset_name]
 
         # Validate models
         models = preset.get("models", [])
         if not isinstance(models, list) or len(models) < 2:
-            raise ValueError(f"Ensemble preset '{preset_name}' must specify at least 2 models, got {len(models) if isinstance(models, list) else 0}")
+            raise ValueError(
+                f"Ensemble preset '{preset_name}' must specify at least 2 models, got {len(models) if isinstance(models, list) else 0}"
+            )
 
         # Validate algorithm
         algorithm = preset.get("algorithm", "avg_wave")
         if algorithm not in self.VALID_ENSEMBLE_ALGORITHMS:
-            raise ValueError(f"Ensemble preset '{preset_name}' has unknown algorithm: '{algorithm}'")
+            raise ValueError(
+                f"Ensemble preset '{preset_name}' has unknown algorithm: '{algorithm}'"
+            )
 
         # Validate weights
         weights = preset.get("weights")
         if weights is not None:
             if not isinstance(weights, list) or len(weights) != len(models):
-                raise ValueError(f"Ensemble preset '{preset_name}' weights length ({len(weights) if isinstance(weights, list) else 'N/A'}) must match models count ({len(models)})")
+                raise ValueError(
+                    f"Ensemble preset '{preset_name}' weights length ({len(weights) if isinstance(weights, list) else 'N/A'}) must match models count ({len(models)})"
+                )
 
-        self.logger.info(f"Loaded ensemble preset '{preset_name}': {preset.get('name', preset_name)} — {preset.get('description', '')}")
+        self.logger.info(
+            f"Loaded ensemble preset '{preset_name}': {preset.get('name', preset_name)} — {preset.get('description', '')}"
+        )
         return preset
 
     def list_ensemble_presets(self):
@@ -372,14 +465,18 @@ class Separator:
         the first CUDAExecutionProvider session is created.
         """
         if not hasattr(ort, "preload_dlls"):
-            self.logger.debug("Installed ONNX Runtime does not provide preload_dlls(); skipping dependency preload.")
+            self.logger.debug(
+                "Installed ONNX Runtime does not provide preload_dlls(); skipping dependency preload."
+            )
             return
 
         try:
             ort.preload_dlls()
             self.logger.debug("Preloaded ONNX Runtime shared library dependencies.")
         except Exception as exc:
-            self.logger.warning(f"Unable to preload ONNX Runtime shared library dependencies: {exc}")
+            self.logger.warning(
+                f"Unable to preload ONNX Runtime shared library dependencies: {exc}"
+            )
 
     def get_system_info(self):
         """
@@ -390,7 +487,9 @@ class Separator:
         self.logger.info(f"Operating System: {os_name} {os_version}")
 
         system_info = platform.uname()
-        self.logger.info(f"System: {system_info.system} Node: {system_info.node} Release: {system_info.release} Machine: {system_info.machine} Proc: {system_info.processor}")
+        self.logger.info(
+            f"System: {system_info.system} Node: {system_info.node} Release: {system_info.release} Machine: {system_info.machine} Proc: {system_info.processor}"
+        )
 
         python_version = platform.python_version()
         self.logger.info(f"Python Version: {python_version}")
@@ -404,11 +503,15 @@ class Separator:
         This method checks if ffmpeg is installed and logs its version.
         """
         try:
-            ffmpeg_version_output = subprocess.check_output(["ffmpeg", "-version"], text=True)
+            ffmpeg_version_output = subprocess.check_output(
+                ["ffmpeg", "-version"], text=True
+            )
             first_line = ffmpeg_version_output.splitlines()[0]
             self.logger.info(f"FFmpeg installed: {first_line}")
         except FileNotFoundError:
-            self.logger.error("FFmpeg is not installed. Please install FFmpeg to use this package.")
+            self.logger.error(
+                "FFmpeg is not installed. Please install FFmpeg to use this package."
+            )
             # Raise an exception if this is being run by a user, as ffmpeg is required for pydub to write audio
             # but if we're just running unit tests in CI, no reason to throw
             if "PYTEST_CURRENT_TEST" not in os.environ:
@@ -419,18 +522,28 @@ class Separator:
         This method logs the ONNX Runtime package versions, including the GPU and Silicon packages if available.
         """
         onnxruntime_gpu_package = self.get_package_distribution("onnxruntime-gpu")
-        onnxruntime_silicon_package = self.get_package_distribution("onnxruntime-silicon")
+        onnxruntime_silicon_package = self.get_package_distribution(
+            "onnxruntime-silicon"
+        )
         onnxruntime_cpu_package = self.get_package_distribution("onnxruntime")
         onnxruntime_dml_package = self.get_package_distribution("onnxruntime-directml")
 
         if onnxruntime_gpu_package is not None:
-            self.logger.info(f"ONNX Runtime GPU package installed with version: {onnxruntime_gpu_package.version}")
+            self.logger.info(
+                f"ONNX Runtime GPU package installed with version: {onnxruntime_gpu_package.version}"
+            )
         if onnxruntime_silicon_package is not None:
-            self.logger.info(f"ONNX Runtime Silicon package installed with version: {onnxruntime_silicon_package.version}")
+            self.logger.info(
+                f"ONNX Runtime Silicon package installed with version: {onnxruntime_silicon_package.version}"
+            )
         if onnxruntime_cpu_package is not None:
-            self.logger.info(f"ONNX Runtime CPU package installed with version: {onnxruntime_cpu_package.version}")
+            self.logger.info(
+                f"ONNX Runtime CPU package installed with version: {onnxruntime_cpu_package.version}"
+            )
         if onnxruntime_dml_package is not None:
-            self.logger.info(f"ONNX Runtime DirectML package installed with version: {onnxruntime_dml_package.version}")
+            self.logger.info(
+                f"ONNX Runtime DirectML package installed with version: {onnxruntime_dml_package.version}"
+            )
 
     def setup_torch_device(self, system_info):
         """
@@ -445,23 +558,33 @@ class Separator:
         if torch.cuda.is_available():
             self.configure_cuda(ort_providers)
             hardware_acceleration_enabled = True
-        elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available() and system_info.processor == "arm":
+        elif (
+            hasattr(torch.backends, "mps")
+            and torch.backends.mps.is_available()
+            and system_info.processor == "arm"
+        ):
             self.configure_mps(ort_providers)
             hardware_acceleration_enabled = True
         elif self.use_directml and has_torch_dml_installed:
             import torch_directml
+
             if torch_directml.is_available():
                 self.configure_dml(ort_providers)
                 hardware_acceleration_enabled = True
 
         if not hardware_acceleration_enabled:
-            self.logger.info("No hardware acceleration could be configured, running in CPU mode")
+            self.logger.info(
+                "No hardware acceleration could be configured, running in CPU mode"
+            )
             self.torch_device = self.torch_device_cpu
             self.onnx_execution_provider = ["CPUExecutionProvider"]
 
             # Discoverability hint: DirectML is an explicit opt-in (experimental). If the
             # DirectML packages are installed but the feature wasn't enabled, tell the user how.
-            if not self.use_directml and (has_torch_dml_installed or self.get_package_distribution("onnxruntime-directml") is not None):
+            if not self.use_directml and (
+                has_torch_dml_installed
+                or self.get_package_distribution("onnxruntime-directml") is not None
+            ):
                 self.logger.info(
                     "DirectML packages detected but DirectML is not enabled. "
                     "Pass use_directml=True (or --use_directml on the CLI) to enable experimental DirectML acceleration."
@@ -474,40 +597,57 @@ class Separator:
         self.logger.info("CUDA is available in Torch, setting Torch device to CUDA")
         self.torch_device = torch.device("cuda")
         if "CUDAExecutionProvider" in ort_providers:
-            self.logger.info("ONNXruntime has CUDAExecutionProvider available, enabling acceleration")
+            self.logger.info(
+                "ONNXruntime has CUDAExecutionProvider available, enabling acceleration"
+            )
             self.onnx_execution_provider = ["CUDAExecutionProvider"]
         else:
-            self.logger.warning("CUDAExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled")
+            self.logger.warning(
+                "CUDAExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled"
+            )
 
     def configure_mps(self, ort_providers):
         """
         This method configures the Apple Silicon MPS/CoreML device for PyTorch and ONNX Runtime, if available.
         """
-        self.logger.info("Apple Silicon MPS/CoreML is available in Torch and processor is ARM, setting Torch device to MPS")
+        self.logger.info(
+            "Apple Silicon MPS/CoreML is available in Torch and processor is ARM, setting Torch device to MPS"
+        )
         self.torch_device_mps = torch.device("mps")
 
         self.torch_device = self.torch_device_mps
 
         if "CoreMLExecutionProvider" in ort_providers:
-            self.logger.info("ONNXruntime has CoreMLExecutionProvider available, enabling acceleration")
+            self.logger.info(
+                "ONNXruntime has CoreMLExecutionProvider available, enabling acceleration"
+            )
             self.onnx_execution_provider = ["CoreMLExecutionProvider"]
         else:
-            self.logger.warning("CoreMLExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled")
+            self.logger.warning(
+                "CoreMLExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled"
+            )
 
     def configure_dml(self, ort_providers):
         """
         This method configures the DirectML device for PyTorch and ONNX Runtime, if available.
         """
         import torch_directml
-        self.logger.info("DirectML is available in Torch, setting Torch device to DirectML")
-        self.torch_device_dml = torch_directml.device() 
+
+        self.logger.info(
+            "DirectML is available in Torch, setting Torch device to DirectML"
+        )
+        self.torch_device_dml = torch_directml.device()
         self.torch_device = self.torch_device_dml
 
         if "DmlExecutionProvider" in ort_providers:
-            self.logger.info("ONNXruntime has DmlExecutionProvider available, enabling acceleration")
+            self.logger.info(
+                "ONNXruntime has DmlExecutionProvider available, enabling acceleration"
+            )
             self.onnx_execution_provider = ["DmlExecutionProvider"]
         else:
-            self.logger.warning("DmlExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled")
+            self.logger.warning(
+                "DmlExecutionProvider not available in ONNXruntime, so acceleration will NOT be enabled"
+            )
 
     def get_package_distribution(self, package_name):
         """
@@ -533,12 +673,16 @@ class Separator:
             with open(model_path, "rb") as f:
                 if file_size < BYTES_TO_HASH:
                     # Hash the entire file if smaller than the target byte count
-                    self.logger.debug(f"File size {file_size} < {BYTES_TO_HASH}, hashing entire file.")
+                    self.logger.debug(
+                        f"File size {file_size} < {BYTES_TO_HASH}, hashing entire file."
+                    )
                     hash_value = hashlib.md5(f.read()).hexdigest()
                 else:
                     # Seek to the specific position before the end (from the beginning) and hash
                     seek_pos = file_size - BYTES_TO_HASH
-                    self.logger.debug(f"File size {file_size} >= {BYTES_TO_HASH}, seeking to {seek_pos} and hashing remaining bytes.")
+                    self.logger.debug(
+                        f"File size {file_size} >= {BYTES_TO_HASH}, seeking to {seek_pos} and hashing remaining bytes."
+                    )
                     f.seek(seek_pos, io.SEEK_SET)
                     hash_value = hashlib.md5(f.read()).hexdigest()
 
@@ -548,11 +692,11 @@ class Separator:
 
         except FileNotFoundError:
             self.logger.error(f"Model file not found at {model_path}")
-            raise # Re-raise the specific error
+            raise  # Re-raise the specific error
         except Exception as e:
             # Catch other potential errors (e.g., permissions, other IOErrors)
             self.logger.error(f"Error calculating hash for {model_path}: {e}")
-            raise # Re-raise other errors
+            raise  # Re-raise other errors
 
     def download_file_if_not_exists(self, url, output_path):
         """
@@ -560,10 +704,14 @@ class Separator:
         """
 
         if os.path.isfile(output_path):
-            self.logger.debug(f"File already exists at {output_path}, skipping download")
+            self.logger.debug(
+                f"File already exists at {output_path}, skipping download"
+            )
             return
 
-        self.logger.debug(f"Downloading file from {url} to {output_path} with timeout 300s")
+        self.logger.debug(
+            f"Downloading file from {url} to {output_path} with timeout 300s"
+        )
         response = requests.get(url, stream=True, timeout=300)
 
         if response.status_code == 200:
@@ -576,7 +724,9 @@ class Separator:
                     f.write(chunk)
             progress_bar.close()
         else:
-            raise RuntimeError(f"Failed to download file from {url}, response code: {response.status_code}")
+            raise RuntimeError(
+                f"Failed to download file from {url}, response code: {response.status_code}"
+            )
 
     def list_supported_model_files(self):
         """
@@ -667,7 +817,10 @@ class Separator:
         """
         download_checks_path = os.path.join(self.model_file_dir, "download_checks.json")
 
-        self.download_file_if_not_exists("https://raw.githubusercontent.com/TRvlvr/application_data/main/filelists/download_checks.json", download_checks_path)
+        self.download_file_if_not_exists(
+            "https://raw.githubusercontent.com/TRvlvr/application_data/main/filelists/download_checks.json",
+            download_checks_path,
+        )
 
         model_downloads_list = json.load(open(download_checks_path, encoding="utf-8"))
         self.logger.debug(f"UVR model download list loaded")
@@ -683,13 +836,20 @@ class Separator:
             self.logger.warning("Continuing without model scores")
 
         # Only show Demucs v4 models as we've only implemented support for v4
-        filtered_demucs_v4 = {key: value for key, value in model_downloads_list["demucs_download_list"].items() if key.startswith("Demucs v4")}
+        filtered_demucs_v4 = {
+            key: value
+            for key, value in model_downloads_list["demucs_download_list"].items()
+            if key.startswith("Demucs v4")
+        }
 
         # Modified Demucs handling to use YAML files as identifiers and include download files
         demucs_models = {}
         for name, files in filtered_demucs_v4.items():
             # Find the YAML file in the model files
-            yaml_file = next((filename for filename in files.keys() if filename.endswith(".yaml")), None)
+            yaml_file = next(
+                (filename for filename in files.keys() if filename.endswith(".yaml")),
+                None,
+            )
             if yaml_file:
                 model_score_data = model_scores.get(yaml_file, {})
                 demucs_models[name] = {
@@ -697,7 +857,9 @@ class Separator:
                     "scores": model_score_data.get("median_scores", {}),
                     "stems": model_score_data.get("stems", []),
                     "target_stem": model_score_data.get("target_stem"),
-                    "download_files": list(files.values()),  # List of all download URLs/filenames
+                    "download_files": list(
+                        files.values()
+                    ),  # List of all download URLs/filenames
                 }
 
         # Load the JSON file using importlib.resources
@@ -715,7 +877,10 @@ class Separator:
                     "target_stem": model_scores.get(filename, {}).get("target_stem"),
                     "download_files": [filename],
                 }  # Just the filename for VR models
-                for name, filename in {**model_downloads_list["vr_download_list"], **audio_separator_models_list["vr_download_list"]}.items()
+                for name, filename in {
+                    **model_downloads_list["vr_download_list"],
+                    **audio_separator_models_list["vr_download_list"],
+                }.items()
             },
             "MDX": {
                 name: {
@@ -725,16 +890,29 @@ class Separator:
                     "target_stem": model_scores.get(filename, {}).get("target_stem"),
                     "download_files": [filename],
                 }  # Just the filename for MDX models
-                for name, filename in {**model_downloads_list["mdx_download_list"], **model_downloads_list["mdx_download_vip_list"], **audio_separator_models_list["mdx_download_list"]}.items()
+                for name, filename in {
+                    **model_downloads_list["mdx_download_list"],
+                    **model_downloads_list["mdx_download_vip_list"],
+                    **audio_separator_models_list["mdx_download_list"],
+                }.items()
             },
             "Demucs": demucs_models,
             "MDXC": {
                 name: {
                     "filename": next(iter(files.keys())),
-                    "scores": model_scores.get(next(iter(files.keys())), {}).get("median_scores", {}),
-                    "stems": model_scores.get(next(iter(files.keys())), {}).get("stems", []),
-                    "target_stem": model_scores.get(next(iter(files.keys())), {}).get("target_stem"),
-                    "download_files": list(files.keys()) + list(files.values()),  # List of both model filenames and config filenames
+                    "scores": model_scores.get(next(iter(files.keys())), {}).get(
+                        "median_scores", {}
+                    ),
+                    "stems": model_scores.get(next(iter(files.keys())), {}).get(
+                        "stems", []
+                    ),
+                    "target_stem": model_scores.get(next(iter(files.keys())), {}).get(
+                        "target_stem"
+                    ),
+                    "download_files": list(files.keys())
+                    + list(
+                        files.values()
+                    ),  # List of both model filenames and config filenames
                 }
                 for name, files in {
                     **model_downloads_list["mdx23c_download_list"],
@@ -753,8 +931,12 @@ class Separator:
         This method prints a message to the user if they have downloaded a VIP model, reminding them to support Anjok07 on Patreon.
         """
         if self.model_is_uvr_vip:
-            self.logger.warning(f"The model: '{self.model_friendly_name}' is a VIP model, intended by Anjok07 for access by paying subscribers only.")
-            self.logger.warning("If you are not already subscribed, please consider supporting the developer of UVR, Anjok07 by subscribing here: https://patreon.com/uvr")
+            self.logger.warning(
+                f"The model: '{self.model_friendly_name}' is a VIP model, intended by Anjok07 for access by paying subscribers only."
+            )
+            self.logger.warning(
+                "If you are not already subscribed, please consider supporting the developer of UVR, Anjok07 by subscribing here: https://patreon.com/uvr"
+            )
 
     def download_model_files(self, model_filename):
         """
@@ -765,22 +947,33 @@ class Separator:
 
         supported_model_files_grouped = self.list_supported_model_files()
         public_model_repo_url_prefix = "https://github.com/TRvlvr/model_repo/releases/download/all_public_uvr_models"
-        vip_model_repo_url_prefix = "https://github.com/Anjok0109/ai_magic/releases/download/v5"
+        vip_model_repo_url_prefix = (
+            "https://github.com/Anjok0109/ai_magic/releases/download/v5"
+        )
         audio_separator_models_repo_url_prefix = "https://github.com/nomadkaraoke/python-audio-separator/releases/download/model-configs"
 
         yaml_config_filename = None
 
-        self.logger.debug(f"Searching for model_filename {model_filename} in supported_model_files_grouped")
+        self.logger.debug(
+            f"Searching for model_filename {model_filename} in supported_model_files_grouped"
+        )
 
         # Iterate through model types (MDX, Demucs, MDXC)
         for model_type, models in supported_model_files_grouped.items():
             # Iterate through each model in this type
             for model_friendly_name, model_info in models.items():
                 self.model_is_uvr_vip = "VIP" in model_friendly_name
-                model_repo_url_prefix = vip_model_repo_url_prefix if self.model_is_uvr_vip else public_model_repo_url_prefix
+                model_repo_url_prefix = (
+                    vip_model_repo_url_prefix
+                    if self.model_is_uvr_vip
+                    else public_model_repo_url_prefix
+                )
 
                 # Check if this model matches our target filename
-                if model_info["filename"] == model_filename or model_filename in model_info["download_files"]:
+                if (
+                    model_info["filename"] == model_filename
+                    or model_filename in model_info["download_files"]
+                ):
                     self.logger.debug(f"Found matching model: {model_friendly_name}")
                     self.model_friendly_name = model_friendly_name
                     self.print_uvr_vip_message()
@@ -791,35 +984,59 @@ class Separator:
                         if file_to_download.startswith("http"):
                             filename = file_to_download.split("/")[-1]
                             download_path = os.path.join(self.model_file_dir, filename)
-                            self.download_file_if_not_exists(file_to_download, download_path)
+                            self.download_file_if_not_exists(
+                                file_to_download, download_path
+                            )
                             continue
 
-                        download_path = os.path.join(self.model_file_dir, file_to_download)
+                        download_path = os.path.join(
+                            self.model_file_dir, file_to_download
+                        )
 
                         # For MDXC models, handle YAML config files specially
                         if model_type == "MDXC" and file_to_download.endswith(".yaml"):
                             yaml_config_filename = file_to_download
                             try:
                                 yaml_url = f"{model_repo_url_prefix}/mdx_model_data/mdx_c_configs/{file_to_download}"
-                                self.download_file_if_not_exists(yaml_url, download_path)
+                                self.download_file_if_not_exists(
+                                    yaml_url, download_path
+                                )
                             except RuntimeError:
-                                self.logger.debug("YAML config not found in UVR repo, trying audio-separator models repo...")
+                                self.logger.debug(
+                                    "YAML config not found in UVR repo, trying audio-separator models repo..."
+                                )
                                 yaml_url = f"{audio_separator_models_repo_url_prefix}/{file_to_download}"
-                                self.download_file_if_not_exists(yaml_url, download_path)
+                                self.download_file_if_not_exists(
+                                    yaml_url, download_path
+                                )
                             continue
 
                         # For regular model files, try UVR repo first, then audio-separator repo
                         try:
                             download_url = f"{model_repo_url_prefix}/{file_to_download}"
-                            self.download_file_if_not_exists(download_url, download_path)
+                            self.download_file_if_not_exists(
+                                download_url, download_path
+                            )
                         except RuntimeError:
-                            self.logger.debug("Model not found in UVR repo, trying audio-separator models repo...")
+                            self.logger.debug(
+                                "Model not found in UVR repo, trying audio-separator models repo..."
+                            )
                             download_url = f"{audio_separator_models_repo_url_prefix}/{file_to_download}"
-                            self.download_file_if_not_exists(download_url, download_path)
+                            self.download_file_if_not_exists(
+                                download_url, download_path
+                            )
 
-                    return model_filename, model_type, model_friendly_name, model_path, yaml_config_filename
+                    return (
+                        model_filename,
+                        model_type,
+                        model_friendly_name,
+                        model_path,
+                        yaml_config_filename,
+                    )
 
-        raise ValueError(f"Model file {model_filename} not found in supported model files")
+        raise ValueError(
+            f"Model file {model_filename} not found in supported model files"
+        )
 
     def load_model_data_from_yaml(self, yaml_config_filename):
         """
@@ -828,18 +1045,26 @@ class Separator:
         """
         # Verify if the YAML filename includes a full path or just the filename
         if not os.path.exists(yaml_config_filename):
-            model_data_yaml_filepath = os.path.join(self.model_file_dir, yaml_config_filename)
+            model_data_yaml_filepath = os.path.join(
+                self.model_file_dir, yaml_config_filename
+            )
         else:
             model_data_yaml_filepath = yaml_config_filename
 
-        self.logger.debug(f"Loading model data from YAML at path {model_data_yaml_filepath}")
+        self.logger.debug(
+            f"Loading model data from YAML at path {model_data_yaml_filepath}"
+        )
 
-        model_data = yaml.load(open(model_data_yaml_filepath, encoding="utf-8"), Loader=yaml.FullLoader)
+        model_data = yaml.load(
+            open(model_data_yaml_filepath, encoding="utf-8"), Loader=yaml.FullLoader
+        )
         self.logger.debug(f"Model data loaded from YAML file: {model_data}")
 
         from .roformer.configuration_normalizer import ConfigurationNormalizer
 
-        configured_roformer_type = ConfigurationNormalizer().detect_model_type(model_data)
+        configured_roformer_type = ConfigurationNormalizer().detect_model_type(
+            model_data
+        )
         yaml_filename = os.path.basename(model_data_yaml_filepath).lower()
         if configured_roformer_type is not None or "roformer" in yaml_filename:
             model_data["is_roformer"] = True
@@ -853,13 +1078,19 @@ class Separator:
         The correct parameters are identified by calculating the hash of the model file and looking up the hash in the UVR data files.
         """
         # Model data and configuration sources from UVR
-        model_data_url_prefix = "https://raw.githubusercontent.com/TRvlvr/application_data/main"
+        model_data_url_prefix = (
+            "https://raw.githubusercontent.com/TRvlvr/application_data/main"
+        )
 
         vr_model_data_url = f"{model_data_url_prefix}/vr_model_data/model_data_new.json"
-        mdx_model_data_url = f"{model_data_url_prefix}/mdx_model_data/model_data_new.json"
+        mdx_model_data_url = (
+            f"{model_data_url_prefix}/mdx_model_data/model_data_new.json"
+        )
 
         # Calculate hash for the downloaded model
-        self.logger.debug("Calculating MD5 hash for model file to identify model parameters from UVR data...")
+        self.logger.debug(
+            "Calculating MD5 hash for model file to identify model parameters from UVR data..."
+        )
         model_hash = self.get_model_hash(model_path)
         self.logger.debug(f"Model {model_path} has hash {model_hash}")
 
@@ -873,31 +1104,47 @@ class Separator:
         self.download_file_if_not_exists(mdx_model_data_url, mdx_model_data_path)
 
         # Loading model data from UVR
-        self.logger.debug("Loading MDX and VR model parameters from UVR model data files...")
+        self.logger.debug(
+            "Loading MDX and VR model parameters from UVR model data files..."
+        )
         vr_model_data_object = json.load(open(vr_model_data_path, encoding="utf-8"))
         mdx_model_data_object = json.load(open(mdx_model_data_path, encoding="utf-8"))
 
         # Load additional model data from audio-separator
-        self.logger.debug("Loading additional model parameters from audio-separator model data file...")
+        self.logger.debug(
+            "Loading additional model parameters from audio-separator model data file..."
+        )
         with resources.open_text("audio_separator", "model-data.json") as f:
             audio_separator_model_data = json.load(f)
 
         # Merge the model data objects, with audio-separator data taking precedence
-        vr_model_data_object = {**vr_model_data_object, **audio_separator_model_data.get("vr_model_data", {})}
-        mdx_model_data_object = {**mdx_model_data_object, **audio_separator_model_data.get("mdx_model_data", {})}
+        vr_model_data_object = {
+            **vr_model_data_object,
+            **audio_separator_model_data.get("vr_model_data", {}),
+        }
+        mdx_model_data_object = {
+            **mdx_model_data_object,
+            **audio_separator_model_data.get("mdx_model_data", {}),
+        }
 
         if model_hash in mdx_model_data_object:
             model_data = mdx_model_data_object[model_hash]
         elif model_hash in vr_model_data_object:
             model_data = vr_model_data_object[model_hash]
         else:
-            raise ValueError(f"Unsupported Model File: parameters for MD5 hash {model_hash} could not be found in UVR model data file for MDX or VR arch.")
+            raise ValueError(
+                f"Unsupported Model File: parameters for MD5 hash {model_hash} could not be found in UVR model data file for MDX or VR arch."
+            )
 
         self.logger.debug(f"Model data loaded using hash {model_hash}: {model_data}")
 
         return model_data
 
-    def load_model(self, model_filename="model_bs_roformer_ep_317_sdr_12.9755.ckpt", force_reload=False):
+    def load_model(
+        self,
+        model_filename="model_bs_roformer_ep_317_sdr_12.9755.ckpt",
+        force_reload=False,
+    ):
         """
         This method instantiates the architecture-specific separation class,
         loading the separation model into memory, downloading it first if necessary.
@@ -910,23 +1157,34 @@ class Separator:
             force_reload (bool): Reload a matching single model instead of reusing it.
         """
         # If an ensemble preset was loaded and no explicit model list was provided, use preset models
-        if self._ensemble_preset_models is not None and model_filename == "model_bs_roformer_ep_317_sdr_12.9755.ckpt":
+        if (
+            self._ensemble_preset_models is not None
+            and model_filename == "model_bs_roformer_ep_317_sdr_12.9755.ckpt"
+        ):
             model_filename = self._ensemble_preset_models
 
         if isinstance(model_filename, list):
             if len(model_filename) > 1:
                 self.model_filename = list(model_filename)
                 self.model_filenames = list(model_filename)
-                self.logger.info(f"Multiple models specified for ensembling: {self.model_filenames}")
+                self.logger.info(
+                    f"Multiple models specified for ensembling: {self.model_filenames}"
+                )
                 return
             model_filename = model_filename[0]
 
-        if not force_reload and self.model_instance is not None and self._loaded_model_filename == model_filename:
+        if (
+            not force_reload
+            and self.model_instance is not None
+            and self._loaded_model_filename == model_filename
+        ):
             self.model_filename = model_filename
             self.model_filenames = [model_filename]
             self.model_friendly_name = self._loaded_model_friendly_name
             self.model_is_uvr_vip = self._loaded_model_is_uvr_vip
-            self.logger.info(f"Model {model_filename} is already loaded; reusing the existing instance.")
+            self.logger.info(
+                f"Model {model_filename} is already loaded; reusing the existing instance."
+            )
             return
 
         self.logger.info(f"Loading model {model_filename}...")
@@ -938,10 +1196,18 @@ class Separator:
 
         try:
             # Setting up the model path
-            model_filename, model_type, model_friendly_name, model_path, yaml_config_filename = self.download_model_files(model_filename)
+            (
+                model_filename,
+                model_type,
+                model_friendly_name,
+                model_path,
+                yaml_config_filename,
+            ) = self.download_model_files(model_filename)
             model_is_uvr_vip = self.model_is_uvr_vip
             model_name = model_filename.split(".")[0]
-            self.logger.debug(f"Model downloaded, friendly name: {model_friendly_name}, model_path: {model_path}")
+            self.logger.debug(
+                f"Model downloaded, friendly name: {model_friendly_name}, model_path: {model_path}"
+            )
 
             if model_path.lower().endswith(".yaml"):
                 yaml_config_filename = model_path
@@ -976,14 +1242,26 @@ class Separator:
             }
 
             # Instantiate the appropriate separator class depending on the model type
-            separator_classes = {"MDX": "mdx_separator.MDXSeparator", "VR": "vr_separator.VRSeparator", "Demucs": "demucs_separator.DemucsSeparator", "MDXC": "mdxc_separator.MDXCSeparator"}
+            separator_classes = {
+                "MDX": "mdx_separator.MDXSeparator",
+                "VR": "vr_separator.VRSeparator",
+                "Demucs": "demucs_separator.DemucsSeparator",
+                "MDXC": "mdxc_separator.MDXCSeparator",
+            }
 
-            if model_type not in self.arch_specific_params or model_type not in separator_classes:
+            if (
+                model_type not in self.arch_specific_params
+                or model_type not in separator_classes
+            ):
                 # Enhanced error message for Roformer models
-                if "roformer" in model_filename.lower() or (model_data and model_data.get("is_roformer", False)):
-                    error_msg = (f"Roformer model type not properly configured: {model_type}. "
-                               f"This may indicate a configuration validation failure. "
-                               f"Please check the model file and YAML configuration.")
+                if "roformer" in model_filename.lower() or (
+                    model_data and model_data.get("is_roformer", False)
+                ):
+                    error_msg = (
+                        f"Roformer model type not properly configured: {model_type}. "
+                        f"This may indicate a configuration validation failure. "
+                        f"Please check the model file and YAML configuration."
+                    )
                     self.logger.error(error_msg)
                     raise ValueError(error_msg)
                 else:
@@ -992,32 +1270,50 @@ class Separator:
             if model_type == "Demucs" and sys.version_info < (3, 10):
                 raise Exception("Demucs models require Python version 3.10 or newer.")
 
-            self.logger.debug(f"Importing module for model type {model_type}: {separator_classes[model_type]}")
+            self.logger.debug(
+                f"Importing module for model type {model_type}: {separator_classes[model_type]}"
+            )
 
             module_name, class_name = separator_classes[model_type].split(".")
-            module = importlib.import_module(f"audio_separator.separator.architectures.{module_name}")
+            module = importlib.import_module(
+                f"audio_separator.separator.architectures.{module_name}"
+            )
             separator_class = getattr(module, class_name)
 
-            self.logger.debug(f"Instantiating separator class for model type {model_type}: {separator_class}")
+            self.logger.debug(
+                f"Instantiating separator class for model type {model_type}: {separator_class}"
+            )
 
             try:
-                model_instance = separator_class(common_config=common_params, arch_config=self.arch_specific_params[model_type])
+                model_instance = separator_class(
+                    common_config=common_params,
+                    arch_config=self.arch_specific_params[model_type],
+                )
             except Exception as e:
                 # Enhanced error handling for Roformer models
-                if "roformer" in model_filename.lower() or (model_data and model_data.get("is_roformer", False)):
-                    error_msg = (f"Failed to instantiate Roformer model: {e}. "
-                               f"This may be due to missing parameters or configuration validation failures.")
+                if "roformer" in model_filename.lower() or (
+                    model_data and model_data.get("is_roformer", False)
+                ):
+                    error_msg = (
+                        f"Failed to instantiate Roformer model: {e}. "
+                        f"This may be due to missing parameters or configuration validation failures."
+                    )
                     self.logger.error(error_msg)
                     raise RuntimeError(error_msg) from e
                 else:
                     raise
 
             resolve_policy = getattr(model_instance, "resolve_execution_policy", None)
-            if callable(resolve_policy) and not getattr(model_instance, "_execution_policy_resolved", False):
+            if callable(resolve_policy) and not getattr(
+                model_instance, "_execution_policy_resolved", False
+            ):
                 resolve_policy(model_type.lower())
 
             # Log Roformer implementation version if applicable
-            if hasattr(model_instance, 'is_roformer_model') and model_instance.is_roformer_model:
+            if (
+                hasattr(model_instance, "is_roformer_model")
+                and model_instance.is_roformer_model
+            ):
                 roformer_stats = model_instance.get_roformer_loading_stats()
                 if roformer_stats:
                     self.logger.info(f"Roformer loading stats: {roformer_stats}")
@@ -1039,7 +1335,9 @@ class Separator:
 
         # Log the completion of the model load process
         self.logger.debug("Loading model completed.")
-        self.logger.info(f'Load model duration: {time.strftime("%H:%M:%S", time.gmtime(int(time.perf_counter() - load_model_start_time)))}')
+        self.logger.info(
+            f'Load model duration: {time.strftime("%H:%M:%S", time.gmtime(int(time.perf_counter() - load_model_start_time)))}'
+        )
 
     def separate(self, audio_file_path, custom_output_names=None):
         """
@@ -1067,8 +1365,19 @@ class Separator:
         types from ``audio_separator.separator``.
         """
         # Check if the model and device are properly initialized
-        if not (self.torch_device and (self.model_instance or (isinstance(self.model_filename, list) and len(self.model_filename) > 0))):
-            raise ValueError("Initialization failed or model not loaded. Please load a model before attempting to separate.")
+        if not (
+            self.torch_device
+            and (
+                self.model_instance
+                or (
+                    isinstance(self.model_filename, list)
+                    and len(self.model_filename) > 0
+                )
+            )
+        ):
+            raise ValueError(
+                "Initialization failed or model not loaded. Please load a model before attempting to separate."
+            )
 
         if isinstance(self.model_filename, list) and len(self.model_filename) > 1:
             if isinstance(audio_file_path, str) and not os.path.isdir(audio_file_path):
@@ -1076,7 +1385,11 @@ class Separator:
 
             ensemble_inputs = []
             failures = []
-            input_paths = [audio_file_path] if isinstance(audio_file_path, str) else audio_file_path
+            input_paths = (
+                [audio_file_path]
+                if isinstance(audio_file_path, str)
+                else audio_file_path
+            )
             for path in input_paths:
                 if os.path.isdir(path):
                     ensemble_inputs.extend(_iter_directory_audio_files(path))
@@ -1086,9 +1399,13 @@ class Separator:
             output_files = []
             for path in ensemble_inputs:
                 try:
-                    output_files.extend(self._separate_ensemble(path, custom_output_names))
+                    output_files.extend(
+                        self._separate_ensemble(path, custom_output_names)
+                    )
                 except Exception as e:
-                    self.logger.error(f"Failed to process ensemble file {path}: {e}", exc_info=True)
+                    self.logger.error(
+                        f"Failed to process ensemble file {path}: {e}", exc_info=True
+                    )
                     failures.append((path, e))
 
             if failures:
@@ -1115,10 +1432,14 @@ class Separator:
                     self.logger.info(f"Processing file: {full_path}")
                     try:
                         # Perform separation for each file
-                        files_output = self._separate_file(full_path, custom_output_names)
+                        files_output = self._separate_file(
+                            full_path, custom_output_names
+                        )
                         output_files.extend(files_output)
                     except Exception as e:
-                        self.logger.error(f"Failed to process file {full_path}: {e}", exc_info=True)
+                        self.logger.error(
+                            f"Failed to process file {full_path}: {e}", exc_info=True
+                        )
                         failures.append((full_path, e))
             else:
                 # If the path is a file, process it directly
@@ -1127,7 +1448,9 @@ class Separator:
                     files_output = self._separate_file(path, custom_output_names)
                     output_files.extend(files_output)
                 except Exception as e:
-                    self.logger.error(f"Failed to process file {path}: {e}", exc_info=True)
+                    self.logger.error(
+                        f"Failed to process file {path}: {e}", exc_info=True
+                    )
                     failures.append((path, e))
 
         if failures:
@@ -1148,40 +1471,63 @@ class Separator:
         # Check if chunking is enabled and file is large enough
         if self.chunk_duration is not None:
             import librosa
+
             duration = librosa.get_duration(path=audio_file_path)
 
             from audio_separator.separator.audio_chunking import AudioChunker
+
             chunker = AudioChunker(self.chunk_duration, self.logger)
 
             if chunker.should_chunk(duration):
-                self.logger.info(f"File duration {duration:.1f}s exceeds chunk size {self.chunk_duration}s, using chunked processing")
+                self.logger.info(
+                    f"File duration {duration:.1f}s exceeds chunk size {self.chunk_duration}s, using chunked processing"
+                )
                 return self._process_with_chunking(audio_file_path, custom_output_names)
 
         # Log the start of the separation process
-        self.logger.info(f"Starting separation process for audio_file_path: {audio_file_path}")
+        self.logger.info(
+            f"Starting separation process for audio_file_path: {audio_file_path}"
+        )
         separate_start_time = time.perf_counter()
 
         # Log normalization and amplification thresholds
-        self.logger.debug(f"Normalization threshold set to {self.normalization_threshold}, waveform will be lowered to this max amplitude to avoid clipping.")
-        self.logger.debug(f"Amplification threshold set to {self.amplification_threshold}, waveform will be scaled up to this max amplitude if below it.")
+        self.logger.debug(
+            f"Normalization threshold set to {self.normalization_threshold}, waveform will be lowered to this max amplitude to avoid clipping."
+        )
+        self.logger.debug(
+            f"Amplification threshold set to {self.amplification_threshold}, waveform will be scaled up to this max amplitude if below it."
+        )
 
         # Run separation using the policy resolved for the loaded model's actual
         # inference device. This matters when an architecture falls back to CPU.
         output_files = None
         effective_precision = self.effective_precision
-        inference_device = getattr(self.model_instance, "torch_device", self.torch_device)
+        inference_device = getattr(
+            self.model_instance, "torch_device", self.torch_device
+        )
         inference_device_type = getattr(inference_device, "type", str(inference_device))
         try:
             if effective_precision == NATIVE_FP16:
                 self.logger.debug("Using native float16 inference.")
-                output_files = self.model_instance.separate(audio_file_path, custom_output_names)
-            elif effective_precision == AUTOCAST and inference_device_type != "privateuseone":
-                self.logger.debug("Using autocast inference on %s.", inference_device_type)
+                output_files = self.model_instance.separate(
+                    audio_file_path, custom_output_names
+                )
+            elif (
+                effective_precision == AUTOCAST
+                and inference_device_type != "privateuseone"
+            ):
+                self.logger.debug(
+                    "Using autocast inference on %s.", inference_device_type
+                )
                 with autocast_mode.autocast(inference_device_type):
-                    output_files = self.model_instance.separate(audio_file_path, custom_output_names)
+                    output_files = self.model_instance.separate(
+                        audio_file_path, custom_output_names
+                    )
             else:
                 self.logger.debug("Using float32 inference.")
-                output_files = self.model_instance.separate(audio_file_path, custom_output_names)
+                output_files = self.model_instance.separate(
+                    audio_file_path, custom_output_names
+                )
         finally:
             # Clear per-file state even when inference or audio export fails.
             active_error = sys.exc_info()[1]
@@ -1191,13 +1537,18 @@ class Separator:
                     getattr(self.model_instance, cleanup_name)()
                 except Exception as cleanup_error:
                     cleanup_errors.append((cleanup_name, cleanup_error))
-                    self.logger.error(f"Cleanup step {cleanup_name} failed: {cleanup_error}", exc_info=True)
+                    self.logger.error(
+                        f"Cleanup step {cleanup_name} failed: {cleanup_error}",
+                        exc_info=True,
+                    )
 
             if cleanup_errors:
                 if active_error is not None:
                     if hasattr(active_error, "add_note"):
                         for cleanup_name, cleanup_error in cleanup_errors:
-                            active_error.add_note(f"Cleanup step {cleanup_name} failed: {cleanup_error}")
+                            active_error.add_note(
+                                f"Cleanup step {cleanup_name} failed: {cleanup_error}"
+                            )
                 else:
                     cleanup_name, cleanup_error = cleanup_errors[0]
                     if hasattr(cleanup_error, "add_note"):
@@ -1209,7 +1560,9 @@ class Separator:
 
         # Log the completion of the separation process
         self.logger.debug("Separation process completed.")
-        self.logger.info(f'Separation duration: {time.strftime("%H:%M:%S", time.gmtime(int(time.perf_counter() - separate_start_time)))}')
+        self.logger.info(
+            f'Separation duration: {time.strftime("%H:%M:%S", time.gmtime(int(time.perf_counter() - separate_start_time)))}'
+        )
 
         return output_files
 
@@ -1246,7 +1599,9 @@ class Separator:
             stem_names_by_chunk = []
 
             for i, chunk_path in enumerate(chunk_paths):
-                self.logger.info(f"Processing chunk {i+1}/{len(chunk_paths)}: {chunk_path}")
+                self.logger.info(
+                    f"Processing chunk {i+1}/{len(chunk_paths)}: {chunk_path}"
+                )
 
                 original_chunk_duration = self.chunk_duration
                 original_output_dir = self.output_dir
@@ -1265,22 +1620,30 @@ class Separator:
                     for stem_index, stem_path in enumerate(output_files):
                         # Extract stem name from filename: "chunk_0000_(Vocals).wav" → "Vocals"
                         filename = os.path.basename(stem_path)
-                        match = re.search(r'_\(([^)]+)\)', filename)
+                        match = re.search(r"_\(([^)]+)\)", filename)
                         if match:
                             stem_name = match.group(1)
                         else:
                             # Fallback: use index-based name if pattern not found
                             stem_name = f"stem_{stem_index}"
-                            self.logger.warning(f"Could not extract stem name from {filename}, using {stem_name}")
+                            self.logger.warning(
+                                f"Could not extract stem name from {filename}, using {stem_name}"
+                            )
 
                         if stem_name in current_stem_names:
-                            raise InvalidAudioDataError(f"Chunk {i} produced duplicate stem output: {stem_name}")
+                            raise InvalidAudioDataError(
+                                f"Chunk {i} produced duplicate stem output: {stem_name}"
+                            )
                         current_stem_names.add(stem_name)
                         if stem_name not in processed_chunks_by_stem:
                             processed_chunks_by_stem[stem_name] = []
 
                         # Ensure absolute path
-                        abs_path = stem_path if os.path.isabs(stem_path) else os.path.join(temp_dir, stem_path)
+                        abs_path = (
+                            stem_path
+                            if os.path.isabs(stem_path)
+                            else os.path.join(temp_dir, stem_path)
+                        )
                         processed_chunks_by_stem[stem_name].append(abs_path)
 
                     if not output_files:
@@ -1297,7 +1660,9 @@ class Separator:
                 if self.model_instance:
                     self.model_instance.clear_gpu_cache()
 
-            all_stem_names = set().union(*stem_names_by_chunk) if stem_names_by_chunk else set()
+            all_stem_names = (
+                set().union(*stem_names_by_chunk) if stem_names_by_chunk else set()
+            )
             if not all_stem_names:
                 raise InvalidAudioDataError("Chunked separation produced no stems")
 
@@ -1307,8 +1672,13 @@ class Separator:
                 if chunk_stems != all_stem_names
             }
             if missing_stems:
-                details = "; ".join(f"chunk {chunk_index}: {', '.join(stems)}" for chunk_index, stems in missing_stems.items())
-                raise InvalidAudioDataError(f"Chunked separation is missing stem output(s): {details}")
+                details = "; ".join(
+                    f"chunk {chunk_index}: {', '.join(stems)}"
+                    for chunk_index, stems in missing_stems.items()
+                )
+                raise InvalidAudioDataError(
+                    f"Chunked separation is missing stem output(s): {details}"
+                )
 
             # Merge chunks for each stem dynamically
             base_name = os.path.splitext(os.path.basename(audio_file_path))[0]
@@ -1327,13 +1697,19 @@ class Separator:
                 else:
                     output_filename = f"{base_name}_({stem_name})"
 
-                output_path = os.path.join(self.output_dir, f"{output_filename}.{self.output_format.lower()}")
+                output_path = os.path.join(
+                    self.output_dir, f"{output_filename}.{self.output_format.lower()}"
+                )
 
-                self.logger.info(f"Merging {len(chunk_paths_for_stem)} chunks for stem: {stem_name}")
+                self.logger.info(
+                    f"Merging {len(chunk_paths_for_stem)} chunks for stem: {stem_name}"
+                )
                 chunker.merge_chunks(chunk_paths_for_stem, output_path)
                 output_files.append(output_path)
 
-            self.logger.info(f"Chunked processing completed. Output files: {output_files}")
+            self.logger.info(
+                f"Chunked processing completed. Output files: {output_files}"
+            )
             return output_files
 
         finally:
@@ -1348,7 +1724,13 @@ class Separator:
         """
         self.logger.info(f"Downloading model {model_filename}...")
 
-        model_filename, model_type, model_friendly_name, model_path, yaml_config_filename = self.download_model_files(model_filename)
+        (
+            model_filename,
+            model_type,
+            model_friendly_name,
+            model_path,
+            yaml_config_filename,
+        ) = self.download_model_files(model_filename)
 
         if model_path.lower().endswith(".yaml"):
             yaml_config_filename = model_path
@@ -1360,7 +1742,9 @@ class Separator:
 
         model_data_dict_size = len(model_data)
 
-        self.logger.info(f"Model downloaded, type: {model_type}, friendly name: {model_friendly_name}, model_path: {model_path}, model_data: {model_data_dict_size} items")
+        self.logger.info(
+            f"Model downloaded, type: {model_type}, friendly name: {model_friendly_name}, model_path: {model_path}, model_data: {model_data_dict_size} items"
+        )
 
     def get_simplified_model_list(self, filter_sort_by: Optional[str] = None):
         """
@@ -1403,7 +1787,12 @@ class Separator:
                     stems_with_scores = ["Unknown"]
                     stem_sdr_dict["unknown"] = None
 
-                simplified_list[filename] = {"Name": name, "Type": model_type, "Stems": stems_with_scores, "SDR": stem_sdr_dict}
+                simplified_list[filename] = {
+                    "Name": name,
+                    "Type": model_type,
+                    "Stems": stems_with_scores,
+                    "SDR": stem_sdr_dict,
+                }
 
         # Sort and filter the list if a sort_by parameter is provided
         if filter_sort_by:
@@ -1415,12 +1804,19 @@ class Separator:
                 # Convert sort_by to lowercase for case-insensitive comparison
                 sort_by_lower = filter_sort_by.lower()
                 # Filter out models that don't have the specified stem
-                filtered_list = {k: v for k, v in simplified_list.items() if sort_by_lower in v["SDR"]}
+                filtered_list = {
+                    k: v
+                    for k, v in simplified_list.items()
+                    if sort_by_lower in v["SDR"]
+                }
 
                 # Sort by SDR score if available, putting None values last
                 def sort_key(item):
                     sdr = item[1]["SDR"][sort_by_lower]
-                    return (0 if sdr is None else 1, sdr if sdr is not None else float("-inf"))
+                    return (
+                        0 if sdr is None else 1,
+                        sdr if sdr is not None else float("-inf"),
+                    )
 
                 return dict(sorted(filtered_list.items(), key=sort_key, reverse=True))
 
@@ -1476,7 +1872,7 @@ class Separator:
                         model_stem_names = []
                         for stem_path in model_stems:
                             filename = os.path.basename(stem_path)
-                            match = re.search(r'_\(([^)]+)\)', filename)
+                            match = re.search(r"_\(([^)]+)\)", filename)
                             stem_name = match.group(1) if match else "Unknown"
                             model_stem_names.append(stem_name)
 
@@ -1487,15 +1883,27 @@ class Separator:
                             for s in model_stem_names
                         )
 
-                        for stem_path, raw_stem_name in zip(model_stems, model_stem_names):
+                        for stem_path, raw_stem_name in zip(
+                            model_stems, model_stem_names
+                        ):
                             lower_name = raw_stem_name.lower()
 
-                            if "vocal" in lower_name and "lead" not in lower_name and "backing" not in lower_name:
+                            if (
+                                "vocal" in lower_name
+                                and "lead" not in lower_name
+                                and "backing" not in lower_name
+                            ):
                                 stem_name = "Vocals"
-                            elif lower_name == "other" and num_model_stems == 2 and has_vocal_stem:
+                            elif (
+                                lower_name == "other"
+                                and num_model_stems == 2
+                                and has_vocal_stem
+                            ):
                                 # For 2-stem models where one stem is vocals, "other" is the instrumental
                                 stem_name = "Instrumental"
-                                self.logger.debug(f"Mapped 'other' → 'Instrumental' for 2-stem model (model produced: {model_stem_names})")
+                                self.logger.debug(
+                                    f"Mapped 'other' → 'Instrumental' for 2-stem model (model produced: {model_stem_names})"
+                                )
                             elif lower_name in STEM_NAME_MAP:
                                 stem_name = STEM_NAME_MAP[lower_name]
                             else:
@@ -1504,17 +1912,25 @@ class Separator:
                             if stem_name not in stems_by_type:
                                 stems_by_type[stem_name] = []
 
-                            abs_path = stem_path if os.path.isabs(stem_path) else os.path.join(temp_dir, stem_path)
+                            abs_path = (
+                                stem_path
+                                if os.path.isabs(stem_path)
+                                else os.path.join(temp_dir, stem_path)
+                            )
                             stems_by_type[stem_name].append(abs_path)
                     finally:
                         self.output_dir = original_output_dir
 
                 # Perform ensembling for each stem type
-                ensembler = Ensembler(self.logger, self.ensemble_algorithm, self.ensemble_weights)
+                ensembler = Ensembler(
+                    self.logger, self.ensemble_algorithm, self.ensemble_weights
+                )
                 base_name = os.path.splitext(os.path.basename(path))[0]
 
                 for stem_name, stem_paths in stems_by_type.items():
-                    self.logger.info(f"Ensembling {len(stem_paths)} stems for type: {stem_name}")
+                    self.logger.info(
+                        f"Ensembling {len(stem_paths)} stems for type: {stem_name}"
+                    )
 
                     waveforms = []
                     original_channels = None
@@ -1538,7 +1954,9 @@ class Separator:
                     if custom_output_names and stem_name in custom_output_names:
                         output_filename = custom_output_names[stem_name]
                     elif self.ensemble_preset:
-                        output_filename = f"{base_name}_({stem_name})_preset_{self.ensemble_preset}"
+                        output_filename = (
+                            f"{base_name}_({stem_name})_preset_{self.ensemble_preset}"
+                        )
                     else:
                         # Build descriptive name from model filenames
                         model_slugs = []
@@ -1546,13 +1964,22 @@ class Separator:
                             # Remove extension, then truncate to keep filenames reasonable
                             name = os.path.splitext(mf)[0]
                             # Remove common verbose prefixes
-                            for prefix in ["mel_band_roformer_", "melband_roformer_", "bs_roformer_", "model_bs_roformer_", "UVR-MDX-NET-", "UVR_MDXNET_"]:
+                            for prefix in [
+                                "mel_band_roformer_",
+                                "melband_roformer_",
+                                "bs_roformer_",
+                                "model_bs_roformer_",
+                                "UVR-MDX-NET-",
+                                "UVR_MDXNET_",
+                            ]:
                                 if name.startswith(prefix):
-                                    name = name[len(prefix):]
+                                    name = name[len(prefix) :]
                                     break
                             model_slugs.append(name[:12])
                         slugs_str = "_".join(model_slugs)
-                        output_filename = f"{base_name}_({stem_name})_custom_ensemble_{slugs_str}"
+                        output_filename = (
+                            f"{base_name}_({stem_name})_custom_ensemble_{slugs_str}"
+                        )
 
                     output_path = f"{output_filename}.{self.output_format.lower()}"
 
@@ -1568,7 +1995,9 @@ class Separator:
                         output_files.append(final_output_path)
                     else:
                         # Fallback writer if no model instance is available
-                        self.logger.warning(f"No model instance available to write ensembled audio. Using fallback writer for {output_path}")
+                        self.logger.warning(
+                            f"No model instance available to write ensembled audio. Using fallback writer for {output_path}"
+                        )
                         final_output_path = os.path.join(self.output_dir, output_path)
 
                         import soundfile as sf
@@ -1581,16 +2010,28 @@ class Separator:
                             min_peak=self.amplification_threshold,
                         )
                         try:
-                            with atomic_output_path(final_output_path, "soundfile") as temp_output_path:
-                                self.logger.debug(f"Attempting to write ensembled audio to {final_output_path}...")
-                                sf.write(temp_output_path, ensemble_audio, self.sample_rate)
+                            with atomic_output_path(
+                                final_output_path, "soundfile"
+                            ) as temp_output_path:
+                                self.logger.debug(
+                                    f"Attempting to write ensembled audio to {final_output_path}..."
+                                )
+                                sf.write(
+                                    temp_output_path, ensemble_audio, self.sample_rate
+                                )
                         except AudioExportError as requested_format_error:
                             self.logger.error(
                                 f"Error writing {self.output_format} format: {requested_format_error}. Falling back to WAV."
                             )
-                            final_output_path = final_output_path.rsplit(".", 1)[0] + ".wav"
-                            with atomic_output_path(final_output_path, "soundfile") as temp_output_path:
-                                sf.write(temp_output_path, ensemble_audio, self.sample_rate)
+                            final_output_path = (
+                                final_output_path.rsplit(".", 1)[0] + ".wav"
+                            )
+                            with atomic_output_path(
+                                final_output_path, "soundfile"
+                            ) as temp_output_path:
+                                sf.write(
+                                    temp_output_path, ensemble_audio, self.sample_rate
+                                )
 
                         output_files.append(final_output_path)
 

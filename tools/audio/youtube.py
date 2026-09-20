@@ -33,15 +33,25 @@ def progress_hook(d):
         else:
             print(f"Downloading… {downloaded // 1024} KiB", file=sys.stderr, flush=True)
     elif status == "finished":
-        print(f"Downloaded, extracting {d.get('info_dict', {}).get('ext', 'audio')}…", file=sys.stderr, flush=True)
+        print(
+            f"Downloaded, extracting {d.get('info_dict', {}).get('ext', 'audio')}…",
+            file=sys.stderr,
+            flush=True,
+        )
 
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Download YouTube audio for Applio.")
-    p.add_argument("--url", required=True, help="YouTube video URL (single video, no playlists).")
-    p.add_argument("--output-dir", required=True, help="Directory for the downloaded file.")
+    p.add_argument(
+        "--url", required=True, help="YouTube video URL (single video, no playlists)."
+    )
+    p.add_argument(
+        "--output-dir", required=True, help="Directory for the downloaded file."
+    )
     p.add_argument("--output-format", default="wav", choices=["wav", "mp3"])
-    p.add_argument("--ffmpeg-bin", default=None, help="ffmpeg binary path or directory.")
+    p.add_argument(
+        "--ffmpeg-bin", default=None, help="ffmpeg binary path or directory."
+    )
     return p
 
 
@@ -60,7 +70,9 @@ def main(argv=None) -> int:
         print("yt_dlp is not installed in the Python environment.", file=sys.stderr)
         return 3
 
-    postprocessors = [{"key": "FFmpegExtractAudio", "preferredcodec": args.output_format}]
+    postprocessors = [
+        {"key": "FFmpegExtractAudio", "preferredcodec": args.output_format}
+    ]
     if args.output_format == "mp3":
         postprocessors[0]["preferredquality"] = "192"
 
@@ -95,11 +107,17 @@ def main(argv=None) -> int:
         video_id = (info or {}).get("id", "")
         candidates = [
             os.path.join(args.output_dir, f)
-            for f in sorted(os.listdir(args.output_dir), key=lambda f: os.path.getmtime(os.path.join(args.output_dir, f)), reverse=True)
+            for f in sorted(
+                os.listdir(args.output_dir),
+                key=lambda f: os.path.getmtime(os.path.join(args.output_dir, f)),
+                reverse=True,
+            )
             if video_id and video_id in f
         ]
         if not candidates:
-            print("Download finished but the audio file was not found.", file=sys.stderr)
+            print(
+                "Download finished but the audio file was not found.", file=sys.stderr
+            )
             return 5
         final_path = candidates[0]
 

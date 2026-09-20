@@ -12,12 +12,19 @@ from scipy import signal
 from audio_separator.separator.common_separator import CommonSeparator
 from audio_separator.separator.execution_policy import NATIVE_FP16
 from audio_separator.separator.uvr_lib_v5 import spec_utils
-from audio_separator.separator.uvr_lib_v5.device_utils import mps_accumulation_budget_bytes, should_accumulate_on_device, supports_autocast
+from audio_separator.separator.uvr_lib_v5.device_utils import (
+    mps_accumulation_budget_bytes,
+    should_accumulate_on_device,
+    supports_autocast,
+)
 from audio_separator.separator.uvr_lib_v5.tfc_tdf_v3 import TFC_TDF_net
+
 # Roformer direct constructors removed; loading handled via RoformerLoader in CommonSeparator.
 
 
-def _estimate_roformer_full_track_buffer_bytes(num_instruments, channels, samples, chunk_size):
+def _estimate_roformer_full_track_buffer_bytes(
+    num_instruments, channels, samples, chunk_size
+):
     """Estimate float32 overlap-add results, counters, and the chunk window."""
     return (2 * num_instruments * channels * samples + chunk_size) * 4
 
@@ -44,7 +51,9 @@ def _mdxc_inference_device(torch_device, torch_device_cpu, logger):
     if getattr(torch_device, "type", None) != "privateuseone":
         return torch_device
     if os.environ.get("AUDIO_SEPARATOR_FORCE_DML_MDXC"):
-        logger.warning("AUDIO_SEPARATOR_FORCE_DML_MDXC set — attempting MDXC/RoFormer on DirectML (may exhaust GPU memory).")
+        logger.warning(
+            "AUDIO_SEPARATOR_FORCE_DML_MDXC set — attempting MDXC/RoFormer on DirectML (may exhaust GPU memory)."
+        )
         return torch_device
     logger.warning(
         "MDXC/RoFormer models currently run on CPU under DirectML: torch-directml's "
@@ -95,7 +104,9 @@ class MDXCSeparator(CommonSeparator):
 
         # DirectML: run MDXC-family models on CPU until torch-directml's
         # allocator can sustain them (see _mdxc_inference_device).
-        self.torch_device = _mdxc_inference_device(self.torch_device, self.torch_device_cpu, self.logger)
+        self.torch_device = _mdxc_inference_device(
+            self.torch_device, self.torch_device_cpu, self.logger
+        )
 
         # Arch Config is the MDXC architecture specific user configuration options, which should all be configurable by the user
         # either by their Separator class instantiation or by passing in a CLI parameter.
@@ -105,7 +116,9 @@ class MDXCSeparator(CommonSeparator):
 
         # Whether or not to use the segment size from model config, or the default
         # The segment size is set based on the value provided in a chosen model's associated config file (yaml).
-        self.override_model_segment_size = arch_config.get("override_model_segment_size", False)
+        self.override_model_segment_size = arch_config.get(
+            "override_model_segment_size", False
+        )
 
         inference_config = self.model_data.get("inference", {})
         overlap = arch_config.get("overlap")
@@ -137,9 +150,15 @@ class MDXCSeparator(CommonSeparator):
 
         self.process_all_stems = arch_config.get("process_all_stems", True)
 
-        self.logger.debug(f"MDXC arch params: batch_size={self.batch_size}, segment_size={self.segment_size}, overlap={self.overlap}")
-        self.logger.debug(f"MDXC arch params: override_model_segment_size={self.override_model_segment_size}, pitch_shift={self.pitch_shift}")
-        self.logger.debug(f"MDXC multi-stem params: process_all_stems={self.process_all_stems}")
+        self.logger.debug(
+            f"MDXC arch params: batch_size={self.batch_size}, segment_size={self.segment_size}, overlap={self.overlap}"
+        )
+        self.logger.debug(
+            f"MDXC arch params: override_model_segment_size={self.override_model_segment_size}, pitch_shift={self.pitch_shift}"
+        )
+        self.logger.debug(
+            f"MDXC multi-stem params: process_all_stems={self.process_all_stems}"
+        )
 
         # Align Roformer detection flag with CommonSeparator to ensure consistent stats/logging
         self.is_roformer = getattr(self, "is_roformer_model", False)
@@ -153,9 +172,13 @@ class MDXCSeparator(CommonSeparator):
 
         # Only mark primary stem as main target for single-target models.
         # Multi-stem models should not trigger residual subtraction logic.
-        self.is_primary_stem_main_target = bool(self.model_data_cfgdict.training.target_instrument)
+        self.is_primary_stem_main_target = bool(
+            self.model_data_cfgdict.training.target_instrument
+        )
 
-        self.logger.debug(f"is_primary_stem_main_target: {self.is_primary_stem_main_target}")
+        self.logger.debug(
+            f"is_primary_stem_main_target: {self.is_primary_stem_main_target}"
+        )
 
         self.logger.info("MDXC Separator initialisation complete")
 
@@ -172,37 +195,56 @@ class MDXCSeparator(CommonSeparator):
             if self.is_roformer:
                 # Use the RoformerLoader exclusively; no legacy fallback
                 self.logger.debug("Loading Roformer model via RoformerLoader...")
-                load_device = "cpu" if self.torch_device.type == "mps" and self.use_native_fp16 else str(self.torch_device)
+                load_device = (
+                    "cpu"
+                    if self.torch_device.type == "mps" and self.use_native_fp16
+                    else str(self.torch_device)
+                )
                 result = self.roformer_loader.load_model(
                     model_path=self.model_path,
                     config=self.model_data,
                     device=load_device,
                 )
 
-                if getattr(result, "success", False) and getattr(result, "model", None) is not None:
+                if (
+                    getattr(result, "success", False)
+                    and getattr(result, "model", None) is not None
+                ):
                     self.model_run = result.model
-                    self.roformer_model_type = getattr(result, "model_info", {}).get("model_type")
+                    self.roformer_model_type = getattr(result, "model_info", {}).get(
+                        "model_type"
+                    )
                     self._configure_model_precision()
                     self.model_run.to(self.torch_device).eval()
                     self._configure_model_compilation()
                 else:
-                    error_msg = getattr(result, "error_message", "RoformerLoader unsuccessful")
+                    error_msg = getattr(
+                        result, "error_message", "RoformerLoader unsuccessful"
+                    )
                     self.logger.error(f"Failed to load Roformer model: {error_msg}")
                     raise RuntimeError(error_msg)
 
             else:
                 self.logger.debug("Loading TFC_TDF_net model...")
-                self.model_run = TFC_TDF_net(self.model_data_cfgdict, device=self.torch_device)
+                self.model_run = TFC_TDF_net(
+                    self.model_data_cfgdict, device=self.torch_device
+                )
                 self.logger.debug("Loading model onto cpu")
-                # For some reason loading the state onto a hardware accelerated devices causes issues, 
+                # For some reason loading the state onto a hardware accelerated devices causes issues,
                 # so we load it onto CPU first then move it to the device
-                self.model_run.load_state_dict(torch.load(self.model_path, map_location="cpu"))
+                self.model_run.load_state_dict(
+                    torch.load(self.model_path, map_location="cpu")
+                )
                 self.model_run.to(self.torch_device).eval()
 
         except RuntimeError as e:
             self.logger.error(f"Error: {e}")
-            self.logger.error("An error occurred while loading the model file. This often occurs when the model file is corrupt or incomplete.")
-            self.logger.error(f"Please try deleting the model file from {self.model_path} and run audio-separator again to re-download it.")
+            self.logger.error(
+                "An error occurred while loading the model file. This often occurs when the model file is corrupt or incomplete."
+            )
+            self.logger.error(
+                f"Please try deleting the model file from {self.model_path} and run audio-separator again to re-download it."
+            )
             sys.exit(1)
 
     def _configure_model_precision(self):
@@ -231,7 +273,9 @@ class MDXCSeparator(CommonSeparator):
             rotary_embedding.freqs.data = frequencies.to(rotary_embedding.freqs.device)
             rotary_embedding.cached_freqs = None
 
-        self.logger.info("Using native float16 for %s on %s.", model_family, self.torch_device.type)
+        self.logger.info(
+            "Using native float16 for %s on %s.", model_family, self.torch_device.type
+        )
 
     def _configure_model_compilation(self):
         """Compile repeated RoFormer transformer blocks when the resolved policy allows it."""
@@ -244,17 +288,26 @@ class MDXCSeparator(CommonSeparator):
         supports_autocast(self.torch_device)
 
         transformer_blocks = self._regional_compile_targets()
-        if not all(callable(getattr(transformer, "compile", None)) for transformer in transformer_blocks):
-            self.logger.warning("Skipping regional torch.compile: this PyTorch build does not provide Module.compile().")
+        if not all(
+            callable(getattr(transformer, "compile", None))
+            for transformer in transformer_blocks
+        ):
+            self.logger.warning(
+                "Skipping regional torch.compile: this PyTorch build does not provide Module.compile()."
+            )
             return
-        if not all(hasattr(transformer, "_compiled_call_impl") for transformer in transformer_blocks):
+        if not all(
+            hasattr(transformer, "_compiled_call_impl")
+            for transformer in transformer_blocks
+        ):
             self.logger.warning(
                 "Skipping regional torch.compile: this PyTorch build cannot safely restore eager module calls."
             )
             return
 
         self._regional_compile_original_calls = [
-            (transformer, transformer._compiled_call_impl) for transformer in transformer_blocks
+            (transformer, transformer._compiled_call_impl)
+            for transformer in transformer_blocks
         ]
 
         try:
@@ -262,14 +315,20 @@ class MDXCSeparator(CommonSeparator):
                 transformer.compile()
         except Exception as exc:
             self._disable_model_compilation()
-            self.logger.warning(f"Regional torch.compile could not be enabled; continuing with eager inference: {exc}")
+            self.logger.warning(
+                f"Regional torch.compile could not be enabled; continuing with eager inference: {exc}"
+            )
             return
 
         self.is_torch_compiled = True
         self.effective_torch_compile = True
-        model_family = getattr(self, "roformer_model_type", self.model_run.__class__.__name__)
+        model_family = getattr(
+            self, "roformer_model_type", self.model_run.__class__.__name__
+        )
         device_type = getattr(getattr(self, "torch_device", None), "type", "unknown")
-        self.logger.info("Using regional torch.compile for %s on %s.", model_family, device_type)
+        self.logger.info(
+            "Using regional torch.compile for %s on %s.", model_family, device_type
+        )
 
     def _regional_compile_targets(self):
         """Return the repeated transformer blocks used by regional compilation."""
@@ -323,18 +382,28 @@ class MDXCSeparator(CommonSeparator):
         self.audio_file_path = audio_file_path
         self.audio_file_base = os.path.splitext(os.path.basename(audio_file_path))[0]
 
-        self.logger.debug(f"Preparing mix for input audio file {self.audio_file_path}...")
+        self.logger.debug(
+            f"Preparing mix for input audio file {self.audio_file_path}..."
+        )
         mix = self.prepare_mix(self.audio_file_path)
 
         # Short inputs need the configured segment size, but this automatic
         # override must not persist when the separator instance is reused.
         audio_duration_seconds = mix.shape[1] / self.sample_rate
-        override_model_segment_size = self._use_model_segment_override(audio_duration_seconds)
+        override_model_segment_size = self._use_model_segment_override(
+            audio_duration_seconds
+        )
 
         self.logger.debug("Normalizing mix before demixing...")
-        mix = spec_utils.normalize(wave=mix, max_peak=self.normalization_threshold, min_peak=self.amplification_threshold)
+        mix = spec_utils.normalize(
+            wave=mix,
+            max_peak=self.normalization_threshold,
+            min_peak=self.amplification_threshold,
+        )
 
-        source = self.demix(mix=mix, override_model_segment_size=override_model_segment_size)
+        source = self.demix(
+            mix=mix, override_model_segment_size=override_model_segment_size
+        )
         self.logger.debug("Demixing completed.")
 
         output_files = []
@@ -342,73 +411,115 @@ class MDXCSeparator(CommonSeparator):
 
         if isinstance(source, dict):
             self.logger.debug("Source is a dict, processing each stem...")
-            
+
             stem_list = []
             if self.model_data_cfgdict.training.target_instrument:
                 stem_list = [self.model_data_cfgdict.training.target_instrument]
             else:
                 stem_list = self.model_data_cfgdict.training.instruments
-            
+
             self.logger.debug(f"Available stems: {stem_list}")
 
             is_multi_stem_model = len(stem_list) > 2
             should_process_all_stems = self.process_all_stems and is_multi_stem_model
-            
+
             if should_process_all_stems:
                 self.logger.debug("Processing all stems from multi-stem model...")
                 for stem_name in stem_list:
-                    stem_output_path = self.get_stem_output_path(stem_name, custom_output_names)
+                    stem_output_path = self.get_stem_output_path(
+                        stem_name, custom_output_names
+                    )
                     stem_source = spec_utils.normalize(
-                        wave=source[stem_name], 
-                        max_peak=self.normalization_threshold, 
-                        min_peak=self.amplification_threshold
+                        wave=source[stem_name],
+                        max_peak=self.normalization_threshold,
+                        min_peak=self.amplification_threshold,
                     ).T
-                    
-                    self.logger.info(f"Saving {stem_name} stem to {stem_output_path}...")
+
+                    self.logger.info(
+                        f"Saving {stem_name} stem to {stem_output_path}..."
+                    )
                     self.final_process(stem_output_path, stem_source, stem_name)
                     output_files.append(stem_output_path)
             else:
                 # Standard processing for primary and secondary stems
                 if not isinstance(self.primary_source, np.ndarray):
-                    self.logger.debug(f"Normalizing primary source for primary stem {self.primary_stem_name}...")
+                    self.logger.debug(
+                        f"Normalizing primary source for primary stem {self.primary_stem_name}..."
+                    )
                     self.primary_source = spec_utils.normalize(
-                        wave=source[self.primary_stem_name], 
-                        max_peak=self.normalization_threshold, 
-                        min_peak=self.amplification_threshold
+                        wave=source[self.primary_stem_name],
+                        max_peak=self.normalization_threshold,
+                        min_peak=self.amplification_threshold,
                     ).T
 
                 if not isinstance(self.secondary_source, np.ndarray):
-                    self.logger.debug(f"Normalizing secondary source for secondary stem {self.secondary_stem_name}...")
+                    self.logger.debug(
+                        f"Normalizing secondary source for secondary stem {self.secondary_stem_name}..."
+                    )
                     self.secondary_source = spec_utils.normalize(
-                        wave=source[self.secondary_stem_name], 
-                        max_peak=self.normalization_threshold, 
-                        min_peak=self.amplification_threshold
+                        wave=source[self.secondary_stem_name],
+                        max_peak=self.normalization_threshold,
+                        min_peak=self.amplification_threshold,
                     ).T
 
-                if not self.output_single_stem or self.output_single_stem.lower() == self.secondary_stem_name.lower():
-                    self.secondary_stem_output_path = self.get_stem_output_path(self.secondary_stem_name, custom_output_names)
+                if (
+                    not self.output_single_stem
+                    or self.output_single_stem.lower()
+                    == self.secondary_stem_name.lower()
+                ):
+                    self.secondary_stem_output_path = self.get_stem_output_path(
+                        self.secondary_stem_name, custom_output_names
+                    )
 
-                    self.logger.info(f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}...")
-                    self.final_process(self.secondary_stem_output_path, self.secondary_source, self.secondary_stem_name)
+                    self.logger.info(
+                        f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
+                    )
+                    self.final_process(
+                        self.secondary_stem_output_path,
+                        self.secondary_source,
+                        self.secondary_stem_name,
+                    )
                     output_files.append(self.secondary_stem_output_path)
-                
-                if not self.output_single_stem or self.output_single_stem.lower() == self.primary_stem_name.lower():
-                    self.primary_stem_output_path = self.get_stem_output_path(self.primary_stem_name, custom_output_names)
-                    
-                    self.logger.info(f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}...")
-                    self.final_process(self.primary_stem_output_path, self.primary_source, self.primary_stem_name)
+
+                if (
+                    not self.output_single_stem
+                    or self.output_single_stem.lower() == self.primary_stem_name.lower()
+                ):
+                    self.primary_stem_output_path = self.get_stem_output_path(
+                        self.primary_stem_name, custom_output_names
+                    )
+
+                    self.logger.info(
+                        f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
+                    )
+                    self.final_process(
+                        self.primary_stem_output_path,
+                        self.primary_source,
+                        self.primary_stem_name,
+                    )
                     output_files.append(self.primary_stem_output_path)
 
         else:
             # Handle case when source is not a dictionary (single source model)
-            if not self.output_single_stem or self.output_single_stem.lower() == self.primary_stem_name.lower():
-                self.primary_stem_output_path = self.get_stem_output_path(self.primary_stem_name, custom_output_names)
+            if (
+                not self.output_single_stem
+                or self.output_single_stem.lower() == self.primary_stem_name.lower()
+            ):
+                self.primary_stem_output_path = self.get_stem_output_path(
+                    self.primary_stem_name, custom_output_names
+                )
 
                 if not isinstance(self.primary_source, np.ndarray):
                     self.primary_source = source.T
 
-                self.logger.info(f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}...")
-                self.final_process(self.primary_stem_output_path, self.primary_source, self.primary_stem_name)
+                self.logger.info(
+                    f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
+                )
+                self.final_process(
+                    self.primary_stem_output_path,
+                    self.primary_source,
+                    self.primary_stem_name,
+                )
                 output_files.append(self.primary_stem_output_path)
 
         return output_files
@@ -417,8 +528,12 @@ class MDXCSeparator(CommonSeparator):
         """Resolve the segment-size override for one input without mutating the separator."""
         is_short_audio = audio_duration_seconds < 10.0
         if is_short_audio and not self.override_model_segment_size:
-            self.logger.warning(f"Audio duration ({audio_duration_seconds:.2f}s) is less than 10 seconds.")
-            self.logger.warning("Automatically enabling override_model_segment_size for better processing of short audio.")
+            self.logger.warning(
+                f"Audio duration ({audio_duration_seconds:.2f}s) is less than 10 seconds."
+            )
+            self.logger.warning(
+                "Automatically enabling override_model_segment_size for better processing of short audio."
+            )
         return self.override_model_segment_size or is_short_audio
 
     def pitch_fix(self, source, sr_pitched, orig_mix):
@@ -433,7 +548,9 @@ class MDXCSeparator(CommonSeparator):
         Returns:
             np.ndarray: The pitch-shifted source audio.
         """
-        source = spec_utils.change_pitch_semitones(source, sr_pitched, semitone_shift=self.pitch_shift)[0]
+        source = spec_utils.change_pitch_semitones(
+            source, sr_pitched, semitone_shift=self.pitch_shift
+        )[0]
         source = spec_utils.match_array_shapes(source, orig_mix)
         return source
 
@@ -445,18 +562,24 @@ class MDXCSeparator(CommonSeparator):
         # Use the minimum of provided lengths to avoid broadcasting errors
         safe_len = min(length, x.shape[-1], weights.shape[0])
         if safe_len > 0:
-            result[..., start : start + safe_len] += x[..., :safe_len] * weights[:safe_len]
+            result[..., start : start + safe_len] += (
+                x[..., :safe_len] * weights[:safe_len]
+            )
         return result
 
     @staticmethod
-    def _roformer_chunk_starts(audio_length: int, chunk_size: int, step: int) -> list[int]:
+    def _roformer_chunk_starts(
+        audio_length: int, chunk_size: int, step: int
+    ) -> list[int]:
         """Return a chunk schedule that covers the input without repeating the tail chunk."""
         if audio_length < 0:
             raise ValueError("audio_length must be greater than or equal to 0.")
         if chunk_size <= 0:
             raise ValueError("chunk_size must be greater than 0.")
         if step <= 0 or step > chunk_size:
-            raise ValueError("step must be greater than 0 and less than or equal to chunk_size.")
+            raise ValueError(
+                "step must be greater than 0 and less than or equal to chunk_size."
+            )
 
         starts = []
         for offset in range(0, audio_length, step):
@@ -468,7 +591,9 @@ class MDXCSeparator(CommonSeparator):
             starts.append(offset)
         return starts
 
-    def demix(self, mix: np.ndarray, override_model_segment_size: bool | None = None) -> dict:
+    def demix(
+        self, mix: np.ndarray, override_model_segment_size: bool | None = None
+    ) -> dict:
         """
         Demixes the input mix into primary and secondary sources using the model and model data.
 
@@ -484,7 +609,9 @@ class MDXCSeparator(CommonSeparator):
 
         if self.pitch_shift != 0:
             self.logger.debug(f"Shifting pitch by -{self.pitch_shift} semitones...")
-            mix, sample_rate = spec_utils.change_pitch_semitones(mix, self.sample_rate, semitone_shift=-self.pitch_shift)
+            mix, sample_rate = spec_utils.change_pitch_semitones(
+                mix, self.sample_rate, semitone_shift=-self.pitch_shift
+            )
 
         if self.is_roformer:
             # Note: Currently, for Roformer models, `batch_size` is not utilized due to negligible performance improvements.
@@ -496,15 +623,23 @@ class MDXCSeparator(CommonSeparator):
                 self.logger.debug(f"Using configured segment size: {mdx_segment_size}")
             else:
                 mdx_segment_size = self.model_data_cfgdict.inference.dim_t
-                self.logger.debug(f"Using model default segment size: {mdx_segment_size}")
+                self.logger.debug(
+                    f"Using model default segment size: {mdx_segment_size}"
+                )
 
             # num_stems aka "S" in UVR
-            num_stems = 1 if self.model_data_cfgdict.training.target_instrument else len(self.model_data_cfgdict.training.instruments)
+            num_stems = (
+                1
+                if self.model_data_cfgdict.training.target_instrument
+                else len(self.model_data_cfgdict.training.instruments)
+            )
             self.logger.debug(f"Number of stems: {num_stems}")
 
             # chunk_size aka "C" in UVR
             # IMPORTANT: For Roformer models, use the model's STFT hop length to derive the temporal chunk size
-            stft_hop_len = getattr(self.model_data_cfgdict.model, "stft_hop_length", None)
+            stft_hop_len = getattr(
+                self.model_data_cfgdict.model, "stft_hop_length", None
+            )
             if stft_hop_len is None:
                 # Fallback to audio.hop_length if not present, but log for visibility
                 stft_hop_len = self.model_data_cfgdict.audio.hop_length
@@ -520,19 +655,27 @@ class MDXCSeparator(CommonSeparator):
             # MDXC overlap is the number of overlapping prediction windows.
             step = chunk_size // self.overlap
             if step <= 0:
-                raise ValueError(f"MDXC overlap ({self.overlap}) must not exceed chunk size ({chunk_size})")
+                raise ValueError(
+                    f"MDXC overlap ({self.overlap}) must not exceed chunk size ({chunk_size})"
+                )
             self.logger.debug(f"Step: {step} (overlap={self.overlap})")
 
             device = next(self.model_run.parameters()).device
-            req_shape = (len(self.model_data_cfgdict.training.instruments),) + tuple(mix.shape)
+            req_shape = (len(self.model_data_cfgdict.training.instruments),) + tuple(
+                mix.shape
+            )
             estimated_buffer_bytes = _estimate_roformer_full_track_buffer_bytes(
                 num_instruments=req_shape[0],
                 channels=req_shape[1],
                 samples=req_shape[2],
                 chunk_size=chunk_size,
             )
-            accumulate_on_device = should_accumulate_on_device(device, estimated_buffer_bytes)
-            accumulation_device = device if accumulate_on_device else torch.device("cpu")
+            accumulate_on_device = should_accumulate_on_device(
+                device, estimated_buffer_bytes
+            )
+            accumulation_device = (
+                device if accumulate_on_device else torch.device("cpu")
+            )
             if device.type == "mps" and not accumulate_on_device:
                 self.logger.info(
                     "Keeping the overlap-add result/counter buffers on CPU for this input to limit MPS memory use; "
@@ -542,13 +685,23 @@ class MDXCSeparator(CommonSeparator):
                 )
 
             # Keep overlap-add buffers next to the model on unified-memory MPS devices.
-            window = torch.tensor(signal.windows.hamming(chunk_size), dtype=torch.float32, device=accumulation_device)
+            window = torch.tensor(
+                signal.windows.hamming(chunk_size),
+                dtype=torch.float32,
+                device=accumulation_device,
+            )
 
             with torch.no_grad():
-                result = torch.zeros(req_shape, dtype=torch.float32, device=accumulation_device)
-                counter = torch.zeros(req_shape, dtype=torch.float32, device=accumulation_device)
+                result = torch.zeros(
+                    req_shape, dtype=torch.float32, device=accumulation_device
+                )
+                counter = torch.zeros(
+                    req_shape, dtype=torch.float32, device=accumulation_device
+                )
 
-                chunk_starts = self._roformer_chunk_starts(mix.shape[1], chunk_size, step)
+                chunk_starts = self._roformer_chunk_starts(
+                    mix.shape[1], chunk_size, step
+                )
                 for start_idx in tqdm(chunk_starts):
                     part = mix[:, start_idx : start_idx + chunk_size]
                     length = part.shape[-1]
@@ -560,7 +713,9 @@ class MDXCSeparator(CommonSeparator):
                     result = self.overlap_add(result, x, window, start_idx, length)
                     safe_len = min(length, x.shape[-1], window.shape[0])
                     if safe_len > 0:
-                        counter[..., start_idx : start_idx + safe_len] += window[:safe_len]
+                        counter[..., start_idx : start_idx + safe_len] += window[
+                            :safe_len
+                        ]
 
             counter.clamp_(min=1e-10)
             result.div_(counter)
@@ -579,9 +734,13 @@ class MDXCSeparator(CommonSeparator):
                 self.logger.debug(f"Using configured segment size: {mdx_segment_size}")
             else:
                 mdx_segment_size = self.model_data_cfgdict.inference.dim_t
-                self.logger.debug(f"Using model default segment size: {mdx_segment_size}")
+                self.logger.debug(
+                    f"Using model default segment size: {mdx_segment_size}"
+                )
 
-            chunk_size = self.model_data_cfgdict.audio.hop_length * (mdx_segment_size - 1)
+            chunk_size = self.model_data_cfgdict.audio.hop_length * (
+                mdx_segment_size - 1
+            )
             self.logger.debug(f"Chunk size: {chunk_size}")
 
             hop_size = chunk_size // self.overlap
@@ -597,8 +756,12 @@ class MDXCSeparator(CommonSeparator):
                 channels=mix.shape[0],
                 padded_length=padded_length,
             )
-            accumulate_on_device = should_accumulate_on_device(self.torch_device, estimated_buffer_bytes)
-            accumulation_device = self.torch_device if accumulate_on_device else torch.device("cpu")
+            accumulate_on_device = should_accumulate_on_device(
+                self.torch_device, estimated_buffer_bytes
+            )
+            accumulation_device = (
+                self.torch_device if accumulate_on_device else torch.device("cpu")
+            )
             if self.torch_device.type == "mps" and not accumulate_on_device:
                 self.logger.info(
                     "Keeping the padded mix and accumulated_outputs on CPU for this input to limit MPS memory use; "
@@ -613,7 +776,9 @@ class MDXCSeparator(CommonSeparator):
                 [
                     torch.zeros(2, chunk_size - hop_size, device=accumulation_device),
                     mix,
-                    torch.zeros(2, pad_size + chunk_size - hop_size, device=accumulation_device),
+                    torch.zeros(
+                        2, pad_size + chunk_size - hop_size, device=accumulation_device
+                    ),
                 ],
                 1,
             )
@@ -622,14 +787,21 @@ class MDXCSeparator(CommonSeparator):
             chunks = mix.unfold(1, chunk_size, hop_size).transpose(0, 1)
             self.logger.debug(f"Chunks length: {len(chunks)} and shape: {chunks.shape}")
 
-            batches = [chunks[i : i + self.batch_size] for i in range(0, len(chunks), self.batch_size)]
-            self.logger.debug(f"Batch size: {self.batch_size}, number of batches: {len(batches)}")
+            batches = [
+                chunks[i : i + self.batch_size]
+                for i in range(0, len(chunks), self.batch_size)
+            ]
+            self.logger.debug(
+                f"Batch size: {self.batch_size}, number of batches: {len(batches)}"
+            )
 
             # accumulated_outputs is used to accumulate the output from processing each batch of chunks through the model.
             # It starts as a tensor of zeros and is updated in-place as the model processes each batch.
             # The variable holds the combined result of all processed batches, which, after post-processing, represents the separated audio sources.
             accumulated_outputs = (
-                torch.zeros(num_stems, *mix.shape, device=accumulation_device) if num_stems > 1 else torch.zeros_like(mix)
+                torch.zeros(num_stems, *mix.shape, device=accumulation_device)
+                if num_stems > 1
+                else torch.zeros_like(mix)
             )
 
             with torch.no_grad():
@@ -644,21 +816,33 @@ class MDXCSeparator(CommonSeparator):
                     # individual_output is used to iterate through these tensors and accumulate them into accumulated_outputs.
                     for individual_output in single_batch_result:
                         if individual_output.device != accumulation_device:
-                            individual_output = individual_output.to(accumulation_device)
-                        accumulated_outputs[..., count * hop_size : count * hop_size + chunk_size] += individual_output
+                            individual_output = individual_output.to(
+                                accumulation_device
+                            )
+                        accumulated_outputs[
+                            ..., count * hop_size : count * hop_size + chunk_size
+                        ] += individual_output
                         count += 1
 
                     del single_batch_result
                     _release_dml_memory_if_needed(self.torch_device)
 
-            self.logger.debug("Calculating inferenced outputs based on accumulated outputs and overlap")
+            self.logger.debug(
+                "Calculating inferenced outputs based on accumulated outputs and overlap"
+            )
             accumulated_outputs.div_(self.overlap)
-            inferenced_outputs = accumulated_outputs[..., chunk_size - hop_size : -(pad_size + chunk_size - hop_size)]
-            self.logger.debug("Releasing the local accumulator reference after selecting the output view")
+            inferenced_outputs = accumulated_outputs[
+                ..., chunk_size - hop_size : -(pad_size + chunk_size - hop_size)
+            ]
+            self.logger.debug(
+                "Releasing the local accumulator reference after selecting the output view"
+            )
             del accumulated_outputs
 
         if num_stems > 1:
-            self.logger.debug("Number of stems is greater than 1, detaching individual sources and correcting pitch if necessary...")
+            self.logger.debug(
+                "Number of stems is greater than 1, detaching individual sources and correcting pitch if necessary..."
+            )
 
             sources = {}
 
@@ -666,7 +850,10 @@ class MDXCSeparator(CommonSeparator):
             # self.model_data_cfgdict.training.instruments provides the list of stems.
             # estimated_sources.cpu().detach().numpy() converts the separated sources tensor to a NumPy array for processing.
             # Each iteration provides an instrument name ('key') and its separated audio ('value') for further processing.
-            for key, value in zip(self.model_data_cfgdict.training.instruments, inferenced_outputs.cpu().detach().numpy()):
+            for key, value in zip(
+                self.model_data_cfgdict.training.instruments,
+                inferenced_outputs.cpu().detach().numpy(),
+            ):
                 self.logger.debug(f"Processing instrument: {key}")
                 if self.pitch_shift != 0:
                     self.logger.debug(f"Applying pitch correction for {key}")
@@ -676,10 +863,16 @@ class MDXCSeparator(CommonSeparator):
 
             # Residual subtraction is only applicable for single-target models (not multi-stem)
             if self.is_primary_stem_main_target and num_stems == 1:
-                self.logger.debug(f"Primary stem: {self.primary_stem_name} is main target, detaching and matching array shapes if necessary...")
+                self.logger.debug(
+                    f"Primary stem: {self.primary_stem_name} is main target, detaching and matching array shapes if necessary..."
+                )
                 if sources[self.primary_stem_name].shape[1] != orig_mix.shape[1]:
-                    sources[self.primary_stem_name] = spec_utils.match_array_shapes(sources[self.primary_stem_name], orig_mix)
-                sources[self.secondary_stem_name] = orig_mix - sources[self.primary_stem_name]
+                    sources[self.primary_stem_name] = spec_utils.match_array_shapes(
+                        sources[self.primary_stem_name], orig_mix
+                    )
+                sources[self.secondary_stem_name] = (
+                    orig_mix - sources[self.primary_stem_name]
+                )
 
             self.logger.debug("Deleting inferenced outputs to free up memory")
             del inferenced_outputs
@@ -690,8 +883,16 @@ class MDXCSeparator(CommonSeparator):
             self.logger.debug("Processing single source...")
 
             if self.is_roformer:
-                sources = {k: v.cpu().detach().numpy() for k, v in zip([self.model_data_cfgdict.training.target_instrument], inferenced_outputs)}
-                inferenced_output = sources[self.model_data_cfgdict.training.target_instrument]
+                sources = {
+                    k: v.cpu().detach().numpy()
+                    for k, v in zip(
+                        [self.model_data_cfgdict.training.target_instrument],
+                        inferenced_outputs,
+                    )
+                }
+                inferenced_output = sources[
+                    self.model_data_cfgdict.training.target_instrument
+                ]
             else:
                 inferenced_output = inferenced_outputs.cpu().detach().numpy()
 
@@ -708,7 +909,9 @@ class MDXCSeparator(CommonSeparator):
                 primary = inferenced_output
 
             if self.is_primary_stem_main_target:
-                self.logger.debug("Single-target model detected; computing residual secondary stem from original mix")
+                self.logger.debug(
+                    "Single-target model detected; computing residual secondary stem from original mix"
+                )
                 # Ensure shapes match before residual subtraction
                 if primary.shape[1] != orig_mix.shape[1]:
                     primary = spec_utils.match_array_shapes(primary, orig_mix)

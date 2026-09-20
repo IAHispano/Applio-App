@@ -63,8 +63,12 @@ class AudioChunker:
         chunk_paths = []
 
         # Calculate number of chunks
-        num_chunks = (total_duration_ms + self.chunk_duration_ms - 1) // self.chunk_duration_ms
-        self.logger.info(f"Splitting {total_duration_ms / 1000:.1f}s audio into {num_chunks} chunks of {self.chunk_duration_ms / 1000:.1f}s each")
+        num_chunks = (
+            total_duration_ms + self.chunk_duration_ms - 1
+        ) // self.chunk_duration_ms
+        self.logger.info(
+            f"Splitting {total_duration_ms / 1000:.1f}s audio into {num_chunks} chunks of {self.chunk_duration_ms / 1000:.1f}s each"
+        )
 
         # Get file extension from input
         _, ext = os.path.splitext(input_path)
@@ -80,8 +84,10 @@ class AudioChunker:
             chunk_filename = f"chunk_{i:04d}{ext}"
             chunk_path = os.path.join(output_dir, chunk_filename)
 
-            self.logger.debug(f"Exporting chunk {i + 1}/{num_chunks}: {start_ms / 1000:.1f}s - {end_ms / 1000:.1f}s to {chunk_path}")
-            chunk.export(chunk_path, format=ext.lstrip('.'))
+            self.logger.debug(
+                f"Exporting chunk {i + 1}/{num_chunks}: {start_ms / 1000:.1f}s - {end_ms / 1000:.1f}s to {chunk_path}"
+            )
+            chunk.export(chunk_path, format=ext.lstrip("."))
             chunk_paths.append(chunk_path)
 
         return chunk_paths
@@ -123,9 +129,11 @@ class AudioChunker:
 
         # Get output format from file extension
         _, ext = os.path.splitext(output_path)
-        output_format = ext.lstrip('.') if ext else 'wav'
+        output_format = ext.lstrip(".") if ext else "wav"
 
-        self.logger.info(f"Exporting merged audio ({len(combined) / 1000:.1f}s) to {output_path}")
+        self.logger.info(
+            f"Exporting merged audio ({len(combined) / 1000:.1f}s) to {output_path}"
+        )
         with atomic_output_path(output_path, "pydub") as temp_path:
             export_handle = combined.export(temp_path, format=output_format)
             close_export = getattr(export_handle, "close", None)

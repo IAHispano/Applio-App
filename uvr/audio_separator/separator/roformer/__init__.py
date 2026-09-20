@@ -10,9 +10,9 @@ from .model_loading_result import ModelLoadingResult
 from .parameter_validation_error import ParameterValidationError
 
 __all__ = [
-    'ModelConfiguration',
-    'BSRoformerConfig', 
-    'MelBandRoformerConfig',
-    'ModelLoadingResult',
-    'ParameterValidationError'
+    "ModelConfiguration",
+    "BSRoformerConfig",
+    "MelBandRoformerConfig",
+    "ModelLoadingResult",
+    "ParameterValidationError",
 ]

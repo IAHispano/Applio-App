@@ -7,6 +7,7 @@
 """
 This code contains the spectrogram and Hybrid version of Demucs.
 """
+
 import math
 
 from .filtering import wiener
@@ -22,7 +23,9 @@ from .demucs import rescale_module
 from .states import capture_init
 from .spec import spectro, ispectro
 from .hdemucs import pad1d, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
-from audio_separator.separator.uvr_lib_v5.device_utils import should_fallback_to_cpu_for_demucs_mask
+from audio_separator.separator.uvr_lib_v5.device_utils import (
+    should_fallback_to_cpu_for_demucs_mask,
+)
 
 
 class HTDemucs(nn.Module):
@@ -281,7 +284,12 @@ class HTDemucs(nn.Module):
                 "norm": norm,
                 "rewrite": rewrite,
                 "norm_groups": norm_groups,
-                "dconv_kw": {"depth": dconv_depth, "compress": dconv_comp, "init": dconv_init, "gelu": True},
+                "dconv_kw": {
+                    "depth": dconv_depth,
+                    "compress": dconv_comp,
+                    "init": dconv_init,
+                    "gelu": True,
+                },
             }
             kwt = dict(kw)
             kwt["freq"] = 0
@@ -298,9 +306,18 @@ class HTDemucs(nn.Module):
                 chout_z = max(chout, chout_z)
                 chout = chout_z
 
-            enc = HEncLayer(chin_z, chout_z, dconv=dconv_mode & 1, context=context_enc, **kw)
+            enc = HEncLayer(
+                chin_z, chout_z, dconv=dconv_mode & 1, context=context_enc, **kw
+            )
             if freq:
-                tenc = HEncLayer(chin, chout, dconv=dconv_mode & 1, context=context_enc, empty=last_freq, **kwt)
+                tenc = HEncLayer(
+                    chin,
+                    chout,
+                    dconv=dconv_mode & 1,
+                    context=context_enc,
+                    empty=last_freq,
+                    **kwt,
+                )
                 self.tencoder.append(tenc)
 
             if multi:
@@ -311,11 +328,26 @@ class HTDemucs(nn.Module):
                 chin_z = chin
                 if self.cac:
                     chin_z *= 2
-            dec = HDecLayer(chout_z, chin_z, dconv=dconv_mode & 2, last=index == 0, context=context, **kw_dec)
+            dec = HDecLayer(
+                chout_z,
+                chin_z,
+                dconv=dconv_mode & 2,
+                last=index == 0,
+                context=context,
+                **kw_dec,
+            )
             if multi:
                 dec = MultiWrap(dec, multi_freqs)
             if freq:
-                tdec = HDecLayer(chout, chin, dconv=dconv_mode & 2, empty=last_freq, last=index == 0, context=context, **kwt)
+                tdec = HDecLayer(
+                    chout,
+                    chin,
+                    dconv=dconv_mode & 2,
+                    empty=last_freq,
+                    last=index == 0,
+                    context=context,
+                    **kwt,
+                )
                 self.tdecoder.insert(0, tdec)
             self.decoder.insert(0, dec)
 
@@ -329,7 +361,9 @@ class HTDemucs(nn.Module):
                 else:
                     freqs //= stride
             if index == 0 and freq_emb:
-                self.freq_emb = ScaledEmbedding(freqs, chin_z, smooth=emb_smooth, scale=emb_scale)
+                self.freq_emb = ScaledEmbedding(
+                    freqs, chin_z, smooth=emb_smooth, scale=emb_scale
+                )
                 self.freq_emb_scale = freq_emb
 
         if rescale:
@@ -338,9 +372,15 @@ class HTDemucs(nn.Module):
         transformer_channels = channels * growth ** (depth - 1)
         if bottom_channels:
             self.channel_upsampler = nn.Conv1d(transformer_channels, bottom_channels, 1)
-            self.channel_downsampler = nn.Conv1d(bottom_channels, transformer_channels, 1)
-            self.channel_upsampler_t = nn.Conv1d(transformer_channels, bottom_channels, 1)
-            self.channel_downsampler_t = nn.Conv1d(bottom_channels, transformer_channels, 1)
+            self.channel_downsampler = nn.Conv1d(
+                bottom_channels, transformer_channels, 1
+            )
+            self.channel_upsampler_t = nn.Conv1d(
+                transformer_channels, bottom_channels, 1
+            )
+            self.channel_downsampler_t = nn.Conv1d(
+                bottom_channels, transformer_channels, 1
+            )
 
             transformer_channels = bottom_channels
 
@@ -457,7 +497,12 @@ class HTDemucs(nn.Module):
             out = []
             for pos in range(0, T, wiener_win_len):
                 frame = slice(pos, pos + wiener_win_len)
-                z_out = wiener(mag_out[sample, frame], mix_stft[sample, frame], niters, residual=residual)
+                z_out = wiener(
+                    mag_out[sample, frame],
+                    mix_stft[sample, frame],
+                    niters,
+                    residual=residual,
+                )
                 out.append(z_out.transpose(-1, -2))
             outs.append(torch.cat(out, dim=0))
         out = torch.view_as_complex(torch.stack(outs, 0))
@@ -478,7 +523,10 @@ class HTDemucs(nn.Module):
             return length
         training_length = int(self.segment * self.samplerate)
         if training_length < length:
-            raise ValueError(f"Given length {length} is longer than " f"training length {training_length}")
+            raise ValueError(
+                f"Given length {length} is longer than "
+                f"training length {training_length}"
+            )
         return training_length
 
     def forward(self, mix):
@@ -583,7 +631,9 @@ class HTDemucs(nn.Module):
         x = x * std[:, None] + mean[:, None]
 
         original_device = x.device
-        should_fallback = should_fallback_to_cpu_for_demucs_mask(original_device, self.cac)
+        should_fallback = should_fallback_to_cpu_for_demucs_mask(
+            original_device, self.cac
+        )
         if should_fallback:
             z = z.cpu()
             x = x.cpu()

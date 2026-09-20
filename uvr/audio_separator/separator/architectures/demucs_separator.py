@@ -4,16 +4,29 @@ from pathlib import Path
 import torch
 import numpy as np
 from audio_separator.separator.common_separator import CommonSeparator
-from audio_separator.separator.uvr_lib_v5.demucs.apply import apply_model, demucs_segments
+from audio_separator.separator.uvr_lib_v5.demucs.apply import (
+    apply_model,
+    demucs_segments,
+)
 from audio_separator.separator.uvr_lib_v5.demucs.hdemucs import HDemucs
-from audio_separator.separator.uvr_lib_v5.demucs.pretrained import get_model as get_demucs_model
+from audio_separator.separator.uvr_lib_v5.demucs.pretrained import (
+    get_model as get_demucs_model,
+)
 from audio_separator.separator.uvr_lib_v5 import spec_utils
-from audio_separator.separator.uvr_lib_v5.device_utils import mps_accumulation_budget_bytes, should_accumulate_on_device
+from audio_separator.separator.uvr_lib_v5.device_utils import (
+    mps_accumulation_budget_bytes,
+    should_accumulate_on_device,
+)
 
 DEMUCS_4_SOURCE = ["drums", "bass", "other", "vocals"]
 
 DEMUCS_2_SOURCE_MAPPER = {CommonSeparator.INST_STEM: 0, CommonSeparator.VOCAL_STEM: 1}
-DEMUCS_4_SOURCE_MAPPER = {CommonSeparator.BASS_STEM: 0, CommonSeparator.DRUM_STEM: 1, CommonSeparator.OTHER_STEM: 2, CommonSeparator.VOCAL_STEM: 3}
+DEMUCS_4_SOURCE_MAPPER = {
+    CommonSeparator.BASS_STEM: 0,
+    CommonSeparator.DRUM_STEM: 1,
+    CommonSeparator.OTHER_STEM: 2,
+    CommonSeparator.VOCAL_STEM: 3,
+}
 DEMUCS_6_SOURCE_MAPPER = {
     CommonSeparator.BASS_STEM: 0,
     CommonSeparator.DRUM_STEM: 1,
@@ -24,7 +37,9 @@ DEMUCS_6_SOURCE_MAPPER = {
 }
 
 
-def _estimate_demucs_full_track_buffer_bytes(channels, samples, num_sources, shifts, num_bag_models):
+def _estimate_demucs_full_track_buffer_bytes(
+    channels, samples, num_sources, shifts, num_bag_models
+):
     """Estimate peak float32 storage retained across Demucs split and shift passes."""
     input_bytes = channels * samples * 4
     output_copies = 2 if shifts > 1 else 1
@@ -76,8 +91,12 @@ class DemucsSeparator(CommonSeparator):
         # Enables "Segments". Deselecting this option is only recommended for those with powerful PCs.
         self.segments_enabled = arch_config.get("segments_enabled", True)
 
-        self.logger.debug(f"Demucs arch params: segment_size={self.segment_size}, segments_enabled={self.segments_enabled}")
-        self.logger.debug(f"Demucs arch params: shifts={self.shifts}, overlap={self.overlap}")
+        self.logger.debug(
+            f"Demucs arch params: segment_size={self.segment_size}, segments_enabled={self.segments_enabled}"
+        )
+        self.logger.debug(
+            f"Demucs arch params: shifts={self.shifts}, overlap={self.overlap}"
+        )
 
         self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
 
@@ -122,8 +141,13 @@ class DemucsSeparator(CommonSeparator):
         separation_failed = False
         try:
             self.demucs_model_instance = HDemucs(sources=DEMUCS_4_SOURCE)
-            self.demucs_model_instance = get_demucs_model(name=os.path.splitext(os.path.basename(self.model_path))[0], repo=Path(os.path.dirname(self.model_path)))
-            self.demucs_model_instance = demucs_segments(self.segment_size, self.demucs_model_instance)
+            self.demucs_model_instance = get_demucs_model(
+                name=os.path.splitext(os.path.basename(self.model_path))[0],
+                repo=Path(os.path.dirname(self.model_path)),
+            )
+            self.demucs_model_instance = demucs_segments(
+                self.segment_size, self.demucs_model_instance
+            )
             self.demucs_model_instance.to(self.torch_device)
             self.demucs_model_instance.eval()
 
@@ -153,13 +177,20 @@ class DemucsSeparator(CommonSeparator):
 
         if isinstance(inst_source, np.ndarray):
             self.logger.debug("Processing instance source...")
-            source_reshape = spec_utils.reshape_sources(inst_source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]], source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]])
-            inst_source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]] = source_reshape
+            source_reshape = spec_utils.reshape_sources(
+                inst_source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]],
+                source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]],
+            )
+            inst_source[self.demucs_source_map[CommonSeparator.VOCAL_STEM]] = (
+                source_reshape
+            )
             source = inst_source
 
         if isinstance(source, np.ndarray):
             source_length = len(source)
-            self.logger.debug(f"Processing source array, source length is {source_length}")
+            self.logger.debug(
+                f"Processing source array, source length is {source_length}"
+            )
             match source_length:
                 case 2:
                     self.logger.debug("Setting source map to 2-stem...")
@@ -175,7 +206,9 @@ class DemucsSeparator(CommonSeparator):
         for stem_name, stem_value in self.demucs_source_map.items():
             if self.output_single_stem is not None:
                 if stem_name.lower() != self.output_single_stem.lower():
-                    self.logger.debug(f"Skipping writing stem {stem_name} as output_single_stem is set to {self.output_single_stem}...")
+                    self.logger.debug(
+                        f"Skipping writing stem {stem_name} as output_single_stem is set to {self.output_single_stem}..."
+                    )
                     continue
 
             stem_path = self.get_stem_output_path(stem_name, custom_output_names)
@@ -201,7 +234,9 @@ class DemucsSeparator(CommonSeparator):
             shifts=self.shifts,
             num_bag_models=len(getattr(self.demucs_model_instance, "models", ())),
         )
-        accumulate_on_device = should_accumulate_on_device(self.torch_device, estimated_buffer_bytes)
+        accumulate_on_device = should_accumulate_on_device(
+            self.torch_device, estimated_buffer_bytes
+        )
         mix_device = self.torch_device if accumulate_on_device else torch.device("cpu")
         if self.torch_device.type == "mps" and not accumulate_on_device:
             self.logger.info(

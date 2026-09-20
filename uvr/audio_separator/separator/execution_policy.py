@@ -66,11 +66,21 @@ def resolve_execution_policy(
 ) -> ExecutionPolicy:
     """Resolve requested options, warning when an unverified path is skipped."""
     if use_autocast and use_native_fp16:
-        raise ValueError("Autocast and native float16 are mutually exclusive precision modes.")
+        raise ValueError(
+            "Autocast and native float16 are mutually exclusive precision modes."
+        )
 
     device_type = getattr(device, "type", str(device))
-    requested_device_type = getattr(requested_device, "type", str(requested_device)) if requested_device is not None else device_type
-    capability_device_type = requested_device_type if requested_device_type == "privateuseone" else device_type
+    requested_device_type = (
+        getattr(requested_device, "type", str(requested_device))
+        if requested_device is not None
+        else device_type
+    )
+    capability_device_type = (
+        requested_device_type
+        if requested_device_type == "privateuseone"
+        else device_type
+    )
     normalized_family = (model_family or "unknown").lower()
     precision = FP32
 
@@ -86,15 +96,22 @@ def resolve_execution_policy(
             )
     elif use_autocast:
         if not uses_pytorch_inference:
-            logger.warning("Autocast only applies to PyTorch inference; continuing with the model's native precision.")
+            logger.warning(
+                "Autocast only applies to PyTorch inference; continuing with the model's native precision."
+            )
         # torch-directml exposes its device as privateuseone. PyTorch's generic
         # autocast context does not support that backend, so never enter it.
         elif requested_device_type == "privateuseone":
-            logger.warning("Autocast is not supported on DirectML; continuing with float32 inference.")
+            logger.warning(
+                "Autocast is not supported on DirectML; continuing with float32 inference."
+            )
         elif supports_autocast(device):
             precision = AUTOCAST
         else:
-            logger.warning("Autocast is not available for device=%s; continuing with float32 inference.", device_type)
+            logger.warning(
+                "Autocast is not available for device=%s; continuing with float32 inference.",
+                device_type,
+            )
 
     compile_enabled = False
     if use_torch_compile:
