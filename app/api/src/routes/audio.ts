@@ -8,11 +8,12 @@ import { getRepoRoot } from "@/python";
 
 const router = Router();
 
-// Bundled ffmpeg if present (repo root), else rely on PATH — same as setup checks.
-function ffmpegBin(): string {
+// Bundled ffmpeg if present (repo root), else null so yt-dlp resolves
+// ffmpeg/ffprobe from PATH — same as setup checks.
+function bundledFfmpeg(): string | null {
   const exeName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   const localExe = path.join(getRepoRoot(), exeName);
-  return fs.existsSync(localExe) ? localExe : exeName;
+  return fs.existsSync(localExe) ? localExe : null;
 }
 
 const youtubeSchema = z.object({
@@ -36,20 +37,21 @@ router.post("/youtube", (req: Request, res: Response) => {
     const { url, outputFormat } = parsed.data;
     const audiosDir = path.join(getRepoRoot(), "assets", "audios");
     fs.mkdirSync(audiosDir, { recursive: true });
+    const args = [
+      path.join(getRepoRoot(), "tools", "audio", "youtube.py"),
+      "--url",
+      url,
+      "--output-dir",
+      audiosDir,
+      "--output-format",
+      outputFormat,
+    ];
+    const ffmpeg = bundledFfmpeg();
+    if (ffmpeg) args.push("--ffmpeg-bin", ffmpeg);
     const job = startCliJob(
       "other",
       { url, outputFormat },
-      [
-        path.join(getRepoRoot(), "tools", "audio", "youtube.py"),
-        "--url",
-        url,
-        "--output-dir",
-        audiosDir,
-        "--output-format",
-        outputFormat,
-        "--ffmpeg-bin",
-        ffmpegBin(),
-      ],
+      args,
       {
         parse: (stdout) => {
           // Regex (not line-split): progress output may use \r redraws that
