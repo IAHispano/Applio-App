@@ -116,7 +116,10 @@ export default function TrainPage() {
         } else if (g.gpus && Array.isArray(g.gpus) && g.gpus.length > 0) {
           devs = g.gpus.filter((x) => x.id !== "-" && !x.id.includes("-"));
         } else if (g.info && !g.info.toLowerCase().includes("no compatible gpu")) {
-          const lines = g.info.split("\n").map((l) => l.trim()).filter(Boolean);
+          const lines = g.info
+            .split("\n")
+            .map((l) => l.trim())
+            .filter(Boolean);
           for (const line of lines) {
             const m = line.match(/^(\d+):\s*(.*)$/);
             if (m) {

@@ -313,9 +313,7 @@ export default function GpuSelect({
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {devices.length > 1 && (
-                          <span className="text-[10px] font-mono text-neutral-500">
-                            ID: {device.id}
-                          </span>
+                          <span className="text-[10px] font-mono text-neutral-500">ID: {device.id}</span>
                         )}
                         {isSelected && <Check size={14} className="text-white shrink-0" />}
                       </div>
