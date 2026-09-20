@@ -15,6 +15,7 @@ export interface Job {
   result?: Record<string, unknown>;
   error?: string;
   outputFile?: string; // repo-relative path served under /outputs
+  progress?: number; // 0-100 determinate progress (unset = indeterminate)
 }
 
 const jobs = new Map<string, Job>();
@@ -55,6 +56,11 @@ export function appendLog(job: Job, line: string) {
 
 export function setRunning(job: Job) {
   job.status = "running";
+  job.updatedAt = new Date().toISOString();
+}
+
+export function setProgress(job: Job, pct: number) {
+  job.progress = Math.max(0, Math.min(100, Math.round(pct)));
   job.updatedAt = new Date().toISOString();
 }
 

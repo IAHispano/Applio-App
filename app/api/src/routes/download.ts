@@ -5,7 +5,7 @@ import multer from "multer";
 import { z } from "zod";
 import { startCliJob } from "@/cli";
 import { errMsg } from "@/errors";
-import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
+import { appendLog, createJob, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir } from "@/python";
 
 const router = Router();
@@ -38,6 +38,18 @@ router.post("/", (req: Request, res: Response) => {
     [path.join("rvc", "lib", "tools", "model_download.py"), parsed.data.modelLink],
     {
       expectSuccess: "Model downloaded successfully.",
+      onChunk: (chunk) => {
+        // tqdm progress (" 45%|████| …", same shape from gdown) → real %.
+        // Take the last percentage in the chunk; only move forward.
+        const matches = chunk.match(/(\d{1,3})%\s*\|/g);
+        if (!matches || matches.length === 0) return;
+        const pct = Number(matches[matches.length - 1].replace(/[^0-9]/g, ""));
+        if (Number.isFinite(pct) && (job.progress ?? -1) < pct) setProgress(job, pct);
+      },
+      parse: () => {
+        setProgress(job, 100);
+        return { result: { message: "Model downloaded successfully." } };
+      },
     },
   );
   return res.status(202).json({ jobId: job.id });
@@ -145,7 +157,8 @@ router.post("/pretraineds", async (req: Request, res: Response) => {
     void (async () => {
       setRunning(job);
       try {
-        for (const t of tasks) {
+        for (let i = 0; i < tasks.length; i++) {
+          const t = tasks[i];
           appendLog(job, `Downloading ${t.url}`);
           const head = await fetch(t.url, { method: "HEAD" }).catch(() => null);
           const total = Number(head?.headers.get("content-length") || 0);
@@ -169,9 +182,12 @@ router.post("/pretraineds", async (req: Request, res: Response) => {
                 lastPct = pct;
                 appendLog(job, `${path.basename(t.dest)}: ${pct}%`);
               }
+              // Overall progress across all files in this job.
+              setProgress(job, ((i + pct / 100) / tasks.length) * 100);
             }
           }
           await new Promise<void>((resolve) => file.close(() => resolve()));
+          setProgress(job, ((i + 1) / tasks.length) * 100);
           appendLog(job, `Saved ${t.dest}`);
         }
         setDone(job, { message: "Pretrained model downloaded successfully!" });

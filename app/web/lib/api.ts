@@ -33,6 +33,7 @@ export interface Job {
   result?: Record<string, unknown>;
   error?: string;
   outputFile?: string;
+  progress?: number;
 }
 
 interface ApiErrorBody {

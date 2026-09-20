@@ -76,7 +76,7 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
 
       {job.status === "error" && <JobError message={job.error} />}
 
-      <JobProgress status={job.status} />
+      <JobProgress status={job.status} progress={job.progress} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
 

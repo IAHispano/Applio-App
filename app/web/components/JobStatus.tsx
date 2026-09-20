@@ -45,8 +45,29 @@ export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (
   );
 }
 
-export function JobProgress({ status }: { status: Job["status"] }) {
+export function JobProgress({ status, progress }: { status: Job["status"]; progress?: number | null }) {
   if (status !== "queued" && status !== "running") return null;
+  if (progress !== undefined && progress !== null) {
+    const pct = Math.max(0, Math.min(100, Math.round(progress)));
+    return (
+      <div className="space-y-1" style={{ marginTop: 8 }}>
+        <div
+          className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
+          role="progressbar"
+          aria-label="Download progress"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={pct}
+        >
+          <div
+            className="h-full bg-white rounded-full transition-all duration-300"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <p className="text-[11px] text-neutral-400 m-0 tabular-nums">{pct}%</p>
+      </div>
+    );
+  }
   return (
     <div className="loader" role="progressbar" aria-label="Execution in progress" style={{ marginTop: 8 }}>
       <div className="loaderBar" />

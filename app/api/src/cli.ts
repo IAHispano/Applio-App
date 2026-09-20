@@ -55,6 +55,8 @@ export interface CliJobOptions {
   parse?: (stdout: string, stderr: string) => { result?: Record<string, unknown>; outputFile?: string };
   // Last stdout line required for commands that always exit 0.
   expectSuccess?: string | RegExp;
+  // Live chunk stream (in addition to job logs), e.g. to derive progress.
+  onChunk?: (chunk: string, stream: "stdout" | "stderr") => void;
 }
 
 // Spawns `python <args>` as a tracked job and returns immediately (202 {jobId}).
@@ -71,9 +73,14 @@ export function startCliJob(
       const group = useGroupKill();
       const r = await runPythonModule(args, {
         detached: group,
-        onData: (chunk) => {
+        onData: (chunk, stream) => {
           const trimmed = chunk.trim().slice(0, 1000);
           if (trimmed) appendLog(job, trimmed);
+          try {
+            opts.onChunk?.(chunk, stream);
+          } catch {
+            /* progress parsing must never fail the job */
+          }
         },
         onSpawn: (pid) => trackPid(job.id, pid, group),
       });
