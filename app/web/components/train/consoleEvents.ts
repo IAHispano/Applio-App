@@ -1,7 +1,16 @@
 export type ConsoleEvent =
   | { kind: "phase"; key: string; index: number; total: number; title: string }
   | { kind: "progress"; key: string; phase: string; percent: number; detail: string }
-  | { kind: "task"; key: string; title: string; meta: string; status: "running" | "done"; percent: number | null; detail: string; duration: string | null }
+  | {
+      kind: "task";
+      key: string;
+      title: string;
+      meta: string;
+      status: "running" | "done";
+      percent: number | null;
+      detail: string;
+      duration: string | null;
+    }
   | { kind: "message"; key: string; text: string; tone: "info" | "success" | "muted" }
   | { kind: "error"; key: string; lines: Array<{ key: string; text: string }> };
 
@@ -90,7 +99,16 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
     if (taskStart) {
       const name = taskStart[1].toLowerCase() === "pitch" ? "Pitch extraction" : "Embedding extraction";
       const meta = taskStart[2].replace(/^(on|with)\s+/i, "").trim();
-      events.push({ kind: "task", key: key(), title: name, meta, status: "running", percent: null, detail: "", duration: null });
+      events.push({
+        kind: "task",
+        key: key(),
+        title: name,
+        meta,
+        status: "running",
+        percent: null,
+        detail: "",
+        duration: null,
+      });
       continue;
     }
 

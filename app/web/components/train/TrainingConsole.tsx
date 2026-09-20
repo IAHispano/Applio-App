@@ -609,9 +609,7 @@ export default function TrainingConsole({
                           {ev.duration ?? (ev.percent !== null ? `${ev.percent}%` : "")}
                         </span>
                       </div>
-                      {ev.meta && (
-                        <p className="text-[10px] text-neutral-500 m-0 truncate">{ev.meta}</p>
-                      )}
+                      {ev.meta && <p className="text-[10px] text-neutral-500 m-0 truncate">{ev.meta}</p>}
                       <div
                         className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"
                         role="progressbar"
@@ -644,10 +642,7 @@ export default function TrainingConsole({
                       <AlertCircle size={13} className="text-red-400 shrink-0 mt-0.5" />
                       <div className="flex-1 min-w-0 space-y-0.5">
                         {ev.lines.map((l) => (
-                          <p
-                            key={l.key}
-                            className="text-[11px] text-red-300 m-0 leading-relaxed break-words"
-                          >
+                          <p key={l.key} className="text-[11px] text-red-300 m-0 leading-relaxed break-words">
                             {l.text}
                           </p>
                         ))}
