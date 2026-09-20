@@ -21,7 +21,6 @@ files:
   - from: ../..
     to: .
     filter:
-      - core.py
       - requirements.txt
       - LICENSE
       - ffmpeg.exe

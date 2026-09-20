@@ -518,3 +518,117 @@ class VoiceConverter:
         if self.cpt is not None:
             self.vc = VC(self.tgt_sr, self.config)
             self.n_spk = self.cpt["config"][-3]
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Applio Voice Converter Inference")
+    # File / folder paths
+    parser.add_argument("--input-path", "--audio-input-path", dest="input_path", default=None)
+    parser.add_argument("--output-path", "--audio-output-path", dest="output_path", default=None)
+    parser.add_argument("--input-folder", "--audio-input-paths", dest="input_folder", default=None)
+    parser.add_argument("--output-folder", dest="output_folder", default=None)
+    parser.add_argument("--pth-path", "--model-path", dest="model_path", required=True)
+    parser.add_argument("--index-path", default="")
+
+    # Pitch and F0
+    parser.add_argument("--pitch", type=int, default=0)
+    parser.add_argument("--f0-method", default="rmvpe")
+    parser.add_argument("--index-rate", type=float, default=0.75)
+    parser.add_argument("--volume-envelope", type=float, default=1.0)
+    parser.add_argument("--protect", type=float, default=0.5)
+    parser.add_argument("--hop-length", type=int, default=128)
+    parser.add_argument("--split-audio", action="store_true", default=False)
+    parser.add_argument("--f0-autotune", action="store_true", default=False)
+    parser.add_argument("--f0-autotune-strength", type=float, default=1.0)
+    parser.add_argument("--proposed-pitch", action="store_true", default=False)
+    parser.add_argument("--proposed-pitch-threshold", type=float, default=155.0)
+
+    # Embedder and cleaning
+    parser.add_argument("--embedder-model", default="contentvec")
+    parser.add_argument("--embedder-model-custom", default=None)
+    parser.add_argument("--clean-audio", action="store_true", default=False)
+    parser.add_argument("--clean-strength", type=float, default=0.5)
+    parser.add_argument("--export-format", default="WAV")
+    parser.add_argument("--resample-sr", type=int, default=0)
+    parser.add_argument("--sid", type=int, default=0)
+
+    # Formant
+    parser.add_argument("--formant-shifting", action="store_true", default=False)
+    parser.add_argument("--formant-qfrency", type=float, default=1.0)
+    parser.add_argument("--formant-timbre", type=float, default=1.0)
+
+    # Effects & post-process
+    parser.add_argument("--post-process", action="store_true", default=False)
+    parser.add_argument("--reverb", action="store_true", default=False)
+    parser.add_argument("--reverb-room-size", type=float, default=0.5)
+    parser.add_argument("--reverb-damping", type=float, default=0.5)
+    parser.add_argument("--reverb-wet-gain", type=float, default=0.33)
+    parser.add_argument("--reverb-dry-gain", type=float, default=0.4)
+    parser.add_argument("--reverb-width", type=float, default=1.0)
+    parser.add_argument("--reverb-freeze-mode", type=float, default=0.0)
+
+    parser.add_argument("--pitch-shift", action="store_true", default=False)
+    parser.add_argument("--pitch-shift-semitones", type=float, default=0.0)
+
+    parser.add_argument("--limiter", action="store_true", default=False)
+    parser.add_argument("--limiter-threshold", type=float, default=-6.0)
+    parser.add_argument("--limiter-release-time", type=float, default=0.05)
+
+    parser.add_argument("--gain", action="store_true", default=False)
+    parser.add_argument("--gain-db", type=float, default=0.0)
+
+    parser.add_argument("--distortion", action="store_true", default=False)
+    parser.add_argument("--distortion-gain", type=float, default=25.0)
+
+    parser.add_argument("--chorus", action="store_true", default=False)
+    parser.add_argument("--chorus-rate", type=float, default=1.0)
+    parser.add_argument("--chorus-depth", type=float, default=0.25)
+    parser.add_argument("--chorus-center-delay", type=float, default=7.0)
+    parser.add_argument("--chorus-feedback", type=float, default=0.0)
+    parser.add_argument("--chorus-mix", type=float, default=0.5)
+
+    parser.add_argument("--bitcrush", action="store_true", default=False)
+    parser.add_argument("--bitcrush-bit-depth", type=int, default=8)
+
+    parser.add_argument("--clipping", action="store_true", default=False)
+    parser.add_argument("--clipping-threshold", type=float, default=-6.0)
+
+    parser.add_argument("--compressor", action="store_true", default=False)
+    parser.add_argument("--compressor-threshold", type=float, default=0.0)
+    parser.add_argument("--compressor-ratio", type=float, default=1.0)
+    parser.add_argument("--compressor-attack", type=float, default=1.0)
+    parser.add_argument("--compressor-release", type=float, default=100.0)
+
+    parser.add_argument("--delay", action="store_true", default=False)
+    parser.add_argument("--delay-seconds", type=float, default=0.5)
+    parser.add_argument("--delay-feedback", type=float, default=0.0)
+    parser.add_argument("--delay-mix", type=float, default=0.5)
+
+    args = parser.parse_args()
+    vc = VoiceConverter()
+
+    infer_kwargs = vars(args)
+    input_folder = infer_kwargs.pop("input_folder")
+    output_folder = infer_kwargs.pop("output_folder")
+    input_path = infer_kwargs.pop("input_path")
+    output_path = infer_kwargs.pop("output_path")
+
+    if input_folder and output_folder:
+        vc.convert_audio_batch(
+            audio_input_paths=input_folder,
+            audio_output_path=output_folder,
+            **infer_kwargs,
+        )
+        print(f"Files from {input_folder} inferred successfully.")
+    elif input_path and output_path:
+        vc.convert_audio(
+            audio_input_path=input_path,
+            audio_output_path=output_path,
+            **infer_kwargs,
+        )
+        print(f"File {input_path} inferred successfully.")
+    else:
+        print("Error: Specify either --input-path and --output-path, or --input-folder and --output-folder.")
+        sys.exit(1)

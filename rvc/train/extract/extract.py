@@ -249,3 +249,4 @@ if __name__ == "__main__":
 
     generate_config(sample_rate, exp_dir)
     generate_filelist(exp_dir, sample_rate, include_mutes)
+    print(f"Model {os.path.basename(exp_dir)} extracted successfully.")

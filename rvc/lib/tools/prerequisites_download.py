@@ -165,3 +165,16 @@ def prequisites_download_pipeline(
                 download_mapping_files(pretraineds_refinegan_list, global_bar)
     else:
         pass
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Applio Prerequisites Downloader")
+    parser.add_argument("--pretraineds-hifigan", action="store_true", default=False)
+    parser.add_argument("--models", action="store_true", default=False)
+    parser.add_argument("--exe", action="store_true", default=False)
+    args = parser.parse_args()
+
+    prequisites_download_pipeline(args.pretraineds_hifigan, args.models, args.exe)
+    print("Prerequisites installed successfully.")

@@ -240,27 +240,17 @@ interface PreprocessParams {
 
 function buildPreprocessArgs(p: PreprocessParams): string[] {
   return [
-    "core.py",
-    "preprocess",
-    "--model-name",
-    p.modelName,
-    "--dataset-path",
+    path.join("rvc", "train", "preprocess", "preprocess.py"),
+    path.join("logs", p.modelName),
     p.datasetPath,
-    "--sample-rate",
     p.sampleRate,
-    "--cpu-cores",
     String(p.cpuCores),
-    "--cut-preprocess",
     p.cutPreprocess,
-    ...(p.processEffects ? ["--process-effects"] : []),
-    ...(p.noiseReduction ? ["--noise-reduction"] : []),
-    "--noise-reduction-strength",
+    p.processEffects ? "True" : "False",
+    p.noiseReduction ? "True" : "False",
     String(p.cleanStrength),
-    "--chunk-len",
     p.chunkLen.toFixed(1),
-    "--overlap-len",
     p.overlapLen.toFixed(1),
-    "--normalization-mode",
     p.normalizationMode,
   ];
 }
@@ -277,26 +267,17 @@ interface ExtractParams {
 }
 
 function buildExtractArgs(p: ExtractParams): string[] {
-  const args = [
-    "core.py",
-    "extract",
-    "--model-name",
-    p.modelName,
-    "--f0-method",
+  return [
+    path.join("rvc", "train", "extract", "extract.py"),
+    path.join("logs", p.modelName),
     p.f0Method,
-    "--cpu-cores",
     String(p.cpuCores),
-    "--gpu",
     p.gpu,
-    "--sample-rate",
     p.sampleRate,
-    "--embedder-model",
     p.embedderModel,
-    "--include-mutes",
+    p.embedderModelCustom || "None",
     String(p.includeMutes),
   ];
-  if (p.embedderModelCustom) args.push("--embedder-model-custom", p.embedderModelCustom);
-  return args;
 }
 
 interface TrainStepParams {
@@ -319,41 +300,54 @@ interface TrainStepParams {
   indexAlgorithm: string;
 }
 
+function resolvePretrained(
+  vocoder: string,
+  sampleRate: string,
+  customPretrained: boolean,
+  gPath?: string,
+  dPath?: string,
+): [string, string] {
+  if (customPretrained) {
+    return [gPath || "", dPath || ""];
+  }
+  const srPrefix = sampleRate.slice(0, 2);
+  const basePath = path.join("rvc", "models", "pretraineds", vocoder.toLowerCase());
+  const pg = path.join(basePath, `f0G${srPrefix}k.pth`);
+  const pd = path.join(basePath, `f0D${srPrefix}k.pth`);
+  if (fs.existsSync(path.resolve(getRepoRoot(), pg)) && fs.existsSync(path.resolve(getRepoRoot(), pd))) {
+    return [pg, pd];
+  }
+  return ["", ""];
+}
+
 function buildTrainArgs(p: TrainStepParams): string[] {
+  const [pg, pd] = p.pretrained
+    ? resolvePretrained(p.vocoder, p.sampleRate, p.customPretrained, p.gPretrainedPath, p.dPretrainedPath)
+    : ["", ""];
   return [
-    "core.py",
-    "train",
-    "--model-name",
+    path.join("rvc", "train", "train.py"),
     p.modelName,
-    "--vocoder",
-    p.vocoder,
-    ...(p.checkpointing ? ["--checkpointing"] : []),
-    "--save-every-epoch",
     String(p.saveEveryEpoch),
-    ...(p.saveOnlyLatest ? ["--save-only-latest"] : []),
-    ...(p.saveEveryWeights ? ["--save-every-weights"] : []),
-    "--total-epoch",
     String(p.totalEpoch),
-    "--sample-rate",
-    p.sampleRate,
-    "--batch-size",
-    String(p.batchSize),
-    "--gpu",
+    pg,
+    pd,
     p.gpu,
-    p.pretrained ? "--pretrained" : "--no-pretrained",
-    ...(p.customPretrained
-      ? [
-          "--custom-pretrained",
-          "--g-pretrained-path",
-          p.gPretrainedPath || "",
-          "--d-pretrained-path",
-          p.dPretrainedPath || "",
-        ]
-      : []),
-    ...(p.cleanup ? ["--cleanup"] : []),
-    ...(p.cacheDataInGpu ? ["--cache-data-in-gpu"] : []),
-    "--index-algorithm",
-    p.indexAlgorithm,
+    String(p.batchSize),
+    p.sampleRate,
+    p.saveOnlyLatest ? "True" : "False",
+    p.saveEveryWeights ? "True" : "False",
+    p.cacheDataInGpu ? "True" : "False",
+    p.cleanup ? "True" : "False",
+    p.vocoder,
+    p.checkpointing ? "True" : "False",
+  ];
+}
+
+function buildIndexArgs(name: string, indexAlgorithm: string): string[] {
+  return [
+    path.join("rvc", "train", "process", "extract_index.py"),
+    path.join("logs", name),
+    indexAlgorithm,
   ];
 }
 
@@ -465,9 +459,27 @@ router.post("/train", (req: Request, res: Response) => {
       .status(400)
       .json({ error: "gPretrainedPath and dPretrainedPath are required with customPretrained." });
   }
-  const job = startCliJob("train", { step: "train", ...p }, buildTrainArgs(p), {
-    expectSuccess: `Model ${p.modelName} trained successfully.`,
-  });
+  const job = createJob("train", { step: "train", ...p });
+  void (async () => {
+    setRunning(job);
+    try {
+      const trainArgs = buildTrainArgs(p);
+      appendLog(job, `$ python ${trainArgs.join(" ")}`);
+      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
+      if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
+        appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
+        const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
+        appendLog(job, `$ python ${indexArgs.join(" ")}`);
+        await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+      }
+      setDone(job, { message: `Model ${p.modelName} trained successfully.` });
+    } catch (err) {
+      trackPid(job.id, undefined);
+      appendLog(job, `ERROR: ${errMsg(err)}`);
+      const j = getJob(job.id);
+      if (j && j.status === "running") setError(j, errMsg(err) || "Training failed");
+    }
+  })();
   return res.status(202).json({ jobId: job.id });
 });
 
@@ -483,14 +495,7 @@ router.post("/index", (req: Request, res: Response) => {
   const job = startCliJob(
     "train",
     { step: "index", ...parsed.data },
-    [
-      "core.py",
-      "index",
-      "--model-name",
-      parsed.data.modelName,
-      "--index-algorithm",
-      parsed.data.indexAlgorithm,
-    ],
+    buildIndexArgs(parsed.data.modelName, parsed.data.indexAlgorithm),
     {
       expectSuccess: `Index file for ${parsed.data.modelName} generated successfully.`,
     },
@@ -594,6 +599,14 @@ router.post("/pipeline", (req: Request, res: Response) => {
       appendLog(job, `$ python ${trainArgs.join(" ")}`);
       await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
       if (aborted()) return;
+
+      if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
+        appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
+        const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
+        appendLog(job, `$ python ${indexArgs.join(" ")}`);
+        await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+        if (aborted()) return;
+      }
 
       appendLog(job, "\n>>> [4/4] Verifying artifacts...");
       const pthAbs = path.join(getRepoRoot(), "logs", p.modelName, `${p.modelName}.pth`);

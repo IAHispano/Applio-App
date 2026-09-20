@@ -326,6 +326,7 @@ def preprocess_training_set(
     print(
         f"Preprocess completed in {elapsed_time:.2f} seconds on {format_duration(audio_length)} seconds of audio."
     )
+    print(f"Model {os.path.basename(exp_dir)} preprocessed successfully.")
 
 
 if __name__ == "__main__":

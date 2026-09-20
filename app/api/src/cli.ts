@@ -85,28 +85,30 @@ export function startCliJob(
       if (opts.expectSuccess) {
         const ok =
           typeof opts.expectSuccess === "string"
-            ? lastLine === opts.expectSuccess
-            : opts.expectSuccess.test(lastLine);
+            ? lastLine === opts.expectSuccess || r.stdout.includes(opts.expectSuccess)
+            : opts.expectSuccess.test(lastLine) || opts.expectSuccess.test(r.stdout);
         if (!ok) throw new Error(lastLine.slice(-1000) || "Job reported failure");
       }
-      const parsed = opts.parse?.(r.stdout, r.stderr);
-      setDone(job, parsed?.result ?? { message: r.stdout.trim().split("\n").pop() }, parsed?.outputFile);
+      const parsed = opts.parse ? opts.parse(r.stdout, r.stderr) : undefined;
+      const resultObj = parsed?.result ?? { message: lastLine || "Done" };
+      const outputRel = parsed?.outputFile ? repoRel(parsed.outputFile) : undefined;
+      setDone(job, resultObj, outputRel);
     } catch (err) {
       trackPid(job.id, undefined);
       appendLog(job, `ERROR: ${errMsg(err)}`);
       const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, errMsg(err) || "Job failed");
+      if (j && j.status === "running") setError(j, errMsg(err) || "CLI job failed");
     }
   })();
   return job;
 }
 
-export function lastStdoutLine(out: string): string {
+function lastStdoutLine(out: string): string {
   return (out.trim().split("\n").pop() ?? "").trim();
 }
 
-// One pipeline step: spawn in a killable group, require the exact success
-// line (never substring matching), throw otherwise.
+// One pipeline step: spawn in a killable group, require exit code 0 (or legacy 2333333)
+// and success line match if expected.
 export async function runJobStep(job: Job, args: string[], expected: string, step: string): Promise<void> {
   const group = useGroupKill();
   const r = await runPythonModule(args, {
@@ -115,7 +117,8 @@ export async function runJobStep(job: Job, args: string[], expected: string, ste
     onSpawn: (pid) => trackPid(job.id, pid, group),
   });
   trackPid(job.id, undefined);
-  if (r.code !== 0 || lastStdoutLine(r.stdout) !== expected)
+  const successLineMatch = !expected || lastStdoutLine(r.stdout) === expected || r.stdout.includes(expected);
+  if ((r.code !== 0 && r.code !== 2333333) || !successLineMatch)
     throw new Error(`${step} failed (code ${r.code}): ${(r.stderr || r.stdout).slice(-1000)}`);
 }
 

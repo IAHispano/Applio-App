@@ -60,8 +60,8 @@ router.post(
           appendLog(job, `Blending into logs/${safeName}.pth (ratio ${p.ratio})`);
           const code = [
             "import json",
-            "from core import run_model_blender_script",
-            `r = run_model_blender_script(${JSON.stringify(safeName)}, ${JSON.stringify(p1)}, ${JSON.stringify(p2)}, ${p.ratio})`,
+            "from rvc.train.process.model_blender import model_blender",
+            `r = model_blender(${JSON.stringify(safeName)}, ${JSON.stringify(p1)}, ${JSON.stringify(p2)}, ${p.ratio})`,
             "msg, f = (r if isinstance(r, tuple) else (str(r), None))",
             "print('APPLIO_JSON:' + json.dumps({'message': msg, 'file': f}))",
           ].join("; ");

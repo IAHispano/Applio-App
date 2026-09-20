@@ -1,6 +1,6 @@
 import type { InferenceParams } from "../schemas";
 
-// CLI flags for core.py inference.
+// CLI flags for rvc/infer/infer.py inference.
 
 function flag(name: string, value: boolean): string[] {
   return value ? [`--${name}`] : [];

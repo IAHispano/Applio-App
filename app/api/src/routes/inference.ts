@@ -16,8 +16,7 @@ const upload = audioUpload();
 
 function toCliArgs(p: InferenceParams, inputPath: string, outputPath: string): string[] {
   return [
-    "core.py",
-    "infer",
+    path.join("rvc", "infer", "infer.py"),
     "--input-path",
     inputPath,
     "--output-path",
@@ -79,7 +78,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
     const ts = Date.now();
     const ext = String(params.exportFormat || "WAV").toLowerCase();
     const outAbs = path.join(getOutputsDir(), `web_output_${ts}.${ext === "m4a" ? "m4a" : ext}`);
-    // core.py expects a .wav output path then renames by export format; give .wav stem
+    // infer engine expects a .wav output path then renames by export format; give .wav stem
     const outWav = outAbs.replace(/\.[a-z0-9]+$/i, ".wav");
 
     let finalServed: string | null = null;

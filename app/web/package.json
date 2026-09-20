@@ -2,7 +2,7 @@
   "name": "@applio/web",
   "version": "0.0.4",
   "private": true,
-  "description": "Applio Next.js frontend (App Router) — all 11 feature tabs + startup setup screen",
+  "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

@@ -88,9 +88,9 @@ function seedDataRoot(code: string, data: string): void {
   } catch {
     /* first run */
   }
-  const codeEntries = ["core.py", "requirements.txt", "LICENSE", "rvc", "plugins"];
+  const codeEntries = ["requirements.txt", "LICENSE", "rvc", "plugins"];
   const dataEntries = ["assets"];
-  const needsSeed = current !== version || !fs.existsSync(path.join(data, "core.py"));
+  const needsSeed = current !== version || !fs.existsSync(path.join(data, "rvc"));
   if (!needsSeed) {
     for (const entry of dataEntries) {
       if (!fs.existsSync(path.join(data, entry)) && fs.existsSync(path.join(code, entry))) {

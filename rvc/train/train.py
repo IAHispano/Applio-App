@@ -352,7 +352,7 @@ def run(
         print(
             "Not enough data present in the training set. Perhaps you forgot to slice the audio files in preprocess?"
         )
-        os._exit(2333333)
+        os._exit(1)
 
     # defaults
     embedder_name = "contentvec"
@@ -976,7 +976,8 @@ def train_and_evaluate(
             with open(pid_file_path, "w") as pid_file:
                 pid_data.pop("process_pids", None)
                 json.dump(pid_data, pid_file, indent=4)
-            os._exit(2333333)
+            print(f"Model {model_name} trained successfully.")
+            os._exit(0)
 
         with torch.no_grad():
             torch.cuda.empty_cache()

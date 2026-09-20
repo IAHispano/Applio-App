@@ -81,8 +81,7 @@ router.post("/", upload.single("txt_file"), (req: Request, res: Response) => {
     const outTts = path.join(getOutputsDir(), `tts_output_${ts}.wav`);
     const outRvc = path.join(getOutputsDir(), `tts_rvc_output_${ts}.wav`);
     const args = [
-      "core.py",
-      "tts",
+      path.join("rvc", "lib", "tools", "tts.py"),
       "--tts-file",
       ttsFile,
       "--tts-text",

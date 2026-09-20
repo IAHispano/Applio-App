@@ -35,7 +35,7 @@ router.post("/", (req: Request, res: Response) => {
   const job = startCliJob(
     "download",
     parsed.data,
-    ["core.py", "download", "--model-link", parsed.data.modelLink],
+    [path.join("rvc", "lib", "tools", "model_download.py"), parsed.data.modelLink],
     {
       expectSuccess: "Model downloaded successfully.",
     },

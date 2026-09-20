@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { startCliJob } from "../cli";
 import { errMsg } from "../errors";
@@ -24,8 +25,7 @@ router.post("/", (req: Request, res: Response) => {
     if (!fs.existsSync(pthAbs)) return res.status(400).json({ error: `Model not found: ${p.pthPath}` });
 
     const args = [
-      "core.py",
-      "batch-infer",
+      path.join("rvc", "infer", "infer.py"),
       "--input-folder",
       inputFolder,
       "--output-folder",

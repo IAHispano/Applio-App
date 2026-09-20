@@ -1,6 +1,11 @@
 """F0 curve extraction (engine utility, no UI dependencies)."""
 
 import os
+import sys
+
+now_dir = os.getcwd()
+if now_dir not in sys.path:
+    sys.path.append(now_dir)
 
 import librosa
 from matplotlib import pyplot as plt
@@ -41,3 +46,21 @@ def extract_f0_curve(
 
     print("F0 Curve extracted successfully!")
     return image_path, txt_path
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Applio F0 Curve Extractor")
+    parser.add_argument("--input-path", required=True, help="Input audio file")
+    parser.add_argument("--method", default="rmvpe", help="Pitch extraction method")
+    parser.add_argument("--output-image", default=None, help="Output plot image path")
+    parser.add_argument("--output-txt", default=None, help="Output curve text file path")
+    args = parser.parse_args()
+
+    extract_f0_curve(
+        audio_path=args.input_path,
+        method=args.method,
+        image_path=args.output_image,
+        txt_path=args.output_txt,
+    )

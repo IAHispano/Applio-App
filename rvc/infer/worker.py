@@ -129,10 +129,10 @@ def run_worker():
     sys.stdout = IPCStdoutRedirector(real_stdout, get_active_job_id)
     sys.stderr = IPCStdoutRedirector(real_stdout, get_active_job_id)
 
-    from core import run_infer_script, import_voice_converter
+    from rvc.infer.infer import VoiceConverter
 
     # Preload singleton VoiceConverter in background
-    vc = import_voice_converter()
+    vc = VoiceConverter()
 
     send_ipc({"type": "ready", "pid": os.getpid()})
 
@@ -166,7 +166,16 @@ def run_worker():
                 output_path = req.get("outputPath")
                 kwargs = map_params(params, input_path, output_path)
 
-                info_msg, final_out = run_infer_script(**kwargs)
+                export_format = kwargs.get("export_format", "WAV")
+                kwargs["audio_input_path"] = kwargs.pop("input_path", input_path)
+                kwargs["audio_output_path"] = kwargs.pop("output_path", output_path)
+                kwargs["model_path"] = kwargs.pop("pth_path", "")
+
+                vc.convert_audio(**kwargs)
+                final_out = output_path.replace(
+                    ".wav", f".{export_format.lower()}"
+                )
+                info_msg = f"File {input_path} inferred successfully."
                 sys.stdout.flush()
                 send_ipc(
                     {

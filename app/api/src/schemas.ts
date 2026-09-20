@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// Mirrors core.py click options (_infer_opts + _post_process_opts).
+// Mirrors rvc inference options.
 
 export const F0_METHODS = [
   "crepe",
@@ -30,7 +30,7 @@ export const baseInferSchema = z.object({
   pthPath: z.string().min(1, "pthPath is required"),
   indexPath: z.string().default(""),
 
-  // Core inference options (core.py _infer_opts)
+  // Core inference options (rvc VoiceConverter options)
   pitch: z.coerce.number().int().min(-24).max(24).default(0),
   indexRate: z.coerce.number().min(0).max(1).default(0.75),
   volumeEnvelope: z.coerce.number().min(0).max(1).default(1),
@@ -48,7 +48,7 @@ export const baseInferSchema = z.object({
   embedderModelCustom: z.string().optional().default(""),
   sid: z.coerce.number().int().min(0).default(0),
 
-  // Post-process (core.py _post_process_opts) — all optional, default off/neutral
+  // Post-process options — all optional, default off/neutral
   formantShifting: z.coerce.boolean().default(false),
   formantQfrency: z.coerce.number().default(1.0),
   formantTimbre: z.coerce.number().default(1.0),

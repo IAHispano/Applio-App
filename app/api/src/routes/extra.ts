@@ -30,8 +30,8 @@ router.post("/analyze", upload.single("audio"), async (req: Request, res: Respon
       try {
         const code = [
           "import json",
-          "from core import run_audio_analyzer_script",
-          `info, plot = run_audio_analyzer_script(${JSON.stringify(inputAbs)}, ${JSON.stringify(plotAbs)})`,
+          "from rvc.lib.tools.analyzer import analyze_audio",
+          `info, plot = analyze_audio(${JSON.stringify(inputAbs)}, ${JSON.stringify(plotAbs)})`,
           "print('APPLIO_JSON:' + json.dumps({'info': info, 'plot': plot}))",
         ].join("; ");
         const out = await runPythonJson<{ info: unknown; plot: string }>(code, (l) => appendLog(job, l));
@@ -56,7 +56,7 @@ router.post("/model-info", (req: Request, res: Response) => {
   try {
     const abs = resolveUserPath(parsed.data.pthPath);
     if (!fs.existsSync(abs)) return res.status(400).json({ error: `File not found: ${parsed.data.pthPath}` });
-    const job = startCliJob("other", parsed.data, ["core.py", "model-information", "--pth-path", abs], {
+    const job = startCliJob("other", parsed.data, [path.join("rvc", "train", "process", "model_information.py"), abs], {
       parse: (stdout) => {
         const meta: Record<string, string> = {};
         for (const line of stdout.split(/\r?\n/)) {
@@ -97,8 +97,7 @@ router.post("/f0", upload.single("audio"), (req: Request, res: Response) => {
       "other",
       { inputPath: inputAbs, method: parsed.data.method },
       [
-        "core.py",
-        "f0-curve",
+        path.join("rvc", "lib", "tools", "f0_curve.py"),
         "--input-path",
         inputAbs,
         "--method",
