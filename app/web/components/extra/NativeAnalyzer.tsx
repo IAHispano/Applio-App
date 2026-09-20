@@ -74,45 +74,6 @@ function formatClock(sec: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-function codecName(name: string): string {
-  const ext = name.split(".").pop()?.toLowerCase() || "";
-  const map: Record<string, string> = {
-    flac: "FLAC (Free Lossless Audio Codec)",
-    wav: "WAV (Waveform Audio)",
-    mp3: "MPEG Audio Layer III",
-    ogg: "Ogg Vorbis",
-    opus: "Opus",
-    m4a: "MPEG-4 Audio",
-    aac: "AAC",
-    webm: "WebM Audio",
-    aiff: "AIFF",
-    wma: "WMA",
-  };
-  return map[ext] ?? ext.toUpperCase();
-}
-
-async function detectWavBits(file: File | null, url: string | null): Promise<string | null> {
-  try {
-    let buf: ArrayBuffer | null = null;
-    if (file && /\.wav$/i.test(file.name)) {
-      buf = await file.slice(0, 44).arrayBuffer();
-    } else if (!file && url && /\.wav$/i.test(url)) {
-      const r = await fetch(url, { headers: { Range: "bytes=0-43" } });
-      if (!r.ok) return null;
-      buf = await r.arrayBuffer();
-    } else {
-      return null;
-    }
-    if (!buf || buf.byteLength < 36) return null;
-    const v = new DataView(buf);
-    const riff = [0, 1, 2, 3].map((i) => String.fromCharCode(v.getUint8(i))).join("");
-    if (riff !== "RIFF") return null;
-    return `${v.getUint16(34, true)}-bit`;
-  } catch {
-    return null;
-  }
-}
-
 export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerProps) {
   const { t } = useI18n();
   const waveRef = useRef<HTMLDivElement | null>(null);
@@ -126,7 +87,6 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
   const [stats, setStats] = useState<AudioStats | null>(null);
-  const [bits, setBits] = useState<string | null>(null);
   const [zoomLabel, setZoomLabel] = useState("Fit");
 
   const durationRef = useRef(0);
@@ -134,8 +94,6 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   const zoomMultRef = useRef(1);
   const viewRef = useRef({ start: 0, end: 0 });
   const isReadyRef = useRef(false);
-
-  const displayName = file?.name || fallbackPath?.split(/[\\/]/).pop() || t("Audio");
 
   function fitPxPerSec(): number {
     const w = waveRef.current?.clientWidth || 600;
@@ -247,18 +205,13 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
     setIsReady(false);
     setError("");
+    let alive = true;
     setStats(null);
-    setBits(null);
     setZoomLabel("Fit");
     zoomBaseRef.current = 0;
     zoomMultRef.current = 1;
     viewRef.current = { start: 0, end: 0 };
     movePlayhead(0);
-
-    let alive = true;
-    detectWavBits(file, urlToLoad).then((b) => {
-      if (alive && b) setBits(b);
-    });
 
     const specPlugin = Spectrogram.create({
       container: specRef.current,
@@ -446,17 +399,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
         <div className="space-y-1">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="min-w-0">
-              <p className="text-xs text-white font-semibold truncate m-0" title={displayName}>
-                {displayName}
-              </p>
-              {stats && (
-                <p className="text-[11px] text-neutral-500 m-0 mt-0.5">
-                  {t("Stream 1/1")}: {codecName(displayName)}, {stats.sampleRate} {t("Hz")}, {bits ?? "–"},{" "}
-                  {t("channel")} 1 / {stats.channels}, W:{FFT_SAMPLES}, F:Hann
-                </p>
-              )}
-            </div>
+            <span className="text-xs text-neutral-400 font-medium">{t("Spectrogram")}</span>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-neutral-400 tabular-nums text-center">{zoomLabel}</span>
             </div>

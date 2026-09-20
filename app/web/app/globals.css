@@ -717,6 +717,24 @@ button.slider-step-btn svg {
   stroke: #ffffff;
   stroke-width: 2.5px;
 }
+button.icon-btn {
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  min-height: 28px;
+  max-width: 28px;
+  max-height: 28px;
+  padding: 0;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+button.icon-btn svg {
+  flex-shrink: 0;
+}
 button.ghost {
   background: transparent;
   border: 1px solid var(--button-ghost-border);

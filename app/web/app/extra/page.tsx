@@ -3,11 +3,11 @@
 import { Activity, AudioWaveform, LineChart } from "lucide-react";
 import { useEffect, useState } from "react";
 import AudioWavePlayer from "../../components/AudioWavePlayer";
-import AnalysisResultCard from "../../components/extra/AnalysisResultCard";
+import F0CurveExtractor from "../../components/extra/F0CurveExtractor";
 import NativeAnalyzer from "../../components/extra/NativeAnalyzer";
 import PageHeader from "../../components/layout/PageHeader";
 import CustomSelect from "../../components/ui/CustomSelect";
-import { errMsg, fetchModels, postForm } from "../../lib/api";
+import { fetchModels } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { usePreviewUrl } from "../../lib/usePreviewUrl";
 
@@ -16,9 +16,6 @@ export default function ExtraPage() {
   const [audio, setAudio] = useState<File | null>(null);
   const [audios, setAudios] = useState<string[]>([]);
   const [inputPath, setInputPath] = useState("");
-  const [method, setMethod] = useState("rmvpe");
-  const [f0Job, setF0Job] = useState<string | null>(null);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchModels()
@@ -28,29 +25,6 @@ export default function ExtraPage() {
       })
       .catch(() => {});
   }, []);
-
-  function checkAudio(): boolean {
-    if (!audio && !inputPath) {
-      setError(t("Please select or upload an audio file first."));
-      return false;
-    }
-    return true;
-  }
-
-  async function f0() {
-    setError("");
-    if (!checkAudio()) return;
-    try {
-      const fd = new FormData();
-      if (audio) fd.append("audio", audio);
-      if (inputPath) fd.append("inputPath", inputPath);
-      fd.append("method", method);
-      const { jobId: id } = await postForm<{ jobId: string }>("/api/extra/f0", fd);
-      setF0Job(id);
-    } catch (e) {
-      setError(errMsg(e));
-    }
-  }
 
   const previewUrl = usePreviewUrl(audio, audio ? undefined : inputPath);
 
@@ -62,16 +36,6 @@ export default function ExtraPage() {
           "Inspect acoustic waveforms, plot frequency spectrograms, and extract pitch contours.",
         )}
       />
-
-      {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-sm"
-        >
-          {error}
-        </div>
-      )}
 
       {/* Shared Audio Input Card */}
       <div className="card space-y-4">
@@ -134,74 +98,43 @@ export default function ExtraPage() {
       </div>
 
       {/* Grid: Analyzer & F0 Curve */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Tool 1: Audio Analyzer */}
-        <div className="card space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Activity size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Audio Analyzer")}</h2>
-                </div>
+        <div className="card space-y-4">
+          <div className="border-b border-white/10 pb-3.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Activity size={18} className="text-white" />
+                <h2 className="text-base font-bold text-white m-0">{t("Audio Analyzer")}</h2>
               </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t(
-                  "Waveform, spectrogram and file stats rendered instantly in your browser — no waiting on a server job.",
-                )}
-              </p>
             </div>
+            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
+              {t(
+                "Waveform, spectrogram and file stats rendered instantly in your browser — no waiting on a server job.",
+              )}
+            </p>
           </div>
 
           <NativeAnalyzer file={audio} fallbackPath={audio ? undefined : inputPath} />
         </div>
 
         {/* Tool 2: F0 Curve Extractor */}
-        <div className="card space-y-4 flex flex-col justify-between">
-          <div className="space-y-3">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <LineChart size={18} className="text-white shrink-0" />
-                  <h2 className="text-base font-bold text-white m-0">{t("F0 Pitch Curve Extractor")}</h2>
-                </div>
+        <div className="card space-y-4">
+          <div className="border-b border-white/10 pb-3.5 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <LineChart size={18} className="text-white shrink-0" />
+                <h2 className="text-base font-bold text-white m-0">{t("F0 Pitch Curve Extractor")}</h2>
               </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t(
-                  "Extracts frame-by-frame fundamental pitch frequencies (Hz) across time and exports both a high-resolution plot and a CSV data curve.",
-                )}
-              </p>
             </div>
-
-            <div className="max-w-md">
-              <label htmlFor="extra-f0-method">{t("Extraction Method")}</label>
-              <CustomSelect
-                id="extra-f0-method"
-                value={method}
-                onChange={(e) => setMethod(e.target.value)}
-                className="w-full mt-1"
-              >
-                {["rmvpe", "fcpe", "crepe"].map((m) => (
-                  <option key={m} value={m}>
-                    {m.toUpperCase()}
-                  </option>
-                ))}
-              </CustomSelect>
-            </div>
+            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
+              {t(
+                "Extracts frame-by-frame fundamental pitch frequencies (Hz) across time and exports both a high-resolution plot and a CSV data curve.",
+              )}
+            </p>
           </div>
 
-          <div className="pt-3 border-t border-white/5">
-            <button
-              type="button"
-              className="cta w-full h-10 px-4 flex items-center justify-center gap-2 text-sm font-medium rounded-xl"
-              onClick={f0}
-            >
-              <LineChart size={16} className="shrink-0" />
-              <span>{t("Extract F0 Curve")}</span>
-            </button>
-          </div>
-
-          <AnalysisResultCard jobId={f0Job} title={t("Fundamental Pitch Contour (F0)")} type="f0" embedded />
+          <F0CurveExtractor file={audio} fallbackPath={audio ? undefined : inputPath} />
         </div>
       </div>
     </div>

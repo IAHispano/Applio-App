@@ -1,6 +1,5 @@
 import {
   Activity,
-  Blocks,
   Bug,
   Cpu,
   Database,
@@ -52,7 +51,6 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "Tools & Extras",
     items: [
       { icon: SlidersHorizontal, label: "Extra", to: "/extra", blurb: "Audio analyzer and pitch extractor" },
-      { icon: Blocks, label: "Plugins", to: "/plugins", blurb: "Extend Applio with plugins" },
     ],
   },
   {
