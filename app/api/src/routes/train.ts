@@ -222,7 +222,10 @@ const modelName = z
 
 // Importing torch takes seconds: cache the GPU probe per process.
 const GPU_CACHE_TTL = 5 * 60 * 1000;
-let gpuCache: { at: number; data: { count: number | string; info: string; gpus?: { id: string; name: string }[] } | null } = { at: 0, data: null };
+let gpuCache: {
+  at: number;
+  data: { count: number | string; info: string; gpus?: { id: string; name: string }[] } | null;
+} = { at: 0, data: null };
 
 interface PreprocessParams {
   modelName: string;
