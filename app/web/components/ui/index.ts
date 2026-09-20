@@ -15,8 +15,16 @@ export { default as FormField, type FormFieldProps } from "@/components/ui/FormF
 export { default as IconButton, type IconButtonProps } from "@/components/ui/IconButton";
 export { default as Modal } from "@/components/ui/Modal";
 export { default as ModelDropdown } from "@/components/ui/ModelDropdown";
+export {
+  EMBEDDER_MODELS,
+  EmbedderSelect,
+  F0_METHODS,
+  PitchMethodSelect,
+  REALTIME_F0_METHODS,
+} from "@/components/ui/PitchMethodSelect";
 export { default as RadioGroup, type RadioGroupProps, type RadioOption } from "@/components/ui/RadioGroup";
 export { default as SegmentedControl } from "@/components/ui/SegmentedControl";
 export { default as SliderField } from "@/components/ui/SliderField";
 export { default as StatTile, type StatTileProps } from "@/components/ui/StatTile";
 export { default as ToggleField, type ToggleFieldProps } from "@/components/ui/ToggleField";
+export { default as VoiceModelField, type VoiceModelFieldProps } from "@/components/ui/VoiceModelField";

@@ -108,6 +108,18 @@ export default function ModelInfoCard({
                   {metadata.version}
                 </Badge>
               )}
+              {loading && !metadata && (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-5 w-28 rounded-full bg-white/10 animate-pulse"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="inline-block h-5 w-14 rounded-full bg-white/10 animate-pulse"
+                  />
+                </>
+              )}
             </div>
             <p className="text-xs text-neutral-400 m-0 mt-0.5 truncate">
               {pthPath ? pthPath : t("Checkpoint architecture metadata")}
@@ -116,13 +128,28 @@ export default function ModelInfoCard({
         </div>
       </div>
 
-      {/* Loading state */}
+      {/* Loading skeleton mirrors the loaded layout so content pops in place */}
       {loading && (
-        <div className="py-6 space-y-4 text-center">
-          <div className="loader" role="progressbar" aria-label={t("Inspecting checkpoint…")}>
-            <div className="loaderBar" />
+        <div className="space-y-4" role="status" aria-label={t("Loading model details")}>
+          <div className="flex items-center gap-3 flex-wrap" aria-hidden="true">
+            <div className="h-7 w-44 rounded-lg bg-white/5 border border-white/5 animate-pulse" />
+            <div className="h-7 w-32 rounded-lg bg-white/5 border border-white/5 animate-pulse" />
           </div>
-          <p className="text-xs text-neutral-400 font-medium">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3" aria-hidden="true">
+            {["epochs", "steps", "sample-rate", "pitch", "vocoder", "embedder", "slices", "speakers"].map(
+              (key) => (
+                <div key={key} className="rounded-xl bg-black/30 border border-white/5 px-3 py-2 space-y-2">
+                  <div className="h-2.5 w-16 rounded bg-white/10 animate-pulse" />
+                  <div className="h-3.5 w-24 rounded bg-white/10 animate-pulse" />
+                </div>
+              ),
+            )}
+          </div>
+          <div
+            className="h-12 rounded-xl bg-black/40 border border-white/5 animate-pulse"
+            aria-hidden="true"
+          />
+          <p className="text-xs text-neutral-400 font-medium text-center m-0">
             {t("Inspecting checkpoint weights and architecture…")}
           </p>
         </div>

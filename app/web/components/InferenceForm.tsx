@@ -6,10 +6,21 @@ import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
-import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Disclosure,
+  EMBEDDER_MODELS,
+  EmbedderSelect,
+  PitchMethodSelect,
+  ToggleField,
+  VoiceModelField,
+} from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
 import CustomSelect from "@/components/ui/CustomSelect";
-import ModelDropdown from "@/components/ui/ModelDropdown";
 import SliderField from "@/components/ui/SliderField";
 import {
   apiGet,
@@ -28,27 +39,6 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
-
-const F0_METHODS = [
-  "rmvpe",
-  "fcpe",
-  "crepe",
-  "crepe-tiny",
-  "hybrid[crepe+rmvpe]",
-  "hybrid[crepe+fcpe]",
-  "hybrid[rmvpe+fcpe]",
-  "hybrid[crepe+rmvpe+fcpe]",
-];
-
-const EMBEDDERS = [
-  "contentvec",
-  "spin",
-  "spin-v2",
-  "chinese-hubert-base",
-  "japanese-hubert-base",
-  "korean-hubert-base",
-  "custom",
-];
 
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
 
@@ -174,7 +164,7 @@ export default function InferenceForm() {
   // Deep model metadata extracted by running inspection script
   const [inspectMeta, setInspectMeta] = useState<ModelMetadata | null>(null);
   const [inspectLoading, setInspectLoading] = useState(false);
-  const [, setInspectError] = useState("");
+  const [inspectError, setInspectError] = useState("");
 
   // Extract model information when checkpoint is loaded
   useEffect(() => {
@@ -186,6 +176,9 @@ export default function InferenceForm() {
     }
 
     let cancelled = false;
+    // Clear previous model's details immediately so stale arch info never
+    // lingers while the new checkpoint inspects (skeletons show instead).
+    setInspectMeta(null);
     setInspectLoading(true);
     setInspectError("");
 
@@ -197,7 +190,7 @@ export default function InferenceForm() {
           // Auto-sync embedder model if detected in checkpoint metadata
           if (res.metadata.embedder_model && res.metadata.embedder_model !== "None") {
             const emb = res.metadata.embedder_model.toLowerCase();
-            if (EMBEDDERS.includes(emb)) {
+            if (EMBEDDER_MODELS.includes(emb)) {
               setEmbedderModel(emb);
             }
           }
@@ -447,35 +440,18 @@ export default function InferenceForm() {
               }
             />
 
-            {/* Custom Model Dropdown */}
-            <ModelDropdown
+            {/* Shared voice model picker (dropdown + linked index) */}
+            <VoiceModelField
               models={models}
               selectedModel={pthPath}
               indexes={indexes}
+              indexPath={indexPath}
+              indexSelectId="infer-index-file"
               onSelect={handleModelSelect}
               onUnload={handleUnloadModel}
               onRefresh={loadAvailableModels}
+              onIndexChange={setIndexPath}
             />
-
-            {/* Linked Index Picker — always visible like Gradio, auto-paired on select */}
-            {pthPath && (
-              <div className="space-y-2">
-                <label htmlFor="infer-index-file">{t("Index File")}</label>
-                <CustomSelect
-                  id="infer-index-file"
-                  value={indexPath}
-                  onChange={(e) => setIndexPath(e.target.value)}
-                  className="w-full text-xs"
-                >
-                  <option value="">{t("None")}</option>
-                  {indexes.map((idx) => (
-                    <option key={idx} value={idx}>
-                      {fileBasename(idx)} ({idx})
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-            )}
 
             {/* Enriched Model Metadata with deep inspection extraction */}
             {pthPath && (
@@ -502,6 +478,8 @@ export default function InferenceForm() {
                   )}
                 </div>
 
+                {inspectError && !inspectLoading && <Alert variant="warning">{inspectError}</Alert>}
+
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5">
                   <div>
                     <dt>{t("Weights")}</dt>
@@ -519,46 +497,59 @@ export default function InferenceForm() {
                           : "—"}
                     </dd>
                   </div>
-                  {inspectMeta?.epochs && inspectMeta.epochs !== "None" && (
-                    <div>
-                      <dt>{t("Epochs")}</dt>
-                      <dd className="text-white font-medium">{inspectMeta.epochs}</dd>
-                    </div>
-                  )}
-                  {inspectMeta?.step && inspectMeta.step !== "None" && (
-                    <div>
-                      <dt>{t("Training Steps")}</dt>
-                      <dd className="text-white font-medium">{Number(inspectMeta.step).toLocaleString()}</dd>
-                    </div>
-                  )}
-                  {inspectMeta?.sr && inspectMeta.sr !== "None" && (
-                    <div>
-                      <dt>{t("Sample Rate")}</dt>
-                      <dd className="text-white font-medium">
-                        {inspectMeta.sr.endsWith("k")
-                          ? `${inspectMeta.sr}Hz`
-                          : `${Number(inspectMeta.sr) / 1000} kHz`}
-                      </dd>
-                    </div>
-                  )}
-                  {inspectMeta?.f0 && inspectMeta.f0 !== "None" && (
-                    <div>
-                      <dt>{t("Pitch extraction algorithm")}</dt>
-                      <dd className="text-white font-medium">
-                        {inspectMeta.f0 === "1" || inspectMeta.f0 === "True" || inspectMeta.f0 === "true"
-                          ? t("Yes")
-                          : t("No (pitchless)")}
-                      </dd>
-                    </div>
-                  )}
-                  {inspectMeta?.embedder_model && inspectMeta.embedder_model !== "None" && (
-                    <div>
-                      <dt>{t("Embedder Model")}</dt>
-                      <dd className="text-white font-medium truncate" title={inspectMeta.embedder_model}>
-                        {inspectMeta.embedder_model}
-                      </dd>
-                    </div>
-                  )}
+                  {(
+                    [
+                      { label: t("Epochs"), value: inspectMeta?.epochs },
+                      { label: t("Training Steps"), value: inspectMeta?.step, numeric: true },
+                      { label: t("Sample Rate"), value: inspectMeta?.sr, sampleRate: true },
+                      { label: t("Pitch extraction algorithm"), value: inspectMeta?.f0, pitch: true },
+                      { label: t("Embedder Model"), value: inspectMeta?.embedder_model, truncate: true },
+                    ] as Array<{
+                      label: string;
+                      value?: string;
+                      numeric?: boolean;
+                      sampleRate?: boolean;
+                      pitch?: boolean;
+                      truncate?: boolean;
+                    }>
+                  ).map((row) => {
+                    const value = row.value ?? "";
+                    const missing =
+                      value === "" ||
+                      value === "None" ||
+                      (row.numeric && Number.isNaN(Number(value)));
+                    return (
+                      <div key={row.label}>
+                        <dt>{row.label}</dt>
+                        <dd className="text-white font-medium">
+                          {inspectLoading ? (
+                            <span
+                              aria-hidden="true"
+                              className="block h-3.5 w-20 rounded bg-white/10 animate-pulse"
+                            />
+                          ) : missing ? (
+                            "—"
+                          ) : row.numeric ? (
+                            Number(value).toLocaleString()
+                          ) : row.sampleRate ? (
+                            value.endsWith("k") ? `${value}Hz` : `${Number(value) / 1000} kHz`
+                          ) : row.pitch ? (
+                            value === "1" || value === "True" || value === "true" ? (
+                              t("Yes")
+                            ) : (
+                              t("No (pitchless)")
+                            )
+                          ) : row.truncate ? (
+                            <span className="block truncate" title={value}>
+                              {value}
+                            </span>
+                          ) : (
+                            value
+                          )}
+                        </dd>
+                      </div>
+                    );
+                  })}
                   <div>
                     <dt>{t("Speakers")}</dt>
                     <dd className="text-white font-medium">
@@ -769,41 +760,19 @@ export default function InferenceForm() {
 
         {/* Algorithm, Embedder & Export Format Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10">
-          <div>
-            <label htmlFor="f0-method-select" className="text-xs font-medium text-neutral-300">
-              {t("Pitch Extraction Algorithm")}
-            </label>
-            <CustomSelect
-              id="f0-method-select"
-              value={f0Method}
-              onChange={(e) => setF0Method(e.target.value)}
-              className="w-full mt-1"
-            >
-              {F0_METHODS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
+          <PitchMethodSelect
+            id="f0-method-select"
+            label={t("Pitch Extraction Algorithm")}
+            value={f0Method}
+            onChange={setF0Method}
+          />
 
-          <div>
-            <label htmlFor="embedder-model-select" className="text-xs font-medium text-neutral-300">
-              {t("Embedder Model")}
-            </label>
-            <CustomSelect
-              id="embedder-model-select"
-              value={embedderModel}
-              onChange={(e) => setEmbedderModel(e.target.value)}
-              className="w-full mt-1"
-            >
-              {EMBEDDERS.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
+          <EmbedderSelect
+            id="embedder-model-select"
+            label={t("Embedder Model")}
+            value={embedderModel}
+            onChange={setEmbedderModel}
+          />
 
           <div>
             <label htmlFor="export-format-select" className="text-xs font-medium text-neutral-300">

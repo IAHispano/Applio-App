@@ -3,11 +3,22 @@
 import { ChevronDown, Disc, Gauge, ListMusic, Play, Radio, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Disclosure,
+  EmbedderSelect,
+  PitchMethodSelect,
+  REALTIME_F0_METHODS,
+  ToggleField,
+  VoiceModelField,
+} from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
-import ModelDropdown from "@/components/ui/ModelDropdown";
 import SliderField from "@/components/ui/SliderField";
-import { apiGet, apiSend, errMsg, fetchModels, fileBasename } from "@/lib/api";
+import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { useSpeakers } from "@/lib/useSpeakers";
@@ -467,33 +478,18 @@ export default function RealtimePage() {
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div className="sm:col-span-2 xl:col-span-4 space-y-2">
-            <span className="block text-xs font-medium text-neutral-300">{t("Voice Model")}</span>
-            <ModelDropdown
+            <VoiceModelField
+              label={t("Voice Model")}
               models={models}
               selectedModel={model}
               indexes={indexes}
+              indexPath={index}
+              indexSelectId="rt-index-file"
               onSelect={handleModelSelect}
               onUnload={handleUnloadModel}
               onRefresh={loadModels}
+              onIndexChange={setIndex}
             />
-            {model && (
-              <div className="space-y-2">
-                <label htmlFor="rt-index-file">{t("Index File")}</label>
-                <CustomSelect
-                  id="rt-index-file"
-                  value={index}
-                  onChange={(e) => setIndex(e.target.value)}
-                  className="w-full"
-                >
-                  <option value="">{t("None")}</option>
-                  {indexes.map((idx) => (
-                    <option key={idx} value={idx}>
-                      {fileBasename(idx)} ({idx})
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-            )}
           </div>
           <div>
             <label htmlFor="rt-in-dev">{t("Input Device")}</label>
@@ -617,44 +613,19 @@ export default function RealtimePage() {
               ))}
             </CustomSelect>
           </div>
-          <div>
-            <label htmlFor="rt-f0-method">{t("Pitch extraction algorithm")}</label>
-            <CustomSelect
-              id="rt-f0-method"
-              value={f0Method}
-              onChange={(e) => setF0Method(e.target.value)}
-              className="w-full mt-1"
-            >
-              {["rmvpe", "fcpe", "crepe", "crepe-tiny"].map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <label htmlFor="rt-embedder">{t("Embedder Model")}</label>
-            <CustomSelect
-              id="rt-embedder"
-              value={embedder}
-              onChange={(e) => setEmbedder(e.target.value)}
-              className="w-full mt-1"
-            >
-              {[
-                "contentvec",
-                "spin",
-                "spin-v2",
-                "chinese-hubert-base",
-                "japanese-hubert-base",
-                "korean-hubert-base",
-                "custom",
-              ].map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
+          <PitchMethodSelect
+            id="rt-f0-method"
+            label={t("Pitch extraction algorithm")}
+            value={f0Method}
+            onChange={setF0Method}
+            methods={REALTIME_F0_METHODS}
+          />
+          <EmbedderSelect
+            id="rt-embedder"
+            label={t("Embedder Model")}
+            value={embedder}
+            onChange={setEmbedder}
+          />
           {embedder === "custom" && (
             <div>
               <label htmlFor="rt-custom-embedder">{t("Custom embedder path (reconnect to apply)")}</label>
@@ -668,10 +639,7 @@ export default function RealtimePage() {
             </div>
           )}
         </div>
-        <Disclosure
-          title={t("Voice cleanup (autotune / proposed pitch / clean)")}
-          icon={<Wand2 size={15} />}
-        >
+        <Disclosure title={t("Voice cleanup (autotune / proposed pitch / clean)")} icon={<Wand2 size={15} />}>
           <div className="row">
             <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
               <input
@@ -755,7 +723,7 @@ export default function RealtimePage() {
               />
             </div>
           </div>
-          </Disclosure>
+        </Disclosure>
         <Disclosure title={t("Latency / VAD / gains")} icon={<Gauge size={15} />}>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>

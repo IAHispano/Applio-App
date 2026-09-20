@@ -11,11 +11,12 @@ import {
   CardHeader,
   CustomSelect,
   Disclosure,
+  EmbedderSelect,
   FormField,
-  ModelDropdown,
-  RadioGroup,
+  PitchMethodSelect,
   SliderField,
   ToggleField,
+  VoiceModelField,
 } from "@/components/ui";
 import {
   apiGet,
@@ -300,34 +301,19 @@ export default function TtsForm() {
           />
 
           <div className="space-y-3">
-            <ModelDropdown
+            <VoiceModelField
               models={models}
               selectedModel={pthPath}
               indexes={indexes}
+              indexPath={indexPath}
+              indexSelectId="tts-index-file"
               onSelect={handleModelSelect}
               onUnload={handleUnloadModel}
               onRefresh={loadModels}
+              onIndexChange={setIndexPath}
             />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-              {pthPath && (
-                <FormField label={t("Index File")} htmlFor="tts-index-file">
-                  <CustomSelect
-                    id="tts-index-file"
-                    value={indexPath}
-                    onChange={(e) => setIndexPath(e.target.value)}
-                    className="w-full mt-1"
-                  >
-                    <option value="">{t("None")}</option>
-                    {indexes.map((idx) => (
-                      <option key={idx} value={idx}>
-                        {fileBasename(idx)} ({idx})
-                      </option>
-                    ))}
-                  </CustomSelect>
-                </FormField>
-              )}
-
               <FormField label={t("Speaker ID")} htmlFor="tts-speaker-id">
                 <CustomSelect
                   id="tts-speaker-id"
@@ -421,38 +407,18 @@ export default function TtsForm() {
           </div>
 
           <div className="space-y-4 pt-2 border-t border-white/5">
-            <RadioGroup
+            <PitchMethodSelect
+              id="tts-f0-method"
               label={t("Pitch extraction algorithm")}
-              name="f0-convert"
-              options={[
-                "rmvpe",
-                "fcpe",
-                "crepe",
-                "crepe-tiny",
-                "hybrid[crepe+rmvpe]",
-                "hybrid[crepe+fcpe]",
-                "hybrid[rmvpe+fcpe]",
-              ]}
               value={f0Method}
               onChange={setF0Method}
-              variant="pills"
             />
 
-            <RadioGroup
+            <EmbedderSelect
+              id="tts-embedder-model"
               label={t("Embedder Model")}
-              name="embedder-convert"
-              options={[
-                "contentvec",
-                "spin",
-                "spin-v2",
-                "chinese-hubert-base",
-                "japanese-hubert-base",
-                "korean-hubert-base",
-                "custom",
-              ]}
               value={embedderModel}
               onChange={setEmbedderModel}
-              variant="pills"
             />
 
             {embedderModel === "custom" && (
@@ -469,49 +435,44 @@ export default function TtsForm() {
           </div>
 
           <Disclosure title={t("Advanced Settings")} icon={<Sliders size={15} />}>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <ToggleField label={t("Split Audio")} checked={splitAudio} onChange={setSplitAudio} />
-                <ToggleField label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />
-                <ToggleField
-                  label={t("Proposed Pitch")}
-                  checked={proposedPitch}
-                  onChange={setProposedPitch}
-                />
-                <ToggleField label={t("Clean Audio")} checked={cleanAudio} onChange={setCleanAudio} />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <SliderField
-                  id="tts-autotune-strength"
-                  label={t("Autotune Strength")}
-                  value={f0AutotuneStrength}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={setF0AutotuneStrength}
-                />
-                <SliderField
-                  id="tts-proposed-threshold"
-                  label={t("Proposed Pitch Threshold")}
-                  value={proposedPitchThreshold}
-                  min={50}
-                  max={1200}
-                  step={1}
-                  unit="Hz"
-                  onChange={setProposedPitchThreshold}
-                />
-                <SliderField
-                  id="tts-clean-strength"
-                  label={t("Clean Strength")}
-                  value={cleanStrength}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={setCleanStrength}
-                />
-              </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <ToggleField label={t("Split Audio")} checked={splitAudio} onChange={setSplitAudio} />
+              <ToggleField label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />
+              <ToggleField label={t("Proposed Pitch")} checked={proposedPitch} onChange={setProposedPitch} />
+              <ToggleField label={t("Clean Audio")} checked={cleanAudio} onChange={setCleanAudio} />
             </div>
-          </details>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <SliderField
+                id="tts-autotune-strength"
+                label={t("Autotune Strength")}
+                value={f0AutotuneStrength}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setF0AutotuneStrength}
+              />
+              <SliderField
+                id="tts-proposed-threshold"
+                label={t("Proposed Pitch Threshold")}
+                value={proposedPitchThreshold}
+                min={50}
+                max={1200}
+                step={1}
+                unit="Hz"
+                onChange={setProposedPitchThreshold}
+              />
+              <SliderField
+                id="tts-clean-strength"
+                label={t("Clean Strength")}
+                value={cleanStrength}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setCleanStrength}
+              />
+            </div>
+          </Disclosure>
         </Card>
 
         {/* Card 4: Action & Output Card */}
