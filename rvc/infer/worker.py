@@ -162,9 +162,13 @@ def run_worker():
                     if torch.cuda.is_available():
                         torch.cuda.init()
                     vc.load_hubert("contentvec", None)
-                    send_ipc({"type": "log", "id": job_id, "message": "Worker warmed up."})
+                    send_ipc(
+                        {"type": "log", "id": job_id, "message": "Worker warmed up."}
+                    )
                 except Exception as e:
-                    send_ipc({"type": "log", "id": job_id, "message": f"Warmup notice: {e}"})
+                    send_ipc(
+                        {"type": "log", "id": job_id, "message": f"Warmup notice: {e}"}
+                    )
             elif cmd == "unload":
                 vc.cleanup_model()
                 import torch
