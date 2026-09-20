@@ -1,6 +1,6 @@
 {
   "name": "applio",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "private": true,
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "packageManager": "pnpm@11.15.0",
