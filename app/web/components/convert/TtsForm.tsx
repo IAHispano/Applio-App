@@ -10,6 +10,7 @@ import {
   Card,
   CardHeader,
   CustomSelect,
+  Disclosure,
   FormField,
   ModelDropdown,
   RadioGroup,
@@ -467,11 +468,7 @@ export default function TtsForm() {
             )}
           </div>
 
-          <details className="pt-2 border-t border-white/5">
-            <summary className="text-sm font-semibold text-neutral-300 cursor-pointer select-none">
-              {t("Advanced Settings")}
-            </summary>
-            <div className="space-y-4 pt-3">
+          <Disclosure title={t("Advanced Settings")} icon={<Sliders size={15} />}>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
                 <ToggleField label={t("Split Audio")} checked={splitAudio} onChange={setSplitAudio} />
                 <ToggleField label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />

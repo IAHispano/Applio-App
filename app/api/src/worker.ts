@@ -33,6 +33,8 @@ export class InferenceWorkerManager {
   private isReady = false;
   private readyCallbacks: (() => void)[] = [];
   private restarting = false;
+  private warmedUp = false;
+  private warmupTimer?: NodeJS.Timeout;
 
   constructor() {
     process.on("exit", () => this.stop());
@@ -58,6 +60,7 @@ export class InferenceWorkerManager {
 
     this.child = child;
     this.isReady = false;
+    this.warmedUp = false;
 
     const rlOut = readline.createInterface({ input: child.stdout! });
     rlOut.on("line", (line) => {
@@ -144,6 +147,28 @@ export class InferenceWorkerManager {
     return new Promise((resolve) => {
       this.readyCallbacks.push(resolve);
     });
+  }
+
+  // Fire-and-forget background warmup (CUDA context + default embedder) so
+  // the first conversion doesn't pay one-time load costs. Skipped when a
+  // real request is already queued/running — that warms naturally.
+  public warmupDelayed(ms = 15000) {
+    if (this.warmupTimer) clearTimeout(this.warmupTimer);
+    this.warmupTimer = setTimeout(() => {
+      void this.warmup().catch(() => {});
+    }, ms);
+  }
+
+  public async warmup(): Promise<void> {
+    if (this.warmedUp) return;
+    await this.waitReady();
+    if (this.warmedUp || this.activeJob || this.queue.length > 0 || !this.child) return;
+    this.warmedUp = true;
+    try {
+      this.child.stdin!.write(`${JSON.stringify({ command: "warmup" })}\n`);
+    } catch {
+      this.warmedUp = false;
+    }
   }
 
   public async infer(

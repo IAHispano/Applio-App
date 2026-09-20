@@ -78,13 +78,66 @@ export function useJob(jobId: string | null) {
     }
     setError("");
     let stop = () => {};
+    let source: EventSource | null = null;
+    let cancelled = false;
+    const startPolling = () => {
+      if (!cancelled) stop = pollJob(jobId, setJob);
+    };
     fetchJob(jobId)
       .then(({ job: j }) => {
+        if (cancelled) return;
         setJob(j);
-        if (j.status !== "done" && j.status !== "error") stop = pollJob(jobId, setJob);
+        if (j.status === "done" || j.status === "error") return;
+        // Live stream preferred (instant progress/logs); polling fallback
+        // covers proxies that buffer SSE or block EventSource.
+        try {
+          source = new EventSource(`/api/jobs/${jobId}/events`);
+        } catch {
+          startPolling();
+          return;
+        }
+        const fallbackTimer = setTimeout(() => {
+          // No event in time: SSE path is dead, fall back to polling.
+          try {
+            source?.close();
+          } catch {
+            /* ignore */
+          }
+          source = null;
+          startPolling();
+        }, 4000);
+        source.onmessage = (e) => {
+          clearTimeout(fallbackTimer);
+          try {
+            const data = JSON.parse(e.data) as { job: Job };
+            if (!cancelled) setJob(data.job);
+          } catch {
+            /* malformed chunk — next event heals */
+          }
+        };
+        source.onerror = () => {
+          clearTimeout(fallbackTimer);
+          try {
+            source?.close();
+          } catch {
+            /* ignore */
+          }
+          source = null;
+          startPolling();
+        };
       })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
+      .catch((e) => {
+        if (!cancelled) setError(errMsg(e));
+      });
+    return () => {
+      cancelled = true;
+      stop();
+      try {
+        source?.close();
+      } catch {
+        /* ignore */
+      }
+    };
   }, [jobId]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);

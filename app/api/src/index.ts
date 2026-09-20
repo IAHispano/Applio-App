@@ -4,6 +4,7 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import { killJobTree } from "@/cli";
+import { inferenceWorker } from "@/worker";
 import { errMsg } from "@/errors";
 import { getJob, setError } from "@/jobs";
 import {
@@ -165,6 +166,9 @@ const server = app.listen(PORT, "127.0.0.1", () => {
   autoStartPresence();
   // Start TensorBoard in background so it is ready immediately when user opens tab.
   autoStartTensorboard();
+  // Warm the inference worker (CUDA context + default embedder) in the
+  // background so the first conversion doesn't pay one-time load costs.
+  inferenceWorker.warmupDelayed();
 });
 
 // Realtime audio frames ride raw WebSockets (Next rewrites don't proxy upgrades),

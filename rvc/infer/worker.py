@@ -153,6 +153,18 @@ def run_worker():
         try:
             if cmd == "ping":
                 send_ipc({"type": "pong", "id": job_id})
+            elif cmd == "warmup":
+                # Pay one-time costs (CUDA context, default embedder weights)
+                # outside any conversion so the first real request is fast.
+                try:
+                    import torch
+
+                    if torch.cuda.is_available():
+                        torch.cuda.init()
+                    vc.load_hubert("contentvec", None)
+                    send_ipc({"type": "log", "id": job_id, "message": "Worker warmed up."})
+                except Exception as e:
+                    send_ipc({"type": "log", "id": job_id, "message": f"Warmup notice: {e}"})
             elif cmd == "unload":
                 vc.cleanup_model()
                 import torch

@@ -1,9 +1,9 @@
 "use client";
 
-import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
+import { ChevronDown, Disc, Gauge, ListMusic, Play, Radio, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import ModelDropdown from "@/components/ui/ModelDropdown";
 import SliderField from "@/components/ui/SliderField";
@@ -668,8 +668,10 @@ export default function RealtimePage() {
             </div>
           )}
         </div>
-        <details>
-          <summary>{t("Voice cleanup (autotune / proposed pitch / clean)")}</summary>
+        <Disclosure
+          title={t("Voice cleanup (autotune / proposed pitch / clean)")}
+          icon={<Wand2 size={15} />}
+        >
           <div className="row">
             <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
               <input
@@ -753,9 +755,8 @@ export default function RealtimePage() {
               />
             </div>
           </div>
-        </details>
-        <details>
-          <summary>{t("Latency / VAD / gains")}</summary>
+          </Disclosure>
+        <Disclosure title={t("Latency / VAD / gains")} icon={<Gauge size={15} />}>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
               <SliderField
@@ -849,7 +850,7 @@ export default function RealtimePage() {
             }}
             className="mt-3"
           />
-        </details>
+        </Disclosure>
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
           <div className="flex items-center gap-3">
             {!streaming ? (
