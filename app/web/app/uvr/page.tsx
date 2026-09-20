@@ -145,7 +145,7 @@ export default function UvrPage() {
   return (
     <div className="w-full max-w-[1920px] mx-auto flex flex-col gap-6">
       <PageHeader
-        title={t("UVR Stem Separator")}
+        title={t("Audio Separator")}
         description={t(
           "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.",
         )}

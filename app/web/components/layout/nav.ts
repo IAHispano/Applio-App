@@ -54,7 +54,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { icon: SlidersHorizontal, label: "Extra", to: "/extra", blurb: "Audio analyzer and pitch extractor" },
       {
         icon: AudioWaveform,
-        label: "UVR Separator",
+        label: "Audio Separator",
         to: "/uvr",
         blurb: "Split vocals, instrumental and stems",
       },
