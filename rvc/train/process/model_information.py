@@ -114,8 +114,12 @@ if __name__ == "__main__":
     import sys
 
     parser = argparse.ArgumentParser(description="Applio Model Information")
-    parser.add_argument("pth_path", nargs="?", default=None, help="Path to the model .pth file")
-    parser.add_argument("--pth-path", dest="opt_pth", default=None, help="Path to the model .pth file")
+    parser.add_argument(
+        "pth_path", nargs="?", default=None, help="Path to the model .pth file"
+    )
+    parser.add_argument(
+        "--pth-path", dest="opt_pth", default=None, help="Path to the model .pth file"
+    )
     args = parser.parse_args()
 
     pth = args.pth_path or args.opt_pth

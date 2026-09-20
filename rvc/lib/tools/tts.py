@@ -35,7 +35,9 @@ def run_tts_cli():
     parser.add_argument("--tts-text", default="")
     parser.add_argument("--tts-voice", default="en-US-AnaNeural")
     parser.add_argument("--tts-rate", type=int, default=0)
-    parser.add_argument("--output-tts-path", "--output-file", dest="output_tts_path", required=True)
+    parser.add_argument(
+        "--output-tts-path", "--output-file", dest="output_tts_path", required=True
+    )
     parser.add_argument("--output-rvc-path", default=None)
     parser.add_argument("--pth-path", "--model-path", dest="model_path", default=None)
     parser.add_argument("--index-path", default="")
@@ -77,11 +79,14 @@ def run_tts_cli():
     print(f"TTS audio generated at '{args.output_tts_path}'")
 
     if args.output_rvc_path and args.model_path:
-        os.makedirs(os.path.dirname(os.path.abspath(args.output_rvc_path)), exist_ok=True)
+        os.makedirs(
+            os.path.dirname(os.path.abspath(args.output_rvc_path)), exist_ok=True
+        )
         now_dir = os.getcwd()
         if now_dir not in sys.path:
             sys.path.append(now_dir)
         from rvc.infer.infer import VoiceConverter
+
         vc = VoiceConverter()
         vc.convert_audio(
             audio_input_path=args.output_tts_path,

@@ -55,7 +55,9 @@ if __name__ == "__main__":
     parser.add_argument("--input-path", required=True, help="Input audio file")
     parser.add_argument("--method", default="rmvpe", help="Pitch extraction method")
     parser.add_argument("--output-image", default=None, help="Output plot image path")
-    parser.add_argument("--output-txt", default=None, help="Output curve text file path")
+    parser.add_argument(
+        "--output-txt", default=None, help="Output curve text file path"
+    )
     args = parser.parse_args()
 
     extract_f0_curve(
