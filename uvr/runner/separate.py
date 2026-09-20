@@ -140,7 +140,10 @@ def apply_device(device: str) -> None:
         os.environ["CUDA_VISIBLE_DEVICES"] = device
         os.environ["HIP_VISIBLE_DEVICES"] = device
         return
-    print(f"Invalid --device {device!r}: expected 'auto', 'cpu' or a GPU index.", file=sys.stderr)
+    print(
+        f"Invalid --device {device!r}: expected 'auto', 'cpu' or a GPU index.",
+        file=sys.stderr,
+    )
     sys.exit(2)
 
 
