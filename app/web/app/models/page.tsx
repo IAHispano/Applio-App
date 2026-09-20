@@ -22,8 +22,7 @@ import PageHeader from "../../components/layout/PageHeader";
 import BlenderPanel from "../../components/models/BlenderPanel";
 import DownloadPanel from "../../components/models/DownloadPanel";
 import ModelInfoCard, { type ModelMetadata } from "../../components/models/ModelInfoCard";
-import Modal from "../../components/ui/Modal";
-import SegmentedControl from "../../components/ui/SegmentedControl";
+import { Card, CardHeader, EmptyState, Modal, SegmentedControl } from "../../components/ui";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 
@@ -245,34 +244,36 @@ export default function ModelsPage() {
 
           {/* Model Cards Grid */}
           {filteredModels.length === 0 ? (
-            <div className="card text-center py-12 space-y-4">
-              <Database size={40} className="mx-auto text-neutral-500" />
-              <div>
-                <h3 className="text-lg font-semibold text-white m-0">{t("No voice models found")}</h3>
-                <p className="text-sm text-neutral-400 m-0 max-w-md mx-auto mt-1">
-                  {search
+            <Card>
+              <EmptyState
+                icon={<Database size={40} />}
+                title={t("No voice models found")}
+                description={
+                  search
                     ? t("No models match your search.")
                     : t(
                         "Your models directory (logs/) is currently empty. Download community weights or train your own voice model to get started.",
-                      )}
-                </p>
-              </div>
-              <div className="flex justify-center gap-3 pt-2">
-                <button
-                  type="button"
-                  className="cta flex items-center gap-2"
-                  onClick={() => setSection("download")}
-                >
-                  <Download size={16} />
-                  <span>{t("Download a Model")}</span>
-                </button>
-                <Link href="/train" className="inline-flex">
-                  <button type="button" className="ghost">
-                    {t("Train New Model")}
-                  </button>
-                </Link>
-              </div>
-            </div>
+                      )
+                }
+                action={
+                  <div className="flex justify-center gap-3">
+                    <button
+                      type="button"
+                      className="cta flex items-center gap-2"
+                      onClick={() => setSection("download")}
+                    >
+                      <Download size={16} />
+                      <span>{t("Download a Model")}</span>
+                    </button>
+                    <Link href="/train" className="inline-flex">
+                      <button type="button" className="ghost">
+                        {t("Train New Model")}
+                      </button>
+                    </Link>
+                  </div>
+                }
+              />
+            </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4">
               {filteredModels.map((m) => (
@@ -376,20 +377,14 @@ export default function ModelsPage() {
       {/* 4. INSPECT CUSTOM PATH */}
       {section === "inspect" && (
         <div id="panel-inspect" role="tabpanel" aria-labelledby="tab-inspect" className="space-y-4">
-          <div className="card space-y-4">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Info size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Inspect Model File")}</h2>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t(
-                  "Enter any repository-relative or absolute path to a .pth checkpoint to read its architecture and training parameters.",
-                )}
-              </p>
-            </div>
+          <Card>
+            <CardHeader
+              icon={<Info size={18} />}
+              title={t("Inspect Model File")}
+              description={t(
+                "Enter any repository-relative or absolute path to a .pth checkpoint to read its architecture and training parameters.",
+              )}
+            />
             <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
               <label htmlFor="custom-pth-input" className="sr-only">
                 {t("Path to .pth checkpoint")}
@@ -411,7 +406,7 @@ export default function ModelsPage() {
                 <span>{t("Inspect File")}</span>
               </button>
             </div>
-          </div>
+          </Card>
           <ModelInfoCard
             metadata={customMeta}
             loading={customLoading}

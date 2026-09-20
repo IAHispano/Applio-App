@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import GpuSelect, { type GpuDevice } from "../../components/train/GpuSelect";
 import TrainingConsole from "../../components/train/TrainingConsole";
+import { Alert, Card, CardHeader, ToggleField } from "../../components/ui";
 import CustomSelect from "../../components/ui/CustomSelect";
 import SegmentedControl from "../../components/ui/SegmentedControl";
 import SliderField from "../../components/ui/SliderField";
@@ -291,18 +292,12 @@ export default function TrainPage() {
       </PageHeader>
 
       {/* Global Model Name & Hardware Config Bar */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Cpu size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Model & Compute Hardware")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Define project identity and target compute device configuration.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Cpu size={18} className="text-white" />}
+          title={t("Model & Compute Hardware")}
+          description={t("Define project identity and target compute device configuration.")}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label htmlFor="train-model-name">{t("Model Name")}</label>
@@ -344,33 +339,23 @@ export default function TrainPage() {
           </span>
         </div>
         {error && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="mt-2 p-3 rounded-lg border border-[var(--err)] text-[var(--err)] bg-[color-mix(in_srgb,var(--err)_10%,transparent)]"
-          >
+          <Alert variant="error" onDismiss={() => setError("")} className="mt-2">
             {error}
-          </div>
+          </Alert>
         )}
-      </div>
+      </Card>
 
       {/* 1. AUTOMATED 1-CLICK PIPELINE VIEW */}
       {trainMode === "pipeline" && (
         <div id="panel-pipeline" role="tabpanel" aria-labelledby="tab-pipeline" className="space-y-4">
-          <div className="card border border-white/20">
-            <div className="border-b border-white/10 pb-3.5 space-y-1 mb-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("1-Click Complete Pipeline")}</h2>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t(
-                  "Runs Preprocess, Feature Extraction, Model Training, and Feature Indexing in a single automated flow.",
-                )}
-              </p>
-            </div>
+          <Card className="border border-white/20">
+            <CardHeader
+              icon={<Zap size={18} className="text-white" />}
+              title={t("1-Click Complete Pipeline")}
+              description={t(
+                "Runs Preprocess, Feature Extraction, Model Training, and Feature Indexing in a single automated flow.",
+              )}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
@@ -464,14 +449,12 @@ export default function TrainPage() {
             </div>
 
             <div className="flex items-center gap-4 mt-4 pt-3 border-t border-white/10">
-              <label className="flex items-center gap-2 cursor-pointer m-0">
-                <input
-                  type="checkbox"
-                  checked={noiseReduction}
-                  onChange={(e) => setNoiseReduction(e.target.checked)}
-                />
-                <span>{t("Noise Reduction")}</span>
-              </label>
+              <ToggleField
+                id="pipeline-noise-reduction"
+                label={t("Noise Reduction")}
+                checked={noiseReduction}
+                onChange={setNoiseReduction}
+              />
             </div>
 
             <div className="row mt-5 pt-3 border-t border-white/10">
@@ -496,7 +479,7 @@ export default function TrainPage() {
                 </button>
               )}
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
@@ -504,21 +487,13 @@ export default function TrainPage() {
       {trainMode === "steps" && (
         <div id="panel-steps" role="tabpanel" aria-labelledby="tab-steps" className="space-y-4">
           {/* Step 1: Preprocess */}
-          <div className="card space-y-4">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center">
-                    1
-                  </span>
-                  <Sliders size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Preprocess Dataset")}</h2>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t("Slice, clean, and normalize raw dataset audio samples for model ingestion.")}
-              </p>
-            </div>
+          <Card>
+            <CardHeader
+              step={1}
+              icon={<Sliders size={18} className="text-white" />}
+              title={t("Preprocess Dataset")}
+              description={t("Slice, clean, and normalize raw dataset audio samples for model ingestion.")}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="prep-dataset-path">{t("Dataset Path")}</label>
@@ -591,15 +566,13 @@ export default function TrainPage() {
                 />
               </div>
             </div>
-            <label htmlFor="prep-noise-reduction" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="prep-noise-reduction"
-                type="checkbox"
-                checked={noiseReduction}
-                onChange={(e) => setNoiseReduction(e.target.checked)}
-              />
-              <span>{t("Noise Reduction")}</span>
-            </label>
+            <ToggleField
+              id="prep-noise-reduction"
+              label={t("Noise Reduction")}
+              checked={noiseReduction}
+              onChange={setNoiseReduction}
+              className="mt-3"
+            />
             {noiseReduction && (
               <div className="mt-2">
                 <SliderField
@@ -613,15 +586,13 @@ export default function TrainPage() {
                 />
               </div>
             )}
-            <label htmlFor="prep-process-effects" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="prep-process-effects"
-                type="checkbox"
-                checked={processEffects}
-                onChange={(e) => setProcessEffects(e.target.checked)}
-              />
-              <span>{t("Noise filter")}</span>
-            </label>
+            <ToggleField
+              id="prep-process-effects"
+              label={t("Noise filter")}
+              checked={processEffects}
+              onChange={setProcessEffects}
+              className="mt-3"
+            />
             <div className="mt-2">
               <label htmlFor="prep-norm-mode">{t("Normalization mode")}</label>
               <CustomSelect
@@ -662,24 +633,16 @@ export default function TrainPage() {
                 {t("Preprocess Dataset")}
               </button>
             </div>
-          </div>
+          </Card>
 
           {/* Step 2: Feature Extraction */}
-          <div className="card space-y-4">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center">
-                    2
-                  </span>
-                  <Activity size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Extract Features")}</h2>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t("Extract pitch contours and speech representations with your chosen embedder.")}
-              </p>
-            </div>
+          <Card>
+            <CardHeader
+              step={2}
+              icon={<Activity size={18} className="text-white" />}
+              title={t("Extract Features")}
+              description={t("Extract pitch contours and speech representations with your chosen embedder.")}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label htmlFor="ext-pitch-method">{t("Pitch extraction algorithm")}</label>
@@ -759,24 +722,16 @@ export default function TrainPage() {
                 {t("Extract Features")}
               </button>
             </div>
-          </div>
+          </Card>
 
           {/* Step 3: Train */}
-          <div className="card space-y-4">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center">
-                    3
-                  </span>
-                  <Flame size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Model Training")}</h2>
-                </div>
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t("Train generator and discriminator weights and compile the feature index.")}
-              </p>
-            </div>
+          <Card>
+            <CardHeader
+              step={3}
+              icon={<Flame size={18} className="text-white" />}
+              title={t("Model Training")}
+              description={t("Train generator and discriminator weights and compile the feature index.")}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <label htmlFor="train-step-vocoder">{t("Vocoder")}</label>
@@ -843,83 +798,60 @@ export default function TrainPage() {
               </div>
             </div>
 
-            <label htmlFor="train-step-pretrained" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-pretrained"
-                type="checkbox"
-                checked={pretrained}
-                onChange={(e) => setPretrained(e.target.checked)}
-              />
-              <span>{t("Use pretrained model")}</span>
-            </label>
+            <ToggleField
+              id="train-step-pretrained"
+              label={t("Use pretrained model")}
+              checked={pretrained}
+              onChange={setPretrained}
+              className="mt-3"
+            />
             <details>
               <summary>{t("Checkpoints & performance")}</summary>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                <label
-                  htmlFor="train-step-save-latest"
-                  className="flex items-center gap-2 cursor-pointer mt-3"
-                >
-                  <input
-                    id="train-step-save-latest"
-                    type="checkbox"
-                    checked={saveOnlyLatest}
-                    onChange={(e) => setSaveOnlyLatest(e.target.checked)}
-                  />
-                  <span>{t("Save Only Latest")}</span>
-                </label>
-                <label
-                  htmlFor="train-step-save-weights"
-                  className="flex items-center gap-2 cursor-pointer mt-3"
-                >
-                  <input
-                    id="train-step-save-weights"
-                    type="checkbox"
-                    checked={saveEveryWeights}
-                    onChange={(e) => setSaveEveryWeights(e.target.checked)}
-                  />
-                  <span>{t("Save Every Weights")}</span>
-                </label>
-                <label htmlFor="train-step-cleanup" className="flex items-center gap-2 cursor-pointer mt-3">
-                  <input
-                    id="train-step-cleanup"
-                    type="checkbox"
-                    checked={cleanup}
-                    onChange={(e) => setCleanup(e.target.checked)}
-                  />
-                  <span>{t("Fresh Training")}</span>
-                </label>
-                <label htmlFor="train-step-cache-gpu" className="flex items-center gap-2 cursor-pointer mt-3">
-                  <input
-                    id="train-step-cache-gpu"
-                    type="checkbox"
-                    checked={cacheGpu}
-                    onChange={(e) => setCacheGpu(e.target.checked)}
-                  />
-                  <span>{t("Cache Dataset in GPU")}</span>
-                </label>
-                <label
-                  htmlFor="train-step-checkpointing"
-                  className="flex items-center gap-2 cursor-pointer mt-3"
-                >
-                  <input
-                    id="train-step-checkpointing"
-                    type="checkbox"
-                    checked={checkpointing}
-                    onChange={(e) => setCheckpointing(e.target.checked)}
-                  />
-                  <span>{t("Checkpointing")}</span>
-                </label>
+                <ToggleField
+                  id="train-step-save-latest"
+                  label={t("Save Only Latest")}
+                  checked={saveOnlyLatest}
+                  onChange={setSaveOnlyLatest}
+                  className="mt-3"
+                />
+                <ToggleField
+                  id="train-step-save-weights"
+                  label={t("Save Every Weights")}
+                  checked={saveEveryWeights}
+                  onChange={setSaveEveryWeights}
+                  className="mt-3"
+                />
+                <ToggleField
+                  id="train-step-cleanup"
+                  label={t("Fresh Training")}
+                  checked={cleanup}
+                  onChange={setCleanup}
+                  className="mt-3"
+                />
+                <ToggleField
+                  id="train-step-cache-gpu"
+                  label={t("Cache Dataset in GPU")}
+                  checked={cacheGpu}
+                  onChange={setCacheGpu}
+                  className="mt-3"
+                />
+                <ToggleField
+                  id="train-step-checkpointing"
+                  label={t("Checkpointing")}
+                  checked={checkpointing}
+                  onChange={setCheckpointing}
+                  className="mt-3"
+                />
               </div>
             </details>
-            <label htmlFor="train-step-custom-pre" className="flex items-center gap-2 cursor-pointer mt-3">
-              <input
-                id="train-step-custom-pre"
-                type="checkbox"
-                checked={customPre}
-                onChange={(e) => setCustomPre(e.target.checked)}
-              />
-              <span>{t("Custom Pretrained")}</span>
-            </label>
+            <ToggleField
+              id="train-step-custom-pre"
+              label={t("Custom Pretrained")}
+              checked={customPre}
+              onChange={setCustomPre}
+              className="mt-3"
+            />
             {customPre && (
               <div className="grid2 mt-2">
                 <div>
@@ -1020,24 +952,18 @@ export default function TrainPage() {
                 {t("Generate Index")}
               </button>
             </div>
-          </div>
+          </Card>
         </div>
       )}
 
       {/* 3. UPLOADS VIEW */}
       {trainMode === "uploads" && (
-        <div id="panel-uploads" role="tabpanel" aria-labelledby="tab-uploads" className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FolderUp size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Dataset & Checkpoint Uploads")}</h2>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Upload local dataset files or pretrained generator checkpoints directly.")}
-            </p>
-          </div>
+        <Card as="div" id="panel-uploads" role="tabpanel" aria-labelledby="tab-uploads">
+          <CardHeader
+            icon={<FolderUp size={18} className="text-white" />}
+            title={t("Dataset & Checkpoint Uploads")}
+            description={t("Upload local dataset files or pretrained generator checkpoints directly.")}
+          />
           <UploadBox
             path="/api/train/upload-dataset"
             fields={[{ name: "datasetName", label: t("Dataset name (e.g. my_vocals)") }]}
@@ -1058,7 +984,7 @@ export default function TrainPage() {
             extra="config"
             label={t("Custom Embedder (.bin + .json)")}
           />
-        </div>
+        </Card>
       )}
 
       <details className="card mt-4 group">
@@ -1125,13 +1051,11 @@ export default function TrainPage() {
       </details>
 
       {jobId && (
-        <div className="card space-y-4 mt-4">
-          <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <div className="flex items-center gap-2">
-              <StopCircle size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Stop Training Process")}</h2>
-            </div>
-          </div>
+        <Card className="mt-4">
+          <CardHeader
+            icon={<StopCircle size={18} className="text-white" />}
+            title={t("Stop Training Process")}
+          />
           <div className="row">
             <input
               type="text"
@@ -1145,7 +1069,7 @@ export default function TrainPage() {
               {t("Stop Training")}
             </button>
           </div>
-        </div>
+        </Card>
       )}
 
       <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />

@@ -18,6 +18,7 @@ import { useEffect, useState } from "react";
 import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { useSpeakers } from "../lib/useSpeakers";
+import { Alert, Badge, Card, CardHeader, ToggleField } from "./ui";
 import CustomSelect from "./ui/CustomSelect";
 import ModelDropdown from "./ui/ModelDropdown";
 import SliderField from "./ui/SliderField";
@@ -136,23 +137,19 @@ export default function BatchForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       {/* 1. Folders & Voice Model Card */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Layers size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Batch Source & Voice Model")}</h2>
-            </div>
-            {pthPath && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10 font-medium">
+      <Card>
+        <CardHeader
+          icon={<Layers size={18} className="text-white" />}
+          title={t("Batch Source & Voice Model")}
+          description={t("Converts every supported audio file in the input folder (server-side paths).")}
+          action={
+            pthPath ? (
+              <Badge variant="success" size="sm" dot>
                 {t("Ready")}
-              </span>
-            )}
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Converts every supported audio file in the input folder (server-side paths).")}
-          </p>
-        </div>
+              </Badge>
+            ) : undefined
+          }
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <div>
             <label htmlFor="batch-input-folder" className="text-xs font-medium text-neutral-300">
@@ -203,44 +200,38 @@ export default function BatchForm() {
             />
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* 2. Conversion Parameters Card */}
-      <div className="card space-y-5">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sliders size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Conversion Parameters")}</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setPitch(0);
-                  setIndexRate(0.75);
-                  setVolumeEnvelope(1);
-                  setProtect(0.5);
-                  setF0Method("rmvpe");
-                  setEmbedderModel("contentvec");
-                  setExportFormat("WAV");
-                  setSplitAudio(false);
-                  setF0Autotune(false);
-                  setCleanAudio(false);
-                }}
-                className="text-xs text-neutral-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RotateCcw size={12} className="text-white" />
-                <span>{t("Reset Defaults")}</span>
-              </button>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t(
-              "Fine-tune pitch, timbre retrieval, voiceless consonant protection, and synthesis algorithms.",
-            )}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Sliders size={18} className="text-white" />}
+          title={t("Conversion Parameters")}
+          description={t(
+            "Fine-tune pitch, timbre retrieval, voiceless consonant protection, and synthesis algorithms.",
+          )}
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                setPitch(0);
+                setIndexRate(0.75);
+                setVolumeEnvelope(1);
+                setProtect(0.5);
+                setF0Method("rmvpe");
+                setEmbedderModel("contentvec");
+                setExportFormat("WAV");
+                setSplitAudio(false);
+                setF0Autotune(false);
+                setCleanAudio(false);
+              }}
+              className="text-xs text-neutral-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <RotateCcw size={12} className="text-white" />
+              <span>{t("Reset Defaults")}</span>
+            </button>
+          }
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
           <SliderField
@@ -368,47 +359,29 @@ export default function BatchForm() {
         </div>
 
         <div className="flex items-center gap-4 pt-3 border-t border-white/5 flex-wrap">
-          <label
-            htmlFor="batch-split-audio"
-            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
-          >
-            <input
-              id="batch-split-audio"
-              type="checkbox"
-              checked={splitAudio}
-              onChange={(e) => setSplitAudio(e.target.checked)}
-            />
-            <span>{t("Split in Chunks")}</span>
-          </label>
-          <label
-            htmlFor="batch-f0-autotune"
-            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
-          >
-            <input
-              id="batch-f0-autotune"
-              type="checkbox"
-              checked={f0Autotune}
-              onChange={(e) => setF0Autotune(e.target.checked)}
-            />
-            <span>{t("Autotune")}</span>
-          </label>
-          <label
-            htmlFor="batch-clean-audio"
-            className="flex items-center gap-2 cursor-pointer text-xs text-neutral-300"
-          >
-            <input
-              id="batch-clean-audio"
-              type="checkbox"
-              checked={cleanAudio}
-              onChange={(e) => setCleanAudio(e.target.checked)}
-            />
-            <span>{t("Clean Audio")}</span>
-          </label>
+          <ToggleField
+            id="batch-split-audio"
+            label={t("Split in Chunks")}
+            checked={splitAudio}
+            onChange={setSplitAudio}
+          />
+          <ToggleField
+            id="batch-f0-autotune"
+            label={t("Autotune")}
+            checked={f0Autotune}
+            onChange={setF0Autotune}
+          />
+          <ToggleField
+            id="batch-clean-audio"
+            label={t("Clean Audio")}
+            checked={cleanAudio}
+            onChange={setCleanAudio}
+          />
         </div>
-      </div>
+      </Card>
 
       {/* 3. Action & Batch Output Card */}
-      <div className="card space-y-4">
+      <Card>
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
             <button
@@ -434,7 +407,10 @@ export default function BatchForm() {
 
           <div className="flex items-center gap-2">
             {job && (
-              <span className={`badge ${job.status}`} role="status">
+              <Badge
+                variant={job.status === "done" ? "success" : job.status === "error" ? "danger" : "info"}
+                dot
+              >
                 {job.status === "done"
                   ? t("Completed")
                   : job.status === "running"
@@ -442,7 +418,7 @@ export default function BatchForm() {
                     : job.status === "error"
                       ? t("Failed")
                       : t("Queued")}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -472,12 +448,9 @@ export default function BatchForm() {
         )}
 
         {(error || (job && job.status === "error")) && (
-          <div
-            role="alert"
-            className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs animate-in fade-in duration-200"
-          >
+          <Alert variant="error" className="animate-in fade-in duration-200">
             {error || job?.error || t("Batch conversion failed.")}
-          </div>
+          </Alert>
         )}
 
         {job && job.status === "done" && (
@@ -512,7 +485,7 @@ export default function BatchForm() {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </form>
   );
 }

@@ -18,10 +18,18 @@ import { useI18n } from "../../lib/i18n";
 import { matchIndex } from "../../lib/model-index";
 import { useSpeakers } from "../../lib/useSpeakers";
 import AudioWavePlayer from "../AudioWavePlayer";
-import RadioRow from "../RadioRow";
-import CustomSelect from "../ui/CustomSelect";
-import ModelDropdown from "../ui/ModelDropdown";
-import SliderField from "../ui/SliderField";
+import {
+  Alert,
+  Badge,
+  Card,
+  CardHeader,
+  CustomSelect,
+  FormField,
+  ModelDropdown,
+  RadioGroup,
+  SliderField,
+  ToggleField,
+} from "../ui";
 
 interface Voice {
   shortName: string;
@@ -190,36 +198,27 @@ export default function TtsForm() {
   return (
     <div className="space-y-4">
       {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-sm"
-        >
+        <Alert variant="error" onDismiss={() => setError("")}>
           {error}
-        </div>
+        </Alert>
       )}
 
       <form onSubmit={onSubmit} className="space-y-4">
         {/* Card 1: Speech Synthesis Source */}
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Speech Synthesis Source")}</h2>
-              </div>
-              <span className="text-xs text-neutral-400">
+        <Card as="section" className="space-y-4">
+          <CardHeader
+            icon={<FileText size={18} className="text-white" />}
+            title={t("Speech Synthesis Source")}
+            description={t("Enter text or upload a text file to synthesize speech before voice conversion.")}
+            action={
+              <Badge variant="neutral" size="sm">
                 {shown.length} {t("voices available")}
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Enter text or upload a text file to synthesize speech before voice conversion.")}
-            </p>
-          </div>
+              </Badge>
+            }
+          />
 
           <div className="space-y-3">
-            <div>
-              <label htmlFor="tts-text-input">{t("Text to Synthesize")}</label>
+            <FormField label={t("Text to Synthesize")} htmlFor="tts-text-input">
               <textarea
                 id="tts-text-input"
                 rows={3}
@@ -228,21 +227,19 @@ export default function TtsForm() {
                 placeholder={t("Hello, this is Applio.")}
                 className="w-full resize-y"
               />
-            </div>
+            </FormField>
 
-            <div>
-              <label htmlFor="tts-file-input">{t("Or upload a .txt file")}</label>
+            <FormField label={t("Or upload a .txt file")} htmlFor="tts-file-input">
               <input
                 id="tts-file-input"
                 type="file"
                 accept=".txt"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
-            </div>
+            </FormField>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <div>
-                <label htmlFor="tts-voice-filter">{t("Voice filter")}</label>
+              <FormField label={t("Voice filter")} htmlFor="tts-voice-filter">
                 <input
                   id="tts-voice-filter"
                   type="text"
@@ -250,10 +247,9 @@ export default function TtsForm() {
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder={t("e.g. en-US, Aria, Guy…")}
                 />
-              </div>
+              </FormField>
 
-              <div>
-                <label htmlFor="tts-voice-select">{t("TTS Voices")}</label>
+              <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
                 <CustomSelect
                   id="tts-voice-select"
                   value={voice}
@@ -267,7 +263,7 @@ export default function TtsForm() {
                     </option>
                   ))}
                 </CustomSelect>
-              </div>
+              </FormField>
 
               <div>
                 <SliderField
@@ -283,21 +279,16 @@ export default function TtsForm() {
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Card 2: Target Voice Model */}
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Music size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Voice Model")}</h2>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Select the target voice model and feature index for speech timbre conversion.")}
-            </p>
-          </div>
+        <Card as="section" className="space-y-4">
+          <CardHeader
+            icon={<Music size={18} className="text-white" />}
+            title={t("Voice Model")}
+            description={t("Select the target voice model and feature index for speech timbre conversion.")}
+            action={pthPath ? <Badge variant="success" size="sm" dot>{t("Ready")}</Badge> : undefined}
+          />
 
           <div className="space-y-3">
             <ModelDropdown
@@ -311,8 +302,7 @@ export default function TtsForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
               {pthPath && (
-                <div>
-                  <label htmlFor="tts-index-file">{t("Index File")}</label>
+                <FormField label={t("Index File")} htmlFor="tts-index-file">
                   <CustomSelect
                     id="tts-index-file"
                     value={indexPath}
@@ -326,11 +316,10 @@ export default function TtsForm() {
                       </option>
                     ))}
                   </CustomSelect>
-                </div>
+                </FormField>
               )}
 
-              <div>
-                <label htmlFor="tts-speaker-id">{t("Speaker ID")}</label>
+              <FormField label={t("Speaker ID")} htmlFor="tts-speaker-id">
                 <CustomSelect
                   id="tts-speaker-id"
                   value={String(sid)}
@@ -344,10 +333,9 @@ export default function TtsForm() {
                     </option>
                   ))}
                 </CustomSelect>
-              </div>
+              </FormField>
 
-              <div>
-                <label htmlFor="tts-export-format">{t("Export Format")}</label>
+              <FormField label={t("Export Format")} htmlFor="tts-export-format">
                 <CustomSelect
                   id="tts-export-format"
                   value={exportFormat}
@@ -360,19 +348,18 @@ export default function TtsForm() {
                     </option>
                   ))}
                 </CustomSelect>
-              </div>
+              </FormField>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Card 3: Conversion Parameters */}
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sliders size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Conversion Parameters")}</h2>
-              </div>
+        <Card as="section" className="space-y-4">
+          <CardHeader
+            icon={<Sliders size={18} className="text-white" />}
+            title={t("Conversion Parameters")}
+            description={t("Adjust pitch shifting, feature index retrieval, and acoustic post-processing.")}
+            action={
               <button
                 type="button"
                 onClick={resetDefaults}
@@ -381,11 +368,8 @@ export default function TtsForm() {
                 <RotateCcw size={12} className="text-white" />
                 <span>{t("Reset Defaults")}</span>
               </button>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Adjust pitch shifting, feature index retrieval, and acoustic post-processing.")}
-            </p>
-          </div>
+            }
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <SliderField
@@ -428,7 +412,7 @@ export default function TtsForm() {
           </div>
 
           <div className="space-y-4 pt-2 border-t border-white/5">
-            <RadioRow
+            <RadioGroup
               label={t("Pitch extraction algorithm")}
               name="f0-convert"
               options={[
@@ -442,9 +426,10 @@ export default function TtsForm() {
               ]}
               value={f0Method}
               onChange={setF0Method}
+              variant="pills"
             />
 
-            <RadioRow
+            <RadioGroup
               label={t("Embedder Model")}
               name="embedder-convert"
               options={[
@@ -458,11 +443,11 @@ export default function TtsForm() {
               ]}
               value={embedderModel}
               onChange={setEmbedderModel}
+              variant="pills"
             />
 
             {embedderModel === "custom" && (
-              <div>
-                <label htmlFor="tts-custom-embedder">{t("Select Custom Embedder")}</label>
+              <FormField label={t("Select Custom Embedder")} htmlFor="tts-custom-embedder">
                 <input
                   id="tts-custom-embedder"
                   type="text"
@@ -470,7 +455,7 @@ export default function TtsForm() {
                   onChange={(e) => setEmbedderModelCustom(e.target.value)}
                   placeholder="rvc/models/embedders/embedders_custom/my-embedder"
                 />
-              </div>
+              </FormField>
             )}
           </div>
 
@@ -479,46 +464,27 @@ export default function TtsForm() {
               {t("Advanced Settings")}
             </summary>
             <div className="space-y-4 pt-3">
-              <div className="flex flex-wrap gap-4">
-                <label htmlFor="tts-split-audio" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input
-                    id="tts-split-audio"
-                    type="checkbox"
-                    checked={splitAudio}
-                    onChange={(e) => setSplitAudio(e.target.checked)}
-                  />
-                  <span>{t("Split Audio")}</span>
-                </label>
-                <label htmlFor="tts-f0-autotune" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input
-                    id="tts-f0-autotune"
-                    type="checkbox"
-                    checked={f0Autotune}
-                    onChange={(e) => setF0Autotune(e.target.checked)}
-                  />
-                  <span>{t("Autotune")}</span>
-                </label>
-                <label
-                  htmlFor="tts-proposed-pitch"
-                  className="flex items-center gap-2 cursor-pointer text-sm"
-                >
-                  <input
-                    id="tts-proposed-pitch"
-                    type="checkbox"
-                    checked={proposedPitch}
-                    onChange={(e) => setProposedPitch(e.target.checked)}
-                  />
-                  <span>{t("Proposed Pitch")}</span>
-                </label>
-                <label htmlFor="tts-clean-audio" className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input
-                    id="tts-clean-audio"
-                    type="checkbox"
-                    checked={cleanAudio}
-                    onChange={(e) => setCleanAudio(e.target.checked)}
-                  />
-                  <span>{t("Clean Audio")}</span>
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                <ToggleField
+                  label={t("Split Audio")}
+                  checked={splitAudio}
+                  onChange={setSplitAudio}
+                />
+                <ToggleField
+                  label={t("Autotune")}
+                  checked={f0Autotune}
+                  onChange={setF0Autotune}
+                />
+                <ToggleField
+                  label={t("Proposed Pitch")}
+                  checked={proposedPitch}
+                  onChange={setProposedPitch}
+                />
+                <ToggleField
+                  label={t("Clean Audio")}
+                  checked={cleanAudio}
+                  onChange={setCleanAudio}
+                />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -553,10 +519,10 @@ export default function TtsForm() {
               </div>
             </div>
           </details>
-        </div>
+        </Card>
 
         {/* Card 4: Action & Output Card */}
-        <div className="card space-y-4">
+        <Card as="section" className="space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
               <button
@@ -581,7 +547,18 @@ export default function TtsForm() {
 
             <div className="flex items-center gap-2">
               {job && (
-                <span className={`badge ${job.status}`} role="status">
+                <Badge
+                  variant={
+                    job.status === "done"
+                      ? "success"
+                      : job.status === "error"
+                        ? "danger"
+                        : job.status === "running"
+                          ? "info"
+                          : "neutral"
+                  }
+                  dot
+                >
                   {job.status === "done"
                     ? t("Completed")
                     : job.status === "running"
@@ -589,7 +566,7 @@ export default function TtsForm() {
                       : job.status === "error"
                         ? t("Failed")
                         : t("Queued")}
-                </span>
+                </Badge>
               )}
             </div>
           </div>
@@ -611,12 +588,9 @@ export default function TtsForm() {
           )}
 
           {(error || (job && job.status === "error")) && (
-            <div
-              role="alert"
-              className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs animate-in fade-in duration-200"
-            >
+            <Alert variant="error">
               {error || job?.error || t("Speech conversion failed.")}
-            </div>
+            </Alert>
           )}
 
           {/* Synthesized Output Waveform Player */}
@@ -624,7 +598,9 @@ export default function TtsForm() {
             <div className="space-y-2 pt-2 border-t border-white/5 animate-in fade-in duration-200">
               <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
                 <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>
-                <span className="badge done text-[10px]">{t("Ready")}</span>
+                <Badge variant="success" size="sm" dot>
+                  {t("Ready")}
+                </Badge>
               </div>
               <AudioWavePlayer
                 src={outputUrl(job.outputFile)}
@@ -633,7 +609,7 @@ export default function TtsForm() {
               />
             </div>
           )}
-        </div>
+        </Card>
       </form>
     </div>
   );

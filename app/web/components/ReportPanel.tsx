@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiGet, apiSend, errMsg, fileBasename, outputUrl } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { StatTile } from "./ui";
 
 interface SystemInfo {
   version: string;
@@ -81,26 +82,10 @@ export default function ReportPanel() {
     <div>
       {info ? (
         <section aria-label={t("System diagnostics")} className="grid grid-cols-2 gap-2 text-xs">
-          <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
-            <span className="text-neutral-400 block">{t("Version")}</span>
-            <span className="font-medium text-white">{info.version}</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
-            <span className="text-neutral-400 block">{t("Platform")}</span>
-            <span className="font-medium text-white truncate block">{info.platform}</span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
-            <span className="text-neutral-400 block">{t("Node / Python")}</span>
-            <span className="font-medium text-white truncate block">
-              Node {info.node} · {info.python}
-            </span>
-          </div>
-          <div className="p-2.5 rounded-lg bg-black/30 border border-white/5">
-            <span className="text-neutral-400 block">{t("Hardware")}</span>
-            <span className="font-medium text-white">
-              {info.cpus} CPUs · {info.totalMemGB}GB RAM
-            </span>
-          </div>
+          <StatTile label={t("Version")} value={info.version} />
+          <StatTile label={t("Platform")} value={info.platform} />
+          <StatTile label={t("Node / Python")} value={`Node ${info.node}`} subtext={info.python} />
+          <StatTile label={t("Hardware")} value={`${info.cpus} CPUs · ${info.totalMemGB}GB RAM`} />
         </section>
       ) : (
         <p className="muted">{t("Collecting system info…")}</p>

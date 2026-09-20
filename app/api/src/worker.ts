@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import path from "node:path";
 import readline from "node:readline";
 import { getPythonBin, getRepoRoot, pythonEnv } from "./python";
-import { type InferenceParams } from "./schemas";
+import type { InferenceParams } from "./schemas";
 
 export interface InferenceRequest {
   id: string;

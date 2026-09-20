@@ -4,6 +4,7 @@ import { Download, FileText, Image as ImageIcon, LineChart, StopCircle, Waves } 
 import { errMsg, fileBasename, outputUrl, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useJob } from "../../lib/useJob";
+import { Alert, Badge, Card } from "../ui";
 
 interface AnalysisResultCardProps {
   jobId: string | null;
@@ -25,24 +26,21 @@ export default function AnalysisResultCard({
 
   if (error) {
     return (
-      <div
-        role="alert"
-        className={`rounded-xl border border-red-500/30 bg-red-500/10 text-red-400 text-xs p-3.5 ${
-          embedded ? "mt-3" : "card"
-        }`}
-      >
+      <Alert variant="error" className={embedded ? "mt-3" : ""}>
         {error}
-      </div>
+      </Alert>
     );
   }
 
   if (!job) {
-    return (
-      <div
-        className={`p-4 text-center text-xs text-neutral-400 ${embedded ? "pt-3 mt-3 border-t border-white/10" : "card"}`}
-      >
+    return embedded ? (
+      <div className="pt-3 mt-3 border-t border-white/10 text-center text-xs text-neutral-400">
         {t("Loading analysis…")}
       </div>
+    ) : (
+      <Card className="p-4 text-center text-xs text-neutral-400">
+        {t("Loading analysis…")}
+      </Card>
     );
   }
 
@@ -50,12 +48,8 @@ export default function AnalysisResultCard({
   const out = job.outputFile;
   const curveFile = typeof job.result?.curveFile === "string" ? job.result.curveFile : null;
 
-  const containerClasses = embedded
-    ? "space-y-4 pt-4 mt-4 border-t border-white/10 animate-in fade-in duration-200"
-    : "card space-y-4 animate-in fade-in duration-200";
-
-  return (
-    <div className={containerClasses}>
+  const content = (
+    <>
       <div className="flex items-center justify-between border-b border-white/10 pb-3">
         <div className="flex items-center gap-2">
           {type === "analyzer" ? (
@@ -64,7 +58,19 @@ export default function AnalysisResultCard({
             <LineChart size={18} className="text-white shrink-0" />
           )}
           <h3 className="text-base font-bold text-white m-0">{title}</h3>
-          <span className={`badge ${job.status} text-[10px] ml-1`} role="status">
+          <Badge
+            variant={
+              job.status === "done"
+                ? "success"
+                : job.status === "error"
+                  ? "danger"
+                  : isRunning
+                    ? "info"
+                    : "neutral"
+            }
+            dot
+            size="sm"
+          >
             {job.status === "done"
               ? t("Ready")
               : isRunning
@@ -72,13 +78,13 @@ export default function AnalysisResultCard({
                 : job.status === "error"
                   ? t("Failed")
                   : t("Queued")}
-          </span>
+          </Badge>
         </div>
 
         {isRunning && (
           <button
             type="button"
-            className="ghost h-7 px-2.5 text-xs text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1.5"
+            className="ghost h-7 px-2.5 text-xs text-red-400 hover:text-red-300 border-red-500/30 rounded-lg flex items-center gap-1.5 cursor-pointer"
             onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
           >
             <StopCircle size={13} />
@@ -88,12 +94,9 @@ export default function AnalysisResultCard({
       </div>
 
       {job.status === "error" && (
-        <div
-          role="alert"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-        >
+        <Alert variant="error">
           {job.error || t("Analysis operation failed.")}
-        </div>
+        </Alert>
       )}
 
       {isRunning && (
@@ -148,6 +151,19 @@ export default function AnalysisResultCard({
           </div>
         </div>
       )}
-    </div>
+    </>
+  );
+
+  return embedded ? (
+    <section
+      className="space-y-4 pt-4 mt-4 border-t border-white/10 animate-in fade-in duration-200"
+      aria-label={title}
+    >
+      {content}
+    </section>
+  ) : (
+    <Card as="section" className="space-y-4 animate-in fade-in duration-200" aria-label={title}>
+      {content}
+    </Card>
   );
 }

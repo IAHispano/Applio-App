@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
 import { useI18n } from "../../lib/i18n";
+import { StatTile } from "../ui";
 
 interface NativeAnalyzerProps {
   file: File | null;
@@ -447,19 +448,15 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {[
-            [t("Sample Rate"), `${stats.sampleRate} Hz`],
-            [t("Duration"), formatDuration(stats.duration)],
-            [t("Channels"), stats.channels === 1 ? t("Mono (1)") : `${t("Stereo")} (${stats.channels})`],
-            [t("Samples"), stats.samples.toLocaleString()],
-            [t("Peak"), stats.peakDb],
-            [t("RMS"), stats.rmsDb],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-xl bg-black/30 border border-white/5 px-3 py-2">
-              <p className="text-[10px] text-neutral-500 m-0">{label}</p>
-              <p className="text-xs text-white font-medium m-0 tabular-nums">{value}</p>
-            </div>
-          ))}
+          <StatTile label={t("Sample Rate")} value={`${stats.sampleRate} Hz`} />
+          <StatTile label={t("Duration")} value={formatDuration(stats.duration)} />
+          <StatTile
+            label={t("Channels")}
+            value={stats.channels === 1 ? t("Mono (1)") : `${t("Stereo")} (${stats.channels})`}
+          />
+          <StatTile label={t("Samples")} value={stats.samples.toLocaleString()} />
+          <StatTile label={t("Peak")} value={stats.peakDb} />
+          <StatTile label={t("RMS")} value={stats.rmsDb} />
         </div>
       )}
     </div>

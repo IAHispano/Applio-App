@@ -13,6 +13,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiGet, apiSend, errMsg, fetchJob, type Job } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { Alert, Badge, Card } from "../ui";
 
 interface SetupCheck {
   id: string;
@@ -234,7 +235,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         </div>
 
         {/* Progress Bar Card */}
-        <div className="card space-y-4">
+        <Card as="section" className="space-y-4">
           <div className="flex items-center justify-between text-xs text-neutral-300">
             <span className="font-medium flex items-center gap-2">
               {job?.status === "done" ? (
@@ -300,42 +301,37 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded">
-                    {isDone ? (
-                      <span className="text-neutral-200">{t("Ready")}</span>
-                    ) : isRunning ? (
-                      <span className="text-white animate-pulse">{t("Installing…")}</span>
-                    ) : (
-                      <span className="text-neutral-500">{t("Queued")}</span>
-                    )}
-                  </span>
+                  <Badge
+                    variant={isDone ? "success" : isRunning ? "info" : "neutral"}
+                    dot={isRunning}
+                    size="sm"
+                  >
+                    {isDone ? t("Ready") : isRunning ? t("Installing…") : t("Queued")}
+                  </Badge>
                 </div>
               );
             })}
           </div>
-        </div>
+        </Card>
 
         {/* Error Alert */}
         {error && (
-          <div
-            role="alert"
-            aria-live="assertive"
-            className="p-4 rounded-xl bg-white/5 border border-white/10 flex items-start gap-3"
+          <Alert
+            variant="error"
+            title={t("Setup Encountered an Issue")}
           >
-            <AlertCircle className="w-5 h-5 text-white shrink-0 mt-0.5" />
-            <div className="space-y-2 flex-1">
-              <p className="text-xs font-semibold text-red-300 m-0">{t("Setup Encountered an Issue")}</p>
-              <p className="text-xs text-red-200/80 m-0 leading-relaxed">{error}</p>
+            <div className="space-y-2">
+              <p className="m-0 leading-relaxed text-xs">{error}</p>
               <button
                 type="button"
-                className="cta text-xs px-3 py-1.5 flex items-center gap-1.5"
+                className="cta text-xs px-3 py-1.5 flex items-center gap-1.5 cursor-pointer"
                 onClick={retry}
               >
                 <RefreshCw size={13} />
                 <span>{t("Retry Automated Setup")}</span>
               </button>
             </div>
-          </div>
+          </Alert>
         )}
 
         {/* Action Controls */}

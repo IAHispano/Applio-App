@@ -6,7 +6,7 @@ import AudioWavePlayer from "../../components/AudioWavePlayer";
 import F0CurveExtractor from "../../components/extra/F0CurveExtractor";
 import NativeAnalyzer from "../../components/extra/NativeAnalyzer";
 import PageHeader from "../../components/layout/PageHeader";
-import CustomSelect from "../../components/ui/CustomSelect";
+import { Card, CardHeader, CustomSelect } from "../../components/ui";
 import { fetchModels } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { usePreviewUrl } from "../../lib/usePreviewUrl";
@@ -14,8 +14,8 @@ import { usePreviewUrl } from "../../lib/usePreviewUrl";
 export default function ExtraPage() {
   const { t } = useI18n();
   const [audio, setAudio] = useState<File | null>(null);
-  const [audios, setAudios] = useState<string[]>([]);
   const [inputPath, setInputPath] = useState("");
+  const [audios, setAudios] = useState<string[]>([]);
 
   useEffect(() => {
     fetchModels()
@@ -29,27 +29,23 @@ export default function ExtraPage() {
   const previewUrl = usePreviewUrl(audio, audio ? undefined : inputPath);
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="space-y-6">
       <PageHeader
-        title={t("Extra Tools")}
+        title={t("Extra Audio Analysis & Processing")}
         description={t(
           "Inspect acoustic waveforms, plot frequency spectrograms, and extract pitch contours.",
         )}
       />
 
       {/* Shared Audio Input Card */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <AudioWaveform size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("Input Audio Source")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("This audio file will be analyzed by both the Audio Analyzer and the F0 Curve Extractor.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<AudioWaveform size={18} />}
+          title={t("Input Audio Source")}
+          description={t(
+            "This audio file will be analyzed by both the Audio Analyzer and the F0 Curve Extractor.",
+          )}
+        />
 
         <div className="grid2">
           <div>
@@ -95,47 +91,35 @@ export default function ExtraPage() {
             <AudioWavePlayer src={previewUrl} title={audio?.name || inputPath} showAnalyzerLink={false} />
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Grid: Analyzer & F0 Curve */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         {/* Tool 1: Audio Analyzer */}
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Activity size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Audio Analyzer")}</h2>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t(
-                "Waveform, spectrogram and file stats rendered instantly in your browser — no waiting on a server job.",
-              )}
-            </p>
-          </div>
+        <Card>
+          <CardHeader
+            icon={<Activity size={18} />}
+            title={t("Audio Analyzer")}
+            description={t(
+              "Waveform, spectrogram and file stats rendered instantly in your browser — no waiting on a server job.",
+            )}
+          />
 
           <NativeAnalyzer file={audio} fallbackPath={audio ? undefined : inputPath} />
-        </div>
+        </Card>
 
         {/* Tool 2: F0 Curve Extractor */}
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <LineChart size={18} className="text-white shrink-0" />
-                <h2 className="text-base font-bold text-white m-0">{t("F0 Pitch Curve Extractor")}</h2>
-              </div>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t(
-                "Extracts frame-by-frame fundamental pitch frequencies (Hz) across time and exports both a high-resolution plot and a CSV data curve.",
-              )}
-            </p>
-          </div>
+        <Card>
+          <CardHeader
+            icon={<LineChart size={18} />}
+            title={t("F0 Pitch Curve Extractor")}
+            description={t(
+              "Extracts frame-by-frame fundamental pitch frequencies (Hz) across time and exports both a high-resolution plot and a CSV data curve.",
+            )}
+          />
 
           <F0CurveExtractor file={audio} fallbackPath={audio ? undefined : inputPath} />
-        </div>
+        </Card>
       </div>
     </div>
   );

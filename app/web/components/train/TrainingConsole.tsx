@@ -28,6 +28,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { errMsg, type Job, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
+import { Alert, Badge, Card, StatTile } from "../ui";
 import { cleanJobLogs, useJob } from "../../lib/useJob";
 
 interface TrainingConsoleProps {
@@ -232,8 +233,9 @@ export default function TrainingConsole({
       : null;
 
   return (
-    <div
-      className="card space-y-5 animate-in fade-in duration-200"
+    <Card
+      as="section"
+      className="space-y-5 animate-in fade-in duration-200"
       aria-label={t("Training Activity Console")}
     >
       <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 flex-wrap">
@@ -246,9 +248,18 @@ export default function TrainingConsole({
               <h3 className="text-base font-bold text-white m-0 truncate">
                 {modelName ? `${t("Training:")} ${modelName}` : t("Training Project")}
               </h3>
-              <span
-                className={`badge ${job?.status || "queued"} text-[10px] px-2 py-0.5 font-medium`}
-                role="status"
+              <Badge
+                variant={
+                  job?.status === "done"
+                    ? "success"
+                    : job?.status === "running"
+                      ? "info"
+                      : job?.status === "error"
+                        ? "danger"
+                        : "neutral"
+                }
+                dot
+                size="sm"
               >
                 {job?.status === "done"
                   ? t("Completed")
@@ -257,7 +268,7 @@ export default function TrainingConsole({
                     : job?.status === "error"
                       ? t("Failed")
                       : t("Queued")}
-              </span>
+              </Badge>
             </div>
             <div className="flex items-center gap-3 text-xs text-neutral-400 mt-0.5">
               <span className="flex items-center gap-1">
@@ -274,7 +285,7 @@ export default function TrainingConsole({
           {(job?.status === "running" || job?.status === "queued") && (
             <button
               type="button"
-              className="ghost h-8 px-3 text-xs font-medium text-red-400 hover:text-red-300 border-red-500/30 rounded-xl flex items-center gap-1.5"
+              className="ghost h-8 px-3 text-xs font-medium text-red-400 hover:text-red-300 border-red-500/30 rounded-xl flex items-center gap-1.5 cursor-pointer"
               onClick={handleStop}
               aria-label={t("Stop training job")}
             >
@@ -285,7 +296,7 @@ export default function TrainingConsole({
 
           <button
             type="button"
-            className="ghost h-8 px-2.5 text-xs text-neutral-400 hover:text-white rounded-xl flex items-center gap-1"
+            className="ghost h-8 px-2.5 text-xs text-neutral-400 hover:text-white rounded-xl flex items-center gap-1 cursor-pointer"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? t("Expand console") : t("Collapse console")}
           >
@@ -297,12 +308,9 @@ export default function TrainingConsole({
 
       {/* Runtime Error alert */}
       {error && (
-        <div
-          role="alert"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-        >
+        <Alert variant="error" onDismiss={() => setError("")}>
           {error}
-        </div>
+        </Alert>
       )}
 
       {/* 2. Pipeline Phase Stepper */}
@@ -323,8 +331,8 @@ export default function TrainingConsole({
                 isDone
                   ? "bg-white/[0.03] border-white/20 text-white"
                   : isCurrent
-                    ? "bg-white/10 border-white/40 text-white shadow-sm"
-                    : "bg-black/20 border-white/5 text-neutral-500"
+                    ? "bg-white/10 border-white text-white shadow-sm"
+                    : "bg-black/20 border-white/5 text-neutral-400"
               }`}
             >
               <div className="flex items-center justify-between mb-1">
@@ -348,14 +356,15 @@ export default function TrainingConsole({
 
       {/* 3. Live KPI Stat Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-          <span className="text-neutral-400 text-xs block">{t("Epoch Progress")}</span>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-base font-bold text-white">
-              {metrics.currentEpoch !== null ? metrics.currentEpoch : "—"}
-            </span>
-            <span className="text-xs text-neutral-400">/ {totalEpochs}</span>
-          </div>
+        <StatTile
+          label={t("Epoch Progress")}
+          value={
+            <div className="flex items-baseline gap-1.5">
+              <span>{metrics.currentEpoch !== null ? metrics.currentEpoch : "—"}</span>
+              <span className="text-xs text-neutral-400 font-normal">/ {totalEpochs}</span>
+            </div>
+          }
+        >
           {progressPercent !== null && (
             <div className="w-full bg-white/10 rounded-full h-1 mt-2 overflow-hidden">
               <div
@@ -364,31 +373,29 @@ export default function TrainingConsole({
               />
             </div>
           )}
-        </div>
+        </StatTile>
 
-        <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-          <span className="text-neutral-400 text-xs block">{t("Training Steps")}</span>
-          <span className="text-base font-bold text-white block">
-            {metrics.currentStep !== null ? metrics.currentStep.toLocaleString() : "—"}
-          </span>
-          <span className="text-[10px] text-neutral-400 block">{t("Gradient updates")}</span>
-        </div>
+        <StatTile
+          label={t("Training Steps")}
+          value={metrics.currentStep !== null ? metrics.currentStep.toLocaleString() : "—"}
+          subtext={t("Gradient updates")}
+        />
 
-        <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-          <span className="text-neutral-400 text-xs block">{t("Generator Loss")}</span>
-          <span className="text-base font-bold text-white block">
-            {metrics.loss !== null ? metrics.loss : "—"}
-          </span>
-          <span className="text-[10px] text-neutral-400 block">{t("Lowest rolling loss")}</span>
-        </div>
+        <StatTile
+          label={t("Generator Loss")}
+          value={metrics.loss !== null ? metrics.loss : "—"}
+          subtext={t("Lowest rolling loss")}
+        />
 
-        <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-          <span className="text-neutral-400 text-xs block">{t("Active Status")}</span>
-          <span className="text-base font-bold text-white block capitalize">
-            {job?.status === "running" ? t("Training") : job?.status || t("Idle")}
-          </span>
-          <span className="text-[10px] text-neutral-400 block truncate">
-            {metrics.activePhase === 1
+        <StatTile
+          label={t("Active Status")}
+          value={
+            <span className="capitalize">
+              {job?.status === "running" ? t("Training") : job?.status || t("Idle")}
+            </span>
+          }
+          subtext={
+            metrics.activePhase === 1
               ? t("Slicing audio")
               : metrics.activePhase === 2
                 ? t("Extracting pitch")
@@ -396,9 +403,9 @@ export default function TrainingConsole({
                   ? t("Training network")
                   : metrics.activePhase === 4
                     ? t("Building index")
-                    : t("Ready")}
-          </span>
-        </div>
+                    : t("Ready")
+          }
+        />
       </div>
 
       {/* 4. Celebratory Completion Banner */}
@@ -561,6 +568,6 @@ export default function TrainingConsole({
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }

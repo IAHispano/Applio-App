@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { errMsg, fetchModels, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";
+import { Alert, Badge, Card, CardHeader } from "../ui";
 import CustomSelect from "../ui/CustomSelect";
 import SliderField from "../ui/SliderField";
 
@@ -58,32 +59,22 @@ export default function BlenderPanel() {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-sm"
-        >
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       <form onSubmit={onSubmit} className="space-y-4">
-        <div className="card space-y-4">
-          <div className="border-b border-white/10 pb-3.5 space-y-1">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Layers size={18} className="text-white" />
-                <h2 className="text-base font-bold text-white m-0">{t("Model Fusion & Blending")}</h2>
-              </div>
-              <span className="text-xs text-neutral-400">
+        <Card>
+          <CardHeader
+            icon={<Layers size={18} className="text-white" />}
+            title={t("Model Fusion & Blending")}
+            description={t(
+              "Merge and interpolate weights between two compatible voice model checkpoints.",
+            )}
+            action={
+              <Badge variant="neutral" size="sm">
                 {models.length} {t("models detected")}
-              </span>
-            </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Merge and interpolate weights between two compatible voice model checkpoints.")}
-            </p>
-          </div>
+              </Badge>
+            }
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -184,10 +175,10 @@ export default function BlenderPanel() {
               />
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Action card */}
-        <div className="card space-y-4">
+        <Card>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs text-neutral-400">
               <Sparkles size={16} className="text-white" />
@@ -204,7 +195,7 @@ export default function BlenderPanel() {
           </div>
 
           <JobPanel jobId={jobId} embedded />
-        </div>
+        </Card>
       </form>
     </div>
   );

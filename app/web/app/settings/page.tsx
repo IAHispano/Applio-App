@@ -3,8 +3,15 @@
 import { Activity, Check, Cpu, Palette, Power, RefreshCw, Sliders } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
-import CustomSelect from "../../components/ui/CustomSelect";
-import SliderField from "../../components/ui/SliderField";
+import {
+  Badge,
+  Card,
+  CardHeader,
+  CustomSelect,
+  FormField,
+  SliderField,
+  ToggleField,
+} from "../../components/ui";
 import { apiGet, apiSend, displayVersion, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { applyTheme, type ThemeFile } from "../../lib/theme";
@@ -373,98 +380,80 @@ export default function SettingsPage() {
       )}
 
       {/* 1. General Preferences */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sliders size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("General Preferences")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Configure search filter visibility, Discord Rich Presence, and UI locale.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Sliders size={18} />}
+          title={t("General Preferences")}
+          description={t("Configure search filter visibility, Discord Rich Presence, and UI locale.")}
+        />
 
         <div className="space-y-3.5">
-          <label
-            htmlFor="settings-filter-checkbox"
-            className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-200"
-          >
-            <input
-              id="settings-filter-checkbox"
-              type="checkbox"
-              checked={!!cfg.model_index_filter}
-              onChange={(e) => {
-                const v = e.target.checked;
-                set(["model_index_filter"], v);
-                save({ model_index_filter: v });
-              }}
-            />
-            <span>{t("Model & index filter box")}</span>
-          </label>
+          <ToggleField
+            id="settings-filter-checkbox"
+            label={t("Model & index filter box")}
+            checked={!!cfg.model_index_filter}
+            onChange={(v) => {
+              set(["model_index_filter"], v);
+              save({ model_index_filter: v });
+            }}
+          />
 
-          <label
-            htmlFor="settings-discord-checkbox"
-            className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-200"
-          >
-            <input
-              id="settings-discord-checkbox"
-              type="checkbox"
-              checked={!!cfg.discord_presence}
-              onChange={(e) => {
-                const v = e.target.checked;
-                set(["discord_presence"], v);
-                save({ discord_presence: v });
-              }}
-            />
-            <span>{t("Discord Rich Presence")}</span>
-            {presenceRunning !== null && (
-              <span className="text-xs text-neutral-400" role="status">
-                ({presenceRunning ? t("running") : t("stopped")})
-              </span>
-            )}
-          </label>
+          <ToggleField
+            id="settings-discord-checkbox"
+            label={t("Discord Rich Presence")}
+            checked={!!cfg.discord_presence}
+            badge={
+              presenceRunning !== null && (
+                <span className="text-xs text-neutral-400" role="status">
+                  ({presenceRunning ? t("running") : t("stopped")})
+                </span>
+              )
+            }
+            onChange={(v) => {
+              set(["discord_presence"], v);
+              save({ discord_presence: v });
+            }}
+          />
 
           <div className="max-w-md 2xl:max-w-lg pt-1">
-            <label htmlFor="settings-lang" className="block text-xs font-medium text-neutral-300 mb-1.5">
-              {t("Interface Language")} ({langs.length} {t("available")})
-            </label>
-            <CustomSelect
-              id="settings-lang"
-              value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
-              searchable
-              searchPlaceholder={t("Search languages…")}
-              onChange={(e) => {
-                const nextLang = !e.target.value
-                  ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
-                  : { override: true, selected_lang: e.target.value };
-                setCfg({ ...cfg, lang: nextLang });
-                save({ lang: nextLang });
-              }}
+            <FormField
+              label={`${t("Interface Language")} (${langs.length} ${t("available")})`}
+              htmlFor="settings-lang"
             >
-              <option value="">{t("Language automatically detected…")}</option>
-              {langs.map((l) => (
-                <option key={l.code} value={l.code}>
-                  {l.name} ({l.code})
-                </option>
-              ))}
-            </CustomSelect>
+              <CustomSelect
+                id="settings-lang"
+                value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
+                searchable
+                searchPlaceholder={t("Search languages…")}
+                onChange={(e) => {
+                  const nextLang = !e.target.value
+                    ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
+                    : { override: true, selected_lang: e.target.value };
+                  setCfg({ ...cfg, lang: nextLang });
+                  save({ lang: nextLang });
+                }}
+              >
+                <option value="">{t("Language automatically detected…")}</option>
+                {langs.map((l) => (
+                  <option key={l.code} value={l.code}>
+                    {l.name} ({l.code})
+                  </option>
+                ))}
+              </CustomSelect>
+            </FormField>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* 2. Appearance & Themes */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center gap-2">
-            <Palette size={18} className="text-white shrink-0" />
-            <h2 className="text-base font-bold text-white m-0">{t("Appearance & Themes")}</h2>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Choose your visual palette. Clicking any theme immediately transforms the interface.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Palette size={18} />}
+          title={t("Appearance & Themes")}
+          description={t(
+            "Choose your visual palette. Clicking any theme immediately transforms the interface.",
+          )}
+        />
 
         <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
           {allThemes.map((opt) => {
@@ -534,30 +523,20 @@ export default function SettingsPage() {
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* 3. Training Engine */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Cpu size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Training Engine")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Set default model author metadata and floating-point computation precision for training.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Cpu size={18} />}
+          title={t("Training Engine")}
+          description={t(
+            "Set default model author metadata and floating-point computation precision for training.",
+          )}
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
-          <div>
-            <label
-              htmlFor="settings-model-author"
-              className="block text-xs font-medium text-neutral-300 mb-1.5"
-            >
-              {t("Model Author Name")}
-            </label>
+          <FormField label={t("Model Author Name")} htmlFor="settings-model-author">
             <input
               id="settings-model-author"
               type="text"
@@ -569,11 +548,8 @@ export default function SettingsPage() {
               }}
               placeholder="Applio"
             />
-          </div>
-          <div>
-            <label htmlFor="settings-precision" className="block text-xs font-medium text-neutral-300 mb-1.5">
-              {t("Precision")}
-            </label>
+          </FormField>
+          <FormField label={t("Precision")} htmlFor="settings-precision">
             <CustomSelect
               id="settings-precision"
               value={cfg.precision}
@@ -589,55 +565,38 @@ export default function SettingsPage() {
                 </option>
               ))}
             </CustomSelect>
-          </div>
+          </FormField>
         </div>
-      </div>
+      </Card>
 
       {/* 4. RMVPE High Register */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("RMVPE High Register")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Adjust pitch detection algorithm behavior and frequency ceiling for higher vocal registers.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Activity size={18} />}
+          title={t("RMVPE High Register")}
+          description={t(
+            "Adjust pitch detection algorithm behavior and frequency ceiling for higher vocal registers.",
+          )}
+        />
 
         <div className="space-y-4">
-          <label
-            htmlFor="settings-rmvpe-enabled"
-            className="flex items-center gap-2.5 cursor-pointer text-xs font-medium text-neutral-200"
-          >
-            <input
-              id="settings-rmvpe-enabled"
-              type="checkbox"
-              checked={!!cfg.rmvpe_high_register?.enabled}
-              onChange={(e) => {
-                const v = e.target.checked;
-                const next = {
-                  enabled: v,
-                  mode: cfg.rmvpe_high_register?.mode || "true_pitch",
-                  f0_ceil: cfg.rmvpe_high_register?.f0_ceil || 1250,
-                };
-                set(["rmvpe_high_register"], next);
-                save({ rmvpe_high_register: next });
-              }}
-            />
-            <span>{t("Enable High Register")}</span>
-          </label>
+          <ToggleField
+            id="settings-rmvpe-enabled"
+            label={t("Enable High Register")}
+            checked={!!cfg.rmvpe_high_register?.enabled}
+            onChange={(v) => {
+              const next = {
+                enabled: v,
+                mode: cfg.rmvpe_high_register?.mode || "true_pitch",
+                f0_ceil: cfg.rmvpe_high_register?.f0_ceil || 1250,
+              };
+              set(["rmvpe_high_register"], next);
+              save({ rmvpe_high_register: next });
+            }}
+          />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
-            <div>
-              <label
-                htmlFor="settings-rmvpe-mode"
-                className="block text-xs font-medium text-neutral-300 mb-1.5"
-              >
-                {t("Mode")}
-              </label>
+            <FormField label={t("Mode")} htmlFor="settings-rmvpe-mode">
               <CustomSelect
                 id="settings-rmvpe-mode"
                 value={cfg.rmvpe_high_register?.mode}
@@ -655,7 +614,7 @@ export default function SettingsPage() {
                 <option value="true_pitch">true_pitch</option>
                 <option value="fold">fold</option>
               </CustomSelect>
-            </div>
+            </FormField>
             <div>
               <SliderField
                 id="settings-rmvpe-ceil"
@@ -678,54 +637,51 @@ export default function SettingsPage() {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* 5. Version & Updates */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 flex items-center justify-between gap-4 flex-wrap">
-          <div className="space-y-1">
+      <Card>
+        <CardHeader
+          icon={<RefreshCw size={18} />}
+          title={
             <div className="flex items-center gap-2">
-              <RefreshCw size={18} className="text-white shrink-0" />
               <h2 className="text-base font-bold text-white m-0">{t("Version & Updates")}</h2>
-              <span className="text-xs text-neutral-400 tabular-nums px-2 py-0.5 rounded-full bg-white/5 border border-white/10">
-                {displayVersion(cfg.version)}
-              </span>
+              <Badge variant="neutral">{displayVersion(cfg.version)}</Badge>
             </div>
-            <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-              {t("Check for official Applio updates and apply package releases.")}
-            </p>
-          </div>
+          }
+          description={t("Check for official Applio updates and apply package releases.")}
+          action={
+            <div className="flex items-center gap-2">
+              {updaterState?.status === "downloaded" && (
+                <button
+                  type="button"
+                  className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
+                  onClick={() => {
+                    (
+                      window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
+                    ).applio?.updater?.quitAndInstall();
+                  }}
+                >
+                  <RefreshCw size={14} className="shrink-0" />
+                  <span>{t("Restart and Update")}</span>
+                </button>
+              )}
 
-          <div className="flex items-center gap-2">
-            {updaterState?.status === "downloaded" && (
               <button
                 type="button"
-                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2"
-                onClick={() => {
-                  (
-                    window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
-                  ).applio?.updater?.quitAndInstall();
-                }}
+                className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
+                onClick={checkVersion}
+                disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
               >
-                <RefreshCw size={14} className="shrink-0" />
-                <span>{t("Restart and Update")}</span>
+                <RefreshCw
+                  size={14}
+                  className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
+                />
+                <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
               </button>
-            )}
-
-            <button
-              type="button"
-              className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-2 text-neutral-200 hover:text-white"
-              onClick={checkVersion}
-              disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
-            >
-              <RefreshCw
-                size={14}
-                className={`text-white shrink-0 ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
-              />
-              <span>{updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}</span>
-            </button>
-          </div>
-        </div>
+            </div>
+          }
+        />
 
         {/* Status display section */}
         <div className="space-y-3 pt-0.5">
@@ -788,21 +744,15 @@ export default function SettingsPage() {
             </p>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* 6. Restart API */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Power size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("Restart API")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Restarts the backend API service to apply system changes.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Power size={18} />}
+          title={t("Restart API")}
+          description={t("Restarts the backend API service to apply system changes.")}
+        />
 
         <div className="pt-1 flex items-center justify-between gap-4">
           <div>
@@ -822,7 +772,7 @@ export default function SettingsPage() {
             <span>{t("Restart API")}</span>
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

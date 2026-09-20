@@ -3,12 +3,22 @@
 import { StopCircle } from "lucide-react";
 import { errMsg, type Job, stopJob } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { Alert, Badge } from "./ui";
 
 // Shared job status UI: badge + error + cancel + progress.
 export function JobBadge({ status }: { status: Job["status"] }) {
   const { t } = useI18n();
+  const variant =
+    status === "done"
+      ? "success"
+      : status === "error"
+        ? "danger"
+        : status === "running"
+          ? "info"
+          : "neutral";
+
   return (
-    <span className={`badge ${status}`} role="status" aria-label={`Status: ${status}`}>
+    <Badge variant={variant} dot size="sm" aria-label={`Status: ${status}`}>
       {status === "done"
         ? t("Completed")
         : status === "running"
@@ -16,7 +26,7 @@ export function JobBadge({ status }: { status: Job["status"] }) {
           : status === "error"
             ? t("Failed")
             : t("Queued")}
-    </span>
+    </Badge>
   );
 }
 
@@ -24,13 +34,9 @@ export function JobError({ message }: { message?: string }) {
   const { t } = useI18n();
   if (!message) return null;
   return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs"
-    >
+    <Alert variant="error">
       {message || t("Operation failed.")}
-    </div>
+    </Alert>
   );
 }
 

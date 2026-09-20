@@ -19,6 +19,7 @@ import { useState } from "react";
 import { fileBasename } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
+import { Alert, Badge, StatTile } from "../ui";
 
 export interface ModelMetadata {
   model_name?: string;
@@ -79,7 +80,7 @@ export default function ModelInfoCard({
   }
 
   return (
-    <div
+    <section
       className="card space-y-5 animate-in fade-in duration-200"
       aria-label={t("Model Checkpoint Details")}
     >
@@ -98,14 +99,14 @@ export default function ModelInfoCard({
                     : t("Model Checkpoint")}
               </h3>
               {metadata && (
-                <span className="badge done text-[10px] px-2 py-0.5 font-medium">
+                <Badge variant="success" size="sm" dot>
                   {t("Valid Checkpoint")}
-                </span>
+                </Badge>
               )}
               {metadata?.version && metadata.version !== "None" && (
-                <span className="badge text-[10px] px-2 py-0.5 font-mono uppercase bg-white/10 text-white border border-white/10">
+                <Badge variant="neutral" size="sm">
                   {metadata.version}
-                </span>
+                </Badge>
               )}
             </div>
             <p className="text-xs text-neutral-400 m-0 mt-0.5 truncate">
@@ -127,14 +128,7 @@ export default function ModelInfoCard({
         </div>
       )}
 
-      {error && (
-        <div
-          role="alert"
-          className="p-4 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs leading-relaxed"
-        >
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {/* Loaded metadata */}
       {!loading && !error && metadata && (
@@ -157,69 +151,50 @@ export default function ModelInfoCard({
 
           {/* Stat cards grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Epochs")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.epochs && metadata.epochs !== "None" ? metadata.epochs : "—"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Training Steps")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.step && metadata.step !== "None" ? Number(metadata.step).toLocaleString() : "—"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Sample Rate")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.sr && metadata.sr !== "None" ? `${Number(metadata.sr) / 1000} kHz` : "—"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Pitch Guidance (F0)")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.f0 === "1" || metadata.f0 === "True" || metadata.f0 === "true"
+            <StatTile
+              label={t("Epochs")}
+              value={metadata.epochs && metadata.epochs !== "None" ? metadata.epochs : "—"}
+            />
+            <StatTile
+              label={t("Training Steps")}
+              value={metadata.step && metadata.step !== "None" ? Number(metadata.step).toLocaleString() : "—"}
+            />
+            <StatTile
+              label={t("Sample Rate")}
+              value={metadata.sr && metadata.sr !== "None" ? `${Number(metadata.sr) / 1000} kHz` : "—"}
+            />
+            <StatTile
+              label={t("Pitch Guidance (F0)")}
+              value={
+                metadata.f0 === "1" || metadata.f0 === "True" || metadata.f0 === "true"
                   ? t("Yes")
                   : metadata.f0 === "0" || metadata.f0 === "False" || metadata.f0 === "false"
                     ? t("No")
-                    : metadata.f0 || "—"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Vocoder")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.vocoder && metadata.vocoder !== "None" ? metadata.vocoder : "HiFi-GAN"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Feature Embedder")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.embedder_model && metadata.embedder_model !== "None"
+                    : metadata.f0 || "—"
+              }
+            />
+            <StatTile
+              label={t("Vocoder")}
+              value={metadata.vocoder && metadata.vocoder !== "None" ? metadata.vocoder : "HiFi-GAN"}
+            />
+            <StatTile
+              label={t("Feature Embedder")}
+              value={
+                metadata.embedder_model && metadata.embedder_model !== "None"
                   ? metadata.embedder_model
-                  : "contentvec"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Dataset Slices")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.dataset_length && metadata.dataset_length !== "None"
-                  ? metadata.dataset_length
-                  : "—"}
-              </span>
-            </div>
-
-            <div className="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1">
-              <span className="text-neutral-400 text-xs block">{t("Speakers ID")}</span>
-              <span className="text-sm font-semibold text-white block">
-                {metadata.speakers_id !== undefined ? String(metadata.speakers_id) : "0"}
-              </span>
-            </div>
+                  : "contentvec"
+              }
+            />
+            <StatTile
+              label={t("Dataset Slices")}
+              value={
+                metadata.dataset_length && metadata.dataset_length !== "None" ? metadata.dataset_length : "—"
+              }
+            />
+            <StatTile
+              label={t("Speakers ID")}
+              value={metadata.speakers_id !== undefined ? String(metadata.speakers_id) : "0"}
+            />
           </div>
 
           {/* Model Hash pill */}
@@ -266,6 +241,6 @@ export default function ModelInfoCard({
           </div>
         </>
       )}
-    </div>
+    </section>
   );
 }

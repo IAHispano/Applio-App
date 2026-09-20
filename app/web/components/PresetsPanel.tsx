@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { apiGet, apiSend, errMsg } from "../lib/api";
 import { useI18n } from "../lib/i18n";
 import { toast } from "../lib/toast";
+import { Alert, Card, CardHeader, EmptyState } from "./ui";
 
 interface Preset {
   name: string;
@@ -83,32 +84,34 @@ export default function PresetsPanel() {
   }
 
   return (
-    <div className="card space-y-3">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2">
-          <Bookmark size={18} className="text-white" />
-          <h2 className="text-base font-bold text-white m-0">{t("Presets")}</h2>
-        </div>
-        <button type="button" className="ghost" onClick={refresh}>
-          <RefreshCw size={14} />
-          {t("Refresh Presets")}
-        </button>
-      </div>
-      <p className="muted text-xs m-0">
-        {t("Stored in")} <code>assets/presets/*.json</code>
-        {t(": pitch, search-feature-ratio, volume-envelope, protect.")}
-      </p>
+    <Card as="section" className="space-y-4">
+      <CardHeader
+        icon={<Bookmark size={18} className="text-white" />}
+        title={t("Presets")}
+        description={
+          <span>
+            {t("Stored in")} <code>assets/presets/*.json</code>
+            {t(": pitch, search-feature-ratio, volume-envelope, protect.")}
+          </span>
+        }
+        action={
+          <button type="button" className="ghost" onClick={refresh}>
+            <RefreshCw size={14} />
+            <span>{t("Refresh Presets")}</span>
+          </button>
+        }
+      />
       {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="mb-3 p-3 rounded-lg border border-[var(--err)] text-[var(--err)] bg-[color-mix(in_srgb,var(--err)_10%,transparent)]"
-        >
+        <Alert variant="error" onDismiss={() => setError("")}>
           {error}
-        </div>
+        </Alert>
       )}
       {presets.length === 0 ? (
-        <p className="muted text-[13px] m-0">{t("No presets saved yet.")}</p>
+        <EmptyState
+          icon={<Bookmark size={24} className="text-neutral-500" />}
+          title={t("No presets saved yet.")}
+          description={t("Save your current single conversion settings or import a preset file.")}
+        />
       ) : (
         <div className="preset-grid">
           {presets.map((p) => (
@@ -181,6 +184,6 @@ export default function PresetsPanel() {
           {t("Formant presets in assets/formant_shift:")} {formant.join(", ")}
         </p>
       )}
-    </div>
+    </Card>
   );
 }

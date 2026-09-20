@@ -32,6 +32,7 @@ import { matchIndex } from "../lib/model-index";
 import { useSpeakers } from "../lib/useSpeakers";
 import AudioWavePlayer from "./AudioWavePlayer";
 import type { ModelMetadata } from "./models/ModelInfoCard";
+import { Alert, Badge, Card, CardHeader, ToggleField } from "./ui";
 import AudioDropzone from "./ui/AudioDropzone";
 import CustomSelect from "./ui/CustomSelect";
 import ModelDropdown from "./ui/ModelDropdown";
@@ -411,35 +412,31 @@ export default function InferenceForm() {
   return (
     <form onSubmit={onSubmit} className="space-y-4 w-full max-w-[1920px] mx-auto">
       {loadError && (
-        <div className="card">
+        <Alert variant="warning" className="mb-4">
           <strong className="text-white">{t("API offline.")}</strong>{" "}
           <span className="muted">
             {t("Start it with")} <code>npm run dev</code>. {loadError}
           </span>
-        </div>
+        </Alert>
       )}
 
       {/* Top Grid: Model & Audio Input */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         {/* Voice Model Selector (5 cols, 4 on 2xl) */}
         <div className="lg:col-span-5 2xl:col-span-4 space-y-4 h-full">
-          <div className="card space-y-4 h-full flex flex-col">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Music size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Voice Model")}</h2>
-                </div>
-                {pthPath && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10">
+          <Card className="h-full flex flex-col">
+            <CardHeader
+              icon={<Music size={18} className="text-white" />}
+              title={t("Voice Model")}
+              description={t("Select the target voice checkpoint and paired feature index.")}
+              action={
+                pthPath ? (
+                  <Badge variant="success" size="sm" dot>
                     {t("Ready")}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t("Select the target voice checkpoint and paired feature index.")}
-              </p>
-            </div>
+                  </Badge>
+                ) : undefined
+              }
+            />
 
             {/* Custom Model Dropdown */}
             <ModelDropdown
@@ -489,12 +486,19 @@ export default function InferenceForm() {
                       </span>
                     )}
                   </div>
+                  {inspectMeta?.author && inspectMeta.author !== "None" && (
+                    <span className="text-[11px] text-neutral-300 truncate max-w-[150px]">
+                      {t("by")} <strong className="text-white font-medium">{inspectMeta.author}</strong>
+                    </span>
+                  )}
                 </div>
 
-                <dl className="model-meta">
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5">
                   <div>
-                    <dt>{t("Checkpoint")}</dt>
-                    <dd>{selectedMeta ? humanSize(selectedMeta.pthSize) : fileBasename(pthPath)}</dd>
+                    <dt>{t("Weights")}</dt>
+                    <dd className="text-white font-medium">
+                      {selectedMeta?.pthSize ? humanSize(selectedMeta.pthSize) : "—"}
+                    </dd>
                   </div>
                   <div>
                     <dt>{t("Index")}</dt>
@@ -606,28 +610,24 @@ export default function InferenceForm() {
                 </CustomSelect>
               </div>
             )}
-          </div>
+          </Card>
         </div>
 
         {/* Audio Input & Drag & Drop Zone (7 cols, 8 on 2xl) */}
         <div className="lg:col-span-7 2xl:col-span-8 space-y-4 h-full">
-          <div className="card space-y-4 h-full">
-            <div className="border-b border-white/10 pb-3.5 space-y-1">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AudioWaveform size={18} className="text-white" />
-                  <h2 className="text-base font-bold text-white m-0">{t("Audio Source")}</h2>
-                </div>
-                {(audioFile || inputPath) && (
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 text-white border border-white/10">
+          <Card className="h-full">
+            <CardHeader
+              icon={<AudioWaveform size={18} className="text-white" />}
+              title={t("Audio Source")}
+              description={t("Upload an audio file or select a sample from your library.")}
+              action={
+                audioFile || inputPath ? (
+                  <Badge variant="neutral" size="sm">
                     {audioFile ? t("Uploaded File") : t("Library Sample")}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-                {t("Upload an audio file or select a sample from your library.")}
-              </p>
-            </div>
+                  </Badge>
+                ) : undefined
+              }
+            />
 
             {/* Interactive Drag & Drop + WavePlayer Component */}
             <AudioDropzone
@@ -638,18 +638,17 @@ export default function InferenceForm() {
               onPathSelect={setInputPath}
               disabled={isConverting}
             />
-          </div>
+          </Card>
         </div>
       </div>
 
       {/* Main Conversion Settings Card */}
-      <div className="card space-y-5">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sliders size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Conversion Parameters")}</h2>
-            </div>
+      <Card>
+        <CardHeader
+          icon={<Sliders size={18} className="text-white" />}
+          title={t("Conversion Parameters")}
+          description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
+          action={
             <button
               type="button"
               onClick={() => {
@@ -662,11 +661,8 @@ export default function InferenceForm() {
             >
               {t("Reset defaults")}
             </button>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
-          </p>
-        </div>
+          }
+        />
 
         {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
@@ -846,38 +842,30 @@ export default function InferenceForm() {
             </summary>
             <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={splitAudio}
-                    onChange={(e) => setSplitAudio(e.target.checked)}
-                  />
-                  <span>{t("Split Audio")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={f0Autotune}
-                    onChange={(e) => setF0Autotune(e.target.checked)}
-                  />
-                  <span>{t("Autotune")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={cleanAudio}
-                    onChange={(e) => setCleanAudio(e.target.checked)}
-                  />
-                  <span>{t("Clean Audio")}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={proposedPitch}
-                    onChange={(e) => setProposedPitch(e.target.checked)}
-                  />
-                  <span>{t("Proposed Pitch")}</span>
-                </label>
+                <ToggleField
+                  id="infer-split-audio"
+                  label={t("Split Audio")}
+                  checked={splitAudio}
+                  onChange={setSplitAudio}
+                />
+                <ToggleField
+                  id="infer-autotune"
+                  label={t("Autotune")}
+                  checked={f0Autotune}
+                  onChange={setF0Autotune}
+                />
+                <ToggleField
+                  id="infer-clean-audio"
+                  label={t("Clean Audio")}
+                  checked={cleanAudio}
+                  onChange={setCleanAudio}
+                />
+                <ToggleField
+                  id="infer-proposed-pitch"
+                  label={t("Proposed Pitch")}
+                  checked={proposedPitch}
+                  onChange={setProposedPitch}
+                />
               </div>
 
               {(f0Autotune || cleanAudio || proposedPitch) && (
@@ -934,14 +922,12 @@ export default function InferenceForm() {
               />
             </summary>
             <div className="p-4 border-t border-white/10 space-y-4 bg-black/20">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formantShifting}
-                  onChange={(e) => setFormantShifting(e.target.checked)}
-                />
-                <span className="text-xs font-medium text-white">{t("Enable Formant Shifting")}</span>
-              </label>
+              <ToggleField
+                id="infer-formant-shifting"
+                label={t("Enable Formant Shifting")}
+                checked={formantShifting}
+                onChange={setFormantShifting}
+              />
 
               {formantShifting && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
@@ -1367,10 +1353,10 @@ export default function InferenceForm() {
             </div>
           </details>
         </div>
-      </div>
+      </Card>
 
       {/* Convert Action, Live Progress & WavePlayer Result Card */}
-      <div className="card space-y-4">
+      <Card>
         {/* Action Header: Convert button & Status */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-3">
@@ -1396,13 +1382,16 @@ export default function InferenceForm() {
 
           <div className="flex items-center gap-2">
             {job && (
-              <span className={`badge ${job.status}`} role="status">
+              <Badge
+                variant={job.status === "done" ? "success" : job.status === "error" ? "danger" : "info"}
+                dot
+              >
                 {job.status === "done"
                   ? t("Completed")
                   : job.status === "running"
                     ? t("In Progress")
                     : job.status}
-              </span>
+              </Badge>
             )}
           </div>
         </div>
@@ -1434,22 +1423,10 @@ export default function InferenceForm() {
         )}
 
         {/* Submit or Runtime Error */}
-        {submitError && (
-          <div
-            role="alert"
-            className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-          >
-            {submitError}
-          </div>
-        )}
+        {submitError && <Alert variant="error">{submitError}</Alert>}
 
         {job && job.status === "error" && (
-          <div
-            role="alert"
-            className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-xs"
-          >
-            {job.error || t("Inference job failed.")}
-          </div>
+          <Alert variant="error">{job.error || t("Inference job failed.")}</Alert>
         )}
 
         {/* Converted Audio WavePlayer Result with A/B Track Switching */}
@@ -1468,7 +1445,7 @@ export default function InferenceForm() {
             />
           </div>
         )}
-      </div>
+      </Card>
     </form>
   );
 }

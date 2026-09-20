@@ -4,6 +4,7 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { apiGet, errMsg } from "../lib/api";
 import { useI18n } from "../lib/i18n";
+import { Alert, Badge } from "./ui";
 
 export default function TensorboardPanel() {
   const { t } = useI18n();
@@ -46,17 +47,16 @@ export default function TensorboardPanel() {
   return (
     <div className="space-y-3">
       {error && (
-        <p role="alert" aria-live="assertive" className="text-xs text-red-400">
+        <Alert variant="error" onDismiss={() => setError("")}>
           {error}
-        </p>
+        </Alert>
       )}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRunning ? (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-white/10 text-white border border-white/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-              <span>{`:${tbPort}`}</span>
-            </span>
+            <Badge variant="info" dot size="sm">
+              {`:${tbPort}`}
+            </Badge>
           ) : (
             <span className="text-xs text-neutral-400">{t("Starting background service…")}</span>
           )}

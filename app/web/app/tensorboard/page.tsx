@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
 import { apiGet, apiSend, errMsg } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
+import { Alert, Badge } from "../../components/ui";
 
 export default function TensorboardPage() {
   const { t } = useI18n();
@@ -80,13 +81,12 @@ export default function TensorboardPage() {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {isRunning && (
             <>
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-white/10 text-white border border-white/10">
-                <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
-                <span>{`:${tbPort}`}</span>
-              </span>
+              <Badge variant="info" dot size="sm">
+                {`:${tbPort}`}
+              </Badge>
               <button
                 type="button"
-                className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5"
+                className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 cursor-pointer"
                 onClick={handleReloadIframe}
                 title={t("Reload TensorBoard view")}
               >
@@ -107,7 +107,7 @@ export default function TensorboardPage() {
           )}
           <button
             type="button"
-            className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 text-neutral-400 hover:text-white"
+            className="ghost text-xs py-1.5 px-2.5 flex items-center gap-1.5 text-neutral-400 hover:text-white cursor-pointer"
             onClick={handleRestart}
             disabled={restarting}
             title={t("Restart TensorBoard backend service")}
@@ -119,13 +119,9 @@ export default function TensorboardPage() {
       </div>
 
       {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3 rounded-lg border border-red-500/20 text-red-400 bg-red-500/10 text-xs shrink-0"
-        >
+        <Alert variant="error" onDismiss={() => setError("")} className="shrink-0">
           {error}
-        </div>
+        </Alert>
       )}
 
       <div className="flex-1 min-h-[400px] w-full relative rounded-xl border border-white/10 overflow-hidden bg-black/40">

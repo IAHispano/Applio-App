@@ -3,6 +3,7 @@
 import { ChevronDown, Disc, ListMusic, Play, Radio, Square } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import { Alert, Badge, Card, CardHeader, ToggleField } from "../../components/ui";
 import CustomSelect from "../../components/ui/CustomSelect";
 import ModelDropdown from "../../components/ui/ModelDropdown";
 import SliderField from "../../components/ui/SliderField";
@@ -74,22 +75,10 @@ function Stage({
   children: ReactNode;
 }) {
   return (
-    <section className="card space-y-4" aria-label={`${step}. ${title}`}>
-      <div className="border-b border-white/10 pb-3.5 space-y-1">
-        <div className="flex items-center gap-2.5">
-          <span
-            className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center"
-            aria-hidden="true"
-          >
-            {step}
-          </span>
-          {icon}
-          <h2 className="text-base font-bold text-white m-0">{title}</h2>
-        </div>
-        <p className="text-xs text-neutral-400 m-0 leading-relaxed">{description}</p>
-      </div>
+    <Card as="section" aria-label={`${step}. ${title}`}>
+      <CardHeader step={step} title={title} description={description} icon={icon} />
       <div>{children}</div>
-    </section>
+    </Card>
   );
 }
 
@@ -421,9 +410,9 @@ export default function RealtimePage() {
           "Stream low-latency live microphone audio through voice conversion models in real time.",
         )}
       >
-        <span className={`badge ${engine?.running ? "done" : "queued"}`}>
+        <Badge variant={engine?.running ? "success" : "neutral"} dot>
           {engine?.running ? t("active") : t("stopped")}
-        </span>
+        </Badge>
       </PageHeader>
       <div>
         {msg && (
@@ -865,21 +854,16 @@ export default function RealtimePage() {
               />
             </div>
           </div>
-          <label
-            htmlFor="rt-vad-enabled"
-            className="checkbox-label flex items-center gap-2 cursor-pointer mt-3"
-          >
-            <input
-              id="rt-vad-enabled"
-              type="checkbox"
-              checked={vad}
-              onChange={(e) => {
-                setVad(e.target.checked);
-                if (streaming) changeConfig("vad_enabled", e.target.checked);
-              }}
-            />
-            <span>{t("Enable VAD")}</span>
-          </label>
+          <ToggleField
+            id="rt-vad-enabled"
+            label={t("Enable VAD")}
+            checked={vad}
+            onChange={(checked) => {
+              setVad(checked);
+              if (streaming) changeConfig("vad_enabled", checked);
+            }}
+            className="mt-3"
+          />
         </details>
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
           <div className="flex items-center gap-3">
@@ -911,18 +895,12 @@ export default function RealtimePage() {
         </div>
       </Stage>
 
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Disc size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Record Output")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Records the converted stream server-side via the engine.")}
-          </p>
-        </div>
+      <Card aria-label={t("Record Output")}>
+        <CardHeader
+          icon={<Disc size={18} className="text-white" />}
+          title={t("Record Output")}
+          description={t("Records the converted stream server-side via the engine.")}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
           <div>
             <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
@@ -963,7 +941,7 @@ export default function RealtimePage() {
             <span>{recOn ? t("Stop Recording") : t("Start Recording")}</span>
           </button>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

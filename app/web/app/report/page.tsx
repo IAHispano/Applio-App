@@ -1,8 +1,9 @@
 "use client";
 
-import { Bug, Check, Copy, Cpu, Download, ExternalLink, Video } from "lucide-react";
+import { Bug, Copy, Cpu, Download, ExternalLink, Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "../../components/layout/PageHeader";
+import { Alert, Card, CardHeader, StatTile } from "../../components/ui";
 import { apiGet, apiSend, errMsg, outputUrl } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { toast } from "../../lib/toast";
@@ -89,28 +90,20 @@ export default function ReportPage() {
       />
 
       {msg && (
-        <div
-          role="status"
-          aria-live="polite"
-          className="p-3.5 rounded-xl border border-white/10 text-neutral-300 bg-white/5 text-sm"
-        >
+        <Alert variant="info" onDismiss={() => setMsg("")}>
           {msg}
-        </div>
+        </Alert>
       )}
 
       {/* Guide Card */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Bug size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("How to Report an Issue on GitHub")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Follow these steps to record a reproduction clip and submit a detailed bug report.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Bug size={18} />}
+          title={t("How to Report an Issue on GitHub")}
+          description={t(
+            "Follow these steps to record a reproduction clip and submit a detailed bug report.",
+          )}
+        />
         <ol className="space-y-2 text-xs text-neutral-300 m-0 pl-4 leading-relaxed">
           <li>{t("Click on 'Record Screen' to start recording the issue you are experiencing.")}</li>
           <li>{t("Once you have finished reproducing the issue, click 'Stop Recording'.")}</li>
@@ -147,11 +140,11 @@ export default function ReportPage() {
             </a>
           )}
         </div>
-      </div>
+      </Card>
 
       {clip && (
-        <div className="card space-y-3">
-          {/* biome-ignore lint/performance/noImgElement: user-recorded screen capture has no caption track */}
+        <Card>
+          {/* biome-ignore lint/a11y/useMediaCaption: user-recorded screen capture has no caption track */}
           <video controls src={outputUrl(clip)} className="max-w-full rounded-xl border border-white/10" />
           <div className="flex items-center justify-between">
             <a
@@ -164,18 +157,17 @@ export default function ReportPage() {
             </a>
             <span className="text-xs text-neutral-400">{clip}</span>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Diagnostics Card */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Cpu size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("System Diagnostics")}</h2>
-            </div>
-            {info && (
+      <Card>
+        <CardHeader
+          icon={<Cpu size={18} />}
+          title={t("System Diagnostics")}
+          description={t("Environment details and system specifications to include in your issue report.")}
+          action={
+            info && (
               <button
                 type="button"
                 className="ghost h-8 px-3 rounded-lg text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
@@ -188,38 +180,25 @@ export default function ReportPage() {
                 <Copy size={13} />
                 <span>{t("Copy Diagnostics")}</span>
               </button>
-            )}
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Environment details and system specifications to include in your issue report.")}
-          </p>
-        </div>
+            )
+          }
+        />
 
         {info ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
-              <span className="text-xs text-neutral-400 block">{t("Applio Version")}</span>
-              <span className="text-sm font-semibold text-white block">{info.version}</span>
-            </div>
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
-              <span className="text-xs text-neutral-400 block">{t("Platform")}</span>
-              <span className="text-sm font-semibold text-white block truncate">{info.platform}</span>
-            </div>
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
-              <span className="text-xs text-neutral-400 block">{t("Engine Runtimes")}</span>
-              <span className="text-sm font-semibold text-white block truncate">Node {info.node}</span>
-              <span className="text-[10px] text-neutral-400 block truncate">{info.python}</span>
-            </div>
-            <div className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
-              <span className="text-xs text-neutral-400 block">{t("Compute Resources")}</span>
-              <span className="text-sm font-semibold text-white block">{info.cpus} CPU cores</span>
-              <span className="text-[10px] text-neutral-400 block">{info.totalMemGB} GB RAM</span>
-            </div>
+            <StatTile label={t("Applio Version")} value={info.version} />
+            <StatTile label={t("Platform")} value={info.platform} />
+            <StatTile label={t("Engine Runtimes")} value={`Node ${info.node}`} subtext={info.python} />
+            <StatTile
+              label={t("Compute Resources")}
+              value={`${info.cpus} CPU cores`}
+              subtext={`${info.totalMemGB} GB RAM`}
+            />
           </div>
         ) : (
           <p className="text-xs text-neutral-400 m-0">{t("Collecting system info…")}</p>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

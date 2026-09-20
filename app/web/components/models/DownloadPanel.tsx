@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { apiGet, apiSend, errMsg, postForm } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import JobPanel from "../JobPanel";
+import { Alert, Card, CardHeader, ToggleField } from "../ui";
 import CustomSelect from "../ui/CustomSelect";
 
 export default function DownloadPanel() {
@@ -75,29 +76,17 @@ export default function DownloadPanel() {
 
   return (
     <div className="space-y-4">
-      {error && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="p-3.5 rounded-xl border border-red-500/30 text-red-400 bg-red-500/10 text-sm"
-        >
-          {error}
-        </div>
-      )}
+      {error && <Alert variant="error">{error}</Alert>}
 
       {/* Card 1: Download from URL */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Link2 size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Download from Link")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Paste a model URL (HuggingFace, Google Drive, Mega, or direct zip) to download weights.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Link2 size={18} className="text-white" />}
+          title={t("Download from Link")}
+          description={t(
+            "Paste a model URL (HuggingFace, Google Drive, Mega, or direct zip) to download weights.",
+          )}
+        />
 
         <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
           <label htmlFor="dl-link-input" className="sr-only">
@@ -122,21 +111,15 @@ export default function DownloadPanel() {
         </div>
 
         <JobPanel jobId={linkJob} compact embedded />
-      </div>
+      </Card>
 
       {/* Card 2: Upload Files */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Upload size={18} className="text-white shrink-0" />
-              <h2 className="text-base font-bold text-white m-0">{t("Upload Model Files")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Upload local .pth, .index, or .onnx files directly into your models directory.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Upload size={18} className="text-white shrink-0" />}
+          title={t("Upload Model Files")}
+          description={t("Upload local .pth, .index, or .onnx files directly into your models directory.")}
+        />
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-xl">
           <label htmlFor="dl-file-input" className="sr-only">
@@ -164,21 +147,15 @@ export default function DownloadPanel() {
             {dropMsg}
           </p>
         )}
-      </div>
+      </Card>
 
       {/* Card 3: Pretrained Base Models */}
-      <div className="card space-y-4">
-        <div className="border-b border-white/10 pb-3.5 space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Database size={18} className="text-white" />
-              <h2 className="text-base font-bold text-white m-0">{t("Pretrained Base Models")}</h2>
-            </div>
-          </div>
-          <p className="text-xs text-neutral-400 m-0 leading-relaxed">
-            {t("Download generator and discriminator checkpoints for training custom voices.")}
-          </p>
-        </div>
+      <Card>
+        <CardHeader
+          icon={<Database size={18} className="text-white" />}
+          title={t("Pretrained Base Models")}
+          description={t("Download generator and discriminator checkpoints for training custom voices.")}
+        />
 
         {!custom ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
@@ -230,18 +207,13 @@ export default function DownloadPanel() {
           </div>
         )}
 
-        <label
-          htmlFor="dl-custom-checkbox"
-          className="flex items-center gap-2 cursor-pointer text-sm text-neutral-300"
-        >
-          <input
-            id="dl-custom-checkbox"
-            type="checkbox"
-            checked={custom}
-            onChange={(e) => setCustom(e.target.checked)}
-          />
-          <span>{t("Custom Pretrained URLs")}</span>
-        </label>
+        <ToggleField
+          id="dl-custom-checkbox"
+          label={t("Custom Pretrained URLs")}
+          checked={custom}
+          onChange={setCustom}
+          className="mt-3"
+        />
 
         <div className="pt-3.5 border-t border-white/5 flex justify-end">
           <button
@@ -255,7 +227,7 @@ export default function DownloadPanel() {
         </div>
 
         <JobPanel jobId={preJob} embedded />
-      </div>
+      </Card>
     </div>
   );
 }

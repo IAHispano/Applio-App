@@ -6,6 +6,7 @@ import { useI18n } from "../lib/i18n";
 import { useJob } from "../lib/useJob";
 import AudioWavePlayer from "./AudioWavePlayer";
 import { JobBadge, JobCancelButton, JobError, JobProgress } from "./JobStatus";
+import { Alert, Card } from "./ui";
 
 export interface JobPanelProps {
   jobId: string | null;
@@ -22,21 +23,20 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
   if (!jobId) return null;
   if (error) {
     return (
-      <div
-        role="alert"
-        className={`p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs ${
-          embedded ? "mt-3" : ""
-        }`}
-      >
+      <Alert variant="error" className={embedded ? "mt-3" : ""}>
         {error}
-      </div>
+      </Alert>
     );
   }
   if (!job) {
-    return (
-      <div className={embedded ? "pt-3 mt-3 border-t border-white/10" : "card p-4"}>
+    return embedded ? (
+      <div className="pt-3 mt-3 border-t border-white/10">
         <p className="text-xs text-neutral-400 m-0">{t("Loading activity…")}</p>
       </div>
+    ) : (
+      <Card className="p-4">
+        <p className="text-xs text-neutral-400 m-0">{t("Loading activity…")}</p>
+      </Card>
     );
   }
 
@@ -62,12 +62,8 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
   const resultMsg = typeof job.result?.message === "string" ? job.result.message : null;
   const resultInfo = typeof job.result?.info === "string" ? job.result.info : null;
 
-  const containerClasses = embedded
-    ? "space-y-3 pt-3.5 mt-3.5 border-t border-white/10 animate-in fade-in duration-200"
-    : "card space-y-3 animate-in fade-in duration-200";
-
-  return (
-    <section className={containerClasses} aria-label={t("Task Activity")}>
+  const content = (
+    <>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <JobBadge status={job.status} />
@@ -166,6 +162,19 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
           </div>
         </details>
       )}
+    </>
+  );
+
+  return embedded ? (
+    <section
+      className="space-y-3 pt-3.5 mt-3.5 border-t border-white/10 animate-in fade-in duration-200"
+      aria-label={t("Task Activity")}
+    >
+      {content}
     </section>
+  ) : (
+    <Card as="section" className="space-y-3 animate-in fade-in duration-200" aria-label={t("Task Activity")}>
+      {content}
+    </Card>
   );
 }

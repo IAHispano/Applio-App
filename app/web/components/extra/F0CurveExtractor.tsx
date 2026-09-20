@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "../../lib/api";
 import { useI18n } from "../../lib/i18n";
 import { useJob } from "../../lib/useJob";
-import SegmentedControl from "../ui/SegmentedControl";
+import { IconButton, SegmentedControl, StatTile } from "../ui";
 
 interface F0CurveExtractorProps {
   file: File | null;
@@ -165,21 +165,13 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
             </a>
           )}
 
-          <button
-            type="button"
+          <IconButton
             onClick={handleManualRefresh}
-            disabled={!hasAudio || isRunning}
-            title={t("Re-extract pitch curve")}
-            className="ghost icon-btn h-7 w-7 rounded-lg text-neutral-300 hover:text-white"
-            aria-label={t("Re-extract")}
-            style={{ padding: 0 }}
-          >
-            <RefreshCw
-              size={14}
-              strokeWidth={2.2}
-              className={`shrink-0 ${isRunning ? "animate-spin" : ""}`}
-            />
-          </button>
+            disabled={!hasAudio}
+            loading={isRunning}
+            label={t("Re-extract pitch curve")}
+            icon={<RefreshCw size={14} strokeWidth={2.2} className="shrink-0" />}
+          />
         </div>
       </div>
 
@@ -247,25 +239,16 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
 
       {/* Stats Grid matching NativeAnalyzer */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-        <div className="rounded-xl bg-black/30 border border-white/5 px-3 py-2">
-          <p className="text-[10px] text-neutral-500 m-0">{t("Method")}</p>
-          <p className="text-xs text-white font-medium m-0 tabular-nums uppercase">{method}</p>
-        </div>
-        <div className="rounded-xl bg-black/30 border border-white/5 px-3 py-2">
-          <p className="text-[10px] text-neutral-500 m-0">{t("Status")}</p>
-          <p className="text-xs text-white font-medium m-0 tabular-nums">
-            {isRunning ? t("Extracting…") : plotUrl ? t("Ready") : t("Idle")}
-          </p>
-        </div>
-        <div className="rounded-xl bg-black/30 border border-white/5 px-3 py-2">
-          <p className="text-[10px] text-neutral-500 m-0">{t("CSV Curve")}</p>
-          <p
-            className="text-xs text-white font-medium m-0 tabular-nums truncate"
-            title={curveFile ? fileBasename(curveFile) : "–"}
-          >
-            {curveFile ? t("Available") : "–"}
-          </p>
-        </div>
+        <StatTile label={t("Method")} value={method.toUpperCase()} />
+        <StatTile
+          label={t("Status")}
+          value={isRunning ? t("Extracting…") : plotUrl ? t("Ready") : t("Idle")}
+        />
+        <StatTile
+          label={t("CSV Curve")}
+          value={curveFile ? t("Available") : "–"}
+          title={curveFile ? fileBasename(curveFile) : "–"}
+        />
       </div>
     </div>
   );
