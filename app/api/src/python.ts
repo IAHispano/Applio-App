@@ -150,8 +150,14 @@ export function getPythonGuiBin(): string {
 // PyTorch MPS needs fallback enabled and the memory high-watermark
 // disabled, otherwise inference crashes on unsupported ops. ??= respects
 // values the user already exported.
+//
+// PYTHONUNBUFFERED is critical: piped stdout is block-buffered by default,
+// so epoch/progress print() lines would sit in the buffer for minutes and
+// the UI consoles would look dead (then burst). Unbuffered keeps every
+// spawned tool's logs live.
 export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
   const env: NodeJS.ProcessEnv = { ...process.env, PYTHONIOENCODING: "utf-8", ...extra };
+  env.PYTHONUNBUFFERED ??= "1";
   if (process.platform === "darwin") {
     env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
     env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";

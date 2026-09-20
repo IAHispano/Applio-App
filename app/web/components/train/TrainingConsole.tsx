@@ -13,6 +13,7 @@ import {
   Download,
   Flame,
   Layers,
+  Loader2,
   Pause,
   Play,
   RotateCcw,
@@ -25,6 +26,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { eventText, parseConsoleEvents } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import { errMsg, type Job, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -169,34 +171,40 @@ export default function TrainingConsole({
     return { currentEpoch, currentStep, loss, activePhase };
   }, [cleanedLogs, job?.status]);
 
-  const displayedLogs = useMemo(() => {
-    return cleanedLogs.filter((line) => {
-      if (level === "epochs" && !line.includes("epoch=") && !line.includes("epoch:")) {
+  const displayedEvents = useMemo(() => {
+    const terminal = job?.status === "done" || job?.status === "error";
+    const events = parseConsoleEvents(cleanedLogs, terminal);
+    const q = filterText.trim().toLowerCase();
+    return events.filter((ev) => {
+      const text = eventText(ev);
+      const lower = text.toLowerCase();
+      if (level === "epochs" && !lower.includes("epoch=") && !lower.includes("epoch:")) {
         return false;
       }
       if (
         level === "checkpoints" &&
-        !line.toLowerCase().includes("save") &&
-        !line.toLowerCase().includes("checkpoint") &&
-        !line.toLowerCase().includes(".pth")
+        !lower.includes("save") &&
+        !lower.includes("checkpoint") &&
+        !lower.includes(".pth")
       ) {
         return false;
       }
       if (
         level === "errors" &&
-        !line.toLowerCase().includes("error") &&
-        !line.toLowerCase().includes("fail") &&
-        !line.toLowerCase().includes("exception")
+        ev.kind !== "error" &&
+        !lower.includes("error") &&
+        !lower.includes("fail") &&
+        !lower.includes("exception")
       ) {
         return false;
       }
       // Text filter
-      if (filterText && !line.toLowerCase().includes(filterText.toLowerCase())) {
+      if (q && !lower.includes(q)) {
         return false;
       }
       return true;
     });
-  }, [cleanedLogs, level, filterText]);
+  }, [cleanedLogs, level, filterText, job?.status]);
 
   // Auto-scroll effect
   // biome-ignore lint/correctness/useExhaustiveDependencies: autoScroll toggle + new log updates
@@ -204,7 +212,7 @@ export default function TrainingConsole({
     if (autoScroll && logContainerRef.current) {
       logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
     }
-  }, [displayedLogs, autoScroll]);
+  }, [displayedEvents, autoScroll]);
 
   if (!jobId) return null;
 
@@ -462,7 +470,7 @@ export default function TrainingConsole({
             <div className="flex items-center gap-1.5">
               <Terminal size={14} className="text-white" />
               <span className="font-semibold text-white">{t("Activity Log")}</span>
-              <span className="text-[11px] text-neutral-400">({displayedLogs.length} events)</span>
+              <span className="text-[11px] text-neutral-400">({displayedEvents.length} events)</span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -530,45 +538,142 @@ export default function TrainingConsole({
           {/* Console Output Window */}
           <div
             ref={logContainerRef}
-            className="h-64 sm:h-72 overflow-y-auto rounded-xl bg-black/60 border border-white/10 p-3 space-y-1 text-xs text-neutral-300 select-text"
+            className="h-64 sm:h-72 overflow-y-auto rounded-xl bg-black/60 border border-white/10 p-3 space-y-2 text-xs select-text"
             role="log"
             aria-live="polite"
           >
-            {displayedLogs.length === 0 ? (
+            {displayedEvents.length === 0 ? (
               <p className="text-neutral-400 text-xs italic m-0 p-2">
                 {job?.status === "queued"
                   ? t("Queued for training execution…")
                   : t("Waiting for activity stream…")}
               </p>
             ) : (
-              displayedLogs.map((line, idx) => {
-                const isEpoch = line.includes("epoch=") || line.includes("epoch:");
-                const isSave =
-                  line.toLowerCase().includes("save") ||
-                  line.toLowerCase().includes("checkpoint") ||
-                  line.toLowerCase().includes(".pth");
-                const isErr =
-                  line.toLowerCase().includes("error") ||
-                  line.toLowerCase().includes("fail") ||
-                  line.toLowerCase().includes("traceback");
-
+              displayedEvents.map((ev) => {
+                if (ev.kind === "phase") {
+                  return (
+                    <div key={ev.key} className="flex items-center gap-2.5 pt-1">
+                      <span className="w-5 h-5 rounded-md bg-white text-black text-[10px] font-bold flex items-center justify-center shrink-0">
+                        {ev.index}
+                      </span>
+                      <span className="text-xs font-semibold text-white truncate">{ev.title}</span>
+                      <span className="text-[10px] text-neutral-500 tabular-nums shrink-0">
+                        {ev.index}/{ev.total}
+                      </span>
+                      <span className="flex-1 h-px bg-white/10" aria-hidden="true" />
+                    </div>
+                  );
+                }
+                if (ev.kind === "progress") {
+                  return (
+                    <div key={ev.key} className="space-y-1 pl-[30px]">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="text-neutral-300 font-medium truncate">
+                          {ev.phase || t("Working…")}
+                        </span>
+                        <span className="text-neutral-400 tabular-nums shrink-0">{ev.percent}%</span>
+                      </div>
+                      <div
+                        className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={ev.percent}
+                        aria-label={ev.phase || "Progress"}
+                      >
+                        <div
+                          className="h-full bg-white rounded-full transition-all duration-300"
+                          style={{ width: `${ev.percent}%` }}
+                        />
+                      </div>
+                      {ev.detail && (
+                        <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
+                      )}
+                    </div>
+                  );
+                }
+                if (ev.kind === "task") {
+                  const runningTask = ev.status === "running";
+                  return (
+                    <div key={ev.key} className="space-y-1 pl-[30px]">
+                      <div className="flex items-center justify-between gap-2 text-[11px]">
+                        <span className="flex items-center gap-1.5 text-neutral-200 font-medium truncate min-w-0">
+                          {runningTask ? (
+                            <Loader2 size={12} className="animate-spin text-neutral-300 shrink-0" />
+                          ) : (
+                            <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
+                          )}
+                          <span className="truncate">{ev.title}</span>
+                        </span>
+                        <span className="text-neutral-400 tabular-nums shrink-0">
+                          {ev.duration ?? (ev.percent !== null ? `${ev.percent}%` : "")}
+                        </span>
+                      </div>
+                      {ev.meta && (
+                        <p className="text-[10px] text-neutral-500 m-0 truncate">{ev.meta}</p>
+                      )}
+                      <div
+                        className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-valuenow={ev.percent ?? (runningTask ? undefined : 100)}
+                        aria-label={ev.title}
+                      >
+                        {ev.percent !== null ? (
+                          <div
+                            className="h-full bg-white rounded-full transition-all duration-300"
+                            style={{ width: `${ev.percent}%` }}
+                          />
+                        ) : (
+                          <div className="h-full w-1/3 bg-white/70 rounded-full animate-pulse" />
+                        )}
+                      </div>
+                      {ev.detail && (
+                        <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
+                      )}
+                    </div>
+                  );
+                }
+                if (ev.kind === "error") {
+                  return (
+                    <div
+                      key={ev.key}
+                      className="flex items-start gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/25"
+                    >
+                      <AlertCircle size={13} className="text-red-400 shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        {ev.lines.map((l) => (
+                          <p
+                            key={l.key}
+                            className="text-[11px] text-red-300 m-0 leading-relaxed break-words"
+                          >
+                            {l.text}
+                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
                 return (
-                  <div
-                    key={`${idx}-${line.slice(0, 20)}`}
-                    className={`leading-relaxed break-words py-0.5 flex items-start gap-2 ${
-                      isErr
-                        ? "text-red-400 font-medium"
-                        : isSave
-                          ? "text-neutral-100 font-semibold bg-white/5 px-2 rounded"
-                          : isEpoch
-                            ? "text-white"
+                  <div key={ev.key} className="flex items-start gap-2 py-0.5">
+                    <span
+                      className={`mt-[7px] w-1 h-1 rounded-full shrink-0 ${
+                        ev.tone === "success" ? "bg-emerald-400" : "bg-neutral-600"
+                      }`}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={`flex-1 leading-relaxed break-words ${
+                        ev.tone === "success"
+                          ? "text-neutral-100 font-medium"
+                          : ev.tone === "muted"
+                            ? "text-neutral-500"
                             : "text-neutral-300"
-                    }`}
-                  >
-                    <span className="text-[10px] text-neutral-400 select-none shrink-0 w-7 text-right">
-                      {idx + 1}
+                      }`}
+                    >
+                      {ev.text}
                     </span>
-                    <span className="flex-1">{line}</span>
                   </div>
                 );
               })

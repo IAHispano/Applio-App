@@ -463,12 +463,10 @@ router.post("/train", (req: Request, res: Response) => {
     setRunning(job);
     try {
       const trainArgs = buildTrainArgs(p);
-      appendLog(job, `$ python ${trainArgs.join(" ")}`);
       await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
       if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
         appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
         const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-        appendLog(job, `$ python ${indexArgs.join(" ")}`);
         await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
       }
       setDone(job, { message: `Model ${p.modelName} trained successfully.` });
@@ -579,30 +577,24 @@ router.post("/pipeline", (req: Request, res: Response) => {
     setRunning(job);
     const aborted = () => getJob(job.id)?.status !== "running";
     try {
-      appendLog(job, `=== Starting 1-Click Training Pipeline for model '${p.modelName}' ===`);
-
       appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
       const prepArgs = buildPreprocessArgs({ ...p, datasetPath: ds });
-      appendLog(job, `$ python ${prepArgs.join(" ")}`);
       await runJobStep(job, prepArgs, `Model ${p.modelName} preprocessed successfully.`, "Preprocess");
       if (aborted()) return;
 
       appendLog(job, "\n>>> [2/4] Extracting Features...");
       const extractArgs = buildExtractArgs(p);
-      appendLog(job, `$ python ${extractArgs.join(" ")}`);
       await runJobStep(job, extractArgs, `Model ${p.modelName} extracted successfully.`, "Extract");
       if (aborted()) return;
 
       appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
       const trainArgs = buildTrainArgs(p);
-      appendLog(job, `$ python ${trainArgs.join(" ")}`);
       await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
       if (aborted()) return;
 
       if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
         appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
         const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-        appendLog(job, `$ python ${indexArgs.join(" ")}`);
         await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
         if (aborted()) return;
       }
@@ -615,7 +607,6 @@ router.post("/pipeline", (req: Request, res: Response) => {
 
       const pthRel = `logs/${p.modelName}/${p.modelName}.pth`;
       if (aborted()) return;
-      appendLog(job, `\n=== Pipeline Complete! Model saved at ${pthRel} ===`);
       setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
     } catch (err) {
       trackPid(job.id, undefined);
