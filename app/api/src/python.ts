@@ -103,15 +103,20 @@ export function getPythonBin(): string {
       ensureWindowsRealPythonSync(path.join(root, sub));
     }
     const venvCandidates = [
-      path.join(root, ".venv", "Scripts", "python.real.exe"),
+      // NOTE: prefer python.exe over python.real.exe. ensureWindowsRealPythonSync
+      // keeps python.exe synced to the real binary, and multiprocessing on
+      // Windows relaunches sys._base_executable (derived from the exe
+      // basename): renamed copies like python.real.exe resolve to a
+      // non-existent base path and child spawning fails with FileNotFoundError.
       path.join(root, ".venv", "Scripts", "python.exe"),
       path.join(root, ".venv", "Scripts", "pythonw.exe"),
-      path.join(root, "venv", "Scripts", "python.real.exe"),
+      path.join(root, ".venv", "Scripts", "python.real.exe"),
       path.join(root, "venv", "Scripts", "python.exe"),
       path.join(root, "venv", "Scripts", "pythonw.exe"),
-      path.join(root, "env", "Scripts", "python.real.exe"),
+      path.join(root, "venv", "Scripts", "python.real.exe"),
       path.join(root, "env", "Scripts", "python.exe"),
       path.join(root, "env", "Scripts", "pythonw.exe"),
+      path.join(root, "env", "Scripts", "python.real.exe"),
     ];
     for (const candidate of venvCandidates) {
       if (fs.existsSync(candidate)) return candidate;
