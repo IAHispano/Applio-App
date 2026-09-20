@@ -22,6 +22,7 @@ def _engine():
 
     return OUTPUT_MODELS_DIRNAME, separate_stems
 
+
 logging.basicConfig(level=logging.INFO, format="[uvr] %(message)s")
 
 
@@ -30,26 +31,56 @@ def main():
 
     parser = argparse.ArgumentParser(description="Applio UVR stem separator")
     parser.add_argument("--input-path", default=None, help="Input audio file")
-    parser.add_argument("--model", default=None, help="UVR model key or weight filename")
-    parser.add_argument("--output-dir", default=None, help="Directory for stems (defaults to outputs dir)")
-    parser.add_argument("--output-format", default="wav", choices=["wav", "flac", "mp3"], help="Stem file format")
-    parser.add_argument("--device", default="auto", help="Compute device: 'auto', 'cpu' or a CUDA index")
-    parser.add_argument("--single-stem", default="all", help="Write only this stem, or 'all'")
-    parser.add_argument("--vr-aggression", type=int, default=None, help="VR extraction intensity 1-20")
+    parser.add_argument(
+        "--model", default=None, help="UVR model key or weight filename"
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Directory for stems (defaults to outputs dir)",
+    )
+    parser.add_argument(
+        "--output-format",
+        default="wav",
+        choices=["wav", "flac", "mp3"],
+        help="Stem file format",
+    )
+    parser.add_argument(
+        "--device", default="auto", help="Compute device: 'auto', 'cpu' or a CUDA index"
+    )
+    parser.add_argument(
+        "--single-stem", default="all", help="Write only this stem, or 'all'"
+    )
+    parser.add_argument(
+        "--vr-aggression", type=int, default=None, help="VR extraction intensity 1-20"
+    )
     parser.add_argument("--vr-window", type=int, default=None, help="VR window size")
     parser.add_argument("--vr-batch", type=int, default=None, help="VR batch size")
-    parser.add_argument("--mdx-segment", type=int, default=None, help="MDX segment size")
-    parser.add_argument("--mdx-overlap", type=float, default=None, help="MDX window overlap 0-0.99")
+    parser.add_argument(
+        "--mdx-segment", type=int, default=None, help="MDX segment size"
+    )
+    parser.add_argument(
+        "--mdx-overlap", type=float, default=None, help="MDX window overlap 0-0.99"
+    )
     parser.add_argument("--mdx-batch", type=int, default=None, help="MDX batch size")
-    parser.add_argument("--list-models", action="store_true", help="Print the model catalog as JSON and exit")
+    parser.add_argument(
+        "--list-models",
+        action="store_true",
+        help="Print the model catalog as JSON and exit",
+    )
     args = parser.parse_args()
 
     if args.list_models:
-        print("APPLIO_JSON:" + json.dumps({"models": [m.to_dict() for m in catalog.MODELS]}))
+        print(
+            "APPLIO_JSON:"
+            + json.dumps({"models": [m.to_dict() for m in catalog.MODELS]})
+        )
         return
 
     if not args.input_path or not args.model:
-        parser.error("--input-path and --model are required unless --list-models is used")
+        parser.error(
+            "--input-path and --model are required unless --list-models is used"
+        )
 
     repo_root = os.getcwd()
     output_dir = args.output_dir or os.path.join(repo_root, "assets", "audios", "uvr")
@@ -72,9 +103,17 @@ def main():
     else:
         parser.error("--device must be 'auto', 'cpu' or a CUDA index")
     if resolved.arch == "vr":
-        overrides = {"aggression": args.vr_aggression, "window_size": args.vr_window, "batch_size": args.vr_batch}
+        overrides = {
+            "aggression": args.vr_aggression,
+            "window_size": args.vr_window,
+            "batch_size": args.vr_batch,
+        }
     elif resolved.arch == "mdx":
-        overrides = {"segment_size": args.mdx_segment, "overlap": args.mdx_overlap, "batch_size": args.mdx_batch}
+        overrides = {
+            "segment_size": args.mdx_segment,
+            "overlap": args.mdx_overlap,
+            "batch_size": args.mdx_batch,
+        }
     else:
         overrides = {}
     stems = separate_stems(
@@ -88,7 +127,10 @@ def main():
         arch_overrides=overrides,
         logger=logging.getLogger("uvr"),
     )
-    rel = {name: os.path.relpath(path, repo_root).replace("\\", "/") for name, path in stems.items()}
+    rel = {
+        name: os.path.relpath(path, repo_root).replace("\\", "/")
+        for name, path in stems.items()
+    }
     lowered = {name.lower(): path for name, path in rel.items()}
     want = (resolved.target or "").lower()
     primary = lowered.get(want, next(iter(rel.values()), None))

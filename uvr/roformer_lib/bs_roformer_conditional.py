@@ -20,6 +20,7 @@ from einops.layers.torch import Rearrange
 
 # helper functions
 
+
 def exists(val):
     return val is not None
 
@@ -38,14 +39,15 @@ def unpack_one(t, ps, pattern):
 
 # norm
 
+
 def l2norm(t):
-    return F.normalize(t, dim = -1, p = 2)
+    return F.normalize(t, dim=-1, p=2)
 
 
 class RMSNorm(Module):
     def __init__(self, dim):
         super().__init__()
-        self.scale = dim ** 0.5
+        self.scale = dim**0.5
         self.gamma = nn.Parameter(torch.ones(dim))
 
     def forward(self, x):
@@ -54,13 +56,9 @@ class RMSNorm(Module):
 
 # attention
 
+
 class FeedForward(Module):
-    def __init__(
-            self,
-            dim,
-            mult=4,
-            dropout=0.
-    ):
+    def __init__(self, dim, mult=4, dropout=0.0):
         super().__init__()
         dim_inner = int(dim * mult)
         self.net = nn.Sequential(
@@ -69,7 +67,7 @@ class FeedForward(Module):
             nn.GELU(),
             nn.Dropout(dropout),
             nn.Linear(dim_inner, dim),
-            nn.Dropout(dropout)
+            nn.Dropout(dropout),
         )
 
     def forward(self, x):
@@ -78,17 +76,17 @@ class FeedForward(Module):
 
 class Attention(Module):
     def __init__(
-            self,
-            dim,
-            heads=8,
-            dim_head=64,
-            dropout=0.,
-            rotary_embed=None,
-            flash=True,
+        self,
+        dim,
+        heads=8,
+        dim_head=64,
+        dropout=0.0,
+        rotary_embed=None,
+        flash=True,
     ):
         super().__init__()
         self.heads = heads
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         dim_inner = heads * dim_head
 
         self.rotary_embed = rotary_embed
@@ -101,14 +99,15 @@ class Attention(Module):
         self.to_gates = nn.Linear(dim, heads)
 
         self.to_out = nn.Sequential(
-            nn.Linear(dim_inner, dim, bias=False),
-            nn.Dropout(dropout)
+            nn.Linear(dim_inner, dim, bias=False), nn.Dropout(dropout)
         )
 
     def forward(self, x):
         x = self.norm(x)
 
-        q, k, v = rearrange(self.to_qkv(x), 'b n (qkv h d) -> qkv b h n d', qkv=3, h=self.heads)
+        q, k, v = rearrange(
+            self.to_qkv(x), "b n (qkv h d) -> qkv b h n d", qkv=3, h=self.heads
+        )
 
         if exists(self.rotary_embed):
             q = self.rotary_embed.rotate_queries_or_keys(q)
@@ -117,9 +116,9 @@ class Attention(Module):
         out = self.attend(q, k, v)
 
         gates = self.to_gates(x)
-        out = out * rearrange(gates, 'b n h -> b h n 1').sigmoid()
+        out = out * rearrange(gates, "b n h -> b h n 1").sigmoid()
 
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, "b h n d -> b n (h d)")
         return self.to_out(out)
 
 
@@ -130,14 +129,14 @@ class LinearAttention(Module):
 
     @beartype
     def __init__(
-            self,
-            *,
-            dim,
-            dim_head=32,
-            heads=8,
-            scale=8,
-            flash=True,
-            dropout=0.,
+        self,
+        *,
+        dim,
+        dim_head=32,
+        heads=8,
+        scale=8,
+        flash=True,
+        dropout=0.0,
     ):
         super().__init__()
         dim_inner = dim_head * heads
@@ -145,26 +144,18 @@ class LinearAttention(Module):
 
         self.to_qkv = nn.Sequential(
             nn.Linear(dim, dim_inner * 3, bias=False),
-            Rearrange('b n (qkv h d) -> qkv b h d n', qkv=3, h=heads)
+            Rearrange("b n (qkv h d) -> qkv b h d n", qkv=3, h=heads),
         )
 
         self.temperature = nn.Parameter(torch.ones(heads, 1, 1))
 
-        self.attend = Attend(
-            scale=scale,
-            dropout=dropout,
-            flash=flash
-        )
+        self.attend = Attend(scale=scale, dropout=dropout, flash=flash)
 
         self.to_out = nn.Sequential(
-            Rearrange('b h d n -> b n (h d)'),
-            nn.Linear(dim_inner, dim, bias=False)
+            Rearrange("b h d n -> b n (h d)"), nn.Linear(dim_inner, dim, bias=False)
         )
 
-    def forward(
-            self,
-            x
-    ):
+    def forward(self, x):
         x = self.norm(x)
 
         q, k, v = self.to_qkv(x)
@@ -179,19 +170,19 @@ class LinearAttention(Module):
 
 class Transformer(Module):
     def __init__(
-            self,
-            *,
-            dim,
-            depth,
-            dim_head=64,
-            heads=8,
-            attn_dropout=0.,
-            ff_dropout=0.,
-            ff_mult=4,
-            norm_output=True,
-            rotary_embed=None,
-            flash_attn=True,
-            linear_attn=False,
+        self,
+        *,
+        dim,
+        depth,
+        dim_head=64,
+        heads=8,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        ff_mult=4,
+        norm_output=True,
+        rotary_embed=None,
+        flash_attn=True,
+        linear_attn=False,
     ):
         super().__init__()
         self.layers = ModuleList([])
@@ -215,10 +206,11 @@ class Transformer(Module):
                     flash=flash_attn,
                 )
 
-            self.layers.append(ModuleList([
-                attn,
-                FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
-            ]))
+            self.layers.append(
+                ModuleList(
+                    [attn, FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)]
+                )
+            )
 
         self.norm = RMSNorm(dim) if norm_output else nn.Identity()
 
@@ -231,32 +223,31 @@ class Transformer(Module):
         return self.norm(x)
 
 
-                
 def modulate(x, shift, scale):
     return x * (1 + scale.unsqueeze(1)) + shift.unsqueeze(1)
 
+
 class ScaleTransformer(Module):
     def __init__(
-            self,
-            *,
-            dim,
-            depth,
-            dim_head=64,
-            heads=8,
-            attn_dropout=0.,
-            ff_dropout=0.,
-            ff_mult=4,
-            norm_output=True,
-            rotary_embed=None,
-            flash_attn=True,
-            linear_attn=False,
+        self,
+        *,
+        dim,
+        depth,
+        dim_head=64,
+        heads=8,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        ff_mult=4,
+        norm_output=True,
+        rotary_embed=None,
+        flash_attn=True,
+        linear_attn=False,
     ):
         super().__init__()
         self.layers = ModuleList([])
-        self.adaLN_modulations = nn.ModuleList([]) 
+        self.adaLN_modulations = nn.ModuleList([])
         self.norm = RMSNorm(dim) if norm_output else nn.Identity()
 
-        
         for _ in range(depth):
             norm1 = nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
             if linear_attn:
@@ -278,30 +269,38 @@ class ScaleTransformer(Module):
                 )
 
             norm2 = nn.LayerNorm(dim, elementwise_affine=False, eps=1e-6)
-            self.layers.append(ModuleList([
-                norm1,
-                attn,
-                norm2,
-                FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
-            ]))
-            
+            self.layers.append(
+                ModuleList(
+                    [
+                        norm1,
+                        attn,
+                        norm2,
+                        FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout),
+                    ]
+                )
+            )
+
             ada = nn.Sequential(
                 nn.SELU(),
                 nn.Linear(dim, 6 * dim, bias=True),
             )
             self.adaLN_modulations.append(ada)
         self.init_weights()
-            
+
     def forward(self, x, band_embedding):
         # x: (b*f, t, d)
         # band_embedding: (b*f, d)
         for (norm1, attn, norm2, ff), ada in zip(self.layers, self.adaLN_modulations):
             shift_scale = ada(band_embedding)
-            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = shift_scale.chunk(6, dim=-1)
-            x = x + attn(modulate(norm1(x), shift_msa, scale_msa)) * gate_msa.unsqueeze(1)
+            shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
+                shift_scale.chunk(6, dim=-1)
+            )
+            x = x + attn(modulate(norm1(x), shift_msa, scale_msa)) * gate_msa.unsqueeze(
+                1
+            )
             x = x + ff(modulate(norm2(x), shift_mlp, scale_mlp)) * gate_mlp.unsqueeze(1)
         return self.norm(x)
-    
+
     def init_weights(self):
         """Initialize only adaLN_modulations."""
         GATE_BIAS_INIT = 1.0  # sigmoid(1.0)≈0.73
@@ -314,24 +313,25 @@ class ScaleTransformer(Module):
 
             with torch.no_grad():
                 D = linear.bias.shape[0] // 6
-                linear.bias[2*D:3*D].fill_(GATE_BIAS_INIT)  # gate_msa
-                linear.bias[5*D:6*D].fill_(GATE_BIAS_INIT)  # gate_mlp
+                linear.bias[2 * D : 3 * D].fill_(GATE_BIAS_INIT)  # gate_msa
+                linear.bias[5 * D : 6 * D].fill_(GATE_BIAS_INIT)  # gate_mlp
+
 
 class Transformer(Module):
     def __init__(
-            self,
-            *,
-            dim,
-            depth,
-            dim_head=64,
-            heads=8,
-            attn_dropout=0.,
-            ff_dropout=0.,
-            ff_mult=4,
-            norm_output=True,
-            rotary_embed=None,
-            flash_attn=True,
-            linear_attn=False,
+        self,
+        *,
+        dim,
+        depth,
+        dim_head=64,
+        heads=8,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        ff_mult=4,
+        norm_output=True,
+        rotary_embed=None,
+        flash_attn=True,
+        linear_attn=False,
     ):
         super().__init__()
         self.layers = ModuleList([])
@@ -355,10 +355,11 @@ class Transformer(Module):
                     flash=flash_attn,
                 )
 
-            self.layers.append(ModuleList([
-                attn,
-                FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)
-            ]))
+            self.layers.append(
+                ModuleList(
+                    [attn, FeedForward(dim=dim, mult=ff_mult, dropout=ff_dropout)]
+                )
+            )
 
         self.norm = RMSNorm(dim) if norm_output else nn.Identity()
 
@@ -373,22 +374,16 @@ class Transformer(Module):
 
 # bandsplit module
 
+
 class BandSplit(Module):
     @beartype
-    def __init__(
-            self,
-            dim,
-            dim_inputs: Tuple[int, ...]
-    ):
+    def __init__(self, dim, dim_inputs: Tuple[int, ...]):
         super().__init__()
         self.dim_inputs = dim_inputs
         self.to_features = ModuleList([])
 
         for dim_in in dim_inputs:
-            net = nn.Sequential(
-                RMSNorm(dim_in),
-                nn.Linear(dim_in, dim)
-            )
+            net = nn.Sequential(RMSNorm(dim_in), nn.Linear(dim_in, dim))
 
             self.to_features.append(net)
 
@@ -403,13 +398,7 @@ class BandSplit(Module):
         return torch.stack(outs, dim=-2)
 
 
-def MLP(
-        dim_in,
-        dim_out,
-        dim_hidden=None,
-        depth=1,
-        activation=nn.Tanh
-):
+def MLP(dim_in, dim_out, dim_hidden=None, depth=1, activation=nn.Tanh):
     dim_hidden = default(dim_hidden, dim_in)
 
     net = []
@@ -430,13 +419,7 @@ def MLP(
 
 class MaskEstimator(Module):
     @beartype
-    def __init__(
-            self,
-            dim,
-            dim_inputs: Tuple[int, ...],
-            depth,
-            mlp_expansion_factor=4
-    ):
+    def __init__(self, dim, dim_inputs: Tuple[int, ...], depth, mlp_expansion_factor=4):
         super().__init__()
         self.dim_inputs = dim_inputs
         self.to_freqs = ModuleList([])
@@ -446,8 +429,7 @@ class MaskEstimator(Module):
             net = []
 
             mlp = nn.Sequential(
-                MLP(dim, dim_in * 2, dim_hidden=dim_hidden, depth=depth),
-                nn.GLU(dim=-1)
+                MLP(dim, dim_in * 2, dim_hidden=dim_hidden, depth=depth), nn.GLU(dim=-1)
             )
 
             self.to_freqs.append(mlp)
@@ -467,14 +449,68 @@ class MaskEstimator(Module):
 # main class
 
 DEFAULT_FREQS_PER_BANDS = (
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-    2, 2, 2, 2,
-    4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-    12, 12, 12, 12, 12, 12, 12, 12,
-    24, 24, 24, 24, 24, 24, 24, 24,
-    48, 48, 48, 48, 48, 48, 48, 48,
-    128, 129,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    2,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    4,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    12,
+    24,
+    24,
+    24,
+    24,
+    24,
+    24,
+    24,
+    24,
+    48,
+    48,
+    48,
+    48,
+    48,
+    48,
+    48,
+    48,
+    128,
+    129,
 )
 
 
@@ -482,39 +518,45 @@ class BandConditionalBSRoformer(Module):
 
     @beartype
     def __init__(
-            self,
-            dim,
-            *,
-            depth,
-            stereo=False,
-            num_stems=1,
-            time_transformer_depth=2,
-            freq_transformer_depth=2,
-            linear_transformer_depth=0,
-            freqs_per_bands: Tuple[int, ...] = DEFAULT_FREQS_PER_BANDS,
-            # in the paper, they divide into ~60 bands, test with 1 for starters
-            dim_head=64,
-            heads=8,
-            attn_dropout=0.,
-            ff_dropout=0.,
-            flash_attn=True,
-            dim_freqs_in=1025,
-            stft_n_fft=2048,
-            stft_hop_length=512,
-            # 10ms at 44100Hz, from sections 4.1, 4.4 in the paper - @faroit recommends // 2 or // 4 for better reconstruction
-            stft_win_length=2048,
-            stft_normalized=False,
-            stft_window_fn: Optional[Callable] = None,
-            mask_estimator_depth=2,
-            multi_stft_resolution_loss_weight=1.,
-            multi_stft_resolutions_window_sizes: Tuple[int, ...] = (4096, 2048, 1024, 512, 256),
-            multi_stft_hop_size=147,
-            multi_stft_normalized=False,
-            multi_stft_window_fn: Callable = torch.hann_window,
-            mlp_expansion_factor=4,
-            use_torch_checkpoint=False,
-            skip_connection=False,
-            **kwargs
+        self,
+        dim,
+        *,
+        depth,
+        stereo=False,
+        num_stems=1,
+        time_transformer_depth=2,
+        freq_transformer_depth=2,
+        linear_transformer_depth=0,
+        freqs_per_bands: Tuple[int, ...] = DEFAULT_FREQS_PER_BANDS,
+        # in the paper, they divide into ~60 bands, test with 1 for starters
+        dim_head=64,
+        heads=8,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        flash_attn=True,
+        dim_freqs_in=1025,
+        stft_n_fft=2048,
+        stft_hop_length=512,
+        # 10ms at 44100Hz, from sections 4.1, 4.4 in the paper - @faroit recommends // 2 or // 4 for better reconstruction
+        stft_win_length=2048,
+        stft_normalized=False,
+        stft_window_fn: Optional[Callable] = None,
+        mask_estimator_depth=2,
+        multi_stft_resolution_loss_weight=1.0,
+        multi_stft_resolutions_window_sizes: Tuple[int, ...] = (
+            4096,
+            2048,
+            1024,
+            512,
+            256,
+        ),
+        multi_stft_hop_size=147,
+        multi_stft_normalized=False,
+        multi_stft_window_fn: Callable = torch.hann_window,
+        mlp_expansion_factor=4,
+        use_torch_checkpoint=False,
+        skip_connection=False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -543,12 +585,26 @@ class BandConditionalBSRoformer(Module):
         for _ in range(depth):
             tran_modules = []
             if linear_transformer_depth > 0:
-                tran_modules.append(Transformer(depth=linear_transformer_depth, linear_attn=True, **transformer_kwargs))
+                tran_modules.append(
+                    Transformer(
+                        depth=linear_transformer_depth,
+                        linear_attn=True,
+                        **transformer_kwargs,
+                    )
+                )
             tran_modules.append(
-                ScaleTransformer(depth=time_transformer_depth, rotary_embed=time_rotary_embed, **transformer_kwargs)
+                ScaleTransformer(
+                    depth=time_transformer_depth,
+                    rotary_embed=time_rotary_embed,
+                    **transformer_kwargs,
+                )
             )
             tran_modules.append(
-                Transformer(depth=freq_transformer_depth, rotary_embed=freq_rotary_embed, **transformer_kwargs)
+                Transformer(
+                    depth=freq_transformer_depth,
+                    rotary_embed=freq_rotary_embed,
+                    **transformer_kwargs,
+                )
             )
             self.layers.append(nn.ModuleList(tran_modules))
 
@@ -558,29 +614,35 @@ class BandConditionalBSRoformer(Module):
             n_fft=stft_n_fft,
             hop_length=stft_hop_length,
             win_length=stft_win_length,
-            normalized=stft_normalized
+            normalized=stft_normalized,
         )
 
-        self.stft_window_fn = partial(default(stft_window_fn, torch.hann_window), stft_win_length)
+        self.stft_window_fn = partial(
+            default(stft_window_fn, torch.hann_window), stft_win_length
+        )
 
-        freqs = torch.stft(torch.randn(1, 4096), **self.stft_kwargs, window=torch.ones(stft_win_length), return_complex=True).shape[1]
+        freqs = torch.stft(
+            torch.randn(1, 4096),
+            **self.stft_kwargs,
+            window=torch.ones(stft_win_length),
+            return_complex=True,
+        ).shape[1]
 
         assert len(freqs_per_bands) > 1
-        assert sum(
-            freqs_per_bands) == freqs, f'the number of freqs in the bands must equal {freqs} based on the STFT settings, but got {sum(freqs_per_bands)}'
+        assert (
+            sum(freqs_per_bands) == freqs
+        ), f"the number of freqs in the bands must equal {freqs} based on the STFT settings, but got {sum(freqs_per_bands)}"
 
-        freqs_per_bands_with_complex = tuple(2 * f * self.audio_channels for f in freqs_per_bands)
-
-        self.band_split = BandSplit(
-            dim=dim,
-            dim_inputs=freqs_per_bands_with_complex
+        freqs_per_bands_with_complex = tuple(
+            2 * f * self.audio_channels for f in freqs_per_bands
         )
+
+        self.band_split = BandSplit(dim=dim, dim_inputs=freqs_per_bands_with_complex)
 
         self.mask_estimators = nn.ModuleList([])
 
         self.band_cond_embedding = BandEmbedder(len(freqs_per_bands), dim, dim)
 
-        
         for _ in range(num_stems):
             mask_estimator = MaskEstimator(
                 dim=dim,
@@ -599,34 +661,26 @@ class BandConditionalBSRoformer(Module):
         self.multi_stft_window_fn = multi_stft_window_fn
 
         self.multi_stft_kwargs = dict(
-            hop_length=multi_stft_hop_size,
-            normalized=multi_stft_normalized
+            hop_length=multi_stft_hop_size, normalized=multi_stft_normalized
         )
 
-    
     def create_band_conditioning(self, batch_size, device):
         """Create band conditioning embeddings.
-        
+
         Args:
             batch_size (int): Batch size.
             device (torch.device): Device to create the embeddings on.
-        
+
         Returns:
             torch.Tensor: Band conditioning embeddings of shape (batch_size, dim).
         """
         band_indices = torch.arange(len(self.freqs_per_bands), device=device)
         band_cond = self.band_cond_embedding(band_indices)  # (num_bands, dim)
         band_cond = band_cond.repeat(batch_size, 1, 1)  # (batch_size, num_bands, dim)
-        band_cond, _ = pack([band_cond], '* d') # (batch_size * num_bands, dim)
+        band_cond, _ = pack([band_cond], "* d")  # (batch_size * num_bands, dim)
         return band_cond
 
-    
-    def forward(
-            self,
-            raw_audio,
-            target=None,
-            return_loss_breakdown=False
-    ):
+    def forward(self, raw_audio, target=None, return_loss_breakdown=False):
         """
         einops
 
@@ -638,7 +692,7 @@ class BandConditionalBSRoformer(Module):
         c - complex (2)
         d - feature dimension
         """
-        
+
         batch = raw_audio.shape[0]
         device = raw_audio.device
 
@@ -646,33 +700,40 @@ class BandConditionalBSRoformer(Module):
         x_is_mps = True if device.type == "mps" else False
 
         if raw_audio.ndim == 2:
-            raw_audio = rearrange(raw_audio, 'b t -> b 1 t')
+            raw_audio = rearrange(raw_audio, "b t -> b 1 t")
 
         channels = raw_audio.shape[1]
-        assert (not self.stereo and channels == 1) or (self.stereo and channels == 2), 'stereo needs to be set to True if passing in audio signal that is stereo (channel dimension of 2). also need to be False if mono (channel dimension of 1)'
+        assert (not self.stereo and channels == 1) or (
+            self.stereo and channels == 2
+        ), "stereo needs to be set to True if passing in audio signal that is stereo (channel dimension of 2). also need to be False if mono (channel dimension of 1)"
 
         # to stft
 
-        raw_audio, batch_audio_channel_packed_shape = pack_one(raw_audio, '* t')
+        raw_audio, batch_audio_channel_packed_shape = pack_one(raw_audio, "* t")
 
         stft_window = self.stft_window_fn(device=device)
 
         # RuntimeError: FFT operations are only supported on MacOS 14+
         # Since it's tedious to define whether we're on correct MacOS version - simple try-catch is used
         try:
-            stft_repr = torch.stft(raw_audio, **self.stft_kwargs, window=stft_window, return_complex=True)
+            stft_repr = torch.stft(
+                raw_audio, **self.stft_kwargs, window=stft_window, return_complex=True
+            )
         except:
-            stft_repr = torch.stft(raw_audio.cpu() if x_is_mps else raw_audio, **self.stft_kwargs,
-                                   window=stft_window.cpu() if x_is_mps else stft_window, return_complex=True).to(
-                device)
+            stft_repr = torch.stft(
+                raw_audio.cpu() if x_is_mps else raw_audio,
+                **self.stft_kwargs,
+                window=stft_window.cpu() if x_is_mps else stft_window,
+                return_complex=True,
+            ).to(device)
         stft_repr = torch.view_as_real(stft_repr)
 
-        stft_repr = unpack_one(stft_repr, batch_audio_channel_packed_shape, '* f t c')
+        stft_repr = unpack_one(stft_repr, batch_audio_channel_packed_shape, "* f t c")
 
         # merge stereo / mono into the frequency, with frequency leading dimension, for band splitting
-        stft_repr = rearrange(stft_repr,'b s f t c -> b (f s) t c')
+        stft_repr = rearrange(stft_repr, "b s f t c -> b (f s) t c")
 
-        x = rearrange(stft_repr, 'b f t c -> b t (f c)')
+        x = rearrange(stft_repr, "b f t c -> b t (f c)")
 
         if self.use_torch_checkpoint:
             x = checkpoint(self.band_split, x, use_reentrant=False)
@@ -685,14 +746,16 @@ class BandConditionalBSRoformer(Module):
         for i, transformer_block in enumerate(self.layers):
 
             if len(transformer_block) == 3:
-                linear_transformer, time_transformer, freq_transformer = transformer_block
+                linear_transformer, time_transformer, freq_transformer = (
+                    transformer_block
+                )
 
-                x, ft_ps = pack([x], 'b * d')
+                x, ft_ps = pack([x], "b * d")
                 if self.use_torch_checkpoint:
                     x = checkpoint(linear_transformer, x, use_reentrant=False)
                 else:
                     x = linear_transformer(x)
-                x, = unpack(x, ft_ps, 'b * d')
+                (x,) = unpack(x, ft_ps, "b * d")
             else:
                 time_transformer, freq_transformer = transformer_block
 
@@ -701,26 +764,26 @@ class BandConditionalBSRoformer(Module):
                 for j in range(i):
                     x = x + store[j]
 
-            x = rearrange(x, 'b t f d -> b f t d')
-            x, ps = pack([x], '* t d')
+            x = rearrange(x, "b t f d -> b f t d")
+            x, ps = pack([x], "* t d")
 
             band_embedding = self.create_band_conditioning(batch, device)
-            
+
             if self.use_torch_checkpoint:
                 x = checkpoint(time_transformer, x, band_embedding, use_reentrant=False)
             else:
                 x = time_transformer(x, band_embedding)
 
-            x, = unpack(x, ps, '* t d')
-            x = rearrange(x, 'b f t d -> b t f d')
-            x, ps = pack([x], '* f d')
+            (x,) = unpack(x, ps, "* t d")
+            x = rearrange(x, "b f t d -> b t f d")
+            x, ps = pack([x], "* f d")
 
             if self.use_torch_checkpoint:
                 x = checkpoint(freq_transformer, x, use_reentrant=False)
             else:
                 x = freq_transformer(x)
 
-            x, = unpack(x, ps, '* f d')
+            (x,) = unpack(x, ps, "* f d")
 
             if self.skip_connection:
                 store[i] = x
@@ -730,14 +793,17 @@ class BandConditionalBSRoformer(Module):
         num_stems = len(self.mask_estimators)
 
         if self.use_torch_checkpoint:
-            mask = torch.stack([checkpoint(fn, x, use_reentrant=False) for fn in self.mask_estimators], dim=1)
+            mask = torch.stack(
+                [checkpoint(fn, x, use_reentrant=False) for fn in self.mask_estimators],
+                dim=1,
+            )
         else:
             mask = torch.stack([fn(x) for fn in self.mask_estimators], dim=1)
-        mask = rearrange(mask, 'b n t (f c) -> b n f t c', c=2)
+        mask = rearrange(mask, "b n t (f c) -> b n f t c", c=2)
 
         # modulate frequency representation
 
-        stft_repr = rearrange(stft_repr, 'b f t c -> b 1 f t c')
+        stft_repr = rearrange(stft_repr, "b f t c -> b 1 f t c")
 
         # complex number multiplication
 
@@ -748,18 +814,34 @@ class BandConditionalBSRoformer(Module):
 
         # istft
 
-        stft_repr = rearrange(stft_repr, 'b n (f s) t -> (b n s) f t', s=self.audio_channels)
+        stft_repr = rearrange(
+            stft_repr, "b n (f s) t -> (b n s) f t", s=self.audio_channels
+        )
 
         # same as torch.stft() fix for MacOS MPS above
         try:
-            recon_audio = torch.istft(stft_repr, **self.stft_kwargs, window=stft_window, return_complex=False, length=raw_audio.shape[-1])
+            recon_audio = torch.istft(
+                stft_repr,
+                **self.stft_kwargs,
+                window=stft_window,
+                return_complex=False,
+                length=raw_audio.shape[-1],
+            )
         except:
-            recon_audio = torch.istft(stft_repr.cpu() if x_is_mps else stft_repr, **self.stft_kwargs, window=stft_window.cpu() if x_is_mps else stft_window, return_complex=False, length=raw_audio.shape[-1]).to(device)
+            recon_audio = torch.istft(
+                stft_repr.cpu() if x_is_mps else stft_repr,
+                **self.stft_kwargs,
+                window=stft_window.cpu() if x_is_mps else stft_window,
+                return_complex=False,
+                length=raw_audio.shape[-1],
+            ).to(device)
 
-        recon_audio = rearrange(recon_audio, '(b n s) t -> b n s t', s=self.audio_channels, n=num_stems)
+        recon_audio = rearrange(
+            recon_audio, "(b n s) t -> b n s t", s=self.audio_channels, n=num_stems
+        )
 
         if num_stems == 1:
-            recon_audio = rearrange(recon_audio, 'b 1 s t -> b s t')
+            recon_audio = rearrange(recon_audio, "b 1 s t -> b s t")
 
         # if a target is passed in, calculate loss for learning
 
@@ -770,29 +852,41 @@ class BandConditionalBSRoformer(Module):
             assert target.ndim == 4 and target.shape[1] == self.num_stems
 
         if target.ndim == 2:
-            target = rearrange(target, '... t -> ... 1 t')
+            target = rearrange(target, "... t -> ... 1 t")
 
-        target = target[..., :recon_audio.shape[-1]]  # protect against lost length on istft
+        target = target[
+            ..., : recon_audio.shape[-1]
+        ]  # protect against lost length on istft
 
         loss = F.l1_loss(recon_audio, target)
 
-        multi_stft_resolution_loss = 0.
+        multi_stft_resolution_loss = 0.0
 
         for window_size in self.multi_stft_resolutions_window_sizes:
             res_stft_kwargs = dict(
-                n_fft=max(window_size, self.multi_stft_n_fft),  # not sure what n_fft is across multi resolution stft
+                n_fft=max(
+                    window_size, self.multi_stft_n_fft
+                ),  # not sure what n_fft is across multi resolution stft
                 win_length=window_size,
                 return_complex=True,
                 window=self.multi_stft_window_fn(window_size, device=device),
                 **self.multi_stft_kwargs,
             )
 
-            recon_Y = torch.stft(rearrange(recon_audio, '... s t -> (... s) t'), **res_stft_kwargs)
-            target_Y = torch.stft(rearrange(target, '... s t -> (... s) t'), **res_stft_kwargs)
+            recon_Y = torch.stft(
+                rearrange(recon_audio, "... s t -> (... s) t"), **res_stft_kwargs
+            )
+            target_Y = torch.stft(
+                rearrange(target, "... s t -> (... s) t"), **res_stft_kwargs
+            )
 
-            multi_stft_resolution_loss = multi_stft_resolution_loss + F.l1_loss(recon_Y, target_Y)
+            multi_stft_resolution_loss = multi_stft_resolution_loss + F.l1_loss(
+                recon_Y, target_Y
+            )
 
-        weighted_multi_resolution_loss = multi_stft_resolution_loss * self.multi_stft_resolution_loss_weight
+        weighted_multi_resolution_loss = (
+            multi_stft_resolution_loss * self.multi_stft_resolution_loss_weight
+        )
 
         total_loss = loss + weighted_multi_resolution_loss
 
@@ -800,7 +894,7 @@ class BandConditionalBSRoformer(Module):
             return total_loss, recon_audio
 
         return total_loss, (loss, multi_stft_resolution_loss), recon_audio
-    
+
     def freeze_transformer_layers(self):
         """Freeze all transformer blocks (time/freq/linear) in self.layers."""
         for layer_group in self.layers:
@@ -814,49 +908,51 @@ class BandConditionalBSRoformer(Module):
             for module in layer_group:
                 for param in module.parameters():
                     param.requires_grad = True
-                    
-                    
-                    
-                
-    
-    
+
+
 class BSRoformer_Conditional(Module):
 
     @beartype
     def __init__(
-            self,
-            dim,
-            *,
-            depth,
-            stereo=False,
-            num_stems=1,
-            time_transformer_depth=2,
-            freq_transformer_depth=2,
-            linear_transformer_depth=0,
-            freqs_per_bands: Tuple[int, ...] = DEFAULT_FREQS_PER_BANDS,
-            # in the paper, they divide into ~60 bands, test with 1 for starters
-            dim_head=64,
-            heads=8,
-            attn_dropout=0.,
-            ff_dropout=0.,
-            flash_attn=True,
-            dim_freqs_in=1025,
-            stft_n_fft=2048,
-            stft_hop_length=512,
-            # 10ms at 44100Hz, from sections 4.1, 4.4 in the paper - @faroit recommends // 2 or // 4 for better reconstruction
-            stft_win_length=2048,
-            stft_normalized=False,
-            stft_window_fn: Optional[Callable] = None,
-            mask_estimator_depth=2,
-            multi_stft_resolution_loss_weight=1.,
-            multi_stft_resolutions_window_sizes: Tuple[int, ...] = (4096, 2048, 1024, 512, 256),
-            multi_stft_hop_size=147,
-            multi_stft_normalized=False,
-            multi_stft_window_fn: Callable = torch.hann_window,
-            mlp_expansion_factor=4,
-            use_torch_checkpoint=False,
-            skip_connection=False,
-            **kwargs
+        self,
+        dim,
+        *,
+        depth,
+        stereo=False,
+        num_stems=1,
+        time_transformer_depth=2,
+        freq_transformer_depth=2,
+        linear_transformer_depth=0,
+        freqs_per_bands: Tuple[int, ...] = DEFAULT_FREQS_PER_BANDS,
+        # in the paper, they divide into ~60 bands, test with 1 for starters
+        dim_head=64,
+        heads=8,
+        attn_dropout=0.0,
+        ff_dropout=0.0,
+        flash_attn=True,
+        dim_freqs_in=1025,
+        stft_n_fft=2048,
+        stft_hop_length=512,
+        # 10ms at 44100Hz, from sections 4.1, 4.4 in the paper - @faroit recommends // 2 or // 4 for better reconstruction
+        stft_win_length=2048,
+        stft_normalized=False,
+        stft_window_fn: Optional[Callable] = None,
+        mask_estimator_depth=2,
+        multi_stft_resolution_loss_weight=1.0,
+        multi_stft_resolutions_window_sizes: Tuple[int, ...] = (
+            4096,
+            2048,
+            1024,
+            512,
+            256,
+        ),
+        multi_stft_hop_size=147,
+        multi_stft_normalized=False,
+        multi_stft_window_fn: Callable = torch.hann_window,
+        mlp_expansion_factor=4,
+        use_torch_checkpoint=False,
+        skip_connection=False,
+        **kwargs,
     ):
         super().__init__()
 
@@ -884,12 +980,26 @@ class BSRoformer_Conditional(Module):
         for _ in range(depth):
             tran_modules = []
             if linear_transformer_depth > 0:
-                tran_modules.append(Transformer(depth=linear_transformer_depth, linear_attn=True, **transformer_kwargs))
+                tran_modules.append(
+                    Transformer(
+                        depth=linear_transformer_depth,
+                        linear_attn=True,
+                        **transformer_kwargs,
+                    )
+                )
             tran_modules.append(
-                Transformer(depth=time_transformer_depth, rotary_embed=time_rotary_embed, **transformer_kwargs)
+                Transformer(
+                    depth=time_transformer_depth,
+                    rotary_embed=time_rotary_embed,
+                    **transformer_kwargs,
+                )
             )
             tran_modules.append(
-                Transformer(depth=freq_transformer_depth, rotary_embed=freq_rotary_embed, **transformer_kwargs)
+                Transformer(
+                    depth=freq_transformer_depth,
+                    rotary_embed=freq_rotary_embed,
+                    **transformer_kwargs,
+                )
             )
             self.layers.append(nn.ModuleList(tran_modules))
 
@@ -899,23 +1009,30 @@ class BSRoformer_Conditional(Module):
             n_fft=stft_n_fft,
             hop_length=stft_hop_length,
             win_length=stft_win_length,
-            normalized=stft_normalized
+            normalized=stft_normalized,
         )
 
-        self.stft_window_fn = partial(default(stft_window_fn, torch.hann_window), stft_win_length)
+        self.stft_window_fn = partial(
+            default(stft_window_fn, torch.hann_window), stft_win_length
+        )
 
-        freqs = torch.stft(torch.randn(1, 4096), **self.stft_kwargs, window=torch.ones(stft_win_length), return_complex=True).shape[1]
+        freqs = torch.stft(
+            torch.randn(1, 4096),
+            **self.stft_kwargs,
+            window=torch.ones(stft_win_length),
+            return_complex=True,
+        ).shape[1]
 
         assert len(freqs_per_bands) > 1
-        assert sum(
-            freqs_per_bands) == freqs, f'the number of freqs in the bands must equal {freqs} based on the STFT settings, but got {sum(freqs_per_bands)}'
+        assert (
+            sum(freqs_per_bands) == freqs
+        ), f"the number of freqs in the bands must equal {freqs} based on the STFT settings, but got {sum(freqs_per_bands)}"
 
-        freqs_per_bands_with_complex = tuple(2 * f * self.audio_channels for f in freqs_per_bands)
-
-        self.band_split = BandSplit(
-            dim=dim,
-            dim_inputs=freqs_per_bands_with_complex
+        freqs_per_bands_with_complex = tuple(
+            2 * f * self.audio_channels for f in freqs_per_bands
         )
+
+        self.band_split = BandSplit(dim=dim, dim_inputs=freqs_per_bands_with_complex)
 
         self.mask_estimators = nn.ModuleList([])
 
@@ -937,16 +1054,10 @@ class BSRoformer_Conditional(Module):
         self.multi_stft_window_fn = multi_stft_window_fn
 
         self.multi_stft_kwargs = dict(
-            hop_length=multi_stft_hop_size,
-            normalized=multi_stft_normalized
+            hop_length=multi_stft_hop_size, normalized=multi_stft_normalized
         )
 
-    def forward(
-            self,
-            raw_audio,
-            target=None,
-            return_loss_breakdown=False
-    ):
+    def forward(self, raw_audio, target=None, return_loss_breakdown=False):
         """
         einops
 
@@ -965,33 +1076,40 @@ class BSRoformer_Conditional(Module):
         x_is_mps = True if device.type == "mps" else False
 
         if raw_audio.ndim == 2:
-            raw_audio = rearrange(raw_audio, 'b t -> b 1 t')
+            raw_audio = rearrange(raw_audio, "b t -> b 1 t")
 
         channels = raw_audio.shape[1]
-        assert (not self.stereo and channels == 1) or (self.stereo and channels == 2), 'stereo needs to be set to True if passing in audio signal that is stereo (channel dimension of 2). also need to be False if mono (channel dimension of 1)'
+        assert (not self.stereo and channels == 1) or (
+            self.stereo and channels == 2
+        ), "stereo needs to be set to True if passing in audio signal that is stereo (channel dimension of 2). also need to be False if mono (channel dimension of 1)"
 
         # to stft
 
-        raw_audio, batch_audio_channel_packed_shape = pack_one(raw_audio, '* t')
+        raw_audio, batch_audio_channel_packed_shape = pack_one(raw_audio, "* t")
 
         stft_window = self.stft_window_fn(device=device)
 
         # RuntimeError: FFT operations are only supported on MacOS 14+
         # Since it's tedious to define whether we're on correct MacOS version - simple try-catch is used
         try:
-            stft_repr = torch.stft(raw_audio, **self.stft_kwargs, window=stft_window, return_complex=True)
+            stft_repr = torch.stft(
+                raw_audio, **self.stft_kwargs, window=stft_window, return_complex=True
+            )
         except:
-            stft_repr = torch.stft(raw_audio.cpu() if x_is_mps else raw_audio, **self.stft_kwargs,
-                                   window=stft_window.cpu() if x_is_mps else stft_window, return_complex=True).to(
-                device)
+            stft_repr = torch.stft(
+                raw_audio.cpu() if x_is_mps else raw_audio,
+                **self.stft_kwargs,
+                window=stft_window.cpu() if x_is_mps else stft_window,
+                return_complex=True,
+            ).to(device)
         stft_repr = torch.view_as_real(stft_repr)
 
-        stft_repr = unpack_one(stft_repr, batch_audio_channel_packed_shape, '* f t c')
+        stft_repr = unpack_one(stft_repr, batch_audio_channel_packed_shape, "* f t c")
 
         # merge stereo / mono into the frequency, with frequency leading dimension, for band splitting
-        stft_repr = rearrange(stft_repr,'b s f t c -> b (f s) t c')
+        stft_repr = rearrange(stft_repr, "b s f t c -> b (f s) t c")
 
-        x = rearrange(stft_repr, 'b f t c -> b t (f c)')
+        x = rearrange(stft_repr, "b f t c -> b t (f c)")
 
         if self.use_torch_checkpoint:
             x = checkpoint(self.band_split, x, use_reentrant=False)
@@ -1004,14 +1122,16 @@ class BSRoformer_Conditional(Module):
         for i, transformer_block in enumerate(self.layers):
 
             if len(transformer_block) == 3:
-                linear_transformer, time_transformer, freq_transformer = transformer_block
+                linear_transformer, time_transformer, freq_transformer = (
+                    transformer_block
+                )
 
-                x, ft_ps = pack([x], 'b * d')
+                x, ft_ps = pack([x], "b * d")
                 if self.use_torch_checkpoint:
                     x = checkpoint(linear_transformer, x, use_reentrant=False)
                 else:
                     x = linear_transformer(x)
-                x, = unpack(x, ft_ps, 'b * d')
+                (x,) = unpack(x, ft_ps, "b * d")
             else:
                 time_transformer, freq_transformer = transformer_block
 
@@ -1020,24 +1140,24 @@ class BSRoformer_Conditional(Module):
                 for j in range(i):
                     x = x + store[j]
 
-            x = rearrange(x, 'b t f d -> b f t d')
-            x, ps = pack([x], '* t d')
+            x = rearrange(x, "b t f d -> b f t d")
+            x, ps = pack([x], "* t d")
 
             if self.use_torch_checkpoint:
                 x = checkpoint(time_transformer, x, use_reentrant=False)
             else:
                 x = time_transformer(x)
 
-            x, = unpack(x, ps, '* t d')
-            x = rearrange(x, 'b f t d -> b t f d')
-            x, ps = pack([x], '* f d')
+            (x,) = unpack(x, ps, "* t d")
+            x = rearrange(x, "b f t d -> b t f d")
+            x, ps = pack([x], "* f d")
 
             if self.use_torch_checkpoint:
                 x = checkpoint(freq_transformer, x, use_reentrant=False)
             else:
                 x = freq_transformer(x)
 
-            x, = unpack(x, ps, '* f d')
+            (x,) = unpack(x, ps, "* f d")
 
             if self.skip_connection:
                 store[i] = x
@@ -1047,14 +1167,17 @@ class BSRoformer_Conditional(Module):
         num_stems = len(self.mask_estimators)
 
         if self.use_torch_checkpoint:
-            mask = torch.stack([checkpoint(fn, x, use_reentrant=False) for fn in self.mask_estimators], dim=1)
+            mask = torch.stack(
+                [checkpoint(fn, x, use_reentrant=False) for fn in self.mask_estimators],
+                dim=1,
+            )
         else:
             mask = torch.stack([fn(x) for fn in self.mask_estimators], dim=1)
-        mask = rearrange(mask, 'b n t (f c) -> b n f t c', c=2)
+        mask = rearrange(mask, "b n t (f c) -> b n f t c", c=2)
 
         # modulate frequency representation
 
-        stft_repr = rearrange(stft_repr, 'b f t c -> b 1 f t c')
+        stft_repr = rearrange(stft_repr, "b f t c -> b 1 f t c")
 
         # complex number multiplication
 
@@ -1065,18 +1188,34 @@ class BSRoformer_Conditional(Module):
 
         # istft
 
-        stft_repr = rearrange(stft_repr, 'b n (f s) t -> (b n s) f t', s=self.audio_channels)
+        stft_repr = rearrange(
+            stft_repr, "b n (f s) t -> (b n s) f t", s=self.audio_channels
+        )
 
         # same as torch.stft() fix for MacOS MPS above
         try:
-            recon_audio = torch.istft(stft_repr, **self.stft_kwargs, window=stft_window, return_complex=False, length=raw_audio.shape[-1])
+            recon_audio = torch.istft(
+                stft_repr,
+                **self.stft_kwargs,
+                window=stft_window,
+                return_complex=False,
+                length=raw_audio.shape[-1],
+            )
         except:
-            recon_audio = torch.istft(stft_repr.cpu() if x_is_mps else stft_repr, **self.stft_kwargs, window=stft_window.cpu() if x_is_mps else stft_window, return_complex=False, length=raw_audio.shape[-1]).to(device)
+            recon_audio = torch.istft(
+                stft_repr.cpu() if x_is_mps else stft_repr,
+                **self.stft_kwargs,
+                window=stft_window.cpu() if x_is_mps else stft_window,
+                return_complex=False,
+                length=raw_audio.shape[-1],
+            ).to(device)
 
-        recon_audio = rearrange(recon_audio, '(b n s) t -> b n s t', s=self.audio_channels, n=num_stems)
+        recon_audio = rearrange(
+            recon_audio, "(b n s) t -> b n s t", s=self.audio_channels, n=num_stems
+        )
 
         if num_stems == 1:
-            recon_audio = rearrange(recon_audio, 'b 1 s t -> b s t')
+            recon_audio = rearrange(recon_audio, "b 1 s t -> b s t")
 
         # if a target is passed in, calculate loss for learning
 
@@ -1087,29 +1226,41 @@ class BSRoformer_Conditional(Module):
             assert target.ndim == 4 and target.shape[1] == self.num_stems
 
         if target.ndim == 2:
-            target = rearrange(target, '... t -> ... 1 t')
+            target = rearrange(target, "... t -> ... 1 t")
 
-        target = target[..., :recon_audio.shape[-1]]  # protect against lost length on istft
+        target = target[
+            ..., : recon_audio.shape[-1]
+        ]  # protect against lost length on istft
 
         loss = F.l1_loss(recon_audio, target)
 
-        multi_stft_resolution_loss = 0.
+        multi_stft_resolution_loss = 0.0
 
         for window_size in self.multi_stft_resolutions_window_sizes:
             res_stft_kwargs = dict(
-                n_fft=max(window_size, self.multi_stft_n_fft),  # not sure what n_fft is across multi resolution stft
+                n_fft=max(
+                    window_size, self.multi_stft_n_fft
+                ),  # not sure what n_fft is across multi resolution stft
                 win_length=window_size,
                 return_complex=True,
                 window=self.multi_stft_window_fn(window_size, device=device),
                 **self.multi_stft_kwargs,
             )
 
-            recon_Y = torch.stft(rearrange(recon_audio, '... s t -> (... s) t'), **res_stft_kwargs)
-            target_Y = torch.stft(rearrange(target, '... s t -> (... s) t'), **res_stft_kwargs)
+            recon_Y = torch.stft(
+                rearrange(recon_audio, "... s t -> (... s) t"), **res_stft_kwargs
+            )
+            target_Y = torch.stft(
+                rearrange(target, "... s t -> (... s) t"), **res_stft_kwargs
+            )
 
-            multi_stft_resolution_loss = multi_stft_resolution_loss + F.l1_loss(recon_Y, target_Y)
+            multi_stft_resolution_loss = multi_stft_resolution_loss + F.l1_loss(
+                recon_Y, target_Y
+            )
 
-        weighted_multi_resolution_loss = multi_stft_resolution_loss * self.multi_stft_resolution_loss_weight
+        weighted_multi_resolution_loss = (
+            multi_stft_resolution_loss * self.multi_stft_resolution_loss_weight
+        )
 
         total_loss = loss + weighted_multi_resolution_loss
 
@@ -1117,7 +1268,7 @@ class BSRoformer_Conditional(Module):
             return total_loss, recon_audio
 
         return total_loss, (loss, multi_stft_resolution_loss), recon_audio
-    
+
     def freeze_transformer_layers(self):
         """Freeze all transformer blocks (time/freq/linear) in self.layers."""
         for layer_group in self.layers:
@@ -1131,7 +1282,3 @@ class BSRoformer_Conditional(Module):
             for module in layer_group:
                 for param in module.parameters():
                     param.requires_grad = True
-                    
-                    
-                    
-                

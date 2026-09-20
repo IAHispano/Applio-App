@@ -1,5 +1,3 @@
-from functools import partial
-
 import torch
 from torch import nn
 from torch.nn import Module, ModuleList
@@ -13,7 +11,7 @@ from collections import namedtuple
 import os
 
 # PyTorch version check
-TORCH_VERSION = tuple(map(int, torch.__version__.split('.')[:2]))
+TORCH_VERSION = tuple(map(int, torch.__version__.split(".")[:2]))
 IS_TORCH_LT_2_5 = TORCH_VERSION < (2, 5)
 IS_TORCH_LT_2_0 = TORCH_VERSION < (2, 0)
 
@@ -39,7 +37,7 @@ def unpack_one(t, ps, pattern):
 class RMSNorm(Module):
     def __init__(self, dim):
         super().__init__()
-        self.scale = dim ** 0.5
+        self.scale = dim**0.5
         self.gamma = nn.Parameter(torch.ones(dim))
 
     def forward(self, x):
@@ -64,29 +62,33 @@ class FeedForward(Module):
 
 
 # Manual SDPA for PyTorch < 2.0
-def manual_scaled_dot_product_attention(q, k, v, attn_mask=None, is_causal=False, scale=None, dropout_p=0.0):
+def manual_scaled_dot_product_attention(
+    q, k, v, attn_mask=None, is_causal=False, scale=None, dropout_p=0.0
+):
     """SDPA implementation for PyTorch < 2.0"""
     if scale is None:
         scale = q.shape[-1] ** -0.5
-    
+
     attn_weights = torch.matmul(q, k.transpose(-2, -1)) * scale
-    
+
     if is_causal:
         seq_len = attn_weights.shape[-1]
-        causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=attn_weights.device), diagonal=1).bool()
-        attn_weights = attn_weights.masked_fill(causal_mask, float('-inf'))
-    
+        causal_mask = torch.triu(
+            torch.ones(seq_len, seq_len, device=attn_weights.device), diagonal=1
+        ).bool()
+        attn_weights = attn_weights.masked_fill(causal_mask, float("-inf"))
+
     if attn_mask is not None:
         if attn_mask.dtype == torch.bool:
-            attn_weights = attn_weights.masked_fill(~attn_mask, float('-inf'))
+            attn_weights = attn_weights.masked_fill(~attn_mask, float("-inf"))
         else:
             attn_weights = attn_weights + attn_mask
-    
+
     attn_weights = torch.softmax(attn_weights, dim=-1)
-    
+
     if dropout_p > 0.0 and q.requires_grad:
         attn_weights = torch.dropout(attn_weights, dropout_p, train=True)
-    
+
     return torch.matmul(attn_weights, v)
 
 
@@ -104,7 +106,7 @@ class Attention(Module):
     ):
         super().__init__()
         self.heads = heads
-        self.scale = dim_head ** -0.5
+        self.scale = dim_head**-0.5
         dim_inner = heads * dim_head
 
         self.rotary_embed = rotary_embed
@@ -316,8 +318,10 @@ class Attend(nn.Module):
                 assert not (
                     version.parse(torch.__version__) < version.parse("2.5.0")
                 ), "in order to use flex attention, you must be using pytorch 2.5 or above"
-                mask_mod = generate_sliding_window_with_sinks(wsa_window_len, n_wsa_sinks)
-                
+                mask_mod = generate_sliding_window_with_sinks(
+                    wsa_window_len, n_wsa_sinks
+                )
+
                 self.flex_attn = FlexAttention(
                     mask_mod=mask_mod,
                     dropout=dropout,
@@ -380,8 +384,7 @@ class Attend(nn.Module):
         # For PyTorch < 2.0, use manual attention
         if IS_TORCH_LT_2_0:
             return manual_scaled_dot_product_attention(
-                q, k, v,
-                dropout_p=self.dropout if self.training else 0.0
+                q, k, v, dropout_p=self.dropout if self.training else 0.0
             )
 
         with torch.backends.cuda.sdp_kernel(**config._asdict()):

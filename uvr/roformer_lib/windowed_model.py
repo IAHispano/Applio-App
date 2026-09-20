@@ -7,7 +7,13 @@ from rotary_embedding_torch import RotaryEmbedding
 
 from einops import rearrange, pack, unpack, reduce, repeat
 from librosa import filters
-from uvr.roformer_lib.windowed_modules import BandSplit, MaskEstimator, Transformer, pack_one, unpack_one
+from uvr.roformer_lib.windowed_modules import (
+    BandSplit,
+    MaskEstimator,
+    Transformer,
+    pack_one,
+    unpack_one,
+)
 from functools import partial
 
 

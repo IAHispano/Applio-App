@@ -190,7 +190,7 @@ class Transformer(Module):
         linear_attn=False,
         shared_qkv_bias=None,
         shared_out_bias=None,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
         self.layers = ModuleList([])
@@ -359,7 +359,7 @@ class BSRoformer_SW(Module):
         skip_connection=False,
         use_shared_bias=False,
         chunk_size: int = 588800,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 

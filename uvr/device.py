@@ -6,7 +6,6 @@ from functools import lru_cache
 
 import torch
 
-
 _AUTOCAST_SUPPORT_CACHE = {}
 
 # Full-track buffers grow linearly with audio duration. Keep short and medium
@@ -83,16 +82,36 @@ def _supports_complex_spectral_ops(device_type: str, device_index: int) -> bool:
         return False
 
     try:
-        device = torch.device(f"{device_type}:{device_index}") if device_index >= 0 else torch.device(device_type)
+        device = (
+            torch.device(f"{device_type}:{device_index}")
+            if device_index >= 0
+            else torch.device(device_type)
+        )
         sample_length = 1024
         n_fft = 256
         hop_length = 64
         sample = torch.randn(1, sample_length, device=device)
         window = torch.hann_window(n_fft, device=device)
-        spectrum = torch.stft(sample, n_fft=n_fft, hop_length=hop_length, window=window, center=True, return_complex=True)
-        spectrum = torch.view_as_complex(torch.view_as_real(spectrum).contiguous()) * torch.ones_like(spectrum)
+        spectrum = torch.stft(
+            sample,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            window=window,
+            center=True,
+            return_complex=True,
+        )
+        spectrum = torch.view_as_complex(
+            torch.view_as_real(spectrum).contiguous()
+        ) * torch.ones_like(spectrum)
         _probe_complex_scatter_add(spectrum)
-        torch.istft(spectrum, n_fft=n_fft, hop_length=hop_length, window=window, center=True, length=sample_length)
+        torch.istft(
+            spectrum,
+            n_fft=n_fft,
+            hop_length=hop_length,
+            window=window,
+            center=True,
+            length=sample_length,
+        )
         return True
     except Exception:
         return False
@@ -109,7 +128,9 @@ def should_fallback_to_cpu_for_complex_ops(device: torch.device) -> bool:
 
 def should_fallback_to_cpu_for_demucs_mask(device: torch.device, cac: bool) -> bool:
     """Keep non-CaC Demucs Wiener masking on CPU because the spectral probe does not cover it."""
-    return (device.type == "mps" and not cac) or should_fallback_to_cpu_for_complex_ops(device)
+    return (device.type == "mps" and not cac) or should_fallback_to_cpu_for_complex_ops(
+        device
+    )
 
 
 def _mps_memory_reading(counter: str) -> int:

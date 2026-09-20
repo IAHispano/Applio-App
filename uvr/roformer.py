@@ -26,7 +26,10 @@ def load_weights(model, ckpt_path, logger=None):
         if isinstance(state, dict) and wrapper in state:
             state = state[wrapper]
     if isinstance(state, dict):
-        state = {k.replace("module.", "") if k.startswith("module.") else k: v for k, v in state.items()}
+        state = {
+            k.replace("module.", "") if k.startswith("module.") else k: v
+            for k, v in state.items()
+        }
     model.load_state_dict(state, strict=True)
     return model
 
@@ -55,7 +58,10 @@ class RoformerSeparator(BaseSeparator):
         self.cfg_infer = cfg.get("inference", {})
         training = cfg.get("training", {}) or {}
         self.instruments = [str(s) for s in training.get("instruments", [])]
-        self.target = str(training.get("target_instrument") or (self.instruments[0] if self.instruments else "vocals"))
+        self.target = str(
+            training.get("target_instrument")
+            or (self.instruments[0] if self.instruments else "vocals")
+        )
         others = [s for s in self.instruments if s.lower() != self.target.lower()]
         self.counterpart = others[0] if others else self.secondary_stem(self.target)
         self.primary_stem_name = self.target
@@ -66,13 +72,17 @@ class RoformerSeparator(BaseSeparator):
         self.overlap = max(1, int(self.cfg_infer.get("num_overlap", 2)))
 
         model_kwargs = dict(cfg.get("model", {}) or {})
-        self.logger.debug(f"Roformer {self.roformer_class} kwargs: {sorted(model_kwargs)}")
+        self.logger.debug(
+            f"Roformer {self.roformer_class} kwargs: {sorted(model_kwargs)}"
+        )
         model = model_cls(**model_kwargs)
         load_weights(model, self.model_path, self.logger)
         model.to(self.torch_device)
         model.eval()
         self.model_run = model
-        self.logger.info(f"Roformer separator initialised ({self.roformer_class}, target: {self.target})")
+        self.logger.info(
+            f"Roformer separator initialised ({self.roformer_class}, target: {self.target})"
+        )
 
     def separate(self, audio_file_path, custom_output_names=None):
         self.primary_source = None
@@ -81,7 +91,9 @@ class RoformerSeparator(BaseSeparator):
         self.audio_file_base = os.path.splitext(os.path.basename(audio_file_path))[0]
 
         try:
-            self.input_bit_depth = 24 if "24" in sf.info(audio_file_path).subtype else 16
+            self.input_bit_depth = (
+                24 if "24" in sf.info(audio_file_path).subtype else 16
+            )
         except Exception:
             self.input_bit_depth = 16
 
@@ -120,7 +132,9 @@ class RoformerSeparator(BaseSeparator):
                     order = self._stem_names(n_stems)
                     for name in order:
                         results[name] = torch.zeros_like(mix_tensor)
-                        counters[name] = torch.zeros(mix_tensor.shape[-1], dtype=torch.float32)
+                        counters[name] = torch.zeros(
+                            mix_tensor.shape[-1], dtype=torch.float32
+                        )
                 w = window[:cur_len].clone()
                 if i == 0:
                     w[:fade] = 1.0
@@ -146,7 +160,10 @@ class RoformerSeparator(BaseSeparator):
 
         output_files = []
         for stem_name, source in stems.items():
-            if self.output_single_stem and self.output_single_stem.lower() != stem_name.lower():
+            if (
+                self.output_single_stem
+                and self.output_single_stem.lower() != stem_name.lower()
+            ):
                 continue
             stem_path = self.get_stem_output_path(stem_name, custom_output_names)
             self.logger.info(f"Saving {stem_name} stem to {stem_path}...")

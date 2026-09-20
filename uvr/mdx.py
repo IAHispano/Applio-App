@@ -45,16 +45,30 @@ class MdxSeparator(BaseSeparator):
             self.uses_pytorch_inference = False
             options = ort.SessionOptions()
             options.log_severity_level = 3
-            session = ort.InferenceSession(self.model_path, providers=self.onnx_execution_provider, sess_options=options)
+            session = ort.InferenceSession(
+                self.model_path,
+                providers=self.onnx_execution_provider,
+                sess_options=options,
+            )
             providers = session.get_providers()
-            requested = self.onnx_execution_provider[0] if self.onnx_execution_provider else None
+            requested = (
+                self.onnx_execution_provider[0]
+                if self.onnx_execution_provider
+                else None
+            )
             if requested and requested not in providers:
-                self.logger.warning(f"ONNX Runtime could not activate {requested}; using {providers}.")
-            self.model_run = lambda spek: session.run(None, {"input": spek.cpu().numpy()})[0]
+                self.logger.warning(
+                    f"ONNX Runtime could not activate {requested}; using {providers}."
+                )
+            self.model_run = lambda spek: session.run(
+                None, {"input": spek.cpu().numpy()}
+            )[0]
         else:
             self.model_run = onnx2torch.convert(self.model_path)
             self.model_run.to(self.torch_device).eval()
-            self.logger.warning("Model converted from ONNX to torch (segment size != dim_t); processing may be slower.")
+            self.logger.warning(
+                "Model converted from ONNX to torch (segment size != dim_t); processing may be slower."
+            )
 
     def separate(self, audio_file_path, custom_output_names=None):
         self.audio_file_path = audio_file_path
@@ -62,7 +76,11 @@ class MdxSeparator(BaseSeparator):
 
         mix = self.prepare_mix(self.audio_file_path)
         peak = np.abs(mix).max()
-        mix = spec_utils.normalize(wave=mix, max_peak=self.normalization_threshold, min_peak=self.amplification_threshold)
+        mix = spec_utils.normalize(
+            wave=mix,
+            max_peak=self.normalization_threshold,
+            min_peak=self.amplification_threshold,
+        )
 
         source = self.demix(mix) * peak
         if not isinstance(self.primary_source, np.ndarray):
@@ -72,20 +90,44 @@ class MdxSeparator(BaseSeparator):
         if not isinstance(self.secondary_source, np.ndarray):
             raw_mix = self.demix(mix, is_match_mix=True)
             if getattr(self, "invert_using_spec", False):
-                self.secondary_source = spec_utils.invert_stem(raw_mix, self.primary_source * self.compensate)
+                self.secondary_source = spec_utils.invert_stem(
+                    raw_mix, self.primary_source * self.compensate
+                )
             else:
                 self.secondary_source = (-self.primary_source * self.compensate) + mix.T
 
-        if not self.output_single_stem or self.output_single_stem.lower() == self.secondary_stem_name.lower():
-            self.secondary_stem_output_path = self.get_stem_output_path(self.secondary_stem_name, custom_output_names)
-            self.logger.info(f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}...")
-            self.final_process(self.secondary_stem_output_path, self.secondary_source, self.secondary_stem_name)
+        if (
+            not self.output_single_stem
+            or self.output_single_stem.lower() == self.secondary_stem_name.lower()
+        ):
+            self.secondary_stem_output_path = self.get_stem_output_path(
+                self.secondary_stem_name, custom_output_names
+            )
+            self.logger.info(
+                f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
+            )
+            self.final_process(
+                self.secondary_stem_output_path,
+                self.secondary_source,
+                self.secondary_stem_name,
+            )
             output_files.append(self.secondary_stem_output_path)
 
-        if not self.output_single_stem or self.output_single_stem.lower() == self.primary_stem_name.lower():
-            self.primary_stem_output_path = self.get_stem_output_path(self.primary_stem_name, custom_output_names)
-            self.logger.info(f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}...")
-            self.final_process(self.primary_stem_output_path, self.primary_source, self.primary_stem_name)
+        if (
+            not self.output_single_stem
+            or self.output_single_stem.lower() == self.primary_stem_name.lower()
+        ):
+            self.primary_stem_output_path = self.get_stem_output_path(
+                self.primary_stem_name, custom_output_names
+            )
+            self.logger.info(
+                f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
+            )
+            self.final_process(
+                self.primary_stem_output_path,
+                self.primary_source,
+                self.primary_stem_name,
+            )
             output_files.append(self.primary_stem_output_path)
 
         return output_files
@@ -95,7 +137,9 @@ class MdxSeparator(BaseSeparator):
         self.trim = self.n_fft // 2
         self.chunk_size = self.hop_length * (self.segment_size - 1)
         self.gen_size = self.chunk_size - 2 * self.trim
-        self.stft = STFT(self.logger, self.n_fft, self.hop_length, self.dim_f, self.torch_device)
+        self.stft = STFT(
+            self.logger, self.n_fft, self.hop_length, self.dim_f, self.torch_device
+        )
 
     def demix(self, mix, is_match_mix=False):
         self.initialize_model_settings()
@@ -103,7 +147,14 @@ class MdxSeparator(BaseSeparator):
         overlap = 0.02 if is_match_mix else self.overlap
         gen_size = chunk_size - 2 * self.trim
         pad = gen_size + self.trim - (mix.shape[-1] % gen_size)
-        mixture = np.concatenate((np.zeros((2, self.trim), dtype="float32"), mix, np.zeros((2, pad), dtype="float32")), 1)
+        mixture = np.concatenate(
+            (
+                np.zeros((2, self.trim), dtype="float32"),
+                mix,
+                np.zeros((2, pad), dtype="float32"),
+            ),
+            1,
+        )
         step = int((1 - overlap) * chunk_size)
 
         result = np.zeros((1, 2, mixture.shape[-1]), dtype=np.float32)
@@ -121,8 +172,13 @@ class MdxSeparator(BaseSeparator):
                 window = np.tile(window[None, None, :], (1, 2, 1))
             mix_part_ = mixture[:, start:end]
             if end != i + chunk_size:
-                mix_part_ = np.concatenate((mix_part_, np.zeros((2, (i + chunk_size) - end), dtype="float32")), axis=-1)
-            mix_part = torch.tensor([mix_part_], dtype=torch.float32).to(self.torch_device)
+                mix_part_ = np.concatenate(
+                    (mix_part_, np.zeros((2, (i + chunk_size) - end), dtype="float32")),
+                    axis=-1,
+                )
+            mix_part = torch.tensor([mix_part_], dtype=torch.float32).to(
+                self.torch_device
+            )
             with torch.no_grad():
                 for mix_wave in mix_part.split(self.batch_size):
                     tar_waves = self.run_model(mix_wave, is_match_mix=is_match_mix)
@@ -150,4 +206,9 @@ class MdxSeparator(BaseSeparator):
             spec_pred = (self.model_run(-spek) * -0.5) + (self.model_run(spek) * 0.5)
         else:
             spec_pred = self.model_run(spek)
-        return self.stft.inverse(torch.tensor(spec_pred).to(self.torch_device)).cpu().detach().numpy()
+        return (
+            self.stft.inverse(torch.tensor(spec_pred).to(self.torch_device))
+            .cpu()
+            .detach()
+            .numpy()
+        )

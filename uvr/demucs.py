@@ -1,7 +1,6 @@
 """Demucs v4 separator (4-stem band split, torch/CUDA)."""
 
 import os
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -57,7 +56,9 @@ class DemucsSeparator(BaseSeparator):
             name=os.path.splitext(os.path.basename(self.model_path))[0],
             repo=Path(os.path.dirname(self.model_path)),
         )
-        self.demucs_model_instance = demucs_segments(self.segment_size, self.demucs_model_instance)
+        self.demucs_model_instance = demucs_segments(
+            self.segment_size, self.demucs_model_instance
+        )
         self.demucs_model_instance.to(self.torch_device)
         self.demucs_model_instance.eval()
         try:
@@ -68,9 +69,14 @@ class DemucsSeparator(BaseSeparator):
 
         output_files = []
         if isinstance(source, np.ndarray) and len(source) not in (2, 4, 6):
-            self.logger.warning(f"Unexpected Demucs source count {len(source)}; writing all stems.")
+            self.logger.warning(
+                f"Unexpected Demucs source count {len(source)}; writing all stems."
+            )
         for stem_name, stem_value in self.demucs_source_map.items():
-            if self.output_single_stem is not None and stem_name.lower() != self.output_single_stem.lower():
+            if (
+                self.output_single_stem is not None
+                and stem_name.lower() != self.output_single_stem.lower()
+            ):
                 continue
             stem_path = self.get_stem_output_path(stem_name, custom_output_names)
             self.final_process(stem_path, source[stem_value].T, stem_name)
@@ -79,7 +85,13 @@ class DemucsSeparator(BaseSeparator):
 
     def demix_demucs(self, mix):
         num_sources = len(self.demucs_model_instance.sources)
-        estimated = _estimate_buffer_bytes(mix.shape[0], mix.shape[-1], num_sources, self.shifts, len(getattr(self.demucs_model_instance, "models", ())))
+        estimated = _estimate_buffer_bytes(
+            mix.shape[0],
+            mix.shape[-1],
+            num_sources,
+            self.shifts,
+            len(getattr(self.demucs_model_instance, "models", ())),
+        )
         accumulate = should_accumulate_on_device(self.torch_device, estimated)
         mix_device = self.torch_device if accumulate else torch.device("cpu")
         mix = torch.tensor(mix, dtype=torch.float32, device=mix_device)

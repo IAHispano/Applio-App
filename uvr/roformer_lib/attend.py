@@ -9,7 +9,6 @@ import torch.nn.functional as F
 
 from einops import rearrange, reduce
 
-
 FlashAttentionConfig = namedtuple(
     "FlashAttentionConfig", ["enable_flash", "enable_math", "enable_mem_efficient"]
 )
@@ -50,23 +49,25 @@ class Attend(nn.Module):
         self.flash = flash
         self.use_torch_2_sdpa = False
         self._config_checked = False
-        
+
         # Проверяем версию PyTorch при первом вызове
         if flash and not self._config_checked:
             if version.parse(torch.__version__) >= version.parse("2.0.0"):
                 print_once("PyTorch >= 2.0 detected, will use SDPA if available.")
                 self.use_torch_2_sdpa = True
-                
+
                 # Настройки для PyTorch >= 2.0
                 self.cpu_config = FlashAttentionConfig(True, True, True)
                 self.cuda_config = None
-                
+
                 if torch.cuda.is_available():
-                    device_properties = torch.cuda.get_device_properties(torch.device("cuda"))
+                    device_properties = torch.cuda.get_device_properties(
+                        torch.device("cuda")
+                    )
                     device_version = version.parse(
                         f"{device_properties.major}.{device_properties.minor}"
                     )
-                    
+
                     if device_version >= version.parse("8.0"):
                         if os.name == "nt":
                             print_once(
@@ -84,9 +85,11 @@ class Attend(nn.Module):
                         )
                         self.cuda_config = FlashAttentionConfig(False, True, True)
             else:
-                print_once("PyTorch < 2.0 detected, flash attention will use einsum fallback.")
+                print_once(
+                    "PyTorch < 2.0 detected, flash attention will use einsum fallback."
+                )
                 self.use_torch_2_sdpa = False
-            
+
             self._config_checked = True
 
     def flash_attn_torch2(self, q, k, v):
@@ -106,9 +109,11 @@ class Attend(nn.Module):
         new_sdp_kernel = False
         if hasattr(torch, "nn"):
             if hasattr(torch.nn, "attention"):
-                if hasattr(torch.nn.attention, "sdpa_kernel") and hasattr(torch.nn.attention, "SDPBackend"):
+                if hasattr(torch.nn.attention, "sdpa_kernel") and hasattr(
+                    torch.nn.attention, "SDPBackend"
+                ):
                     new_sdp_kernel = True
-        
+
         if old_sdp_kernel and not new_sdp_kernel:
             with torch.backends.cuda.sdp_kernel(**config._asdict()):
                 out = F.scaled_dot_product_attention(

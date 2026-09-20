@@ -35,7 +35,9 @@ def _load_custom_variants():
     and may define ``VARIANT_KEY`` (defaults to the file stem).
     """
     found = {}
-    custom_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), CUSTOM_DIRNAME)
+    custom_dir = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), CUSTOM_DIRNAME
+    )
     if not os.path.isdir(custom_dir):
         return found
     for fname in sorted(os.listdir(custom_dir)):
@@ -43,7 +45,9 @@ def _load_custom_variants():
             continue
         stem = fname[:-3]
         try:
-            module = importlib.import_module(f"uvr.roformer_lib.{CUSTOM_DIRNAME}.{stem}")
+            module = importlib.import_module(
+                f"uvr.roformer_lib.{CUSTOM_DIRNAME}.{stem}"
+            )
         except Exception:
             continue
         cls = getattr(module, "MODEL_CLASS", None)

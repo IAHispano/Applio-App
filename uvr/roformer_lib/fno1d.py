@@ -1,8 +1,26 @@
-from functools import partialmethod
 import functools
-from typing import Tuple, List, Union, Optional, Callable, Any, Literal, Dict, Sequence, Set, Generator, FrozenSet, Collection, Iterable, Iterator, overload, Counter as CounterType
+from typing import (
+    Tuple,
+    List,
+    Union,
+    Optional,
+    Callable,
+    Any,
+    Literal,
+    Dict,
+    Sequence,
+    Set,
+    Generator,
+    FrozenSet,
+    Collection,
+    Iterable,
+    Iterator,
+    overload,
+    Counter as CounterType,
+)
 from decimal import Decimal
 from collections import namedtuple
+
 TensorShapeType = Tuple[int, ...]
 PathType = Collection[TensorShapeType]
 ArrayType = Any
@@ -29,7 +47,9 @@ from scipy.optimize import brentq
 import math
 
 _MemoryLimit = Union[None, int, Decimal, Literal["max_input"]]
-PathSearchFunctionType = Callable[[List[ArrayIndexType], ArrayIndexType, Dict[str, int], Optional[int]], PathType]
+PathSearchFunctionType = Callable[
+    [List[ArrayIndexType], ArrayIndexType, Dict[str, int], Optional[int]], PathType
+]
 
 _BaseTypes = (bool, int, float, complex, str, bytes)
 
@@ -46,7 +66,9 @@ _UNLIMITED_MEM = {-1, None, float("inf")}
 from collections import Counter, defaultdict
 
 GreedyCostType = Tuple[int, int, int]
-GreedyContractionType = Tuple[GreedyCostType, ArrayIndexType, ArrayIndexType, ArrayIndexType]  # Cost, t1,t2->t3
+GreedyContractionType = Tuple[
+    GreedyCostType, ArrayIndexType, ArrayIndexType, ArrayIndexType
+]  # Cost, t1,t2->t3
 
 
 class PathOptimizer:
@@ -97,6 +119,7 @@ class PathOptimizer:
         memory_limit: Optional[int] = None,
     ) -> PathType:
         raise NotImplementedError
+
 
 def ssa_to_linear(ssa_path: PathType) -> PathType:
     """Convert a path with static single assignment ids to a path with recycled
@@ -165,6 +188,7 @@ def linear_to_ssa(path: PathType) -> PathType:
         linear_to_ssa.append(next(new_ids))
     return ssa_path
 
+
 def better_flops_first(flops: int, size: int, best_flops: int, best_size: int) -> bool:
     return (flops, size) < (best_flops, best_size)
 
@@ -178,18 +202,24 @@ _BETTER_FNS = {
     "size": better_size_first,
 }
 
-def cost_memory_removed(size12: int, size1: int, size2: int, k12: int, k1: int, k2: int) -> float:
+
+def cost_memory_removed(
+    size12: int, size1: int, size2: int, k12: int, k1: int, k2: int
+) -> float:
     """The default heuristic cost, corresponding to the total reduction in
     memory of performing a contraction.
     """
     return size12 - size1 - size2
 
 
-def cost_memory_removed_jitter(size12: int, size1: int, size2: int, k12: int, k1: int, k2: int) -> float:
+def cost_memory_removed_jitter(
+    size12: int, size1: int, size2: int, k12: int, k1: int, k2: int
+) -> float:
     """Like memory-removed, but with a slight amount of noise that breaks ties
     and thus jumbles the contractions a bit.
     """
     return random.gauss(1.0, 0.01) * (size12 - size1 - size2)
+
 
 _COST_FNS = {
     "memory-removed": cost_memory_removed,
@@ -231,7 +261,9 @@ def _tree_to_sequence(tree: Tuple[Any, ...]) -> PathType:
     if type(tree) == int:  # noqa: E721
         return []
 
-    c: List[Tuple[Any, ...]] = [tree]  # list of remaining contractions (lower part of columns shown above)
+    c: List[Tuple[Any, ...]] = [
+        tree
+    ]  # list of remaining contractions (lower part of columns shown above)
     t: List[int] = []  # list of elementary tensors (upper part of columns)
     s: List[Tuple[int, ...]] = []  # resulting contraction sequence
 
@@ -250,7 +282,9 @@ def _tree_to_sequence(tree: Tuple[Any, ...]) -> PathType:
     return s
 
 
-def _find_disconnected_subgraphs(inputs: List[FrozenSet[int]], output: FrozenSet[int]) -> List[FrozenSet[int]]:
+def _find_disconnected_subgraphs(
+    inputs: List[FrozenSet[int]], output: FrozenSet[int]
+) -> List[FrozenSet[int]]:
     """Finds disconnected subgraphs in the given list of inputs. Inputs are
     connected if they share summation indices. Note: Disconnected subgraphs
     can be contracted independently before forming outer products.
@@ -292,7 +326,9 @@ def _find_disconnected_subgraphs(inputs: List[FrozenSet[int]], output: FrozenSet
     return [frozenset(x) for x in subgraphs]
 
 
-def _bitmap_select(s: int, seq: List[FrozenSet[int]]) -> Generator[FrozenSet[int], None, None]:
+def _bitmap_select(
+    s: int, seq: List[FrozenSet[int]]
+) -> Generator[FrozenSet[int], None, None]:
     """Select elements of ``seq`` which are marked by the bitmap set ``s``.
 
     E.g.:
@@ -351,7 +387,9 @@ def _dp_compare_flops(
     if cost <= cost_cap:
         s = s1 | s2
         if s not in xn or cost < xn[s][1]:
-            i = _dp_calc_legs(g, all_tensors, s, inputs, i1_cut_i2_wo_output, i1_union_i2)
+            i = _dp_calc_legs(
+                g, all_tensors, s, inputs, i1_cut_i2_wo_output, i1_union_i2
+            )
             mem = compute_size_by_dict(i, size_dict)
             if memory_limit is None or mem <= memory_limit:
                 xn[s] = (i, cost, (contract1, contract2))
@@ -454,8 +492,10 @@ def _dp_compare_combo(
             if memory_limit is None or mem <= memory_limit:
                 xn[s] = (i, cost, (contract1, contract2))
 
+
 def get_better_fn(key: str) -> Callable[[int, int, int, int], bool]:
     return _BETTER_FNS[key]
+
 
 class BranchBound(PathOptimizer):
     def __init__(
@@ -485,7 +525,9 @@ class BranchBound(PathOptimizer):
                 `cost_fn(size12, size1, size2, k12, k1, k2)`.
         """
         if (nbranch is not None) and nbranch < 1:
-            raise ValueError(f"The number of branches must be at least one, `nbranch={nbranch}`.")
+            raise ValueError(
+                f"The number of branches must be at least one, `nbranch={nbranch}`."
+            )
 
         self.nbranch = nbranch
         self.cutoff_flops_factor = cutoff_flops_factor
@@ -530,7 +572,9 @@ class BranchBound(PathOptimizer):
         output: FrozenSet[str] = frozenset(output_)
 
         size_cache = {k: compute_size_by_dict(k, size_dict) for k in inputs}
-        result_cache: Dict[Tuple[FrozenSet[str], FrozenSet[str]], Tuple[FrozenSet[str], int]] = {}
+        result_cache: Dict[
+            Tuple[FrozenSet[str], FrozenSet[str]], Tuple[FrozenSet[str], int]
+        ] = {}
 
         def _branch_iterate(path, inputs, remaining, flops, size):
             # reached end of path (only ever get here if flops is best found so far)
@@ -540,12 +584,16 @@ class BranchBound(PathOptimizer):
                 self.best["ssa_path"] = path
                 return
 
-            def _assess_candidate(k1: FrozenSet[str], k2: FrozenSet[str], i: int, j: int) -> Any:
+            def _assess_candidate(
+                k1: FrozenSet[str], k2: FrozenSet[str], i: int, j: int
+            ) -> Any:
                 # find resulting indices and flops
                 try:
                     k12, flops12 = result_cache[k1, k2]
                 except KeyError:
-                    k12, flops12 = result_cache[k1, k2] = calc_k12_flops(inputs, output, remaining, i, j, size_dict)
+                    k12, flops12 = result_cache[k1, k2] = calc_k12_flops(
+                        inputs, output, remaining, i, j, size_dict
+                    )
 
                 try:
                     size12 = size_cache[k12]
@@ -556,20 +604,27 @@ class BranchBound(PathOptimizer):
                 new_size = max(size, size12)
 
                 # sieve based on current best i.e. check flops and size still better
-                if not self.better(new_flops, new_size, self.best["flops"], self.best["size"]):
+                if not self.better(
+                    new_flops, new_size, self.best["flops"], self.best["size"]
+                ):
                     return None
 
                 # compare to how the best method was doing as this point
                 if new_flops < self.best_progress[len(inputs)]:
                     self.best_progress[len(inputs)] = new_flops
                 # sieve based on current progress relative to best
-                elif new_flops > self.cutoff_flops_factor * self.best_progress[len(inputs)]:
+                elif (
+                    new_flops
+                    > self.cutoff_flops_factor * self.best_progress[len(inputs)]
+                ):
                     return None
 
                 # sieve based on memory limit
                 if (memory_limit not in _UNLIMITED_MEM) and (size12 > memory_limit):  # type: ignore
                     # terminate path here, but check all-terms contract first
-                    new_flops = flops + _compute_oversize_flops(inputs, remaining, output_, size_dict)
+                    new_flops = flops + _compute_oversize_flops(
+                        inputs, remaining, output_, size_dict
+                    )
                     if new_flops < self.best["flops"]:
                         self.best["flops"] = new_flops
                         self.best["ssa_path"] = path + (tuple(remaining),)
@@ -619,9 +674,12 @@ class BranchBound(PathOptimizer):
                 )
                 bi += 1
 
-        _branch_iterate(path=(), inputs=inputs, remaining=set(range(len(inputs))), flops=0, size=0)
+        _branch_iterate(
+            path=(), inputs=inputs, remaining=set(range(len(inputs))), flops=0, size=0
+        )
 
         return self.path
+
 
 def branch(
     inputs: List[ArrayIndexType],
@@ -634,13 +692,18 @@ def branch(
     cost_fn: str = "memory-removed",
 ) -> PathType:
     optimizer = BranchBound(
-        nbranch=nbranch, cutoff_flops_factor=cutoff_flops_factor, minimize=minimize, cost_fn=cost_fn
+        nbranch=nbranch,
+        cutoff_flops_factor=cutoff_flops_factor,
+        minimize=minimize,
+        cost_fn=cost_fn,
     )
     return optimizer(inputs, output, size_dict, memory_limit)
+
 
 branch_all = functools.partial(branch, nbranch=None)
 branch_2 = functools.partial(branch, nbranch=2)
 branch_1 = functools.partial(branch, nbranch=1)
+
 
 def calc_k12_flops(
     inputs: Tuple[FrozenSet[str]],
@@ -726,7 +789,9 @@ def optimal(
     best_flops = {"flops": float("inf")}
     best_ssa_path = {"ssa_path": (tuple(range(len(inputs))),)}
     size_cache: Dict[FrozenSet[str], int] = {}
-    result_cache: Dict[Tuple[ArrayIndexType, ArrayIndexType], Tuple[FrozenSet[str], int]] = {}
+    result_cache: Dict[
+        Tuple[ArrayIndexType, ArrayIndexType], Tuple[FrozenSet[str], int]
+    ] = {}
 
     def _optimal_iterate(path, remaining, inputs, flops):
         # reached end of path (only ever get here if flops is best found so far)
@@ -743,7 +808,9 @@ def optimal(
             try:
                 k12, flops12 = result_cache[key]
             except KeyError:
-                k12, flops12 = result_cache[key] = calc_k12_flops(inputs, output_set, remaining, i, j, size_dict)
+                k12, flops12 = result_cache[key] = calc_k12_flops(
+                    inputs, output_set, remaining, i, j, size_dict
+                )
 
             # sieve based on current best flops
             new_flops = flops + flops12
@@ -759,7 +826,9 @@ def optimal(
 
                 # possibly terminate this path with an all-terms einsum
                 if size12 > memory_limit:
-                    new_flops = flops + _compute_oversize_flops(inputs, remaining, output_set, size_dict)
+                    new_flops = flops + _compute_oversize_flops(
+                        inputs, remaining, output_set, size_dict
+                    )
                     if new_flops < best_flops["flops"]:
                         best_flops["flops"] = new_flops
                         best_ssa_path["ssa_path"] = path + (tuple(remaining),)
@@ -773,14 +842,20 @@ def optimal(
                 flops=new_flops,
             )
 
-    _optimal_iterate(path=(), inputs=inputs_set, remaining=set(range(len(inputs))), flops=0)
+    _optimal_iterate(
+        path=(), inputs=inputs_set, remaining=set(range(len(inputs))), flops=0
+    )
 
     return ssa_to_linear(best_ssa_path["ssa_path"])
 
+
 minimize_finder = re.compile(r"(flops|size|write|combo|limit)-*(\d*)")
 
+
 @functools.lru_cache(128)
-def _parse_minimize(minimize: Union[str, Callable]) -> Tuple[Callable, Union[int, float]]:
+def _parse_minimize(
+    minimize: Union[str, Callable],
+) -> Tuple[Callable, Union[int, float]]:
     """This works out what local scoring function to use for the dp algorithm
     as well as a `naive_scale` to account for the memory_limit checks.
     """
@@ -803,9 +878,13 @@ def _parse_minimize(minimize: Union[str, Callable]) -> Tuple[Callable, Union[int
     minimize, custom_factor = match.groups()
     factor = float(custom_factor) if custom_factor else DEFAULT_COMBO_FACTOR
     if minimize == "combo":
-        return functools.partial(_dp_compare_combo, factor=factor, combine=sum), float("inf")
+        return functools.partial(_dp_compare_combo, factor=factor, combine=sum), float(
+            "inf"
+        )
     elif minimize == "limit":
-        return functools.partial(_dp_compare_combo, factor=factor, combine=max), float("inf")
+        return functools.partial(_dp_compare_combo, factor=factor, combine=max), float(
+            "inf"
+        )
     else:
         raise ValueError(f"Couldn't parse `minimize` value: {minimize}.")
 
@@ -821,8 +900,11 @@ def simple_tree_tuple(seq: Sequence[Tuple[int, ...]]) -> Tuple[Any, ...]:
     """
     return functools.reduce(lambda x, y: (x, y), seq)
 
+
 def _dp_parse_out_single_term_ops(
-    inputs: List[FrozenSet[int]], all_inds: Tuple[str, ...], ind_counts: CounterType[str]
+    inputs: List[FrozenSet[int]],
+    all_inds: Tuple[str, ...],
+    ind_counts: CounterType[str],
 ) -> Tuple[List[FrozenSet[int]], List[Tuple[int]], List[Union[int, Tuple[int]]]]:
     """Take `inputs` and parse for single term index operations, i.e. where
     an index appears on one tensor and nowhere else.
@@ -846,6 +928,7 @@ def _dp_parse_out_single_term_ops(
             inputs_contractions.append((j,) if i_reduced != i else j)
 
     return inputs_parsed, inputs_done, inputs_contractions
+
 
 class DynamicProgramming(PathOptimizer):
     """Finds the optimal path of pairwise contractions without intermediate outer
@@ -882,7 +965,12 @@ class DynamicProgramming(PathOptimizer):
             slow down the path finding considerably on all but very small graphs.
     """
 
-    def __init__(self, minimize: str = "flops", cost_cap: Union[bool, int] = True, search_outer: bool = False) -> None:
+    def __init__(
+        self,
+        minimize: str = "flops",
+        cost_cap: Union[bool, int] = True,
+        search_outer: bool = False,
+    ) -> None:
         self.minimize = minimize
         self.search_outer = search_outer
         self.cost_cap = cost_cap
@@ -933,11 +1021,17 @@ class DynamicProgramming(PathOptimizer):
         symbol2int = {c: j for j, c in enumerate(all_inds)}
         inputs = [frozenset(symbol2int[c] for c in i) for i in inputs_]
         output = frozenset(symbol2int[c] for c in output_)
-        size_dict_canonical = {symbol2int[c]: v for c, v in size_dict_.items() if c in symbol2int}
+        size_dict_canonical = {
+            symbol2int[c]: v for c, v in size_dict_.items() if c in symbol2int
+        }
         size_dict = [size_dict_canonical[j] for j in range(len(size_dict_canonical))]
-        naive_cost = naive_scale * len(inputs) * functools.reduce(operator.mul, size_dict, 1)
+        naive_cost = (
+            naive_scale * len(inputs) * functools.reduce(operator.mul, size_dict, 1)
+        )
 
-        inputs, inputs_done, inputs_contractions = _dp_parse_out_single_term_ops(inputs, all_inds, ind_counts)
+        inputs, inputs_done, inputs_contractions = _dp_parse_out_single_term_ops(
+            inputs, all_inds, ind_counts
+        )
 
         if not inputs:
             # nothing left to do after single axis reductions!
@@ -1079,7 +1173,9 @@ def auto(
     """Finds the contraction path by automatically choosing the method based on
     how many input arguments there are.
     """
-    return _AUTO_CHOICES.get(len(inputs), greedy)(inputs, output, size_dict, memory_limit)
+    return _AUTO_CHOICES.get(len(inputs), greedy)(
+        inputs, output, size_dict, memory_limit
+    )
 
 
 _AUTO_HQ_CHOICES = {}
@@ -1101,7 +1197,10 @@ def auto_hq(
     """
     from opt_einsum.path_random import random_greedy_128
 
-    return _AUTO_HQ_CHOICES.get(len(inputs), random_greedy_128)(inputs, output, size_dict, memory_limit)
+    return _AUTO_HQ_CHOICES.get(len(inputs), random_greedy_128)(
+        inputs, output, size_dict, memory_limit
+    )
+
 
 def _get_candidate(
     output: ArrayIndexType,
@@ -1132,6 +1231,7 @@ def _get_candidate(
     cost = cost, id2, id1  # break ties to ensure determinism
     return cost, k1, k2, k12
 
+
 def _push_candidate(
     output: ArrayIndexType,
     sizes: Dict[str, Any],
@@ -1144,7 +1244,12 @@ def _push_candidate(
     push_all: bool,
     cost_fn: Any,
 ) -> None:
-    candidates = (_get_candidate(output, sizes, remaining, footprints, dim_ref_counts, k1, k2, cost_fn) for k2 in k2s)
+    candidates = (
+        _get_candidate(
+            output, sizes, remaining, footprints, dim_ref_counts, k1, k2, cost_fn
+        )
+        for k2 in k2s
+    )
     if push_all:
         # want to do this if we e.g. are using a custom 'choose_fn'
         for candidate in candidates:
@@ -1169,6 +1274,7 @@ def _update_ref_counts(
         else:
             dim_ref_counts[2].add(dim)
             dim_ref_counts[3].add(dim)
+
 
 def _simple_chooser(queue, remaining):
     """Default contraction chooser that simply takes the minimum cost option."""
@@ -1232,7 +1338,8 @@ def ssa_greedy_optimize(
     # used it can be contracted. Since we specialize to binary ops, we only care about
     # ref counts of >=2 or >=3.
     dim_ref_counts = {
-        count: {dim for dim, keys in dim_to_keys.items() if len(keys) >= count} - output for count in [2, 3]
+        count: {dim for dim, keys in dim_to_keys.items() if len(keys) >= count} - output
+        for count in [2, 3]
     }
 
     # Compute separable part of the objective function for contractions.
@@ -1299,7 +1406,10 @@ def ssa_greedy_optimize(
             )
 
     # Greedily compute pairwise outer products.
-    final_queue = [(compute_size_by_dict(key & output, sizes), ssa_id, key) for key, ssa_id in remaining.items()]
+    final_queue = [
+        (compute_size_by_dict(key & output, sizes), ssa_id, key)
+        for key, ssa_id in remaining.items()
+    ]
     heapq.heapify(final_queue)
     _, ssa_id1, k1 = heapq.heappop(final_queue)
     while final_queue:
@@ -1353,8 +1463,11 @@ def greedy(
     if memory_limit not in _UNLIMITED_MEM:
         return branch(inputs, output, size_dict, memory_limit, nbranch=1, cost_fn=cost_fn)  # type: ignore
 
-    ssa_path = ssa_greedy_optimize(inputs, output, size_dict, cost_fn=cost_fn, choose_fn=choose_fn)
+    ssa_path = ssa_greedy_optimize(
+        inputs, output, size_dict, cost_fn=cost_fn, choose_fn=choose_fn
+    )
     return ssa_to_linear(ssa_path)
+
 
 _PATH_OPTIONS: Dict[str, PathSearchFunctionType] = {
     "auto": auto,
@@ -1370,11 +1483,14 @@ _PATH_OPTIONS: Dict[str, PathSearchFunctionType] = {
     "dynamic-programming": dynamic_programming,
 }
 
+
 def get_path_fn(path_type: str) -> PathSearchFunctionType:
     """Get the correct path finding function from str ``path_type``."""
     path_type = path_type.lower()
     if path_type not in _PATH_OPTIONS:
-        raise KeyError(f"Path optimizer '{path_type}' not found, valid options are {set(_PATH_OPTIONS.keys())}.")
+        raise KeyError(
+            f"Path optimizer '{path_type}' not found, valid options are {set(_PATH_OPTIONS.keys())}."
+        )
 
     return _PATH_OPTIONS[path_type]
 
@@ -1511,6 +1627,7 @@ def flop_count(
 
     return overall_size * op_factor
 
+
 def convert_subscripts(old_sub: List[Any], symbol_map: Dict[Any, Any]) -> str:
     """Convert user custom subscripts list to subscript string according to `symbol_map`.
 
@@ -1529,6 +1646,7 @@ def convert_subscripts(old_sub: List[Any], symbol_map: Dict[Any, Any]) -> str:
             # no need to try/except here because symbol_map has already been checked
             new_sub += symbol_map[s]
     return new_sub
+
 
 def get_symbol(i: int) -> str:
     """Get the symbol corresponding to int ``i`` - runs through the usual 52
@@ -1555,7 +1673,10 @@ def get_symbol(i: int) -> str:
     else:
         return chr(i + 140)
 
-def find_output_shape(inputs: List[str], shapes: List[TensorShapeType], output: str) -> TensorShapeType:
+
+def find_output_shape(
+    inputs: List[str], shapes: List[TensorShapeType], output: str
+) -> TensorShapeType:
     """Find the output shape for given inputs, shapes and output string, taking
     into account broadcasting.
 
@@ -1568,7 +1689,15 @@ def find_output_shape(inputs: List[str], shapes: List[TensorShapeType], output: 
     >>> oe.parser.find_output_shape(["a", "a"], [(4, ), (1, )], "a")
     (4,)
     """
-    return tuple(max(shape[loc] for shape, loc in zip(shapes, [x.find(c) for x in inputs]) if loc >= 0) for c in output)
+    return tuple(
+        max(
+            shape[loc]
+            for shape, loc in zip(shapes, [x.find(c) for x in inputs])
+            if loc >= 0
+        )
+        for c in output
+    )
+
 
 def gen_unused_symbols(used: str, n: int) -> Iterator[str]:
     """Generate ``n`` symbols that are not already in ``used``.
@@ -1588,6 +1717,7 @@ def gen_unused_symbols(used: str, n: int) -> Iterator[str]:
         yield s
         cnt += 1
 
+
 def find_output_str(subscripts: str) -> str:
     """Find the output string for the inputs ``subscripts`` under canonical einstein summation rules.
     That is, repeated indices are summed over by default.
@@ -1604,7 +1734,10 @@ def find_output_str(subscripts: str) -> str:
     ''
     """
     tmp_subscripts = subscripts.replace(",", "")
-    return "".join(s for s in sorted(set(tmp_subscripts)) if tmp_subscripts.count(s) == 1)
+    return "".join(
+        s for s in sorted(set(tmp_subscripts)) if tmp_subscripts.count(s) == 1
+    )
+
 
 def convert_interleaved_input(operands: Sequence[Any]) -> Tuple[str, Tuple[Any, ...]]:
     """Convert 'interleaved' input to standard einsum input."""
@@ -1627,7 +1760,9 @@ def convert_interleaved_input(operands: Sequence[Any]) -> Tuple[str, Tuple[Any, 
         symbol_set.discard(Ellipsis)
 
         # build the map based on sorted user symbols, retaining the order we lost in the `set`
-        symbol_map = {symbol: get_symbol(idx) for idx, symbol in enumerate(sorted(symbol_set))}
+        symbol_map = {
+            symbol: get_symbol(idx) for idx, symbol in enumerate(sorted(symbol_set))
+        }
 
     except TypeError:  # unhashable or uncomparable object
         raise TypeError(
@@ -1642,7 +1777,10 @@ def convert_interleaved_input(operands: Sequence[Any]) -> Tuple[str, Tuple[Any, 
 
     return subscripts, tuple(operand_list)
 
-def parse_einsum_input(operands: Any, shapes: bool = False) -> Tuple[str, str, List[ArrayType]]:
+
+def parse_einsum_input(
+    operands: Any, shapes: bool = False
+) -> Tuple[str, str, List[ArrayType]]:
     """A reproduction of einsum c side einsum parsing in python.
 
     Parameters:
@@ -1698,7 +1836,9 @@ def parse_einsum_input(operands: Any, shapes: bool = False) -> Tuple[str, str, L
     # Parse ellipses
     if "." in subscripts:
         used = subscripts.replace(".", "").replace(",", "").replace("->", "")
-        ellipse_inds = "".join(gen_unused_symbols(used, max(len(x) for x in operand_shapes)))
+        ellipse_inds = "".join(
+            gen_unused_symbols(used, max(len(x) for x in operand_shapes))
+        )
         longest = 0
 
         # Do we have an output to account for?
@@ -1729,7 +1869,9 @@ def parse_einsum_input(operands: Any, shapes: bool = False) -> Tuple[str, str, L
                 elif ellipse_count == 0:
                     split_subscripts[num] = sub.replace("...", "")
                 else:
-                    split_subscripts[num] = sub.replace("...", ellipse_inds[-ellipse_count:])
+                    split_subscripts[num] = sub.replace(
+                        "...", ellipse_inds[-ellipse_count:]
+                    )
 
         subscripts = ",".join(split_subscripts)
 
@@ -1757,7 +1899,9 @@ def parse_einsum_input(operands: Any, shapes: bool = False) -> Tuple[str, str, L
     # Make sure output subscripts are unique and in the input
     for char in output_subscript:
         if output_subscript.count(char) != 1:
-            raise ValueError(f"Output character '{char}' appeared more than once in the output.")
+            raise ValueError(
+                f"Output character '{char}' appeared more than once in the output."
+            )
         if char not in input_subscripts:
             raise ValueError(f"Output character '{char}' did not appear in the input")
 
@@ -1769,6 +1913,7 @@ def parse_einsum_input(operands: Any, shapes: bool = False) -> Tuple[str, str, L
         )
 
     return input_subscripts, output_subscript, operands
+
 
 def get_shape(x: Any):
     """Get the shape of the array-like object `x`. If `x` is not array-like, raise an error.
@@ -1787,7 +1932,9 @@ def get_shape(x: Any):
             x = x[0]
         return tuple(shape)
     else:
-        raise ValueError(f"Cannot determine the shape of {x}, can only determine the shape of array-like objects.")
+        raise ValueError(
+            f"Cannot determine the shape of {x}, can only determine the shape of array-like objects."
+        )
 
 
 class PathInfo:
@@ -1818,7 +1965,9 @@ class PathInfo:
         self.size_list = size_list
         self.size_dict = size_dict
 
-        self.shapes = [tuple(size_dict[k] for k in ks) for ks in input_subscripts.split(",")]
+        self.shapes = [
+            tuple(size_dict[k] for k in ks) for ks in input_subscripts.split(",")
+        ]
         self.eq = f"{input_subscripts}->{output_subscript}"
         self.largest_intermediate = Decimal(max(size_list, default=1))
 
@@ -1860,12 +2009,16 @@ class PathInfo:
         return "".join(path_print)
 
 
-def _choose_memory_arg(memory_limit: _MemoryLimit, size_list: List[int]) -> Optional[int]:
+def _choose_memory_arg(
+    memory_limit: _MemoryLimit, size_list: List[int]
+) -> Optional[int]:
     if memory_limit == "max_input":
         return max(size_list)
 
     if isinstance(memory_limit, str):
-        raise ValueError("memory_limit must be None, int, or the string Literal['max_input'].")
+        raise ValueError(
+            "memory_limit must be None, int, or the string Literal['max_input']."
+        )
 
     if memory_limit is None:
         return None
@@ -1877,6 +2030,7 @@ def _choose_memory_arg(memory_limit: _MemoryLimit, size_list: List[int]) -> Opti
             raise ValueError("Memory limit must be larger than 0, or -1")
 
     return int(memory_limit)
+
 
 def can_blas(
     inputs: List[str],
@@ -1992,12 +2146,13 @@ def can_blas(
     else:
         return "TDOT"
 
+
 def contract_path(
     subscripts: Any,
     *operands: Any,
     use_blas: bool = True,
-    optimize = True,
-    memory_limit = None,
+    optimize=True,
+    memory_limit=None,
     shapes: bool = False,
     **kwargs: Any,
 ) -> Tuple[PathType, PathInfo]:
@@ -2011,7 +2166,9 @@ def contract_path(
 
     # Python side parsing
     operands_ = [subscripts] + list(operands)
-    input_subscripts, output_subscript, operands_prepped = parse_einsum_input(operands_, shapes=shapes)
+    input_subscripts, output_subscript, operands_prepped = parse_einsum_input(
+        operands_, shapes=shapes
+    )
 
     # Build a few useful list and sets
     input_list = input_subscripts.split(",")
@@ -2049,7 +2206,10 @@ def contract_path(
                 size_dict[char] = dim
 
     # Compute size of each input array plus the output array
-    size_list = [compute_size_by_dict(term, size_dict) for term in input_list + [output_subscript]]
+    size_list = [
+        compute_size_by_dict(term, size_dict)
+        for term in input_list + [output_subscript]
+    ]
     memory_arg = _choose_memory_arg(memory_limit, size_list)
 
     num_ops = len(input_list)
@@ -2090,7 +2250,9 @@ def contract_path(
         out_inds, input_sets, idx_removed, idx_contract = contract_tuple
 
         # Compute cost, scale, and size
-        cost = flop_count(idx_contract, bool(idx_removed), len(contract_inds), size_dict)
+        cost = flop_count(
+            idx_contract, bool(idx_removed), len(contract_inds), size_dict
+        )
         cost_list.append(cost)
         scale_list.append(len(idx_contract))
         size_list.append(compute_size_by_dict(out_inds, size_dict))
@@ -2148,115 +2310,119 @@ def contract_path(
 
     return path_tuple, path_print
 
+
 class MetaFactorizedTensor(type):
     """Meta class for tensor factorizations
-    
+
     .. info::
-    
+
         1. Calls __new__ normally.
         2. Removes the keyword argument 'factorization' if present
         3. Calls __init__ with the remaining *args and **kwargs
-    
+
     Why are we using this?
     ----------------------
-    
+
     Tensor Factorization does not create its own instances.
     Instead, it defers to children class which do not take factorization as a parameter.
-    
+
     We want to be able to create (e.g. CP) tensors in two ways:
     1. Indirectly: ``FactorizedTensor('cp', shape, rank)``
     2. Directly:   ``CP(shape, rank)``
-    
-    Note that in the second case, we don't want users to have to specify the 
+
+    Note that in the second case, we don't want users to have to specify the
     factorization, it would be redundant to ask them to create a CP as
     ``CP(shape, rank, factorization='CP')``.
-    
+
     This means we need to intercept the call to __init__ and remove the factorization parameter
     when creating an instance from FactorizedTensor. Hence this metaclass.
-        
+
     Current solution
     ----------------
-    
+
     This metaclass customizes the object creation process.
-    
+
     In the metaclass
     ++++++++++++++++
-    
+
     First, we call __new__ with all the *args and **kwargs
     Then, if we are in FactorizedTensor, we remove the first argument.
     This is because FactorizedTensor never uses factorization in its own init.
-    
+
     In __new__
     ++++++++++
-    
+
     If `cls` is FactorizedTensor, we actually replace `cls` by one of the subclasses depending on
     the value of factorization and so create an instance of that subclass.
     If `cls` is already a subclass, we just create an instance of that.
-    
+
     Creating a factorized tensor through `FactorizedTensor`
     ----------------------------------------------------------
-    
+
     When creating a FactorizedTensor, the calls are as follow:
     1. __call__(FactorizedTensor, *args, **kwargs)
        where args = [factorization, *rest_of_args]
-       
+
     2. __call__ first calls FactorizedTensor.__new__(FactorizedTensor, factorization, *args, **kwargs)
-       
+
        In FactorizedTensor.__new__, instead of creating a new instance, we check for factorization's value
        against the internal _factorization dict that we maintain and return
        a new instance of FactorizedTensor._factorizations[factorization]
-       
+
     3. We are now back in __call__ which now removes factorization from the argument list ``args``
        and calls instance.__init__ (now instance is CP, Tucker, **not** FactorizedTensor) with the
        remaining args and kwargs
-    
+
     4. Since FactorizedTensor's signature is __init__(self, factorization, *args, **kwargs),
        the direct subclasses of FactorizedTensor call super().__init__(None, *args, **kwargs)
-       
+
        This means that in practice FactorizedTensor always gets factorization=None.
        This does not matter as we only use factorization during the creation process.
-       
+
        However, this forces users to specify factorization as a first argument when creating a tensor
        from Tensor Factorization.
-       
+
     Creation through a subclass`FactorizedTensor`
     ------------------------------------------------
     Let's say now the user wants to directly create an instance of a subclass of `FactorizedTensor`,
     in this example, let's say `CP`.
-    
+
     When creating a CPTensor, the calls are as follow:
-    
+
     1. __call__(CPTensor, *args, **kwargs)
        __call__ just calls __new__, then __init__ with the given arguments and keyword arguments.
-       
+
     2. __call__ first calls CPTensor.__new__(CPTensor, *args, **kwargs).
        In turn, this calls FactorizedTensor.__new__(CPTensor, *args, **kwargs)
-       
+
        Since `cls` is now `CPTensor`, not `FactorizedTensor`, nothing special is done
        and ``super().__new__(cls, *args, **kwargs)`` is called to create an instance
-       
+
     3. We are now back in __call__ again. Since `cls` is CPTensor and not FactorizedTensor,
        we just call instance.__init__
-    
-    4. Now, in CPTensor.__init__, we re-add the mendatory first arg `factorization` by calling super() as 
+
+    4. Now, in CPTensor.__init__, we re-add the mendatory first arg `factorization` by calling super() as
        ``super().__init__(self, None, *args, **kwargs)``
     """
+
     def __call__(cls, *args, **kwargs):
         instance = cls.__new__(cls, *args, **kwargs)
-        kwargs.pop('factorization', None)
+        kwargs.pop("factorization", None)
 
         instance.__init__(*args, **kwargs)
         return instance
 
+
 def _format_factorization(factorization):
-    """Small utility function to make sure factorization names 
+    """Small utility function to make sure factorization names
     are dealt with the same whether using capital letters or not.
-    
+
     factorization=None is remapped to 'Dense'.
     """
     if factorization is None:
-        factorization = 'Dense'
+        factorization = "Dense"
     return factorization.lower()
+
 
 class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
     """Tensor in Factorized form
@@ -2265,18 +2431,23 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
 
        All tensor factorization must have an `order` parameter
     """
+
     _factorizations = dict()
-    
+
     def __init_subclass__(cls, name, **kwargs):
         """When a subclass is created, register it in _factorizations"""
         super().__init_subclass__(**kwargs)
 
-        if name != '':
+        if name != "":
             cls._factorizations[_format_factorization(name)] = cls
             cls._name = name
         else:
-            if cls.__name__ != "TensorizedTensor": # Don't display warning when instantiating the TensorizedTensor class
-                warnings.warn(f'Creating a subclass of FactorizedTensor {cls.__name__} with no name.')
+            if (
+                cls.__name__ != "TensorizedTensor"
+            ):  # Don't display warning when instantiating the TensorizedTensor class
+                warnings.warn(
+                    f"Creating a subclass of FactorizedTensor {cls.__name__} with no name."
+                )
 
     def __new__(cls, *args, **kwargs):
         """Customize the creation of a factorized convolution
@@ -2289,20 +2460,22 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
             subclass implementing the specified tensor factorization
         """
         if cls is FactorizedTensor:
-            factorization = kwargs.get('factorization')
+            factorization = kwargs.get("factorization")
             try:
                 cls = cls._factorizations[_format_factorization(factorization)]
             except KeyError:
-                raise ValueError(f'Got factorization={factorization} but expected'
-                                 f'one of {cls._factorizations.keys()}')
-        
+                raise ValueError(
+                    f"Got factorization={factorization} but expected"
+                    f"one of {cls._factorizations.keys()}"
+                )
+
         instance = super().__new__(cls)
 
         return instance
-    
+
     def __getitem__(indices):
         """Returns raw indexed factorization, not class
-        
+
         Parameters
         ----------
         indices : int or tuple
@@ -2310,7 +2483,7 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
         raise NotImplementedError
 
     @classmethod
-    def new(cls, shape, rank='same', factorization='Tucker', **kwargs):
+    def new(cls, shape, rank="same", factorization="Tucker", **kwargs):
         """Main way to create a factorized tensor
 
         Parameters
@@ -2337,18 +2510,20 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
         Raises
         ------
         ValueError
-            If the factorization given does not exist. 
+            If the factorization given does not exist.
         """
         try:
             cls = cls._factorizations[_format_factorization(factorization)]
         except KeyError:
-            raise ValueError(f'Got factorization={factorization} but expected'
-                             f'one of {cls._factorizations.keys()}')
+            raise ValueError(
+                f"Got factorization={factorization} but expected"
+                f"one of {cls._factorizations.keys()}"
+            )
 
         return cls.new(shape, rank, **kwargs)
 
     @classmethod
-    def from_tensor(cls, tensor, rank, factorization='CP', **kwargs):
+    def from_tensor(cls, tensor, rank, factorization="CP", **kwargs):
         """Create a factorized tensor by decomposing a dense tensor
 
         Parameters
@@ -2368,13 +2543,15 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
         Raises
         ------
         ValueError
-            If the factorization given does not exist. 
+            If the factorization given does not exist.
         """
         try:
             cls = cls._factorizations[_format_factorization(factorization)]
         except KeyError:
-            raise ValueError(f'Got factorization={factorization} but expected'
-                             f'one of {cls._factorizations.keys()}')
+            raise ValueError(
+                f"Got factorization={factorization} but expected"
+                f"one of {cls._factorizations.keys()}"
+            )
 
         return cls.from_tensor(tensor, rank, **kwargs)
 
@@ -2404,12 +2581,12 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
     @property
     def _factorization(self, indices=None, **kwargs):
         """Returns the raw, unprocessed indexed tensor, same as `forward` but without forward hooks
-        
+
         Parameters
         ----------
         indices : int, or tuple of int
             use to index the tensor
-        
+
         Returns
         -------
         TensorFactorization
@@ -2421,18 +2598,17 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
             return self[indices]
 
     def to_tensor(self):
-        """Reconstruct the full tensor from its factorized form
-        """ 
+        """Reconstruct the full tensor from its factorized form"""
         raise NotImplementedError
 
     def dim(self):
         """Order of the tensor
-        
+
         Notes
         -----
         fact_tensor.dim() == fact_tensor.ndim
 
-        See Also 
+        See Also
         --------
         ndim
         """
@@ -2444,12 +2620,12 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
     @property
     def ndim(self):
         """Order of the tensor
-        
+
         Notes
         -----
         fact_tensor.dim() == fact_tensor.ndim
 
-        See Also 
+        See Also
         --------
         dim
         """
@@ -2463,7 +2639,7 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
         index : int, or tuple, default is None
             if not None, returns tensor.shape[index]
 
-        See Also 
+        See Also
         --------
         shape
         """
@@ -2480,35 +2656,35 @@ class FactorizedTensor(nn.Module, metaclass=MetaFactorizedTensor):
         mean : float, currently only 0 is supported
         std : float
             standard deviation
-        
+
         Returns
         -------
         self
         """
         if mean != 0:
-            raise ValueError(f'Currently only mean=0 is supported, but got mean={mean}')
+            raise ValueError(f"Currently only mean=0 is supported, but got mean={mean}")
 
     def __repr__(self):
-        return f'{self.__class__.__name__}(shape={self.shape}, rank={self.rank})'
-    
+        return f"{self.__class__.__name__}(shape={self.shape}, rank={self.rank})"
+
     @classmethod
     def __torch_function__(cls, func, types, args=(), kwargs=None):
         if kwargs is None:
             kwargs = {}
 
-        args = [t.to_tensor() if hasattr(t, 'to_tensor') else t for t in args]
+        args = [t.to_tensor() if hasattr(t, "to_tensor") else t for t in args]
         # return super().__torch_function__(func, types, args, kwargs)
         return func(*args, **kwargs)
 
     @property
     def name(self):
-        """Factorization name ('tucker', 'tt', 'cp', ...)
-        """
+        """Factorization name ('tucker', 'tt', 'cp', ...)"""
         return self._name
 
     @property
     def tensor_shape(self):
         return self.shape
+
 
 def unfold(tensor, mode):
     """Returns the mode-`mode` unfolding of `tensor` with modes starting at `0`.
@@ -2526,7 +2702,9 @@ def unfold(tensor, mode):
     """
     return torch.reshape(torch.moveaxis(tensor, mode, 0), (tensor.shape[mode], -1))
 
+
 import torch
+
 
 def cp_normalize(cp_tensor):
     # Допустим, _validate_cp_tensor уже возвращает нужный ранг
@@ -2539,7 +2717,7 @@ def cp_normalize(cp_tensor):
         weights = torch.ones(rank, device=factors[0].device, dtype=factors[0].dtype)
 
     normalized_factors = []
-    
+
     for i, factor in enumerate(factors):
         if i == 0:
             factor = factor * weights
@@ -2547,14 +2725,14 @@ def cp_normalize(cp_tensor):
 
         # T.norm(axis=0) -> torch.norm(dim=0)
         scales = torch.norm(factor, p=2, dim=0)
-        
+
         # Вместо T.where для обработки нулей используем простой clamp или индексацию
         # Это предотвращает деление на ноль
         scales_non_zero = scales.clone()
         scales_non_zero[scales_non_zero == 0] = 1.0
-        
+
         weights = weights * scales
-        
+
         # В Torch деление матрицы на вектор по столбцам удобно делать через broadcasting
         # reshape(1, -1) аналогичен TensorLy
         normalized_factors.append(factor / scales_non_zero.view(1, -1))
@@ -2603,19 +2781,19 @@ def initialize_cp(
     elif isinstance(random_state, torch.Generator):
         rng = random_state
     else:
-        rng = None # Или torch.default_generator
+        rng = None  # Или torch.default_generator
 
     if init == "random":
-        # random_cp — это обычно функция из TensorLy. 
-        # В чистом Torch вы либо вызываете свою аналогичную функцию, 
+        # random_cp — это обычно функция из TensorLy.
+        # В чистом Torch вы либо вызываете свою аналогичную функцию,
         # либо инициализируете факторы вручную.
         kt = random_cp(
             tensor.shape,
             rank,
             normalise_factors=False,
-            generator=rng,      # Передаем Generator вместо numpy RandomState
+            generator=rng,  # Передаем Generator вместо numpy RandomState
             device=tensor.device,
-            dtype=tensor.dtype
+            dtype=tensor.dtype,
         )
 
     elif init == "svd":
@@ -2641,14 +2819,15 @@ def initialize_cp(
             if tensor.shape[mode] < rank:
                 # TODO: this is a hack but it seems to do the job for now
                 diff = rank - tensor.shape[mode]
-                
+
                 # Вместо tl.tensor(rng.random_sample(...), **tl.context(tensor))
                 # Используем встроенный генератор, который сразу создает тензор на нужном девайсе
-                random_part = torch.rand((U.shape[0], diff), device=tensor.device, dtype=tensor.dtype)
-                
+                random_part = torch.rand(
+                    (U.shape[0], diff), device=tensor.device, dtype=tensor.dtype
+                )
+
                 # tl.concatenate -> torch.cat
                 U = torch.cat([U, random_part], dim=1)
-
 
             factors.append(U[:, :rank])
 
@@ -2672,11 +2851,11 @@ def initialize_cp(
                 # weights.shape[0] в Torch аналогичен
                 # tl.prod(weights) -> weights.prod()
                 weights_avg = weights.prod() ** (1.0 / weights.shape[0])
-                
+
                 # В Torch можно обновить список факторов через inplace или обычное умножение
                 for i in range(len(factors)):
                     factors[i] = factors[i] * weights_avg
-                    
+
                 kt = (None, factors)
 
             return kt
@@ -2755,14 +2934,16 @@ def validate_cp_rank(tensor_shape, rank="same", rounding="round"):
         rank = int(rounding_fun(np.prod(tensor_shape) * rank / np.sum(tensor_shape)))
     return rank
 
+
 import torch
+
 
 def _validate_cp_tensor(cp_tensor):
     # Если вы еще не создали свой класс CPTensor, эту проверку можно убрать
     # или заменить на проверку вашего пользовательского класса
-    if hasattr(cp_tensor, 'shape') and hasattr(cp_tensor, 'rank'):
+    if hasattr(cp_tensor, "shape") and hasattr(cp_tensor, "rank"):
         return cp_tensor.shape, cp_tensor.rank
-    
+
     # Случай скаляра (0-order tensor)
     if isinstance(cp_tensor, (float, int)):
         return (), 0
@@ -2771,7 +2952,7 @@ def _validate_cp_tensor(cp_tensor):
 
     # В PyTorch используем .ndim вместо T.ndim
     first_factor_ndim = factors[0].ndim
-    
+
     if first_factor_ndim == 2:
         rank = factors[0].shape[1]
     elif first_factor_ndim == 1:
@@ -2813,13 +2994,13 @@ def _validate_cp_tensor(cp_tensor):
 def cp_norm(cp_tensor):
     # Допустим, _validate_cp_tensor адаптирован или пропущен
     weights, factors = cp_tensor
-    
+
     # Вместо T.ones(...) **T.context
     # Создаем матрицу Грама для первого фактора: (A.T @ A)
     # Инициализируем единичной матрицей или сразу результатом первого фактора
     rank = factors[0].shape[1]
     norm = torch.ones((rank, rank), device=factors[0].device, dtype=factors[0].dtype)
-    
+
     for f in factors:
         # T.dot(T.transpose(f), T.conj(f)) -> f.T @ f.conj()
         # В Torch .T для 2D — это короткий транспоз.
@@ -2861,23 +3042,24 @@ def fold(unfolded_tensor, mode, shape):
     full_shape.insert(0, mode_dim)
     return torch.moveaxis(torch.reshape(unfolded_tensor, full_shape), 0, mode)
 
+
 def khatri_rao(factors, skip_matrix=None, mask=None):
     """Упрощенная реализация Khatri-Rao продукта на PyTorch"""
     if skip_matrix is not None:
         factors = [f for i, f in enumerate(factors) if i != skip_matrix]
-    
+
     res = factors[0]
     for i in range(1, len(factors)):
         # Эффективный способ KR через вещание (broadcasting)
         res = torch.reshape(
-            factors[i].unsqueeze(1) * res.unsqueeze(0),
-            (-1, res.shape[1])
+            factors[i].unsqueeze(1) * res.unsqueeze(0), (-1, res.shape[1])
         )
-    
+
     if mask is not None:
         res = res * mask.reshape(-1, 1)
-        
+
     return res
+
 
 def cp_to_tensor(cp_tensor, mask=None):
     # Используем ваш ранее написанный валидатор
@@ -2887,7 +3069,7 @@ def cp_to_tensor(cp_tensor, mask=None):
         return cp_tensor
 
     weights, factors = cp_tensor
-    
+
     # Случай вектора (1-й порядок)
     if len(shape) == 1:
         # В Torch axis=1 заменяется на dim=1
@@ -2907,14 +3089,14 @@ def cp_to_tensor(cp_tensor, mask=None):
     else:
         # Если есть маска, суммируем по рангу напрямую
         # Это более ресурсозатратно, но соответствует логике TensorLy с маской
-        full_tensor = torch.sum(
-            khatri_rao([w_factors] + factors[1:], mask=mask), dim=1
-        )
+        full_tensor = torch.sum(khatri_rao([w_factors] + factors[1:], mask=mask), dim=1)
 
     # fold в TensorLy для mode=0 — это просто reshape к исходной форме
     return full_tensor.reshape(shape)
 
+
 import torch
+
 
 def error_calc(tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp=None):
     # Если есть маска или нет предвычисленного MTTKRP, строим полный тензор
@@ -2933,13 +3115,17 @@ def error_calc(tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp=Non
         else:
             sparse_component = 0.0
 
-        unnorml_rec_error = torch.linalg.norm(tensor - low_rank_component - sparse_component)
-    
+        unnorml_rec_error = torch.linalg.norm(
+            tensor - low_rank_component - sparse_component
+        )
+
     else:
         if sparsity:
             low_rank_component = cp_to_tensor((weights, factors))
             sparse_component = sparsify_tensor(tensor - low_rank_component, sparsity)
-            unnorml_rec_error = torch.linalg.norm(tensor - low_rank_component - sparse_component)
+            unnorml_rec_error = torch.linalg.norm(
+                tensor - low_rank_component - sparse_component
+            )
         else:
             # Оптимизированный путь: ||A - B||^2 = ||A||^2 + ||B||^2 - 2<A, B>
             # Используем вашу функцию cp_norm
@@ -2949,7 +3135,7 @@ def error_calc(tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp=Non
             # В Torch это просто сумма поэлементного произведения
             # .conj() нужен только для комплексных чисел
             iprod = torch.sum(mttkrp * factors[-1].conj())
-            
+
             # В PyTorch возведение в квадрат и abs работают стандартно
             # Используем clamp_min(0), чтобы избежать отрицательных чисел из-за ошибок округления
             sq_error = norm_tensor**2 + factors_norm**2 - 2 * iprod
@@ -2957,18 +3143,19 @@ def error_calc(tensor, norm_tensor, weights, factors, sparsity, mask, mttkrp=Non
 
     return unnorml_rec_error, tensor, norm_tensor
 
+
 def unfolding_dot_khatri_rao(tensor, cp_tensor, mode):
     weights, factors = cp_tensor
     ndims = tensor.ndim
-    
+
     # Подготавливаем символы для индексов (i, j, k, l...)
-    all_indices = [chr(ord('a') + i) for i in range(ndims)]
+    all_indices = [chr(ord("a") + i) for i in range(ndims)]
     # Индекс для ранга
-    rank_index = 'R'
-    
+    rank_index = "R"
+
     # Индексы тензора: 'abcd'
     tensor_indices = "".join(all_indices)
-    
+
     # Индексы факторов: 'aR', 'bR', 'dR' (пропуская целевую моду)
     factor_indices = []
     needed_factors = []
@@ -2976,21 +3163,22 @@ def unfolding_dot_khatri_rao(tensor, cp_tensor, mode):
         if i != mode:
             factor_indices.append(f"{all_indices[i]}{rank_index}")
             needed_factors.append(factors[i])
-            
+
     # Результирующие индексы: 'cR' (где c - индекс текущей моды)
     target_index = f"{all_indices[mode]}{rank_index}"
-    
+
     # Итоговая строка einsum: "abcd,bR,cR,dR->aR" (если mode=0)
     einsum_str = f"{tensor_indices},{','.join(factor_indices)}->{target_index}"
-    
+
     # Вычисляем MTTKRP
     mttkrp = torch.einsum(einsum_str, tensor, *needed_factors)
-    
+
     # Если есть веса, применяем их в конце
     if weights is not None:
         mttkrp = mttkrp * weights
-        
+
     return mttkrp
+
 
 def parafac(
     tensor,
@@ -3122,7 +3310,6 @@ def parafac(
     else:
         Id = 0
 
-
     if fixed_modes is None:
         fixed_modes = []
 
@@ -3183,19 +3370,23 @@ def parafac(
 
             # Создаем матрицу Грама (pseudo_inverse)
             # Инициализируем единицами на нужном устройстве
-            pseudo_inverse = torch.ones((rank, rank), device=tensor.device, dtype=tensor.dtype)
+            pseudo_inverse = torch.ones(
+                (rank, rank), device=tensor.device, dtype=tensor.dtype
+            )
             for i, factor in enumerate(factors):
                 if i != mode:
                     # tl.dot(T.conj(T.transpose(f)), f) -> f.conj().T @ f
                     pseudo_inverse = pseudo_inverse * (factor.conj().T @ factor)
-            
+
             pseudo_inverse += Id
-            
+
             # Модификация через веса (broadcasting)
             if weights is not None:
                 # .view(-1, 1) быстрее и нагляднее reshape
-                pseudo_inverse = weights.view(-1, 1) * pseudo_inverse * weights.view(1, -1)
-            
+                pseudo_inverse = (
+                    weights.view(-1, 1) * pseudo_inverse * weights.view(1, -1)
+                )
+
             # Эту функцию нужно реализовать на Torch (обычно через тензорное сжатие)
             mttkrp = unfolding_dot_khatri_rao(tensor, (weights, factors), mode)
 
@@ -3203,9 +3394,8 @@ def parafac(
             # tl.solve(A, B) -> torch.linalg.solve(A, B)
             # Используем .T (транспонирование), так как Torch ожидает (matrix, right_hand_side)
             factor = torch.linalg.solve(pseudo_inverse.conj().T, mttkrp.T).T
-            
-            factors[mode] = factor
 
+            factors[mode] = factor
 
         # Will we be performing a line search iteration
         if linesearch and iteration % 2 == 0 and iteration > 5:
@@ -3220,9 +3410,7 @@ def parafac(
             )
         else:
             if mask is not None:
-                tensor = tensor * mask + cp_to_tensor(
-                    (weights, factors), mask=1 - mask
-                )
+                tensor = tensor * mask + cp_to_tensor((weights, factors), mask=1 - mask)
 
         # Start line search if requested.
         if line_iter:
@@ -3322,44 +3510,51 @@ def parafac(
     else:
         return cp_tensor
 
+
 def svd_flip(U, V, u_based_decision=True):
     if u_based_decision:
         # Находим индексы максимальных по модулю элементов в каждом столбце U
         max_abs_cols = torch.argmax(torch.abs(U), dim=0)
-        
+
         # Векторный способ получить значения U[max_abs_cols, range]
         # Это заменяет конструкцию [U[i, j] for (i, j) in zip(...)]
         col_indices = torch.arange(U.shape[1], device=U.device)
         signs = torch.sign(U[max_abs_cols, col_indices])
-        
+
         U = U * signs
-        
+
         if V.shape[0] > U.shape[1]:
             # Создаем тензор единиц на том же устройстве
-            extra_ones = torch.ones(V.shape[0] - U.shape[1], device=V.device, dtype=V.dtype)
+            extra_ones = torch.ones(
+                V.shape[0] - U.shape[1], device=V.device, dtype=V.dtype
+            )
             signs = torch.cat((signs, extra_ones))
-            
-        V = V * signs[:V.shape[0]].view(-1, 1)
+
+        V = V * signs[: V.shape[0]].view(-1, 1)
     else:
         # Находим индексы максимальных элементов в каждой строке V
         max_abs_rows = torch.argmax(torch.abs(V), dim=1)
-        
+
         row_indices = torch.arange(V.shape[0], device=V.device)
         signs = torch.sign(V[row_indices, max_abs_rows])
-        
+
         V = V * signs.view(-1, 1)
-        
+
         if U.shape[1] > V.shape[0]:
-            extra_ones = torch.ones(U.shape[1] - V.shape[0], device=U.device, dtype=U.dtype)
+            extra_ones = torch.ones(
+                U.shape[1] - V.shape[0], device=U.device, dtype=U.dtype
+            )
             signs = torch.cat((signs, extra_ones))
-            
-        U = U * signs[:U.shape[1]]
+
+        U = U * signs[: U.shape[1]]
 
     return U, V
+
 
 def soft_thresholding(tensor, threshold):
     # F.relu(x) — это эффективный аналог torch.clamp(x, min=0)
     return torch.sign(tensor) * F.relu(torch.abs(tensor) - threshold)
+
 
 def make_svd_non_negative(tensor, U, S, V, nntype=True):
     if nntype is True:
@@ -3379,7 +3574,7 @@ def make_svd_non_negative(tensor, U, S, V, nntype=True):
 
         # Получаем положительные и отрицательные части
         x_p, y_p = F.relu(x), F.relu(y)
-        x_n, y_n = F.relu(-x), F.relu(-y) # Быстрее, чем abs(clamp(max=0))
+        x_n, y_n = F.relu(-x), F.relu(-y)  # Быстрее, чем abs(clamp(max=0))
 
         # Нормы
         x_p_nrm, y_p_nrm = torch.linalg.norm(x_p), torch.linalg.norm(y_p)
@@ -3408,7 +3603,7 @@ def make_svd_non_negative(tensor, U, S, V, nntype=True):
         W = torch.where(W < eps, avg, W)
         H = torch.where(H < eps, avg, H)
     else:
-        raise ValueError(f'Invalid nntype: {nntype}')
+        raise ValueError(f"Invalid nntype: {nntype}")
 
     return W, H
 
@@ -3418,22 +3613,24 @@ def randomized_range_finder(A, n_dims, n_iter=2, random_state=None):
     if isinstance(random_state, int):
         generator = torch.Generator(device=A.device).manual_seed(random_state)
     else:
-        generator = None # Использует глобальный генератор torch
+        generator = None  # Использует глобальный генератор torch
 
     dim_1, dim_2 = A.shape
-    
+
     # Создаем случайную матрицу сразу в контексте A (device и dtype)
     # torch.randn эффективнее, чем rng.normal из NumPy
-    Q = torch.randn((dim_2, n_dims), device=A.device, dtype=A.dtype, generator=generator)
-    
+    Q = torch.randn(
+        (dim_2, n_dims), device=A.device, dtype=A.dtype, generator=generator
+    )
+
     # Первое приближение: QR(A @ Q)
     # В Torch матричное умножение — это @, QR — в модуле linalg
     Q, _ = torch.linalg.qr(A @ Q)
 
     # Power iterations (степенные итерации) для уточнения подпространства
     # Сопряженное транспонирование: .mth.conj().T или .H (в новых версиях)
-    A_H = A.mth.conj().T 
-    
+    A_H = A.mth.conj().T
+
     for i in range(n_iter):
         # Оборот через сопряженную матрицу и обратно
         Q, _ = torch.linalg.qr(A_H @ Q)
@@ -3484,11 +3681,11 @@ def truncated_svd(matrix, n_eigenvecs=None, **kwargs):
     """Усеченное SVD на чистом PyTorch"""
     # Предполагается, что svd_checks адаптирована под Torch (возвращает n_eigenvecs и min_dim)
     n_eigenvecs, min_dim, _ = svd_checks(matrix, n_eigenvecs=n_eigenvecs)
-    
+
     # full_matrices=False в Torch эквивалентно 'reduced' SVD.
     # Это значит, что U будет формы (M, K), а Vh — (K, N), где K = min(M, N).
     U, S, Vh = torch.linalg.svd(matrix, full_matrices=False)
-    
+
     # Возвращаем срезы до нужного количества векторов
     # В Torch SVD возвращает Vh (V сопряженное транспонированное), что соответствует V из TensorLy
     return U[:, :n_eigenvecs], S[:n_eigenvecs], Vh[:n_eigenvecs, :]
@@ -3514,7 +3711,7 @@ def symeig_svd(matrix, n_eigenvecs=None, **kwargs):
         S = torch.sqrt(torch.clamp(S, min=eps))
         U = (matrix @ V) / S.view(1, -1)
 
-    # eigh возвращает результат в порядке возрастания. 
+    # eigh возвращает результат в порядке возрастания.
     # Для SVD нужно развернуть (flip), чтобы было по убыванию.
     U = torch.flip(U, dims=(1,))
     S = torch.flip(S, dims=(0,))
@@ -3523,11 +3720,7 @@ def symeig_svd(matrix, n_eigenvecs=None, **kwargs):
     # Находим фактическое количество векторов для возврата
     k = min(dim_1, dim_2, n_eigenvecs)
 
-    return (
-        U[:, :k],
-        S[:k],
-        V[:k, :]
-    )
+    return (U[:, :k], S[:k], V[:k, :])
 
 
 def randomized_svd(
@@ -3554,16 +3747,16 @@ def randomized_svd(
     ):
         # Работаем с транспонированной матрицей
         matrix_T = matrix.mth.conj().T
-        
+
         # Используем вашу функцию randomized_range_finder на Torch
         Q = randomized_range_finder(
             matrix_T, n_dims=n_dims, n_iter=n_iter, random_state=random_state
         )
-        
+
         # matrix_reduced = (Q.H @ matrix_T).H
         # В Torch: (Q.T @ A.T).T == A @ Q
         matrix_reduced = (Q.mth.conj().T @ matrix_T).mth.conj().T
-        
+
         U, S, V = truncated_svd(matrix_reduced, n_eigenvecs=n_eigenvecs)
         # V = V @ Q.T
         V = V @ Q.mth.conj().T
@@ -3572,12 +3765,12 @@ def randomized_svd(
         Q = randomized_range_finder(
             matrix, n_dims=n_dims, n_iter=n_iter, random_state=random_state
         )
-        
+
         # Проекция матрицы на найденное подпространство
         matrix_reduced = Q.mth.conj().T @ matrix
-        
+
         U, S, V = truncated_svd(matrix_reduced, n_eigenvecs=n_eigenvecs)
-        
+
         # Восстановление размерности U: U = Q @ U_reduced
         U = Q @ U
 
@@ -3662,7 +3855,7 @@ def svd_interface(
 
             # Обновляем значения в матрице только там, где маска равна 0
             matrix = matrix * mask + reconstruction * (1 - mask)
-            
+
             # Пересчитываем SVD
             U, S, V = svd_fun(matrix, n_eigenvecs=n_eigenvecs, **kwargs)
 
@@ -3674,7 +3867,9 @@ def svd_interface(
 
     return U, S, V
 
+
 import torch
+
 
 def initialize_tucker(
     tensor,
@@ -3692,11 +3887,11 @@ def initialize_tucker(
         for index, mode in enumerate(modes):
             # tl.unfold(tensor, mode) -> tensor.moveaxis(mode, 0).reshape(tensor.shape[mode], -1)
             unfolded = tensor.moveaxis(mode, 0).reshape(tensor.shape[mode], -1)
-            
+
             mask_unfold = None
             if mask is not None:
                 mask_unfold = mask.moveaxis(mode, 0).reshape(mask.shape[mode], -1)
-            
+
             # svd_interface должна возвращать U, S, V на Torch
             U, _, _ = svd_interface(
                 unfolded,
@@ -3708,7 +3903,7 @@ def initialize_tucker(
                 random_state=random_state,
             )
             factors.append(U)
-        
+
         # Начальное ядро (core) через multi_mode_dot
         # В Torch это последовательное умножение тензора на факторы (factors[i].T)
         core = tensor
@@ -3724,11 +3919,20 @@ def initialize_tucker(
 
         core_shape = [rank[i] for i in range(len(modes))]
         # Прямое создание на устройстве тензора
-        core = torch.rand(core_shape, device=tensor.device, dtype=tensor.dtype, generator=gen) + 0.01
-        
+        core = (
+            torch.rand(
+                core_shape, device=tensor.device, dtype=tensor.dtype, generator=gen
+            )
+            + 0.01
+        )
+
         factors = [
-            torch.rand((tensor.shape[mode], rank[index]), 
-                       device=tensor.device, dtype=tensor.dtype, generator=gen)
+            torch.rand(
+                (tensor.shape[mode], rank[index]),
+                device=tensor.device,
+                dtype=tensor.dtype,
+                generator=gen,
+            )
             for index, mode in enumerate(modes)
         ]
     else:
@@ -3742,33 +3946,37 @@ def initialize_tucker(
 
     return core, factors
 
+
 def tucker_mode_dot(tensor, matrix, mode):
     """Аналог tl.mode_dot для PyTorch"""
     shape = list(tensor.shape)
     # Переносим целевую моду вперед, умножаем как матрицу, возвращаем обратно
     new_shape = shape[:]
     new_shape[mode] = matrix.shape[0]
-    
+
     unfolded = tensor.moveaxis(mode, 0).reshape(shape[mode], -1)
     res = matrix @ unfolded
-    return res.reshape([matrix.shape[0]] + [s for i, s in enumerate(shape) if i != mode]).moveaxis(0, mode)
+    return res.reshape(
+        [matrix.shape[0]] + [s for i, s in enumerate(shape) if i != mode]
+    ).moveaxis(0, mode)
+
 
 def multi_mode_dot(tensor, factors, modes=None, transpose=False):
     if modes is None:
         modes = list(range(len(factors)))
-    
+
     ndims = tensor.ndim
     # Символы для осей тензора: a, b, c, d...
-    tensor_indices = [chr(ord('a') + i) for i in range(ndims)]
-    
+    tensor_indices = [chr(ord("a") + i) for i in range(ndims)]
+
     # Подготавливаем индексы для факторов и итогового тензора
     factor_indices = []
     output_indices = list(tensor_indices)
-    
+
     for i, mode in enumerate(modes):
         # Новый символ для размерности после умножения
-        new_dim_char = chr(ord('z') - i) 
-        
+        new_dim_char = chr(ord("z") - i)
+
         if transpose:
             # Матрица (R, I), тензор индекс I -> итог R
             # 'Ri'
@@ -3777,13 +3985,14 @@ def multi_mode_dot(tensor, factors, modes=None, transpose=False):
             # Матрица (I, R), тензор индекс I -> итог R
             # 'iR'
             factor_indices.append(f"{tensor_indices[mode]}{new_dim_char}")
-        
+
         output_indices[mode] = new_dim_char
 
     # Формируем строку: "abcd,ia,jb->ijcd"
     einsum_str = f"{''.join(tensor_indices)},{','.join(factor_indices)}->{''.join(output_indices)}"
-    
+
     return torch.einsum(einsum_str, tensor, *factors)
+
 
 def partial_tucker(
     tensor,
@@ -3837,11 +4046,15 @@ def partial_tucker(
             core_approximation = tensor
             for i, f_mode in enumerate(modes):
                 if i != index:
-                    core_approximation = tucker_mode_dot(core_approximation, factors[i].mth.conj().T, f_mode)
+                    core_approximation = tucker_mode_dot(
+                        core_approximation, factors[i].mth.conj().T, f_mode
+                    )
 
             # Развертка (unfold) и получение новых факторов через SVD
-            unfolded = core_approximation.moveaxis(mode, 0).reshape(tensor.shape[mode], -1)
-            
+            unfolded = core_approximation.moveaxis(mode, 0).reshape(
+                tensor.shape[mode], -1
+            )
+
             eigenvecs, _, _ = svd_interface(
                 unfolded,
                 n_eigenvecs=rank[index],
@@ -3858,13 +4071,17 @@ def partial_tucker(
         # Расчет ошибки: для ортонормированных факторов ||T - core x U|| = sqrt(||T||^2 - ||core||^2)
         norm_core = torch.linalg.norm(core)
         # clamp_min(0) для численной стабильности под корнем
-        rec_error = torch.sqrt(torch.clamp(norm_tensor**2 - norm_core**2, min=0)) / norm_tensor
+        rec_error = (
+            torch.sqrt(torch.clamp(norm_tensor**2 - norm_core**2, min=0)) / norm_tensor
+        )
         rec_errors.append(rec_error.item())
 
         if iteration > 1:
             variation = rec_errors[-2] - rec_errors[-1]
             if verbose:
-                print(f"Iteration {iteration}: error={rec_errors[-1]:.6f}, variation={variation:.6f}")
+                print(
+                    f"Iteration {iteration}: error={rec_errors[-1]:.6f}, variation={variation:.6f}"
+                )
 
             if tol and abs(variation) < tol:
                 if verbose:
@@ -3872,6 +4089,7 @@ def partial_tucker(
                 break
 
     return (core, factors), rec_errors
+
 
 def validate_tucker_rank(tensor_shape, rank="same", rounding="round", fixed_modes=None):
     r"""Returns the rank of a Tucker Decomposition
@@ -3978,6 +4196,7 @@ def validate_tucker_rank(tensor_shape, rank="same", rounding="round", fixed_mode
 
     return rank
 
+
 def tucker(
     tensor,
     rank,
@@ -4042,7 +4261,7 @@ def tucker(
     """
     if fixed_factors:
         try:
-            (core, factors) = init
+            core, factors = init
         except:
             raise ValueError(
                 f'Got fixed_factor={fixed_factors} but no appropriate Tucker tensor was passed for "init".'
@@ -4112,7 +4331,7 @@ class FactorList(nn.Module):
 
     def _unique_key(self):
         """Creates a new unique key"""
-        key = f'factor_{self.counter}'
+        key = f"factor_{self.counter}"
         self.counter += 1
         return key
 
@@ -4129,7 +4348,7 @@ class FactorList(nn.Module):
 
     def insert(self, index, element):
         key = self._unique_key()
-        setattr(self ,key, element)
+        setattr(self, key, element)
         self.keys.insert(index, key)
 
     def pop(self, index=-1):
@@ -4173,17 +4392,19 @@ class FactorList(nn.Module):
     def extra_repr(self) -> str:
         child_lines = []
         for k, p in self._parameters.items():
-            size_str = 'x'.join(str(size) for size in p.size())
-            device_str = '' if not p.is_cuda else ' (GPU {})'.format(p.get_device())
-            parastr = 'Parameter containing: [{} of size {}{}]'.format(
-                torch.typename(p), size_str, device_str)
-            child_lines.append('  (' + str(k) + '): ' + parastr)
-        tmpstr = '\n'.join(child_lines)
+            size_str = "x".join(str(size) for size in p.size())
+            device_str = "" if not p.is_cuda else " (GPU {})".format(p.get_device())
+            parastr = "Parameter containing: [{} of size {}{}]".format(
+                torch.typename(p), size_str, device_str
+            )
+            child_lines.append("  (" + str(k) + "): " + parastr)
+        tmpstr = "\n".join(child_lines)
         return tmpstr
 
-class DenseTensor(FactorizedTensor, name='Dense'):
-    """Dense tensor
-    """
+
+class DenseTensor(FactorizedTensor, name="Dense"):
+    """Dense tensor"""
+
     def __init__(self, tensor, shape=None, rank=None):
         super().__init__()
         if shape is not None and rank is not None:
@@ -4194,10 +4415,10 @@ class DenseTensor(FactorizedTensor, name='Dense'):
         self.order = len(self.shape)
 
         if isinstance(tensor, nn.Parameter):
-            self.register_parameter('tensor', tensor)
+            self.register_parameter("tensor", tensor)
         else:
-            self.register_buffer('tensor', tensor)
-    
+            self.register_buffer("tensor", tensor)
+
     @classmethod
     def new(cls, shape, rank=None, device=None, dtype=None, **kwargs):
         # Register the parameters
@@ -4206,15 +4427,15 @@ class DenseTensor(FactorizedTensor, name='Dense'):
         return cls(tensor)
 
     @classmethod
-    def from_tensor(cls, tensor, rank='same', **kwargs):
+    def from_tensor(cls, tensor, rank="same", **kwargs):
         # В PyTorch принято клонировать тензор перед созданием параметра,
         # чтобы избежать нежелательных побочных эффектов.
         return cls(nn.Parameter(tensor.clone()))
 
     def init_from_tensor(self, tensor, l2_reg=1e-5, **kwargs):
-        # torch.no_grad() гарантирует, что операция копирования 
+        # torch.no_grad() гарантирует, что операция копирования
         # не будет отслеживаться градиентами.
-        with torch.no_grad():        
+        with torch.no_grad():
             # tensor.clone() заменяет tl.copy(tensor)
             self.tensor = nn.Parameter(tensor.clone())
         return self
@@ -4235,7 +4456,7 @@ class DenseTensor(FactorizedTensor, name='Dense'):
         return self.__class__(self.tensor[indices])
 
 
-class CPTensor(FactorizedTensor, name='CP'):
+class CPTensor(FactorizedTensor, name="CP"):
     """CP Factorization
 
     Parameters
@@ -4245,6 +4466,7 @@ class CPTensor(FactorizedTensor, name='CP'):
     shape
     rank
     """
+
     def __init__(self, weights, factors, shape=None, rank=None):
         super().__init__()
         if shape is not None and rank is not None:
@@ -4255,12 +4477,12 @@ class CPTensor(FactorizedTensor, name='CP'):
 
         # self.weights = weights
         if isinstance(weights, nn.Parameter):
-            self.register_parameter('weights', weights)
+            self.register_parameter("weights", weights)
         else:
-            self.register_buffer('weights', weights)
+            self.register_buffer("weights", weights)
 
         self.factors = FactorList(factors)
-    
+
     @classmethod
     def new(cls, shape, rank, device=None, dtype=None, **kwargs):
         rank = validate_cp_rank(shape, rank)
@@ -4268,25 +4490,31 @@ class CPTensor(FactorizedTensor, name='CP'):
         # Register the parameters
         weights = nn.Parameter(torch.empty(rank, device=device, dtype=dtype))
         # Avoid the issues with ParameterList
-        factors = [nn.Parameter(torch.empty((s, rank), device=device, dtype=dtype)) for s in shape]
+        factors = [
+            nn.Parameter(torch.empty((s, rank), device=device, dtype=dtype))
+            for s in shape
+        ]
 
         return cls(weights, factors)
 
     @classmethod
-    def from_tensor(cls, tensor, rank='same', **kwargs):
+    def from_tensor(cls, tensor, rank="same", **kwargs):
         shape = tensor.shape
         rank = validate_cp_rank(shape, rank)
         dtype = tensor.dtype
 
         with torch.no_grad():
             weights, factors = parafac(tensor.to(torch.float64), rank, **kwargs)
-        
-        return cls(nn.Parameter(weights.to(dtype).contiguous()), [nn.Parameter(f.to(dtype).contiguous()) for f in factors])
+
+        return cls(
+            nn.Parameter(weights.to(dtype).contiguous()),
+            [nn.Parameter(f.to(dtype).contiguous()) for f in factors],
+        )
 
     def init_from_tensor(self, tensor, l2_reg=1e-5, **kwargs):
         with torch.no_grad():
             weights, factors = parafac(tensor, self.rank, l2_reg=l2_reg, **kwargs)
-        
+
         self.weights = nn.Parameter(weights.contiguous())
         self.factors = FactorList([nn.Parameter(f.contiguous()) for f in factors])
         return self
@@ -4300,19 +4528,19 @@ class CPTensor(FactorizedTensor, name='CP'):
 
     def normal_(self, mean=0, std=1):
         super().normal_(mean, std)
-        std_factors = (std/math.sqrt(self.rank))**(1/self.order)
+        std_factors = (std / math.sqrt(self.rank)) ** (1 / self.order)
 
         with torch.no_grad():
             self.weights.fill_(1)
             for factor in self.factors:
                 factor.data.normal_(0, std_factors)
         return self
-    
+
     def __getitem__(self, indices):
         if isinstance(indices, int):
             # Select one dimension of one mode
             mixing_factor, *factors = self.factors
-            weights = self.weights*mixing_factor[indices, :]
+            weights = self.weights * mixing_factor[indices, :]
             return self.__class__(weights, factors)
 
         elif isinstance(indices, slice):
@@ -4329,18 +4557,20 @@ class CPTensor(FactorizedTensor, name='CP'):
             weights = self.weights
             for index in indices:
                 if index is Ellipsis:
-                    raise ValueError(f'Ellipsis is not yet supported, yet got indices={indices} which contains one.')
+                    raise ValueError(
+                        f"Ellipsis is not yet supported, yet got indices={indices} which contains one."
+                    )
 
                 mixing_factor, *factors = factors
-                if isinstance(index,  (np.integer, int)):
+                if isinstance(index, (np.integer, int)):
                     if factors or index_factors:
-                        weights = weights*mixing_factor[index, :]
+                        weights = weights * mixing_factor[index, :]
                     else:
                         # No factors left
-                        return torch.sum(weights*mixing_factor[index, :])
+                        return torch.sum(weights * mixing_factor[index, :])
                 else:
                     index_factors.append(mixing_factor[index, :])
-            
+
             return self.__class__(weights, index_factors + factors)
         # return self.__class__(*tl.cp_indexing(self.weights, self.factors, indices))
 
@@ -4365,12 +4595,15 @@ class CPTensor(FactorizedTensor, name='CP'):
         self.shape = self.shape[:mode] + (new_dim,) + self.shape[mode:]
 
         if new_factor is None:
-            new_factor = torch.ones(new_dim, self.rank)#/new_dim
+            new_factor = torch.ones(new_dim, self.rank)  # /new_dim
 
-        factors.insert(mode, nn.Parameter(new_factor.to(factors[0].device).contiguous()))
+        factors.insert(
+            mode, nn.Parameter(new_factor.to(factors[0].device).contiguous())
+        )
         self.factors = FactorList(factors)
 
         return self
+
 
 def random_cp(shape, rank, device=None, dtype=None, generator=None, **kwargs):
     # Создаем факторы (матрицы) для каждой моды тензора
@@ -4381,6 +4614,7 @@ def random_cp(shape, rank, device=None, dtype=None, generator=None, **kwargs):
     # В CP-разложении также обычно есть веса (weights)
     weights = torch.ones(rank, device=device, dtype=dtype)
     return weights, factors
+
 
 def _validate_tucker_tensor(tucker_tensor):
     core, factors = tucker_tensor
@@ -4411,7 +4645,7 @@ def _validate_tucker_tensor(tucker_tensor):
                 f"Device mismatch: core is on {device}, but factors[{i}] is on {factor.device}. "
                 "All tensors must be on the same device."
             )
-        
+
         # Проверка типа данных (опционально, но полезно)
         if factor.dtype != dtype:
             raise ValueError(
@@ -4420,21 +4654,22 @@ def _validate_tucker_tensor(tucker_tensor):
             )
 
         current_shape, current_rank = factor.shape
-        
+
         if current_rank != core.shape[i]:
             raise ValueError(
                 f"Factor {i} rank mismatch: factors[{i}].shape[1]={current_rank} "
                 f"but core.shape[{i}]={core.shape[i]}."
             )
-        
+
         shape.append(current_shape)
         rank.append(current_rank)
 
     return tuple(shape), tuple(rank)
 
+
 def tucker_to_tensor(tucker_tensor, skip_factor=None, transpose_factors=False):
     core, factors = tucker_tensor
-    
+
     # Определяем, какие моды и факторы мы используем
     if skip_factor is not None:
         # Индексы мод, которые НЕ пропускаем
@@ -4447,13 +4682,11 @@ def tucker_to_tensor(tucker_tensor, skip_factor=None, transpose_factors=False):
 
     # Вызываем нашу multi_mode_dot на базе einsum
     return multi_mode_dot(
-        core, 
-        active_factors, 
-        modes=modes, 
-        transpose=transpose_factors
+        core, active_factors, modes=modes, transpose=transpose_factors
     )
 
-class TuckerTensor(FactorizedTensor, name='Tucker'):
+
+class TuckerTensor(FactorizedTensor, name="Tucker"):
     """Tucker Factorization
 
     Parameters
@@ -4463,45 +4696,53 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
     shape
     rank
     """
+
     def __init__(self, core, factors, shape=None, rank=None):
         super().__init__()
         if shape is not None and rank is not None:
             self.shape, self.rank = shape, rank
         else:
             self.shape, self.rank = _validate_tucker_tensor((core, factors))
-        
+
         self.order = len(self.shape)
         # self.core = core
         if isinstance(core, nn.Parameter):
-            self.register_parameter('core', core)
+            self.register_parameter("core", core)
         else:
-            self.register_buffer('core', core)
+            self.register_buffer("core", core)
 
         self.factors = FactorList(factors)
-    
+
     @classmethod
-    def new(cls, shape, rank, fixed_rank_modes=None,
-            device=None, dtype=None, **kwargs):
+    def new(cls, shape, rank, fixed_rank_modes=None, device=None, dtype=None, **kwargs):
         rank = validate_tucker_rank(shape, rank, fixed_modes=fixed_rank_modes)
 
         # Register the parameters
         core = nn.Parameter(torch.empty(rank, device=device, dtype=dtype))
         # Avoid the issues with ParameterList
-        factors = [nn.Parameter(torch.empty((s, r), device=device, dtype=dtype)) for (s, r) in zip(shape, rank)]
+        factors = [
+            nn.Parameter(torch.empty((s, r), device=device, dtype=dtype))
+            for (s, r) in zip(shape, rank)
+        ]
 
         return cls(core, factors)
 
     @classmethod
-    def from_tensor(cls, tensor, rank='same', fixed_rank_modes=None, **kwargs):
+    def from_tensor(cls, tensor, rank="same", fixed_rank_modes=None, **kwargs):
         shape = tensor.shape
         rank = validate_tucker_rank(shape, rank, fixed_modes=fixed_rank_modes)
 
         with torch.no_grad():
             core, factors = tucker(tensor, rank, **kwargs)
-        
-        return cls(nn.Parameter(core.contiguous()), [nn.Parameter(f.contiguous()) for f in factors])
 
-    def init_from_tensor(self, tensor, unsqueezed_modes=None, unsqueezed_init='average', **kwargs):
+        return cls(
+            nn.Parameter(core.contiguous()),
+            [nn.Parameter(f.contiguous()) for f in factors],
+        )
+
+    def init_from_tensor(
+        self, tensor, unsqueezed_modes=None, unsqueezed_init="average", **kwargs
+    ):
         """Initialize the tensor factorization from a tensor
 
         Parameters
@@ -4510,9 +4751,9 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
             full tensor to decompose
         unsqueezed_modes : int list
             list of modes for which the rank is 1 that don't correspond to a mode in the full tensor
-            essentially we are adding a new dimension for which the core has dim 1, 
+            essentially we are adding a new dimension for which the core has dim 1,
             and that is not initialized through decomposition.
-            Instead first `tensor` is decomposed into the other factors. 
+            Instead first `tensor` is decomposed into the other factors.
             The `unsqueezed factors` are then added and  initialized e.g. with 1/dim[i]
         unsqueezed_init : 'average' or float
             if unsqueezed_modes, this is how the added "unsqueezed" factors will be initialized
@@ -4522,23 +4763,25 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
             unsqueezed_modes = sorted(unsqueezed_modes)
             for mode in unsqueezed_modes[::-1]:
                 if self.rank[mode] != 1:
-                    msg = 'It is only possible to initialize by averagig over mode for which rank=1.'
-                    msg += f'However, got unsqueezed_modes={unsqueezed_modes} but rank[{mode}]={self.rank[mode]} != 1.'
+                    msg = "It is only possible to initialize by averagig over mode for which rank=1."
+                    msg += f"However, got unsqueezed_modes={unsqueezed_modes} but rank[{mode}]={self.rank[mode]} != 1."
                     raise ValueError(msg)
-                        
-            rank = tuple(r for (i, r) in enumerate(self.rank) if i not in unsqueezed_modes)
+
+            rank = tuple(
+                r for (i, r) in enumerate(self.rank) if i not in unsqueezed_modes
+            )
         else:
             rank = self.rank
 
         with torch.no_grad():
             core, factors = tucker(tensor, rank, **kwargs)
-            
+
             if unsqueezed_modes is not None:
                 # Initialise with 1/shape[mode] or given value
                 for mode in unsqueezed_modes:
                     size = self.shape[mode]
                     factor = torch.ones(size, 1)
-                    if unsqueezed_init == 'average':
+                    if unsqueezed_init == "average":
                         factor /= size
                     else:
                         factor *= unsqueezed_init
@@ -4558,11 +4801,11 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
 
     def normal_(self, mean=0, std=1):
         if mean != 0:
-            raise ValueError(f'Currently only mean=0 is supported, but got mean={mean}')
-            
+            raise ValueError(f"Currently only mean=0 is supported, but got mean={mean}")
+
         r = np.prod([math.sqrt(r) for r in self.rank])
-        std_factors = (std/r)**(1/(self.order+1))
-        
+        std_factors = (std / r) ** (1 / (self.order + 1))
+
         with torch.no_grad():
             self.core.data.normal_(0, std_factors)
             for factor in self.factors:
@@ -4579,27 +4822,27 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
             # Убираем лишнюю размерность, так как это выбор индекса (int)
             core = core.squeeze(0)
             return self.__class__(core, factors)
-        
+
         elif isinstance(indices, slice):
             # Срез первой моды
             mixing_factor, *factors = self.factors
             factors = [mixing_factor[indices, :], *factors]
             return self.__class__(self.core, factors)
-        
+
         else:
             # Индексация по нескольким модам
             factors_remaining = []
             factors_contract = []
             modes_to_contract = []
-            
-            # Разделяем индексы на те, что схлопывают размерность (int), 
+
+            # Разделяем индексы на те, что схлопывают размерность (int),
             # и те, что сохраняют (slice)
             for i, index in enumerate(indices):
                 if index is Ellipsis:
-                    raise ValueError('Ellipsis is not supported.')
-                
+                    raise ValueError("Ellipsis is not supported.")
+
                 current_factor = self.factors[i]
-                
+
                 if isinstance(index, int):
                     modes_to_contract.append(i)
                     # Извлекаем вектор и превращаем в строку (1, rank) для умножения
@@ -4609,24 +4852,25 @@ class TuckerTensor(FactorizedTensor, name='Tucker'):
                     factors_remaining.append(current_factor[index, :])
 
             if modes_to_contract:
-                # Используем нашу multi_mode_dot (через einsum), 
+                # Используем нашу multi_mode_dot (через einsum),
                 # чтобы применить факторы-векторы к ядру
-                core = multi_mode_dot(self.core, factors_contract, modes=modes_to_contract)
+                core = multi_mode_dot(
+                    self.core, factors_contract, modes=modes_to_contract
+                )
                 # Убираем размерности, которые схлопнулись из-за int-индексов
                 # squeeze(modes) удалит только те оси, по которым прошли int
                 core = core.squeeze(tuple(modes_to_contract))
             else:
                 core = self.core
-                
+
             # Добавляем факторы от мод, которые не были затронуты индексами
-            factors_remaining = factors_remaining + self.factors[len(indices):]
+            factors_remaining = factors_remaining + self.factors[len(indices) :]
 
             if factors_remaining:
                 return self.__class__(core, factors_remaining)
 
             # Если все моды схлопнуты, возвращаем ядро (теперь это скаляр или вектор)
             return core
-
 
 
 def validate_tt_rank(
@@ -4668,14 +4912,19 @@ def validate_tt_rank(
 
     elif isinstance(rank, float):
         order = len(tensor_shape)
-        avg_dim = [(tensor_shape[i] + tensor_shape[i + 1]) / 2 for i in range(order - 1)]
-        
+        avg_dim = [
+            (tensor_shape[i] + tensor_shape[i + 1]) / 2 for i in range(order - 1)
+        ]
+
         if len(avg_dim) > 1:
-            a = sum(avg_dim[i - 1] * tensor_shape[i] * avg_dim[i] for i in range(1, order - 1))
+            a = sum(
+                avg_dim[i - 1] * tensor_shape[i] * avg_dim[i]
+                for i in range(1, order - 1)
+            )
         else:
             warnings.warn(f"Determining tt-rank for a matrix: {tensor_shape}")
             a = avg_dim[0] ** 2 * tensor_shape[0]
-            
+
         b = tensor_shape[0] * avg_dim[0] + tensor_shape[-1] * avg_dim[-1]
         c = -math.prod(tensor_shape) * rank
         delta = math.sqrt(b**2 - 4 * a * c)
@@ -4689,7 +4938,9 @@ def validate_tt_rank(
         if isinstance(rank, int):
             rank = [1] + [rank] * (n_dim - 1) + [1]
         elif n_dim + 1 != len(rank):
-            raise ValueError(f"Incorrect rank length. Expected {n_dim+1}, got {len(rank)}")
+            raise ValueError(
+                f"Incorrect rank length. Expected {n_dim+1}, got {len(rank)}"
+            )
 
         if rank[0] != 1 or rank[-1] != 1:
             raise ValueError("Boundary conditions dictate rank[0] == rank[-1] == 1.")
@@ -4707,30 +4958,32 @@ def validate_tt_rank(
 
         return validated_rank
 
+
 def tt_to_tensor(factors):
     if isinstance(factors, (float, int)):  # случай скаляра
         return factors
 
     # Извлекаем размерности исходного тензора (средняя ось каждого ядра)
     full_shape = [f.shape[1] for f in factors]
-    
+
     # Первая развертка: (1, I_1, R_1) -> (I_1, R_1)
     full_tensor = factors[0].reshape(full_shape[0], -1)
 
     for factor in factors[1:]:
         rank_prev, mode_size, rank_next = factor.shape
-        
+
         # Развертка текущего ядра в матрицу (R_{k-1}, I_k * R_k)
         factor_matrix = factor.reshape(rank_prev, -1)
-        
+
         # Матричное умножение: (I_1*...*I_{k-1}, R_{k-1}) @ (R_{k-1}, I_k * R_k)
         full_tensor = full_tensor @ factor_matrix
-        
+
         # Перегруппировка для следующей итерации: выносим R_k в конец
         full_tensor = full_tensor.reshape(-1, rank_next)
 
     # Итоговый reshape к многомерному тензору
     return full_tensor.reshape(full_shape)
+
 
 def tensor_train(input_tensor, rank, svd="truncated_svd", verbose=False):
     # Используем вашу адаптированную функцию validate_tt_rank
@@ -4750,7 +5003,7 @@ def tensor_train(input_tensor, rank, svd="truncated_svd", verbose=False):
         # Вычисляем SVD через наш интерфейс
         n_row, n_column = unfolding.shape
         current_rank = min(n_row, n_column, rank[k + 1])
-        
+
         # svd_interface на Torch должен возвращать (U, S, V)
         U, S, V = svd_interface(unfolding, n_eigenvecs=current_rank, method=svd)
 
@@ -4778,25 +5031,26 @@ def tensor_train(input_tensor, rank, svd="truncated_svd", verbose=False):
     # Возвращаем ваш класс TTTensor (передаем список тензоров Torch)
     return TTTensor(factors)
 
+
 def validate_tt_tensor(tt_tensor):
     # Если это уже объект вашего класса TTTensor
-    if hasattr(tt_tensor, 'factors'):
+    if hasattr(tt_tensor, "factors"):
         return tt_tensor.shape, tt_tensor.rank
-    
+
     # Случай скаляра (0-й порядок)
     if isinstance(tt_tensor, (float, int)):
         return (), (1, 1)
 
     factors = tt_tensor
     n_factors = len(factors)
-    
+
     # Берем эталонное устройство и тип данных у первого ядра
     device = factors[0].device
     dtype = factors[0].dtype
 
     rank = []
     shape = []
-    
+
     for index, factor in enumerate(factors):
         # Проверка девайса и типа
         if factor.device != device or factor.dtype != dtype:
@@ -4811,7 +5065,7 @@ def validate_tt_tensor(tt_tensor):
                 f"TT-cores must be 3rd order tensors. "
                 f"However, factors[{index}].ndim = {factor.ndim}."
             )
-            
+
         current_rank, current_shape, next_rank = factor.shape
 
         # Проверка согласованности рангов (R_k)
@@ -4822,11 +5076,11 @@ def validate_tt_tensor(tt_tensor):
                     f"Rank mismatch: factors[{index-1}].shape[2] ({prev_next_rank}) "
                     f"must equal factors[{index}].shape[0] ({current_rank})."
                 )
-                
+
         # Граничные условия (R_0 = 1 и R_N = 1)
         if index == 0 and current_rank != 1:
             raise ValueError(f"First rank must be 1, but got {current_rank}.")
-            
+
         if index == n_factors - 1 and next_rank != 1:
             raise ValueError(f"Last rank must be 1, but got {next_rank}.")
 
@@ -4838,7 +5092,8 @@ def validate_tt_tensor(tt_tensor):
 
     return tuple(shape), tuple(rank)
 
-class TTTensor(FactorizedTensor, name='TT'):
+
+class TTTensor(FactorizedTensor, name="TT"):
     """Tensor-Train (Matrix-Product-State) Factorization
 
     Parameters
@@ -4847,41 +5102,47 @@ class TTTensor(FactorizedTensor, name='TT'):
     shape
     rank
     """
+
     def __init__(self, factors, shape=None, rank=None):
         super().__init__()
         if shape is None or rank is None:
             self.shape, self.rank = validate_tt_tensor(factors)
         else:
             self.shape, self.rank = shape, rank
-        
+
         self.order = len(self.shape)
         self.factors = FactorList(factors)
-    
+
     @classmethod
     def new(cls, shape, rank, device=None, dtype=None, **kwargs):
         rank = validate_tt_rank(shape, rank)
 
         # Avoid the issues with ParameterList
-        factors = [nn.Parameter(torch.empty((rank[i], s, rank[i+1]), device=device, dtype=dtype)) for i, s in enumerate(shape)]
+        factors = [
+            nn.Parameter(
+                torch.empty((rank[i], s, rank[i + 1]), device=device, dtype=dtype)
+            )
+            for i, s in enumerate(shape)
+        ]
 
         return cls(factors)
 
     @classmethod
-    def from_tensor(cls, tensor, rank='same', **kwargs):
+    def from_tensor(cls, tensor, rank="same", **kwargs):
         shape = tensor.shape
         rank = validate_tt_rank(shape, rank)
 
         with torch.no_grad():
             # TODO: deal properly with wrong kwargs
             factors = tensor_train(tensor, rank)
-        
+
         return cls([nn.Parameter(f.contiguous()) for f in factors])
 
     def init_from_tensor(self, tensor, **kwargs):
         with torch.no_grad():
             # TODO: deal properly with wrong kwargs
             factors = tensor_train(tensor, self.rank)
-        
+
         self.factors = FactorList([nn.Parameter(f.contiguous()) for f in factors])
         self.rank = tuple([f.shape[0] for f in factors] + [1])
         return self
@@ -4893,12 +5154,12 @@ class TTTensor(FactorizedTensor, name='TT'):
     def to_tensor(self):
         return tt_to_tensor(self.decomposition)
 
-    def normal_(self,  mean=0, std=1):
+    def normal_(self, mean=0, std=1):
         if mean != 0:
-            raise ValueError(f'Currently only mean=0 is supported, but got mean={mean}')
+            raise ValueError(f"Currently only mean=0 is supported, but got mean={mean}")
 
         r = np.prod(self.rank)
-        std_factors = (std/r)**(1/self.order)
+        std_factors = (std / r) ** (1 / self.order)
         with torch.no_grad():
             for factor in self.factors:
                 factor.data.normal_(0, std_factors)
@@ -4910,9 +5171,15 @@ class TTTensor(FactorizedTensor, name='TT'):
             factor, next_factor, *factors = self.factors
             # factor[:, indices, :] -> срез. squeeze(1) убирает выбранную ось.
             # tenalg.mode_dot(next_factor, ..., 0) -> tucker_mode_dot
-            contracted = factor[:, indices, :].squeeze(0) if factor.ndim == 2 else factor[indices, :]
+            contracted = (
+                factor[:, indices, :].squeeze(0)
+                if factor.ndim == 2
+                else factor[indices, :]
+            )
             # В ТТ-формате это обычно перемножение матриц узлов
-            next_factor = torch.matmul(contracted, next_factor.moveaxis(0, 0)) # Уточните логику ТТ
+            next_factor = torch.matmul(
+                contracted, next_factor.moveaxis(0, 0)
+            )  # Уточните логику ТТ
             return self.__class__([next_factor, *factors])
 
         elif isinstance(indices, slice):
@@ -4925,13 +5192,15 @@ class TTTensor(FactorizedTensor, name='TT'):
             # Сложная индексация по нескольким модам
             factors_list = []
             all_contracted = True
-            
+
             for i, index in enumerate(indices):
                 if index is Ellipsis:
-                    raise ValueError('Ellipsis is not yet supported in this implementation.')
-                
+                    raise ValueError(
+                        "Ellipsis is not yet supported in this implementation."
+                    )
+
                 current_factor = self.factors[i]
-                
+
                 if isinstance(index, int):
                     # Если индекс - число, мы "схлопываем" (contract) эту моду
                     # current_factor[index] даст матрицу (rank_in, rank_out)
@@ -4949,15 +5218,19 @@ class TTTensor(FactorizedTensor, name='TT'):
                         if all_contracted:
                             # Если до этого были только int, перемножаем накопленную матрицу на срез
                             # (rank_prev) @ (rank_prev, new_dim, rank_next)
-                            running_factor = torch.matmul(running_factor, sliced.moveaxis(0, 0))
+                            running_factor = torch.matmul(
+                                running_factor, sliced.moveaxis(0, 0)
+                            )
                         else:
                             factors_list.append(running_factor)
                             running_factor = sliced
                     all_contracted = False
 
             # Финальная сборка
-            remaining = self.factors[i+1:]
-            if running_factor.ndim == 2: # Результат - матрица (все индексы были int или последний)
+            remaining = self.factors[i + 1 :]
+            if (
+                running_factor.ndim == 2
+            ):  # Результат - матрица (все индексы были int или последний)
                 if not remaining:
                     return running_factor.squeeze()
                 else:
@@ -4967,7 +5240,6 @@ class TTTensor(FactorizedTensor, name='TT'):
                     return self.__class__([combined, *remaining[1:]])
             else:
                 return self.__class__([*factors_list, running_factor, *remaining])
-
 
     def transduct(self, new_dim, mode=0, new_factor=None):
         """Transduction adds a new dimension to the existing factorization
@@ -4989,21 +5261,24 @@ class TTTensor(FactorizedTensor, name='TT'):
         # Important: don't increment the order before accessing factors which uses order!
         self.order += 1
         new_rank = self.rank[mode]
-        self.rank = self.rank[:mode] + (new_rank, )   + self.rank[mode:]
-        self.shape = self.shape[:mode] + (new_dim, ) + self.shape[mode:]
+        self.rank = self.rank[:mode] + (new_rank,) + self.rank[mode:]
+        self.shape = self.shape[:mode] + (new_dim,) + self.shape[mode:]
 
         # Init so the reconstruction is equivalent to concatenating the previous self new_dim times
         if new_factor is None:
             new_factor = torch.zeros(new_rank, new_dim, new_rank)
             for i in range(new_dim):
-                new_factor[:, i, :] = torch.eye(new_rank)#/new_dim
+                new_factor[:, i, :] = torch.eye(new_rank)  # /new_dim
             # Below: <=> static prediciton
             # new_factor[:, new_dim//2, :] = torch.eye(new_rank)
 
-        factors.insert(mode, nn.Parameter(new_factor.to(factors[0].device).contiguous()))
+        factors.insert(
+            mode, nn.Parameter(new_factor.to(factors[0].device).contiguous())
+        )
         self.factors = FactorList(factors)
 
         return self
+
 
 def resample(x, res_scale, axis, output_shape=None):
     """
@@ -5014,7 +5289,7 @@ def resample(x, res_scale, axis, output_shape=None):
     x : torch.Tensor
             input activation of size (batch_size, channels, d1, ..., dN)
     res_scale: int or tuple
-            Scaling factor along each of the dimensions in 'axis' parameter. If res_scale is scaler, then isotropic 
+            Scaling factor along each of the dimensions in 'axis' parameter. If res_scale is scaler, then isotropic
             scaling is performed
     axis: axis or dimensions along which interpolation will be performed.
     output_shape : None or tuple[int]
@@ -5023,44 +5298,50 @@ def resample(x, res_scale, axis, output_shape=None):
     if isinstance(res_scale, (float, int)):
         if axis is None:
             axis = list(range(2, x.ndim))
-            res_scale = [res_scale]*len(axis)
+            res_scale = [res_scale] * len(axis)
         elif isinstance(axis, int):
             axis = [axis]
             res_scale = [res_scale]
         else:
-              res_scale = [res_scale]*len(axis)
+            res_scale = [res_scale] * len(axis)
     else:
         assert len(res_scale) == len(axis), "leght of res_scale and axis are not same"
 
-    old_size = x.shape[-len(axis):]
+    old_size = x.shape[-len(axis) :]
     if output_shape is None:
-        new_size = tuple([int(round(s*r)) for (s, r) in zip(old_size, res_scale)])
+        new_size = tuple([int(round(s * r)) for (s, r) in zip(old_size, res_scale)])
     else:
         new_size = output_shape
 
     if len(axis) == 1:
-        return F.interpolate(x, size=new_size[0], mode='linear', align_corners=True)
+        return F.interpolate(x, size=new_size[0], mode="linear", align_corners=True)
     if len(axis) == 2:
-        return F.interpolate(x, size=new_size, mode='bicubic', align_corners=True)
+        return F.interpolate(x, size=new_size, mode="bicubic", align_corners=True)
 
-    X = torch.fft.rfftn(x.float(), norm='forward', dim=axis)
-    
+    X = torch.fft.rfftn(x.float(), norm="forward", dim=axis)
+
     new_fft_size = list(new_size)
-    new_fft_size[-1] = new_fft_size[-1]//2 + 1 # Redundant last coefficient
-    new_fft_size_c = [min(i,j) for (i,j) in zip(new_fft_size, X.shape[-len(axis):])]
-    out_fft = torch.zeros([x.shape[0], x.shape[1], *new_fft_size], device=x.device, dtype=torch.cfloat)
+    new_fft_size[-1] = new_fft_size[-1] // 2 + 1  # Redundant last coefficient
+    new_fft_size_c = [min(i, j) for (i, j) in zip(new_fft_size, X.shape[-len(axis) :])]
+    out_fft = torch.zeros(
+        [x.shape[0], x.shape[1], *new_fft_size], device=x.device, dtype=torch.cfloat
+    )
 
-    mode_indexing = [((None, m//2), (-m//2, None)) for m in new_fft_size_c[:-1]] + [((None, new_fft_size_c[-1]), )]
+    mode_indexing = [((None, m // 2), (-m // 2, None)) for m in new_fft_size_c[:-1]] + [
+        ((None, new_fft_size_c[-1]),)
+    ]
     for i, boundaries in enumerate(itertools.product(*mode_indexing)):
 
         idx_tuple = [slice(None), slice(None)] + [slice(*b) for b in boundaries]
 
         out_fft[idx_tuple] = X[idx_tuple]
-    y = torch.fft.irfftn(out_fft, s= new_size ,norm='forward', dim=axis)
+    y = torch.fft.irfftn(out_fft, s=new_size, norm="forward", dim=axis)
 
     return y
 
+
 einsum_symbols = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
 
 def einsum_complexhalf_two_input(eq, a, b):
     """
@@ -5068,7 +5349,7 @@ def einsum_complexhalf_two_input(eq, a, b):
     Because torch.einsum currently does not support complex32 (complexhalf) types.
     The inputs and outputs are the same as in torch.einsum
     """
-    assert len(eq.split(',')) == 2, "Equation must have two inputs."
+    assert len(eq.split(",")) == 2, "Equation must have two inputs."
 
     # cast both tensors to "view as real" form, and half precision
     a = torch.view_as_real(a)
@@ -5077,16 +5358,19 @@ def einsum_complexhalf_two_input(eq, a, b):
     b = b.half()
 
     # create a new einsum equation that takes into account "view as real" form
-    input_output = eq.split('->')
-    new_output = 'xy' + input_output[1]
-    input_terms = input_output[0].split(',')
-    new_inputs = [input_terms[0] + 'x', input_terms[1] + 'y']
-    new_eqn = new_inputs[0] + ',' + new_inputs[1] + '->' + new_output
+    input_output = eq.split("->")
+    new_output = "xy" + input_output[1]
+    input_terms = input_output[0].split(",")
+    new_inputs = [input_terms[0] + "x", input_terms[1] + "y"]
+    new_eqn = new_inputs[0] + "," + new_inputs[1] + "->" + new_output
 
     # convert back to complex form
     tmp = torch.einsum(new_eqn, a, b)
-    res = torch.stack([tmp[0, 0, ...] - tmp[1, 1, ...], tmp[1, 0, ...] + tmp[0, 1, ...]], dim=-1)
+    res = torch.stack(
+        [tmp[0, 0, ...] - tmp[1, 1, ...], tmp[1, 0, ...] + tmp[0, 1, ...]], dim=-1
+    )
     return torch.view_as_complex(res)
+
 
 def einsum_complexhalf(eq, *args):
     """
@@ -5100,13 +5384,15 @@ def einsum_complexhalf(eq, *args):
 
     # find the optimal path
     _, path_info = contract_path(eq, *args)
-    partial_eqns = [contraction_info[2] for contraction_info in path_info.contraction_list]
+    partial_eqns = [
+        contraction_info[2] for contraction_info in path_info.contraction_list
+    ]
 
     # create a dict of the input tensors by their label in the einsum equation
     tensors = {}
-    input_labels = eq.split('->')[0].split(',')
-    output_label = eq.split('->')[1]
-    tensors = dict(zip(input_labels,args))
+    input_labels = eq.split("->")[0].split(",")
+    output_label = eq.split("->")[1]
+    tensors = dict(zip(input_labels, args))
 
     # convert all tensors to half precision and "view as real" form
     for key, tensor in tensors.items():
@@ -5116,23 +5402,26 @@ def einsum_complexhalf(eq, *args):
 
     for partial_eq in partial_eqns:
         # get the input tensors to partial_eq
-        in_labels, out_label = partial_eq.split('->')
-        in_labels = in_labels.split(',')
+        in_labels, out_label = partial_eq.split("->")
+        in_labels = in_labels.split(",")
         in_tensors = [tensors[label] for label in in_labels]
 
         # create new einsum equation that takes into account "view as real" form
-        input_output = partial_eq.split('->')
-        new_output = 'xy' + input_output[1]
-        input_terms = input_output[0].split(',')
-        new_inputs = [input_terms[0] + 'x', input_terms[1] + 'y']
-        new_eqn = new_inputs[0] + ',' + new_inputs[1] + '->' + new_output
+        input_output = partial_eq.split("->")
+        new_output = "xy" + input_output[1]
+        input_terms = input_output[0].split(",")
+        new_inputs = [input_terms[0] + "x", input_terms[1] + "y"]
+        new_eqn = new_inputs[0] + "," + new_inputs[1] + "->" + new_output
 
         # perform the einsum, and convert to "view as real" form
         tmp = torch.einsum(new_eqn, *in_tensors)
-        result = torch.stack([tmp[0, 0, ...] - tmp[1, 1, ...], tmp[1, 0, ...] + tmp[0, 1, ...]], dim=-1)
+        result = torch.stack(
+            [tmp[0, 0, ...] - tmp[1, 1, ...], tmp[1, 0, ...] + tmp[0, 1, ...]], dim=-1
+        )
         tensors[out_label] = result
 
     return torch.view_as_complex(tensors[output_label])
+
 
 class AdaIN(nn.Module):
     def __init__(self, embed_dim, in_channels, mlp=None, eps=1e-5):
@@ -5143,45 +5432,49 @@ class AdaIN(nn.Module):
 
         if mlp is None:
             mlp = nn.Sequential(
-                nn.Linear(embed_dim, 512),
-                nn.GELU(),
-                nn.Linear(512, 2*in_channels)
+                nn.Linear(embed_dim, 512), nn.GELU(), nn.Linear(512, 2 * in_channels)
             )
         self.mlp = mlp
 
         self.embedding = None
-    
+
     def set_embedding(self, x):
-        self.embedding = x.reshape(self.embed_dim,)
+        self.embedding = x.reshape(
+            self.embed_dim,
+        )
 
     def forward(self, x):
-        assert self.embedding is not None, "AdaIN: update embeddding before running forward"
+        assert (
+            self.embedding is not None
+        ), "AdaIN: update embeddding before running forward"
 
         weight, bias = torch.split(self.mlp(self.embedding), self.in_channels, dim=0)
 
         return nn.functional.group_norm(x, self.in_channels, weight, bias, eps=self.eps)
 
+
 class InstanceNorm(nn.Module):
     def __init__(self, **kwargs):
         """InstanceNorm applies dim-agnostic instance normalization
-        to data as an nn.Module. 
+        to data as an nn.Module.
 
         kwargs: additional parameters to pass to instance_norm() for use as a module
         e.g. eps, affine
         """
         super().__init__()
         self.kwargs = kwargs
-    
+
     def forward(self, x):
         size = x.shape
         x = torch.nn.functional.instance_norm(x, **self.kwargs)
         assert x.shape == size
         return x
 
+
 class Flattened1dConv(nn.Module):
     def __init__(self, in_channels: int, out_channels: int, kernel_size, bias=False):
         """Flattened3dConv is a Conv-based skip layer for
-        input tensors of ndim > 3 (batch, channels, d1, ...) that flattens all dimensions 
+        input tensors of ndim > 3 (batch, channels, d1, ...) that flattens all dimensions
         past the batch and channel dims into one dimension, applies the Conv,
         and un-flattens.
 
@@ -5197,10 +5490,13 @@ class Flattened1dConv(nn.Module):
             bias of Conv3d, by default False
         """
         super().__init__()
-        self.conv = nn.Conv1d(in_channels=in_channels,
-                              out_channels=out_channels,
-                              kernel_size=kernel_size,
-                              bias=bias)
+        self.conv = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            bias=bias,
+        )
+
     def forward(self, x):
         # x.shape: b, c, x1, ..., xn x_ndim > 1
         size = list(x.shape)
@@ -5210,6 +5506,7 @@ class Flattened1dConv(nn.Module):
         # reshape x into an Nd tensor b, c, x1, x2, ...
         x = x.view(size[0], self.conv.out_channels, *size[2:])
         return x
+
 
 def skip_connection(
     in_features, out_features, n_dim=2, bias=False, skip_type="soft-gating"
@@ -5244,10 +5541,12 @@ def skip_connection(
             n_dim=n_dim,
         )
     elif skip_type.lower() == "linear":
-        return Flattened1dConv(in_channels=in_features,
-                               out_channels=out_features,
-                               kernel_size=1,
-                               bias=bias,)
+        return Flattened1dConv(
+            in_channels=in_features,
+            out_channels=out_features,
+            kernel_size=1,
+            bias=bias,
+        )
     elif skip_type.lower() == "identity":
         return nn.Identity()
     else:
@@ -5297,6 +5596,7 @@ class SoftGating(nn.Module):
         else:
             return self.weight * x
 
+
 class SubModule(nn.Module):
     """Class representing one of the sub_module from the mother joint module
 
@@ -5315,10 +5615,11 @@ class SubModule(nn.Module):
     def forward(self, x):
         return self.main_module.forward(x, self.indices)
 
+
 class BaseSpectralConv(nn.Module):
     def __init__(self, device=None, dtype=None):
         """Base Class for Spectral Convolutions
-        
+
         Use it when you want to build your own FNO-type Neural Operators
         """
         super().__init__()
@@ -5327,18 +5628,19 @@ class BaseSpectralConv(nn.Module):
         self.device = device
 
     def transform(self, x):
-        """Transforms an input x for a skip connection, by default just an identity map 
+        """Transforms an input x for a skip connection, by default just an identity map
 
-        If your function transforms the input then you should also implement this transform method 
-        so the skip connection can also work. 
+        If your function transforms the input then you should also implement this transform method
+        so the skip connection can also work.
 
         Typical usecases are:
 
-        * Your upsample or downsample the input in the Spectral conv: the skip connection has to be similarly scaled. 
+        * Your upsample or downsample the input in the Spectral conv: the skip connection has to be similarly scaled.
           This allows you to deal with it however you want (e.g. avoid aliasing)
         * You perform a change of basis in your Spectral Conv, again, this needs to be applied to the skip connection too.
         """
         return x
+
 
 def _contract_dense(x, weight, separable=False):
     order = x.ndim
@@ -5355,7 +5657,7 @@ def _contract_dense(x, weight, separable=False):
         weight_syms.insert(1, einsum_symbols[order])  # outputs
         out_syms = list(weight_syms)
         out_syms[0] = x_syms[0]
-    
+
     eq = f'{"".join(x_syms)},{"".join(weight_syms)}->{"".join(out_syms)}'
 
     if not torch.is_tensor(weight):
@@ -5367,10 +5669,12 @@ def _contract_dense(x, weight, separable=False):
     else:
         return torch.einsum(eq, x, weight)
 
+
 def _contract_dense_separable(x, weight, separable):
     if not torch.is_tensor(weight):
         weight = weight.to_tensor()
     return x * weight
+
 
 def _contract_cp(x, cp_weight, separable=False):
     order = x.ndim
@@ -5462,8 +5766,8 @@ def get_contract_fun(weight, implementation="reconstructed", separable=False):
         whether to reconstruct the weight and do a forward pass (reconstructed)
         or contract directly the factors of the factorized weight with the input (factorized)
     separable: bool
-        if True, performs contraction with individual tensor factors. 
-        if False, 
+        if True, performs contraction with individual tensor factors.
+        if False,
     Returns
     -------
     function : (x, weight) -> x * weight in Fourier space
@@ -5509,20 +5813,20 @@ class SpectralConv(BaseSpectralConv):
         Number of output channels
     n_modes : int or int tuple
         Number of modes to use for contraction in Fourier domain during training.
- 
+
         .. warning::
-            
-            We take care of the redundancy in the Fourier modes, therefore, for an input 
+
+            We take care of the redundancy in the Fourier modes, therefore, for an input
             of size I_1, ..., I_N, please provide modes M_K that are I_1 < M_K <= I_N
-            We will automatically keep the right amount of modes: specifically, for the 
-            last mode only, if you specify M_N modes we will use M_N // 2 + 1 modes 
-            as the real FFT is redundant along that last dimension. For more information on 
+            We will automatically keep the right amount of modes: specifically, for the
+            last mode only, if you specify M_N modes we will use M_N // 2 + 1 modes
+            as the real FFT is redundant along that last dimension. For more information on
             mode truncation, refer to :ref:`fourier_layer_impl`
 
-            
+
         .. note::
 
-            Provided modes should be even integers. odd numbers will be rounded to the closest even number.  
+            Provided modes should be even integers. odd numbers will be rounded to the closest even number.
 
         This can be updated dynamically during training.
 
@@ -5533,7 +5837,7 @@ class SpectralConv(BaseSpectralConv):
 
     separable : bool, default is True
         whether to use separable implementation of contraction
-        if True, contracts factors of factorized 
+        if True, contracts factors of factorized
         tensor weight individually
     init_std : float or 'auto', default is 'auto'
         std to use for the init
@@ -5563,18 +5867,18 @@ class SpectralConv(BaseSpectralConv):
     complex_data: bool, optional
         whether data takes on complex values in the spatial domain, by default False
         if True, uses different logic for FFT contraction and uses full FFT instead of real-valued
-    
+
     References
     -----------
     .. [1] :
 
-    Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
+    Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential
         Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
-    
+
     .. [2] :
 
     Kossaifi, J., Kovachki, N., Azizzadenesheli, K., Anandkumar, A. "Multi-Grid
-        Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024). 
+        Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024).
         TMLR 2024, https://openreview.net/pdf?id=AWiDlO63bH.
     """
 
@@ -5620,12 +5924,12 @@ class SpectralConv(BaseSpectralConv):
         self.factorization = factorization
         self.implementation = implementation
 
-        self.resolution_scaling_factor: Union[
-            None, List[List[float]]
-        ] = validate_scaling_factor(resolution_scaling_factor, self.order)
+        self.resolution_scaling_factor: Union[None, List[List[float]]] = (
+            validate_scaling_factor(resolution_scaling_factor, self.order)
+        )
 
         if init_std == "auto":
-            init_std = (2 / (in_channels + out_channels))**0.5
+            init_std = (2 / (in_channels + out_channels)) ** 0.5
         else:
             init_std = init_std
 
@@ -5659,18 +5963,24 @@ class SpectralConv(BaseSpectralConv):
         if factorization is None:
             self.weight = torch.tensor(weight_shape, dtype=torch.cfloat)
         else:
-            self.weight = FactorizedTensor.new(weight_shape, rank=self.rank, 
-                                     factorization=factorization, fixed_rank_modes=fixed_rank_modes,
-                                     **tensor_kwargs, dtype=torch.cfloat) 
+            self.weight = FactorizedTensor.new(
+                weight_shape,
+                rank=self.rank,
+                factorization=factorization,
+                fixed_rank_modes=fixed_rank_modes,
+                **tensor_kwargs,
+                dtype=torch.cfloat,
+            )
         self.weight.normal_(0, init_std)
-        
+
         self._contract = get_contract_fun(
             self.weight, implementation=implementation, separable=separable
         )
 
         if bias:
             self.bias = nn.Parameter(
-                init_std * torch.randn(*(tuple([self.out_channels]) + (1,) * self.order))
+                init_std
+                * torch.randn(*(tuple([self.out_channels]) + (1,) * self.order))
             )
         else:
             self.bias = None
@@ -5680,7 +5990,10 @@ class SpectralConv(BaseSpectralConv):
 
         if self.resolution_scaling_factor is not None and output_shape is None:
             out_shape = tuple(
-                [round(s * r) for (s, r) in zip(in_shape, self.resolution_scaling_factor)]
+                [
+                    round(s * r)
+                    for (s, r) in zip(in_shape, self.resolution_scaling_factor)
+                ]
             )
         elif output_shape is not None:
             out_shape = output_shape
@@ -5691,27 +6004,25 @@ class SpectralConv(BaseSpectralConv):
             return x
         else:
             return resample(x, 1.0, list(range(2, x.ndim)), output_shape=out_shape)
-    
+
     @property
     def n_modes(self):
         return self._n_modes
-    
+
     @n_modes.setter
     def n_modes(self, n_modes):
-        if isinstance(n_modes, int): # Should happen for 1D FNO only
+        if isinstance(n_modes, int):  # Should happen for 1D FNO only
             n_modes = [n_modes]
         else:
             n_modes = list(n_modes)
-        # the real FFT is skew-symmetric, so the last mode has a redundacy if our data is real in space 
+        # the real FFT is skew-symmetric, so the last mode has a redundacy if our data is real in space
         # As a design choice we do the operation here to avoid users dealing with the +1
         # if we use the full FFT we cannot cut off informtion from the last mode
         if not self.complex_data:
             n_modes[-1] = n_modes[-1] // 2 + 1
         self._n_modes = n_modes
 
-    def forward(
-        self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None
-    ):
+    def forward(self, x: torch.Tensor, output_shape: Optional[Tuple[int]] = None):
         """Generic forward pass for the Factorized Spectral Conv
 
         Parameters
@@ -5727,7 +6038,9 @@ class SpectralConv(BaseSpectralConv):
 
         fft_size = list(mode_sizes)
         if not self.complex_data:
-            fft_size[-1] = fft_size[-1] // 2 + 1  # Redundant last coefficient in real spatial data
+            fft_size[-1] = (
+                fft_size[-1] // 2 + 1
+            )  # Redundant last coefficient in real spatial data
         fft_dims = list(range(-self.order, 0))
 
         if self.fno_block_precision == "half":
@@ -5735,7 +6048,7 @@ class SpectralConv(BaseSpectralConv):
 
         if self.complex_data:
             x = torch.fft.fftn(x, norm=self.fft_norm, dim=fft_dims)
-        else: 
+        else:
             x = torch.fft.rfftn(x, norm=self.fft_norm, dim=fft_dims)
         if self.order > 1:
             x = torch.fft.fftshift(x, dim=fft_dims[:-1])
@@ -5749,25 +6062,37 @@ class SpectralConv(BaseSpectralConv):
             out_dtype = torch.chalf
         else:
             out_dtype = torch.cfloat
-        out_fft = torch.zeros([batchsize, self.out_channels, *fft_size],
-                              device=x.device, dtype=out_dtype)
-        
+        out_fft = torch.zeros(
+            [batchsize, self.out_channels, *fft_size], device=x.device, dtype=out_dtype
+        )
+
         # if current modes are less than max, start indexing modes closer to the center of the weight tensor
-        starts = [(max_modes - min(size, n_mode)) for (size, n_mode, max_modes) in zip(fft_size, self.n_modes, self.max_n_modes)]
+        starts = [
+            (max_modes - min(size, n_mode))
+            for (size, n_mode, max_modes) in zip(
+                fft_size, self.n_modes, self.max_n_modes
+            )
+        ]
 
         # if contraction is separable, weights have shape (channels, modes_x, ...)
         # otherwise they have shape (in_channels, out_channels, modes_x, ...)
-        if self.separable: 
-            slices_w = [slice(None)] # channels
+        if self.separable:
+            slices_w = [slice(None)]  # channels
         else:
-            slices_w =  [slice(None), slice(None)] # in_channels, out_channels
+            slices_w = [slice(None), slice(None)]  # in_channels, out_channels
         if self.complex_data:
-            slices_w += [slice(start//2, -start//2) if start else slice(start, None) for start in starts]
+            slices_w += [
+                slice(start // 2, -start // 2) if start else slice(start, None)
+                for start in starts
+            ]
         else:
             # The last mode already has redundant half removed in real FFT
-            slices_w += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
+            slices_w += [
+                slice(start // 2, -start // 2) if start else slice(start, None)
+                for start in starts[:-1]
+            ]
             slices_w += [slice(None, -starts[-1]) if starts[-1] else slice(None)]
-        
+
         weight = self.weight[slices_w]
 
         # if separable conv, weight tensor only has one channel dim
@@ -5776,34 +6101,57 @@ class SpectralConv(BaseSpectralConv):
         # otherwise drop first two dims (in_channels, out_channels)
         else:
             weight_start_idx = 2
-        starts = [(size - min(size, n_mode)) for (size, n_mode) in zip(list(x.shape[2:]), list(weight.shape[weight_start_idx:]))]
-        slices_x =  [slice(None), slice(None)] # Batch_size, channels
+        starts = [
+            (size - min(size, n_mode))
+            for (size, n_mode) in zip(
+                list(x.shape[2:]), list(weight.shape[weight_start_idx:])
+            )
+        ]
+        slices_x = [slice(None), slice(None)]  # Batch_size, channels
 
         if self.complex_data:
-            slices_x += [slice(start//2, -start//2) if start else slice(start, None) for start in starts]
+            slices_x += [
+                slice(start // 2, -start // 2) if start else slice(start, None)
+                for start in starts
+            ]
         else:
-            slices_x += [slice(start//2, -start//2) if start else slice(start, None) for start in starts[:-1]]
-            slices_x += [slice(None, -starts[-1]) if starts[-1] else slice(None)] # The last mode already has redundant half removed
-        out_fft[slices_x] = self._contract(x[slices_x], weight, separable=self.separable)
+            slices_x += [
+                slice(start // 2, -start // 2) if start else slice(start, None)
+                for start in starts[:-1]
+            ]
+            slices_x += [
+                slice(None, -starts[-1]) if starts[-1] else slice(None)
+            ]  # The last mode already has redundant half removed
+        out_fft[slices_x] = self._contract(
+            x[slices_x], weight, separable=self.separable
+        )
 
         if self.resolution_scaling_factor is not None and output_shape is None:
-            mode_sizes = tuple([round(s * r) for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)])
+            mode_sizes = tuple(
+                [
+                    round(s * r)
+                    for (s, r) in zip(mode_sizes, self.resolution_scaling_factor)
+                ]
+            )
 
         if output_shape is not None:
             mode_sizes = output_shape
 
         if self.order > 1:
             out_fft = torch.fft.fftshift(out_fft, dim=fft_dims[:-1])
-        
+
         if self.complex_data:
             x = torch.fft.ifftn(out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
         else:
-            x = torch.fft.irfftn(out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm)
+            x = torch.fft.irfftn(
+                out_fft, s=mode_sizes, dim=fft_dims, norm=self.fft_norm
+            )
 
         if self.bias is not None:
             x = x + self.bias
 
         return x
+
 
 def validate_scaling_factor(
     scaling_factor: Union[None, Number, List[Number], List[List[Number]]],
@@ -5826,7 +6174,7 @@ def validate_scaling_factor(
             return [float(scaling_factor)] * n_dim
 
         return [[float(scaling_factor)] * n_dim] * n_layers
-    
+
     if (
         isinstance(scaling_factor, list)
         and len(scaling_factor) > 0
@@ -5853,9 +6201,10 @@ def validate_scaling_factor(
 
     return None
 
+
 class FNOBlocks(nn.Module):
-    """FNOBlocks implements a sequence of Fourier layers, the operations of which 
-    are first described in [1]_. The exact implementation details of the Fourier 
+    """FNOBlocks implements a sequence of Fourier layers, the operations of which
+    are first described in [1]_. The exact implementation details of the Fourier
     layer architecture are discussed in [2]_.
 
     Parameters
@@ -5865,7 +6214,7 @@ class FNOBlocks(nn.Module):
     out_channels : int
         output channels after Fourier layers
     n_modes : int, List[int]
-        number of modes to keep along each dimension 
+        number of modes to keep along each dimension
         in frequency space. Can either be specified as
         an int (for all dimensions) or an iterable with one
         number per dimension
@@ -5921,15 +6270,16 @@ class FNOBlocks(nn.Module):
         implementation parameter for SpectralConv, by default "factorized"
     decomposition_kwargs : _type_, optional
         kwargs for tensor decomposition in SpectralConv, by default dict()
-    
+
     References
     -----------
-    .. [1] Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
+    .. [1] Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential
            Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
     .. [2] Kossaifi, J., Kovachki, N., Azizzadenesheli, K., Anandkumar, A. "Multi-Grid
-           Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024). 
+           Tensorized Fourier Neural Operator for High-Resolution PDEs" (2024).
            TMLR 2024, https://openreview.net/pdf?id=AWiDlO63bH.
     """
+
     def __init__(
         self,
         in_channels,
@@ -5953,8 +6303,8 @@ class FNOBlocks(nn.Module):
         factorization=None,
         rank=1.0,
         conv_module=SpectralConv,
-        fixed_rank_modes=False, #undoc
-        implementation="factorized", #undoc
+        fixed_rank_modes=False,  # undoc
+        implementation="factorized",  # undoc
         decomposition_kwargs=dict(),
         **kwargs,
     ):
@@ -5964,9 +6314,9 @@ class FNOBlocks(nn.Module):
         self._n_modes = n_modes
         self.n_dim = len(n_modes)
 
-        self.resolution_scaling_factor: Union[
-            None, List[List[float]]
-        ] = validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
+        self.resolution_scaling_factor: Union[None, List[List[float]]] = (
+            validate_scaling_factor(resolution_scaling_factor, self.n_dim, n_layers)
+        )
 
         self.max_n_modes = max_n_modes
         self.fno_block_precision = fno_block_precision
@@ -5994,24 +6344,31 @@ class FNOBlocks(nn.Module):
             self.non_linearity = CGELU
         else:
             self.non_linearity = non_linearity
-        
-        self.convs = nn.ModuleList([
+
+        self.convs = nn.ModuleList(
+            [
                 conv_module(
-                self.in_channels,
-                self.out_channels,
-                self.n_modes,
-                resolution_scaling_factor=None if resolution_scaling_factor is None else self.resolution_scaling_factor[i],
-                max_n_modes=max_n_modes,
-                rank=rank,
-                fixed_rank_modes=fixed_rank_modes,
-                implementation=implementation,
-                separable=separable,
-                factorization=factorization,
-                fno_block_precision=fno_block_precision,
-                decomposition_kwargs=decomposition_kwargs,
-                complex_data=complex_data
-            ) 
-            for i in range(n_layers)])
+                    self.in_channels,
+                    self.out_channels,
+                    self.n_modes,
+                    resolution_scaling_factor=(
+                        None
+                        if resolution_scaling_factor is None
+                        else self.resolution_scaling_factor[i]
+                    ),
+                    max_n_modes=max_n_modes,
+                    rank=rank,
+                    fixed_rank_modes=fixed_rank_modes,
+                    implementation=implementation,
+                    separable=separable,
+                    factorization=factorization,
+                    fno_block_precision=fno_block_precision,
+                    decomposition_kwargs=decomposition_kwargs,
+                    complex_data=complex_data,
+                )
+                for i in range(n_layers)
+            ]
+        )
 
         self.fno_skips = nn.ModuleList(
             [
@@ -6025,9 +6382,7 @@ class FNOBlocks(nn.Module):
             ]
         )
         if self.complex_data:
-            self.fno_skips = nn.ModuleList(
-                [ComplexValued(x) for x in self.fno_skips]
-                )
+            self.fno_skips = nn.ModuleList([ComplexValued(x) for x in self.fno_skips])
 
         self.channel_mlp = nn.ModuleList(
             [
@@ -6066,11 +6421,8 @@ class FNOBlocks(nn.Module):
             self.norm = None
         elif norm == "instance_norm":
             self.norm = nn.ModuleList(
-                    [
-                        InstanceNorm()
-                        for _ in range(n_layers * self.n_norms)
-                    ]
-                )
+                [InstanceNorm() for _ in range(n_layers * self.n_norms)]
+            )
         elif norm == "group_norm":
             self.norm = nn.ModuleList(
                 [
@@ -6078,7 +6430,7 @@ class FNOBlocks(nn.Module):
                     for _ in range(n_layers * self.n_norms)
                 ]
             )
-        
+
         elif norm == "ada_in":
             self.norm = nn.ModuleList(
                 [
@@ -6119,7 +6471,9 @@ class FNOBlocks(nn.Module):
         x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        x_skip_channel_mlp = self.convs[index].transform(
+            x_skip_channel_mlp, output_shape=output_shape
+        )
 
         if self.stabilizer == "tanh":
             if self.complex_data:
@@ -6128,14 +6482,14 @@ class FNOBlocks(nn.Module):
                 x = torch.tanh(x)
 
         x_fno = self.convs[index](x, output_shape=output_shape)
-        #self.convs(x, index, output_shape=output_shape)
+        # self.convs(x, index, output_shape=output_shape)
 
         if self.norm is not None:
             x_fno = self.norm[self.n_norms * index](x_fno)
 
         x = x_fno + x_skip_fno
 
-        if (index < (self.n_layers - 1)):
+        if index < (self.n_layers - 1):
             x = self.non_linearity(x)
 
         x = self.channel_mlp[index](x) + x_skip_channel_mlp
@@ -6160,7 +6514,9 @@ class FNOBlocks(nn.Module):
         x_skip_fno = self.convs[index].transform(x_skip_fno, output_shape=output_shape)
 
         x_skip_channel_mlp = self.channel_mlp_skips[index](x)
-        x_skip_channel_mlp = self.convs[index].transform(x_skip_channel_mlp, output_shape=output_shape)
+        x_skip_channel_mlp = self.convs[index].transform(
+            x_skip_channel_mlp, output_shape=output_shape
+        )
 
         if self.stabilizer == "tanh":
             if self.complex_data:
@@ -6207,6 +6563,7 @@ class FNOBlocks(nn.Module):
     def __getitem__(self, indices):
         return self.get_block(indices)
 
+
 class DomainPadding(nn.Module):
     """Applies domain padding scaled automatically to the input's resolution
 
@@ -6236,7 +6593,9 @@ class DomainPadding(nn.Module):
         self.padding_mode = padding_mode.lower()
         if resolution_scaling_factor is None:
             resolution_scaling_factor = 1
-        self.resolution_scaling_factor: Union[int, List[int]] = resolution_scaling_factor
+        self.resolution_scaling_factor: Union[int, List[int]] = (
+            resolution_scaling_factor
+        )
 
         # dict(f'{resolution}'=padding) such that padded = F.pad(x, indices)
         self._padding = dict()
@@ -6295,8 +6654,6 @@ class DomainPadding(nn.Module):
             # (so we must reverse the padding list)
             padding = padding[::-1]
 
-            
-
             # the F.pad(x, padding) funtion pads the tensor 'x' in reverse order
             # of the "padding" list i.e. the last axis of tensor 'x' will be
             # padded by the amount mention at the first position of the
@@ -6351,8 +6708,9 @@ class DomainPadding(nn.Module):
         unpad_indices = self._unpad_indices[f"{list(x.shape[2:])}"]
         return x[unpad_indices]
 
+
 class ChannelMLP(nn.Module):
-    """ChannelMLP applies an arbitrary number of layers of 
+    """ChannelMLP applies an arbitrary number of layers of
     1d convolution and nonlinearity to the channels of input
     and is invariant to spatial resolution.
 
@@ -6394,7 +6752,7 @@ class ChannelMLP(nn.Module):
             if dropout > 0.0
             else None
         )
-        
+
         # we use nn.Conv1d for everything and roll data along the 1st data dim
         self.fcs = nn.ModuleList()
         for i in range(n_layers):
@@ -6405,16 +6763,18 @@ class ChannelMLP(nn.Module):
             elif i == (n_layers - 1):
                 self.fcs.append(nn.Conv1d(self.hidden_channels, self.out_channels, 1))
             else:
-                self.fcs.append(nn.Conv1d(self.hidden_channels, self.hidden_channels, 1))
+                self.fcs.append(
+                    nn.Conv1d(self.hidden_channels, self.hidden_channels, 1)
+                )
 
     def forward(self, x):
         reshaped = False
         size = list(x.shape)
-        if x.ndim > 3:  
+        if x.ndim > 3:
             # batch, channels, x1, x2... extra dims
             # .reshape() is preferable but .view()
             # cannot be called on non-contiguous tensors
-            x = x.reshape((*size[:2], -1)) 
+            x = x.reshape((*size[:2], -1))
             reshaped = True
 
         for i, fc in enumerate(self.fcs):
@@ -6431,10 +6791,11 @@ class ChannelMLP(nn.Module):
 
         return x
 
+
 def CGELU(x: torch.Tensor):
     """Complex GELU activation function
     Follows the formulation of CReLU from [1]_.
-    Applies GELU to real and imaginary parts of the input 
+    Applies GELU to real and imaginary parts of the input
     separately, then combine as complex number
 
 
@@ -6442,18 +6803,16 @@ def CGELU(x: torch.Tensor):
     -----------
     x : torch.tensor (dtype=complex)
         pre-activation inputs
-    
+
     References
     ----------
-    .. [1] : 
+    .. [1] :
 
-    Trabelsi, C., et al. (2018). "Deep Complex Networks". 
-        ICLR 2018, https://openreview.net/pdf?id=H1T2hmZAb. 
+    Trabelsi, C., et al. (2018). "Deep Complex Networks".
+        ICLR 2018, https://openreview.net/pdf?id=H1T2hmZAb.
     """
 
-    return F.gelu(x.real).type(torch.cfloat) + 1j * F.gelu(x.imag).type(
-        torch.cfloat
-    )
+    return F.gelu(x.real).type(torch.cfloat) + 1j * F.gelu(x.imag).type(torch.cfloat)
 
 
 def ctanh(x: torch.Tensor):
@@ -6473,10 +6832,10 @@ def apply_complex(real_func, imag_func, x, dtype=torch.cfloat):
     fi: a function (e.g., conv) to be applied on imag part of x
     x: complex input.
     """
-    return (real_func(x.real) - imag_func(x.imag)).type(dtype) + 1j *\
-          (real_func(x.imag) + imag_func(x.real)).type(
-        dtype
-    )
+    return (real_func(x.real) - imag_func(x.imag)).type(dtype) + 1j * (
+        real_func(x.imag) + imag_func(x.real)
+    ).type(dtype)
+
 
 class ComplexValued(nn.Module):
     """
@@ -6490,13 +6849,14 @@ class ComplexValued(nn.Module):
         self.fi = deepcopy(module)
 
     def forward(self, x):
-        return apply_complex(self.fr, self.fi, x) 
+        return apply_complex(self.fr, self.fi, x)
+
 
 class BaseModel(nn.Module):
     """Based class for all Models
 
     This class has two main functionalities:
-    * It monitors the creation of subclass, that are automatically registered 
+    * It monitors the creation of subclass, that are automatically registered
       for users to use by name using the library's config system
     * When a new instance of this class is created, the init call is intercepted
       so we can store the parameters used to create the instance.
@@ -6505,16 +6865,17 @@ class BaseModel(nn.Module):
 
     Notes
     -----
-    Model can be versioned using the _version class attribute. 
-    This can be used for sanity check when loading models from checkpoints to verify the 
+    Model can be versioned using the _version class attribute.
+    This can be used for sanity check when loading models from checkpoints to verify the
     model hasn't been updated since.
     """
+
     _models = dict()
-    _version = '0.1.0'
+    _version = "0.1.0"
 
     def __init_subclass__(cls, name=None, **kwargs):
         """When a subclass is created, register it in _models
-        We look for an existing name attribute. 
+        We look for an existing name attribute.
         If not give, then we use the class' name.
         """
         super().__init_subclass__(**kwargs)
@@ -6529,21 +6890,23 @@ class BaseModel(nn.Module):
     def __new__(cls, *args, **kwargs):
         """Verify arguments and save init kwargs for loading/saving
 
-        We inspect the class' signature and check for unused parameters, or 
-        parameters not passed. 
+        We inspect the class' signature and check for unused parameters, or
+        parameters not passed.
 
         We store all the args and kwargs given so we can duplicate the instance transparently.
         """
         sig = inspect.signature(cls)
         model_name = cls.__name__
 
-        verbose = kwargs.get('verbose', False)
+        verbose = kwargs.get("verbose", False)
         # Verify that given parameters are actually arguments of the model
         for key in kwargs:
             if key not in sig.parameters:
                 if verbose:
-                    print(f"Given argument key={key} "
-                        f"that is not in {model_name}'s signature.")
+                    print(
+                        f"Given argument key={key} "
+                        f"that is not in {model_name}'s signature."
+                    )
 
         # Check for model arguments not specified in the configuration
         for key, value in sig.parameters.items():
@@ -6555,16 +6918,18 @@ class BaseModel(nn.Module):
                     )
                 kwargs[key] = value.default
 
-        if hasattr(cls, '_version'):
-            kwargs['_version'] = cls._version
-        kwargs['args'] = args
-        kwargs['_name'] = cls._name
+        if hasattr(cls, "_version"):
+            kwargs["_version"] = cls._version
+        kwargs["args"] = args
+        kwargs["_name"] = cls._name
         instance = super().__new__(cls)
         instance._init_kwargs = kwargs
 
         return instance
 
-    def state_dict(self, destination: dict=None, prefix: str='', keep_vars: bool=False):
+    def state_dict(
+        self, destination: dict = None, prefix: str = "", keep_vars: bool = False
+    ):
         """
         state_dict subclasses nn.Module.state_dict() and adds a metadata field
         to track the model version and ensure only compatible saves are loaded.
@@ -6579,15 +6944,19 @@ class BaseModel(nn.Module):
             a prefix added to parameter and buffer
             names to compose the keys in state_dict, by default ``''``
         keep_vars (bool, optional): by default the torch.Tensors
-            returned in the state dict are detached from autograd. 
+            returned in the state dict are detached from autograd.
             If True, detaching will not be performed, by default False
 
         """
-        state_dict = super().state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars)
-        if state_dict.get('_metadata') == None:
-            state_dict['_metadata'] = self._init_kwargs
+        state_dict = super().state_dict(
+            destination=destination, prefix=prefix, keep_vars=keep_vars
+        )
+        if state_dict.get("_metadata") == None:
+            state_dict["_metadata"] = self._init_kwargs
         else:
-            warnings.warn("Attempting to update metadata for a module with metadata already in self.state_dict()")
+            warnings.warn(
+                "Attempting to update metadata for a module with metadata already in self.state_dict()"
+            )
         return state_dict
 
     def load_state_dict(self, state_dict, strict=True, assign=False):
@@ -6613,28 +6982,33 @@ class BaseModel(nn.Module):
         _type_
             _description_
         """
-        metadata = state_dict.pop('_metadata', None)
+        metadata = state_dict.pop("_metadata", None)
 
         if metadata is not None:
-            saved_version = metadata.get('_version', None)
+            saved_version = metadata.get("_version", None)
             if saved_version is None:
-                warnings.warn(f"Saved instance of {self.__class__} has no stored version attribute.")
+                warnings.warn(
+                    f"Saved instance of {self.__class__} has no stored version attribute."
+                )
             if saved_version != self._version:
-                warnings.warn(f"Attempting to load a {self.__class__} of version {saved_version},"
-                              f"But current version of {self.__class__} is {saved_version}")
+                warnings.warn(
+                    f"Attempting to load a {self.__class__} of version {saved_version},"
+                    f"But current version of {self.__class__} is {saved_version}"
+                )
             # remove state dict metadata at the end to ensure proper loading with PyTorch module
         return super().load_state_dict(state_dict, strict=strict, assign=assign)
 
     def save_checkpoint(self, save_folder, save_name):
-        """Saves the model state and init param in the given folder under the given name
-        """
+        """Saves the model state and init param in the given folder under the given name"""
         save_folder = Path(save_folder)
         if not save_folder.exists():
             save_folder.mkdir(parents=True)
 
-        state_dict_filepath = save_folder.joinpath(f'{save_name}_state_dict.pt').as_posix()
+        state_dict_filepath = save_folder.joinpath(
+            f"{save_name}_state_dict.pt"
+        ).as_posix()
         torch.save(self.state_dict(), state_dict_filepath)
-        metadata_filepath = save_folder.joinpath(f'{save_name}_metadata.pkl').as_posix()
+        metadata_filepath = save_folder.joinpath(f"{save_name}_metadata.pkl").as_posix()
         # Objects (e.g. GeLU) are not serializable by json - find a better solution in the future
         torch.save(self._init_kwargs, metadata_filepath)
         # with open(metadata_filepath, 'w') as f:
@@ -6642,25 +7016,29 @@ class BaseModel(nn.Module):
 
     def load_checkpoint(self, save_folder, save_name, map_location=None):
         save_folder = Path(save_folder)
-        state_dict_filepath = save_folder.joinpath(f'{save_name}_state_dict.pt').as_posix()
+        state_dict_filepath = save_folder.joinpath(
+            f"{save_name}_state_dict.pt"
+        ).as_posix()
         self.load_state_dict(torch.load(state_dict_filepath, map_location=map_location))
-    
+
     @classmethod
     def from_checkpoint(cls, save_folder, save_name, map_location=None):
         save_folder = Path(save_folder)
 
-        metadata_filepath = save_folder.joinpath(f'{save_name}_metadata.pkl').as_posix()
+        metadata_filepath = save_folder.joinpath(f"{save_name}_metadata.pkl").as_posix()
         init_kwargs = torch.load(metadata_filepath)
         # with open(metadata_filepath, 'r') as f:
         #     init_kwargs = json.load(f)
-        
-        version = init_kwargs.pop('_version')
-        if hasattr(cls, '_version') and version != cls._version:
+
+        version = init_kwargs.pop("_version")
+        if hasattr(cls, "_version") and version != cls._version:
             print(version)
-            warnings.warn(f'Checkpoint saved for version {version} of model {cls._name} but current code is version {cls._version}')
-        
-        if 'args' in init_kwargs:
-            init_args = init_kwargs.pop('args')
+            warnings.warn(
+                f"Checkpoint saved for version {version} of model {cls._name} but current code is version {cls._version}"
+            )
+
+        if "args" in init_kwargs:
+            init_args = init_kwargs.pop("args")
         else:
             init_args = []
         instance = cls(*init_args, **init_kwargs)
@@ -6668,31 +7046,33 @@ class BaseModel(nn.Module):
         instance.load_checkpoint(save_folder, save_name, map_location=map_location)
         return instance
 
+
 def regular_grid_2d(spatial_dims, grid_boundaries=[[0, 1], [0, 1]]):
     """
     Creates a 2 x height x width stack of positional encodings A, where
-    A[:,i,j] = [[x,y]] at coordinate (i,j) on a (height, width) grid. 
+    A[:,i,j] = [[x,y]] at coordinate (i,j) on a (height, width) grid.
     """
     height, width = spatial_dims
 
-    xt = torch.linspace(grid_boundaries[0][0], grid_boundaries[0][1],
-                        height + 1)[:-1]
-    yt = torch.linspace(grid_boundaries[1][0], grid_boundaries[1][1],
-                        width + 1)[:-1]
+    xt = torch.linspace(grid_boundaries[0][0], grid_boundaries[0][1], height + 1)[:-1]
+    yt = torch.linspace(grid_boundaries[1][0], grid_boundaries[1][1], width + 1)[:-1]
 
-    grid_x, grid_y = torch.meshgrid(xt, yt, indexing='ij')
+    grid_x, grid_y = torch.meshgrid(xt, yt, indexing="ij")
 
     grid_x = grid_x.repeat(1, 1)
     grid_y = grid_y.repeat(1, 1)
 
     return grid_x, grid_y
 
-def regular_grid_nd(resolutions: List[int], grid_boundaries: List[List[int]]=[[0,1]] * 2):
-    """regular_grid_nd generates a tensor of coordinate points that 
+
+def regular_grid_nd(
+    resolutions: List[int], grid_boundaries: List[List[int]] = [[0, 1]] * 2
+):
+    """regular_grid_nd generates a tensor of coordinate points that
     describe a bounded regular grid.
-    
+
     Creates a dim x res_d1 x ... x res_dn stack of positional encodings A, where
-    A[:,c1,c2,...] = [[d1,d2,...dn]] at coordinate (c1,c2,...cn) on a (res_d1, ...res_dn) grid. 
+    A[:,c1,c2,...] = [[d1,d2,...dn]] at coordinate (c1,c2,...cn) on a (res_d1, ...res_dn) grid.
 
     Parameters
     ----------
@@ -6705,32 +7085,36 @@ def regular_grid_nd(resolutions: List[int], grid_boundaries: List[List[int]]=[[0
     Returns
     -------
     grid: tuple(Tensor)
-    list of tensors describing positional encoding 
+    list of tensors describing positional encoding
     """
-    assert len(resolutions) == len(grid_boundaries), "Error: inputs must have same number of dimensions"
+    assert len(resolutions) == len(
+        grid_boundaries
+    ), "Error: inputs must have same number of dimensions"
     dim = len(resolutions)
 
     meshgrid_inputs = list()
-    for res, (start,stop) in zip(resolutions, grid_boundaries):
+    for res, (start, stop) in zip(resolutions, grid_boundaries):
         meshgrid_inputs.append(torch.linspace(start, stop, res + 1)[:-1])
-    grid = torch.meshgrid(*meshgrid_inputs, indexing='ij')
-    grid = tuple([x.repeat([1]*dim) for x in grid])
+    grid = torch.meshgrid(*meshgrid_inputs, indexing="ij")
+    grid = tuple([x.repeat([1] * dim) for x in grid])
     return grid
+
 
 class Embedding(nn.Module, ABC):
     def __init__(self):
         super().__init__()
-    
+
     @property
     @abstractmethod
     def out_channels(self):
         pass
 
+
 class GridEmbedding2D(Embedding):
-    """A simple positional embedding as a regular 2D grid
-    """
+    """A simple positional embedding as a regular 2D grid"""
+
     def __init__(self, in_channels: int, grid_boundaries=[[0, 1], [0, 1]]):
-        """GridEmbedding2D applies a simple positional 
+        """GridEmbedding2D applies a simple positional
         embedding as a regular 2D grid
 
         Parameters
@@ -6745,7 +7129,7 @@ class GridEmbedding2D(Embedding):
         self.grid_boundaries = grid_boundaries
         self._grid = None
         self._res = None
-    
+
     @property
     def out_channels(self):
         return self.in_channels + 2
@@ -6766,12 +7150,13 @@ class GridEmbedding2D(Embedding):
         Returns
         -------
         torch.tensor
-            output grids to concatenate 
+            output grids to concatenate
         """
         # handle case of multiple train resolutions
-        if self._grid is None or self._res != spatial_dims: 
-            grid_x, grid_y = regular_grid_2d(spatial_dims,
-                                      grid_boundaries=self.grid_boundaries)
+        if self._grid is None or self._res != spatial_dims:
+            grid_x, grid_y = regular_grid_2d(
+                spatial_dims, grid_boundaries=self.grid_boundaries
+            )
             grid_x = grid_x.to(device).to(dtype).unsqueeze(0).unsqueeze(0)
             grid_y = grid_y.to(device).to(dtype).unsqueeze(0).unsqueeze(0)
             self._grid = grid_x, grid_y
@@ -6785,21 +7170,25 @@ class GridEmbedding2D(Embedding):
                 data = data.unsqueeze(0)
         batch_size = data.shape[0]
         x, y = self.grid(data.shape[-2:], data.device, data.dtype)
-        out =  torch.cat((data, x.expand(batch_size, -1, -1, -1),
-                          y.expand(batch_size, -1, -1, -1)),
-                         dim=1)
-        # in the unbatched case, the dataloader will stack N 
+        out = torch.cat(
+            (data, x.expand(batch_size, -1, -1, -1), y.expand(batch_size, -1, -1, -1)),
+            dim=1,
+        )
+        # in the unbatched case, the dataloader will stack N
         # examples with no batch dim to create one
-        if not batched and batch_size == 1: 
+        if not batched and batch_size == 1:
             return out.squeeze(0)
         else:
             return out
 
+
 class GridEmbeddingND(nn.Module):
-    """A positional embedding as a regular ND grid
-    """
-    def __init__(self, in_channels: int, dim: int=2, grid_boundaries=[[0, 1], [0, 1]]):
-        """GridEmbeddingND applies a simple positional 
+    """A positional embedding as a regular ND grid"""
+
+    def __init__(
+        self, in_channels: int, dim: int = 2, grid_boundaries=[[0, 1], [0, 1]]
+    ):
+        """GridEmbeddingND applies a simple positional
         embedding as a regular ND grid
 
         Parameters
@@ -6814,12 +7203,14 @@ class GridEmbeddingND(nn.Module):
         super().__init__()
         self.in_channels = in_channels
         self.dim = dim
-        assert self.dim == len(grid_boundaries), f"Error: expected grid_boundaries to be\
+        assert self.dim == len(
+            grid_boundaries
+        ), f"Error: expected grid_boundaries to be\
             an iterable of length {self.dim}, received {grid_boundaries}"
         self.grid_boundaries = grid_boundaries
         self._grid = None
         self._res = None
-    
+
     @property
     def out_channels(self):
         return self.in_channels + self.dim
@@ -6840,14 +7231,17 @@ class GridEmbeddingND(nn.Module):
         Returns
         -------
         torch.tensor
-            output grids to concatenate 
+            output grids to concatenate
         """
         # handle case of multiple train resolutions
-        if self._grid is None or self._res != spatial_dims: 
-            grids_by_dim = regular_grid_nd(spatial_dims,
-                                      grid_boundaries=self.grid_boundaries)
+        if self._grid is None or self._res != spatial_dims:
+            grids_by_dim = regular_grid_nd(
+                spatial_dims, grid_boundaries=self.grid_boundaries
+            )
             # add batch, channel dims
-            grids_by_dim = [x.to(device).to(dtype).unsqueeze(0).unsqueeze(0) for x in grids_by_dim]
+            grids_by_dim = [
+                x.to(device).to(dtype).unsqueeze(0).unsqueeze(0) for x in grids_by_dim
+            ]
             self._grid = grids_by_dim
             self._res = spatial_dims
 
@@ -6867,21 +7261,21 @@ class GridEmbeddingND(nn.Module):
             if data.ndim == self.dim + 1:
                 data = data.unsqueeze(0)
         batch_size = data.shape[0]
-        grids = self.grid(spatial_dims=data.shape[2:],
-                          device=data.device,
-                          dtype=data.dtype)
-        grids = [x.repeat(batch_size, *[1] * (self.dim+1)) for x in grids]
-        out =  torch.cat((data, *grids),
-                         dim=1)
+        grids = self.grid(
+            spatial_dims=data.shape[2:], device=data.device, dtype=data.dtype
+        )
+        grids = [x.repeat(batch_size, *[1] * (self.dim + 1)) for x in grids]
+        out = torch.cat((data, *grids), dim=1)
         return out
 
-class FNO(BaseModel, name='FNO'):
+
+class FNO(BaseModel, name="FNO"):
     """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
-    spaces of functions discretized over regular grids using Fourier convolutions, 
+    spaces of functions discretized over regular grids using Fourier convolutions,
     as described in [1]_.
-    
-    The key component of an FNO is its SpectralConv layer (see 
-    ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN 
+
+    The key component of an FNO is its SpectralConv layer (see
+    ``neuralop.layers.spectral_convolution``), which is similar to a standard CNN
     conv layer but operates in the frequency domain.
 
     For a deeper dive into the FNO architecture, refer to :ref:`fno_intro`.
@@ -6916,7 +7310,7 @@ class FNO(BaseModel, name='FNO'):
         Positional embedding to apply to last channels of raw input
         before being passed through the FNO. Defaults to "grid"
 
-        * If "grid", appends a grid positional embedding with default settings to 
+        * If "grid", appends a grid positional embedding with default settings to
         the last channels of raw input. Assumes the inputs are discretized
         over a grid with entry [0,0,...] at the origin and side lengths of 1.
 
@@ -6942,7 +7336,7 @@ class FNO(BaseModel, name='FNO'):
         Type of skip connection to use in FNO layers, by default 'linear'
     resolution_scaling_factor : Union[Number, List[Number]], optional
         layer-wise factor by which to scale the domain resolution of function, by default None
-        
+
         * If a single number n, scales resolution by n at each layer
 
         * if a list of numbers [n_0, n_1,...] scales layer i's resolution by n_i.
@@ -6959,7 +7353,7 @@ class FNO(BaseModel, name='FNO'):
         whether to use a tanh stabilizer in FNO block, by default None
 
         Note: stabilizer greatly improves performance in the case
-        `fno_block_precision='mixed'`. 
+        `fno_block_precision='mixed'`.
 
     max_n_modes : Tuple[int] | None, optional
 
@@ -6982,21 +7376,21 @@ class FNO(BaseModel, name='FNO'):
         Modes to not factorize, by default False
     implementation : str {'factorized', 'reconstructed'}, optional
 
-        * If 'factorized', implements tensor contraction with the individual factors of the decomposition 
-        
+        * If 'factorized', implements tensor contraction with the individual factors of the decomposition
+
         * If 'reconstructed', implements with the reconstructed full tensorized weight.
     decomposition_kwargs : dict, optional
         extra kwargs for tensor decomposition (see `tltorch.FactorizedTensor`), by default dict()
     separable : bool, optional (**DEACTIVATED**)
-        if True, use a depthwise separable spectral convolution, by default False   
+        if True, use a depthwise separable spectral convolution, by default False
     preactivation : bool, optional (**DEACTIVATED**)
         whether to compute FNO forward pass with resnet-style preactivation, by default False
     conv_module : nn.Module, optional
         module to use for FNOBlock's convolutions, by default SpectralConv
-    
+
     Examples
     ---------
-    
+
     >>> from neuralop.models import FNO
     >>> model = FNO(n_modes=(12,12), in_channels=1, out_channels=1, hidden_channels=64)
     >>> model
@@ -7014,7 +7408,7 @@ class FNO(BaseModel, name='FNO'):
     -----------
     .. [1] :
 
-    Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential 
+    Li, Z. et al. "Fourier Neural Operator for Parametric Partial Differential
         Equations" (2021). ICLR 2021, https://arxiv.org/pdf/2010.08895.
 
     """
@@ -7025,37 +7419,37 @@ class FNO(BaseModel, name='FNO'):
         in_channels: int,
         out_channels: int,
         hidden_channels: int,
-        n_layers: int=4,
-        lifting_channel_ratio: int=2,
-        projection_channel_ratio: int=2,
-        positional_embedding: Union[str, nn.Module]="grid",
-        non_linearity: nn.Module=F.gelu,
-        norm: str=None,
-        complex_data: bool=False,
-        channel_mlp_dropout: float=0,
-        channel_mlp_expansion: float=0.5,
-        channel_mlp_skip: str="soft-gating",
-        fno_skip: str="linear",
-        resolution_scaling_factor: Union[Number, List[Number]]=None,
-        domain_padding: Union[Number, List[Number]]=None,
-        domain_padding_mode: str="one-sided",
-        fno_block_precision: str="full",
-        stabilizer: str=None,
-        max_n_modes: Tuple[int]=None,
-        factorization: str=None,
-        rank: float=1.0,
-        fixed_rank_modes: bool=False,
-        implementation: str="factorized",
-        decomposition_kwargs: dict=dict(),
-        separable: bool=False,
-        preactivation: bool=False,
-        conv_module: nn.Module=SpectralConv,
-        **kwargs
+        n_layers: int = 4,
+        lifting_channel_ratio: int = 2,
+        projection_channel_ratio: int = 2,
+        positional_embedding: Union[str, nn.Module] = "grid",
+        non_linearity: nn.Module = F.gelu,
+        norm: str = None,
+        complex_data: bool = False,
+        channel_mlp_dropout: float = 0,
+        channel_mlp_expansion: float = 0.5,
+        channel_mlp_skip: str = "soft-gating",
+        fno_skip: str = "linear",
+        resolution_scaling_factor: Union[Number, List[Number]] = None,
+        domain_padding: Union[Number, List[Number]] = None,
+        domain_padding_mode: str = "one-sided",
+        fno_block_precision: str = "full",
+        stabilizer: str = None,
+        max_n_modes: Tuple[int] = None,
+        factorization: str = None,
+        rank: float = 1.0,
+        fixed_rank_modes: bool = False,
+        implementation: str = "factorized",
+        decomposition_kwargs: dict = dict(),
+        separable: bool = False,
+        preactivation: bool = False,
+        conv_module: nn.Module = SpectralConv,
+        **kwargs,
     ):
-        
+
         super().__init__()
         self.n_dim = len(n_modes)
-        
+
         # n_modes is a special property - see the class' property for underlying mechanism
         # When updated, change should be reflected in fno blocks
         self._n_modes = n_modes
@@ -7084,25 +7478,31 @@ class FNO(BaseModel, name='FNO'):
         self.preactivation = preactivation
         self.complex_data = complex_data
         self.fno_block_precision = fno_block_precision
-        
+
         if positional_embedding == "grid":
-            spatial_grid_boundaries = [[0., 1.]] * self.n_dim
-            self.positional_embedding = GridEmbeddingND(in_channels=self.in_channels,
-                                                        dim=self.n_dim, 
-                                                        grid_boundaries=spatial_grid_boundaries)
+            spatial_grid_boundaries = [[0.0, 1.0]] * self.n_dim
+            self.positional_embedding = GridEmbeddingND(
+                in_channels=self.in_channels,
+                dim=self.n_dim,
+                grid_boundaries=spatial_grid_boundaries,
+            )
         elif isinstance(positional_embedding, GridEmbedding2D):
             if self.n_dim == 2:
                 self.positional_embedding = positional_embedding
             else:
-                raise ValueError(f'Error: expected {self.n_dim}-d positional embeddings, got {positional_embedding}')
+                raise ValueError(
+                    f"Error: expected {self.n_dim}-d positional embeddings, got {positional_embedding}"
+                )
         elif isinstance(positional_embedding, GridEmbeddingND):
             self.positional_embedding = positional_embedding
         elif positional_embedding == None:
             self.positional_embedding = None
         else:
-            raise ValueError(f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
-                              expected one of \'grid\', GridEmbeddingND")
-        
+            raise ValueError(
+                f"Error: tried to instantiate FNO positional embedding with {positional_embedding},\
+                              expected one of 'grid', GridEmbeddingND"
+            )
+
         if domain_padding is not None and (
             (isinstance(domain_padding, list) and sum(domain_padding) > 0)
             or (isinstance(domain_padding, (float, int)) and domain_padding > 0)
@@ -7147,9 +7547,9 @@ class FNO(BaseModel, name='FNO'):
             decomposition_kwargs=decomposition_kwargs,
             conv_module=conv_module,
             n_layers=n_layers,
-            **kwargs
+            **kwargs,
         )
-        
+
         # if adding a positional embedding, add those channels to lifting
         lifting_in_channels = self.in_channels
         if self.positional_embedding is not None:
@@ -7163,7 +7563,7 @@ class FNO(BaseModel, name='FNO'):
                 hidden_channels=self.lifting_channels,
                 n_layers=2,
                 n_dim=self.n_dim,
-                non_linearity=non_linearity
+                non_linearity=non_linearity,
             )
         # otherwise, make it a linear layer
         else:
@@ -7173,7 +7573,7 @@ class FNO(BaseModel, name='FNO'):
                 out_channels=self.hidden_channels,
                 n_layers=1,
                 n_dim=self.n_dim,
-                non_linearity=non_linearity
+                non_linearity=non_linearity,
             )
         # Convert lifting to a complex ChannelMLP if self.complex_data==True
         if self.complex_data:
@@ -7192,14 +7592,14 @@ class FNO(BaseModel, name='FNO'):
 
     def forward(self, x, output_shape=None, **kwargs):
         """FNO's forward pass
-        
+
         1. Applies optional positional encoding
 
         2. Sends inputs through a lifting layer to a high-dimensional latent space
 
         3. Applies optional domain padding to high-dimensional intermediate function representation
 
-        4. Applies `n_layers` Fourier/FNO layers in sequence (SpectralConvolution + skip connections, nonlinearity) 
+        4. Applies `n_layers` Fourier/FNO layers in sequence (SpectralConvolution + skip connections, nonlinearity)
 
         5. If domain padding was applied, domain padding is removed
 
@@ -7209,10 +7609,10 @@ class FNO(BaseModel, name='FNO'):
         ----------
         x : tensor
             input tensor
-        
+
         output_shape : {tuple, tuple list, None}, default is None
             Gives the option of specifying the exact output shape for odd shaped inputs.
-            
+
             * If None, don't specify an output shape
 
             * If tuple, specifies the output-shape of the **last** FNO Block
@@ -7221,14 +7621,14 @@ class FNO(BaseModel, name='FNO'):
         """
 
         if output_shape is None:
-            output_shape = [None]*self.n_layers
+            output_shape = [None] * self.n_layers
         elif isinstance(output_shape, tuple):
-            output_shape = [None]*(self.n_layers - 1) + [output_shape]
+            output_shape = [None] * (self.n_layers - 1) + [output_shape]
 
         # append spatial pos embedding if set
         if self.positional_embedding is not None:
             x = self.positional_embedding(x)
-        
+
         x = self.lifting(x)
 
         if self.domain_padding is not None:
@@ -7252,6 +7652,7 @@ class FNO(BaseModel, name='FNO'):
     def n_modes(self, n_modes):
         self.fno_blocks.n_modes = n_modes
         self._n_modes = n_modes
+
 
 class FNO1d(FNO):
     """1D Fourier Neural Operator
@@ -7292,7 +7693,7 @@ class FNO1d(FNO):
         decomposition_kwargs=dict(),
         domain_padding=None,
         domain_padding_mode="one-sided",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             n_modes=(n_modes_height,),

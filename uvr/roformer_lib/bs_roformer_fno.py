@@ -402,7 +402,7 @@ class BSRoformer_FNO(Module):
         mlp_expansion_factor=4,
         use_torch_checkpoint=False,
         skip_connection=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__()
 

@@ -29,16 +29,18 @@ class InvalidAudioDataError(Exception):
 
 def validate_audio_source(stem_source):
     stem_source = np.asarray(stem_source)
-    if stem_source.ndim not in (1, 2) or (stem_source.ndim == 2 and stem_source.shape[1] not in (1, 2)):
-        raise InvalidAudioDataError(f"Audio data has invalid shape {stem_source.shape}; expected mono or stereo frames")
+    if stem_source.ndim not in (1, 2) or (
+        stem_source.ndim == 2 and stem_source.shape[1] not in (1, 2)
+    ):
+        raise InvalidAudioDataError(
+            f"Audio data has invalid shape {stem_source.shape}; expected mono or stereo frames"
+        )
     return stem_source
 
 
 @contextmanager
 def atomic_output_path(target_path, backend="soundfile"):
     """Yield a same-directory temp path and atomically publish it on success."""
-    import secrets
-    import stat
     import tempfile
 
     temp_fd = None
@@ -47,7 +49,9 @@ def atomic_output_path(target_path, backend="soundfile"):
     try:
         target_dir = os.path.dirname(target_path) or "."
         suffix = os.path.splitext(target_path)[1]
-        temp_fd, temp_path = tempfile.mkstemp(prefix=f".{os.path.basename(target_path)}.", suffix=suffix, dir=target_dir)
+        temp_fd, temp_path = tempfile.mkstemp(
+            prefix=f".{os.path.basename(target_path)}.", suffix=suffix, dir=target_dir
+        )
         os.close(temp_fd)
         temp_fd = None
         yield temp_path
@@ -70,7 +74,11 @@ def atomic_output_path(target_path, backend="soundfile"):
     if error is not None:
         if isinstance(error, AudioExportError):
             raise error
-        raise AudioExportError(f"Failed to publish audio output {target_path} with {backend}: {error}", path=target_path, backend=backend) from error
+        raise AudioExportError(
+            f"Failed to publish audio output {target_path} with {backend}: {error}",
+            path=target_path,
+            backend=backend,
+        ) from error
 
 
 def select_torch_device(use_gpu: bool):
@@ -95,9 +103,16 @@ def download_file(url: str, output_path: str, logger=None, timeout=300):
     tmp_path = output_path + ".part"
     with requests.get(url, stream=True, timeout=timeout) as response:
         if response.status_code != 200:
-            raise RuntimeError(f"Failed to download {url}, response code: {response.status_code}")
+            raise RuntimeError(
+                f"Failed to download {url}, response code: {response.status_code}"
+            )
         total = int(response.headers.get("content-length", 0))
-        with open(tmp_path, "wb") as f, tqdm(total=total or None, unit="B", unit_scale=True, desc=os.path.basename(output_path)) as bar:
+        with open(tmp_path, "wb") as f, tqdm(
+            total=total or None,
+            unit="B",
+            unit_scale=True,
+            desc=os.path.basename(output_path),
+        ) as bar:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 if not chunk:
                     continue
@@ -123,7 +138,9 @@ class BaseSeparator:
     def __init__(self, config: dict):
         self.logger: Logger = config.get("logger")
         self.torch_device = config.get("torch_device", torch.device("cpu"))
-        self.onnx_execution_provider = config.get("onnx_execution_provider", ["CPUExecutionProvider"])
+        self.onnx_execution_provider = config.get(
+            "onnx_execution_provider", ["CPUExecutionProvider"]
+        )
         self.model_name = config.get("model_name")
         self.model_path = config.get("model_path")
         self.model_data = config.get("model_data", {})
@@ -158,19 +175,31 @@ class BaseSeparator:
             try:
                 info = sf.info(mix)
                 self.input_subtype = info.subtype
-                self.input_bit_depth = 24 if "24" in info.subtype else 32 if "32" in info.subtype or "FLOAT" in info.subtype else 16
+                self.input_bit_depth = (
+                    24
+                    if "24" in info.subtype
+                    else 32 if "32" in info.subtype or "FLOAT" in info.subtype else 16
+                )
             except Exception as e:
-                self.logger.warning(f"Could not read audio file info, defaulting to 16-bit output: {e}")
+                self.logger.warning(
+                    f"Could not read audio file info, defaulting to 16-bit output: {e}"
+                )
             mix, _sr = librosa.load(mix, mono=False, sr=self.sample_rate)
         if mix.size == 0 or not np.isfinite(mix).all():
-            raise InvalidAudioDataError("Input audio is empty or contains non-finite samples")
+            raise InvalidAudioDataError(
+                "Input audio is empty or contains non-finite samples"
+            )
         if mix.ndim == 1:
             mix = np.asfortranarray([mix, mix])
         return mix
 
     def write_audio(self, stem_path: str, stem_source):
         stem_source = validate_audio_source(stem_source)
-        stem_source = spec_utils.normalize(wave=stem_source, max_peak=self.normalization_threshold, min_peak=self.amplification_threshold)
+        stem_source = spec_utils.normalize(
+            wave=stem_source,
+            max_peak=self.normalization_threshold,
+            min_peak=self.amplification_threshold,
+        )
         if self.output_dir:
             stem_path = os.path.join(self.output_dir, stem_path)
             os.makedirs(self.output_dir, exist_ok=True)
