@@ -14,8 +14,38 @@ import {
   ToggleField,
 } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
+import { GOOGLE_FONT_FAMILIES } from "@/lib/google-fonts";
 import { useI18n } from "@/lib/i18n";
-import { applyTheme, type ThemeFile } from "@/lib/theme";
+import { applyTheme, fontCss, type ThemeFile } from "@/lib/theme";
+
+interface FontOption {
+  id: string;
+  label: string;
+  families: string[];
+}
+
+// Interface font override: layers over any theme's body/display slots
+// server-side (see /api/settings/theme), so it survives theme switches.
+const FONT_OPTIONS: FontOption[] = [
+  { id: "", label: "Theme default", families: [] },
+  {
+    id: "system",
+    label: "System UI",
+    families: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+  },
+  { id: "syne", label: "Syne (Applio default)", families: ["google:Syne", "system-ui", "sans-serif"] },
+  {
+    id: "georgia",
+    label: "Georgia (serif)",
+    families: ["Georgia", "Times New Roman", "serif"],
+  },
+  // Full Google Fonts catalog (searchable dropdown) — loaded on demand.
+  ...GOOGLE_FONT_FAMILIES.map((name) => ({
+    id: `google:${name}`,
+    label: name,
+    families: [`google:${name}`, "system-ui", "sans-serif"],
+  })),
+];
 
 interface ThemePreset {
   id: string;
@@ -50,37 +80,37 @@ const THEME_PRESETS: ThemePreset[] = [
     id: "midnight.json",
     name: "Midnight",
     subtitle: "Navy & Cyan",
-    bg: "#0b0f19",
-    surface: "#131c2e",
-    accent: "#38bdf8",
-    border: "#1e293b",
+    bg: "#05080f",
+    surface: "#0b1322",
+    accent: "#7dd3fc",
+    border: "#1a2540",
   },
   {
     id: "cyberpunk.json",
     name: "Cyberpunk",
-    subtitle: "Neon Magenta",
-    bg: "#0d0221",
-    surface: "#1d0838",
-    accent: "#f43f5e",
-    border: "#31115e",
+    subtitle: "Neo-Tokyo Neon",
+    bg: "#080512",
+    surface: "#130b2e",
+    accent: "#ff3d81",
+    border: "#2c1656",
   },
   {
     id: "emerald.json",
     name: "Emerald",
     subtitle: "Botanical Jade",
-    bg: "#05140f",
-    surface: "#0c2b21",
-    accent: "#10b981",
-    border: "#134233",
+    bg: "#031009",
+    surface: "#0a231a",
+    accent: "#34d399",
+    border: "#16382c",
   },
   {
     id: "amethyst.json",
     name: "Amethyst",
     subtitle: "Obsidian Violet",
-    bg: "#0e0918",
-    surface: "#1e1333",
-    accent: "#a855f7",
-    border: "#2e1e4f",
+    bg: "#0b0716",
+    surface: "#16102c",
+    accent: "#c084fc",
+    border: "#2c2150",
   },
   {
     id: "sunset.json",
@@ -319,7 +349,16 @@ export default function SettingsPage() {
 
     // Instant DOM visual update
     if (!themeId) {
-      applyTheme({ name: "Default", colors: {}, radius: {}, shadows: {} });
+      applyTheme({
+        name: "Default",
+        colors: {},
+        radius: {},
+        shadows: {},
+        fonts:
+          selectedFontFamilies.length > 0
+            ? { body: selectedFontFamilies, display: selectedFontFamilies }
+            : {},
+      });
     } else {
       try {
         const res = await apiGet<{ id: string; theme: ThemeFile }>(
@@ -356,6 +395,23 @@ export default function SettingsPage() {
 
   const allThemes = [...THEME_PRESETS, ...customThemes];
   const selectedThemeFile = (cfg.theme as { file?: string } | undefined)?.file || "";
+  const selectedFontFamilies = (() => {
+    const stored = (cfg.theme as { font?: unknown } | undefined)?.font;
+    const match = FONT_OPTIONS.find((o) => JSON.stringify(o.families) === JSON.stringify(stored));
+    return match ? match.families : [];
+  })();
+  const selectedFontId =
+    FONT_OPTIONS.find((o) => JSON.stringify(o.families) === JSON.stringify(selectedFontFamilies))?.id ?? "";
+
+  const handleSelectFont = async (id: string) => {
+    const families = FONT_OPTIONS.find((o) => o.id === id)?.families ?? [];
+    try {
+      await save({ theme: { file: selectedThemeFile, font: families } });
+      window.dispatchEvent(new Event("applio:theme-changed"));
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  };
 
   return (
     <div className="w-full max-w-[1920px] mx-auto space-y-6">
@@ -456,7 +512,7 @@ export default function SettingsPage() {
           icon={<Palette size={18} />}
           title={t("Appearance & Themes")}
           description={t(
-            "Choose your visual palette. Clicking any theme immediately transforms the interface.",
+            "Choose your visual palette and interface font. Clicking any theme immediately transforms the interface.",
           )}
         />
 
@@ -527,6 +583,27 @@ export default function SettingsPage() {
               </button>
             );
           })}
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-4 border-t border-white/5">
+          <div className="space-y-1.5">
+            <label htmlFor="theme-font">{t("Interface font")}</label>
+            <CustomSelect
+              id="theme-font"
+              value={selectedFontId}
+              onValueChange={handleSelectFont}
+              className="w-64 max-w-full"
+              options={FONT_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+            />
+          </div>
+          <p
+            className="text-sm text-neutral-300 m-0 pb-2 truncate"
+            style={
+              selectedFontFamilies.length > 0 ? { fontFamily: fontCss(selectedFontFamilies) } : undefined
+            }
+          >
+            {t("The quick brown fox jumps over the lazy dog 0123456789")}
+          </p>
         </div>
       </Card>
 

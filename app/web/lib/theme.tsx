@@ -101,6 +101,11 @@ function ensureGoogleFont(name: string): void {
   document.head.appendChild(link);
 }
 
+// Public CSS stack for a families array (used for the font picker preview).
+export function fontCss(families: string[] | undefined): string {
+  return fontStack(families).css;
+}
+
 export function applyTheme(theme: ThemeFile): void {
   const root = document.documentElement;
 

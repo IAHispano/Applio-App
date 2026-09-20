@@ -57,8 +57,9 @@ export default function ModelsPage() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
-  const [deleteTarget, setDeleteTarget] = useState<ModelItem | null>(null);
+  const [deleteTargets, setDeleteTargets] = useState<ModelItem[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   // Inspect modal state
   const [inspectModal, setInspectModal] = useState<ModelItem | null>(null);
@@ -108,19 +109,43 @@ export default function ModelsPage() {
     }
   }
 
+  // One on-disk target per request: models sharing a folder delete together.
+  function deleteKey(m: ModelItem): string {
+    return m.folder !== "root" ? m.folder : m.name;
+  }
+
   async function confirmDelete() {
-    if (!deleteTarget) return;
+    if (deleteTargets.length === 0 || deleting) return;
     setDeleting(true);
-    try {
-      const nameToDelete = deleteTarget.folder !== "root" ? deleteTarget.folder : deleteTarget.name;
-      await apiSend(`/api/models/${encodeURIComponent(nameToDelete)}`, "DELETE");
-      setDeleteTarget(null);
-      await loadLibrary();
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setDeleting(false);
+    const seen = new Set<string>();
+    const queue = deleteTargets.filter((m) => {
+      const key = deleteKey(m);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+    const failed: string[] = [];
+    const deletedKeys = new Set<string>();
+    for (const m of queue) {
+      const key = deleteKey(m);
+      try {
+        await apiSend(`/api/models/${encodeURIComponent(key)}`, "DELETE");
+        deletedKeys.add(key);
+      } catch {
+        failed.push(m.name);
+      }
     }
+    setDeleteTargets([]);
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const m of deleteTargets) {
+        if (deletedKeys.has(deleteKey(m))) next.delete(m.id);
+      }
+      return next;
+    });
+    setDeleting(false);
+    if (failed.length > 0) setError(`${t("Could not delete:")} ${failed.join(", ")}`);
+    await loadLibrary();
   }
 
   function openInInference(item: ModelItem) {
@@ -157,6 +182,34 @@ export default function ModelsPage() {
       m.pthPath.toLowerCase().includes(search.toLowerCase()),
   );
 
+  const selectedCount = selected.size;
+  const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((m) => selected.has(m.id));
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAllFiltered() {
+    if (allFilteredSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const m of filteredModels) next.delete(m.id);
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const m of filteredModels) next.add(m.id);
+        return next;
+      });
+    }
+  }
+
   return (
     <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
@@ -174,7 +227,7 @@ export default function ModelsPage() {
             { value: "library", label: t("Model Library"), icon: Database },
             { value: "download", label: t("Download Models"), icon: Download },
             { value: "blend", label: t("Voice Blender"), icon: Layers },
-            { value: "inspect", label: t("Inspect Path"), icon: Info },
+            { value: "inspect", label: t("Inspect Model"), icon: Info },
           ]}
         />
       </PageHeader>
@@ -214,6 +267,19 @@ export default function ModelsPage() {
             </div>
 
             <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer select-none mr-1">
+                <input
+                  type="checkbox"
+                  checked={allFilteredSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = !allFilteredSelected && selectedCount > 0;
+                  }}
+                  onChange={toggleSelectAllFiltered}
+                  disabled={filteredModels.length === 0}
+                  aria-label={t("Select all models")}
+                />
+                <span>{t("All")}</span>
+              </label>
               <Button
                 variant="ghost"
                 onClick={loadLibrary}
@@ -226,6 +292,31 @@ export default function ModelsPage() {
               <Button onClick={() => setSection("download")} icon={<Download size={14} />}>
                 {t("Get Models")}
               </Button>
+
+              {selectedCount > 0 && (
+                <span
+                  className="flex items-center gap-2 pl-2 ml-1 border-l border-white/10"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span className="text-xs text-neutral-200 font-medium tabular-nums whitespace-nowrap">
+                    {selectedCount} {t("selected")}
+                  </span>
+                  <Button
+                    variant="danger"
+                    size="xs"
+                    onClick={() => setDeleteTargets(models.filter((m) => selected.has(m.id)))}
+                    icon={<Trash2 size={13} />}
+                  >
+                    {t("Delete selected")}
+                  </Button>
+                  <IconButton
+                    icon={<X size={13} />}
+                    label={t("Clear selection")}
+                    onClick={() => setSelected(new Set())}
+                  />
+                </span>
+              )}
             </div>
           </div>
 
@@ -257,78 +348,100 @@ export default function ModelsPage() {
               />
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4">
-              {filteredModels.map((m) => (
-                <div
-                  key={m.id}
-                  className="card m-0 hover:border-white/20 transition-all flex flex-col justify-between"
-                >
-                  <div>
-                    {/* Header: Title & Folder */}
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <h3 className="font-semibold text-white text-base truncate m-0 flex-1" title={m.name}>
-                        {m.name}
-                      </h3>
-                      <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-neutral-300 flex items-center gap-1 shrink-0">
-                        <Folder size={12} />
-                        <span>{m.folder}</span>
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4 items-stretch">
+              {filteredModels.map((m) => {
+                const isSelected = selected.has(m.id);
+                return (
+                  // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: card click toggles selection; the checkbox inside is the keyboard control
+                  <div
+                    key={m.id}
+                    onClick={() => toggleSelect(m.id)}
+                    className={`card m-0 h-full transition-all flex flex-col justify-between cursor-pointer ${
+                      isSelected ? "border-white/30 bg-white/[0.05]" : "hover:border-white/20"
+                    }`}
+                  >
+                    <div>
+                      {/* Header: Select, Title & Folder */}
+                      <div className="flex items-start gap-2 mb-2">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(m.id)}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={`${t("Select model")} ${m.name}`}
+                          className="mt-1 shrink-0 cursor-pointer"
+                        />
+                        <h3
+                          className="font-semibold text-white text-base truncate m-0 flex-1 min-w-0"
+                          title={m.name}
+                        >
+                          {m.name}
+                        </h3>
+                        <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-neutral-300 flex items-center gap-1 shrink-0 min-w-0 max-w-[42%]">
+                          <Folder size={12} className="shrink-0" />
+                          <span className="truncate">{m.folder}</span>
+                        </span>
+                      </div>
+
+                      {/* Stats & Index status */}
+                      <div className="space-y-1.5 text-xs text-neutral-400 my-3">
+                        <div className="flex justify-between">
+                          <span>{t("Weights (.pth):")}</span>
+                          <span className="text-neutral-200 tabular-nums">{formatBytes(m.pthSize)}</span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span>{t("Feature Index:")}</span>
+                          {m.indexPath ? (
+                            <span className="text-neutral-200 flex items-center gap-1">
+                              <FileCheck size={12} />
+                              <span>{formatBytes(m.indexSize || 0)}</span>
+                            </span>
+                          ) : (
+                            <span className="text-neutral-500 flex items-center gap-1">
+                              <FileX size={12} />
+                              <span>{t("None")}</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex justify-between text-neutral-500 pt-1 border-t border-white/5">
+                          <span>{t("Modified:")}</span>
+                          <span>{new Date(m.modifiedAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Stats & Index status */}
-                    <div className="space-y-1.5 text-xs text-neutral-400 my-3">
-                      <div className="flex justify-between">
-                        <span>{t("Weights (.pth):")}</span>
-                        <span className="text-neutral-200 tabular-nums">{formatBytes(m.pthSize)}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span>{t("Feature Index:")}</span>
-                        {m.indexPath ? (
-                          <span className="text-neutral-200 flex items-center gap-1">
-                            <FileCheck size={12} />
-                            <span>{formatBytes(m.indexSize || 0)}</span>
-                          </span>
-                        ) : (
-                          <span className="text-neutral-500 flex items-center gap-1">
-                            <FileX size={12} />
-                            <span>{t("None")}</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex justify-between text-neutral-500 pt-1 border-t border-white/5">
-                        <span>{t("Modified:")}</span>
-                        <span>{new Date(m.modifiedAt).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Actions Footer */}
-                  <div className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 mt-2">
-                    <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
-                      {t("Use")}
-                    </Button>
-
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="xs"
-                        onClick={() => openInspect(m)}
-                        title={t("View checkpoint metadata")}
-                        aria-label={`${t("Inspect model metadata for")} ${m.name}`}
-                        icon={<Info size={13} aria-hidden="true" />}
-                      >
-                        {t("Inspect")}
+                    {/* Actions Footer (clicks here don't toggle selection) */}
+                    {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction */}
+                    <div
+                      className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 mt-2"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
+                        {t("Use")}
                       </Button>
-                      <IconButton
-                        variant="danger"
-                        icon={<Trash2 size={13} aria-hidden="true" />}
-                        label={`${t("Delete model")} ${m.name}`}
-                        onClick={() => setDeleteTarget(m)}
-                      />
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          onClick={() => openInspect(m)}
+                          title={t("View checkpoint metadata")}
+                          aria-label={`${t("Inspect model metadata for")} ${m.name}`}
+                          icon={<Info size={13} aria-hidden="true" />}
+                        >
+                          {t("Inspect")}
+                        </Button>
+                        <IconButton
+                          variant="danger"
+                          icon={<Trash2 size={13} aria-hidden="true" />}
+                          label={`${t("Delete model")} ${m.name}`}
+                          onClick={() => setDeleteTargets([m])}
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -463,24 +576,47 @@ export default function ModelsPage() {
         </div>
       </Modal>
 
-      {/* DELETE CONFIRMATION MODAL */}
+      {/* DELETE CONFIRMATION MODAL (single or bulk) */}
       <Modal
-        isOpen={!!deleteTarget}
-        onClose={() => setDeleteTarget(null)}
-        title={t("Delete Model?")}
+        isOpen={deleteTargets.length > 0}
+        onClose={() => setDeleteTargets([])}
+        title={deleteTargets.length > 1 ? t("Delete Models?") : t("Delete Model?")}
         size="sm"
         danger
       >
-        <p className="text-sm text-neutral-300">
-          {t("Are you sure you want to permanently delete")} <strong>{deleteTarget?.name}</strong>{" "}
-          {t("from disk? This will remove its .pth and .index files.")}
-        </p>
+        {deleteTargets.length > 1 ? (
+          <div className="space-y-3">
+            <p className="text-sm text-neutral-300 m-0">
+              {t("Permanently delete these models from disk? Their .pth and .index files will be removed.")}
+            </p>
+            <ul className="m-0 p-0 list-none space-y-1.5 max-h-44 overflow-y-auto">
+              {deleteTargets.map((m) => (
+                <li
+                  key={m.id}
+                  className="text-xs text-neutral-200 px-2.5 py-1.5 rounded-lg bg-black/30 border border-white/5 truncate"
+                  title={m.name}
+                >
+                  {m.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-300">
+            {t("Are you sure you want to permanently delete")} <strong>{deleteTargets[0]?.name}</strong>{" "}
+            {t("from disk? This will remove its .pth and .index files.")}
+          </p>
+        )}
         <div className="flex justify-end gap-2 pt-4 border-t border-white/10 mt-4">
-          <Button variant="ghost" onClick={() => setDeleteTarget(null)} disabled={deleting}>
+          <Button variant="ghost" onClick={() => setDeleteTargets([])} disabled={deleting}>
             {t("Cancel")}
           </Button>
           <Button variant="danger" onClick={confirmDelete} loading={deleting}>
-            {deleting ? t("Deleting…") : t("Delete Model")}
+            {deleting
+              ? t("Deleting…")
+              : deleteTargets.length > 1
+                ? `${t("Delete Models")} (${deleteTargets.length})`
+                : t("Delete Model")}
           </Button>
         </div>
       </Modal>

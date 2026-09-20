@@ -1,6 +1,11 @@
 {
   "theme": {
-    "file": ""
+    "file": "",
+    "font": [
+      "google:Syne",
+      "system-ui",
+      "sans-serif"
+    ]
   },
   "plugins": [],
   "discord_presence": true,

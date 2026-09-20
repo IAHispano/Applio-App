@@ -135,7 +135,7 @@ const settingsSchema = z.object({
     })
     .optional(),
   realtime: z.record(z.unknown()).optional(),
-  theme: z.object({ file: z.string() }).optional(),
+  theme: z.object({ file: z.string(), font: z.array(z.string()).optional() }).optional(),
 });
 
 router.get("/", (_req: Request, res: Response) => {
@@ -400,15 +400,29 @@ const BUILTIN_THEME_FALLBACK = { name: "Default", version: "1.0.0", colors: {}, 
 router.get("/theme", (req: Request, res: Response) => {
   try {
     const file = String(req.query.file || (loadConfig().theme as { file?: string } | undefined)?.file || "");
+    // User font override (families array) layers over any theme's body/display
+    // slots, so one dropdown customizes every palette. Applied server-side so
+    // initial load, ThemeProvider reloads, and instant previews all agree.
+    const font = (loadConfig().theme as { font?: unknown } | undefined)?.font;
+    const fontFamilies = Array.isArray(font) ? font.filter((f): f is string => typeof f === "string") : [];
+    const withFont = (theme: Record<string, unknown>) => {
+      if (fontFamilies.length === 0) return theme;
+      const fonts =
+        theme.fonts && typeof theme.fonts === "object" ? (theme.fonts as Record<string, unknown>) : {};
+      return { ...theme, fonts: { ...fonts, body: fontFamilies, display: fontFamilies } };
+    };
     // Legacy Gradio values (e.g. "Applio.py") and "" both mean the built-in default.
-    if (!file?.endsWith(".json")) return res.json({ id: "", theme: BUILTIN_THEME_FALLBACK });
+    if (!file?.endsWith(".json")) return res.json({ id: "", theme: withFont(BUILTIN_THEME_FALLBACK) });
     // Confine to the themes dir (no traversal).
     const abs = path.resolve(themesDir(), path.basename(file));
     if (!abs.startsWith(themesDir() + path.sep) || !abs.endsWith(".json")) {
       return res.status(403).json({ error: "Only assets/themes/*.json files." });
     }
     if (!fs.existsSync(abs)) return res.status(404).json({ error: `Theme not found: ${file}` });
-    res.json({ id: path.basename(file), theme: JSON.parse(fs.readFileSync(abs, "utf-8")) });
+    res.json({
+      id: path.basename(file),
+      theme: withFont(JSON.parse(fs.readFileSync(abs, "utf-8")) as Record<string, unknown>),
+    });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
   }

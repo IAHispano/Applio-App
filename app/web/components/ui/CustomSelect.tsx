@@ -150,6 +150,36 @@ export default function CustomSelect({
 
   const selectedOption = parsedOptions.find((opt) => opt.value === selectedValue);
 
+  // Large lists render in letter groups with scroll-to-load-more: filtering
+  // thousands of options is cheap, mounting thousands of rows is not. Only
+  // the rows inside the scroll window exist in the DOM; more load as you
+  // scroll. Small lists render fully with no headers.
+  const GROUP_MODE_THRESHOLD = 60;
+  const INITIAL_ROW_BUDGET = 60;
+  const LOAD_MORE_ROWS = 120;
+  const groupedMode = filteredOptions.length > GROUP_MODE_THRESHOLD;
+
+  const letterOf = (label: string) => {
+    const first = (label.trim()[0] || "#").toUpperCase();
+    return first >= "A" && first <= "Z" ? first : "#";
+  };
+
+  const [visibleCount, setVisibleCount] = useState(INITIAL_ROW_BUDGET);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset scroll window whenever the query changes
+  useEffect(() => {
+    setVisibleCount(INITIAL_ROW_BUDGET);
+  }, [search]);
+
+  const visibleSlice = groupedMode ? filteredOptions.slice(0, visibleCount) : [];
+  const remainingRows = groupedMode ? filteredOptions.length - visibleSlice.length : 0;
+
+  // Keyboard navigation + Enter always follow the actually rendered rows.
+  const navRows = groupedMode ? visibleSlice : filteredOptions;
+
+  function showMoreRows() {
+    setVisibleCount((c) => c + LOAD_MORE_ROWS);
+  }
+
   const displayLabel = selectedOption
     ? selectedOption.label
     : selectedValue
@@ -188,7 +218,9 @@ export default function CustomSelect({
     updatePosition();
     setOpen(true);
     setSearch("");
-    const curIdx = filteredOptions.findIndex((o) => o.value === selectedValue);
+    setVisibleCount(INITIAL_ROW_BUDGET);
+    const freshRows = groupedMode ? filteredOptions.slice(0, INITIAL_ROW_BUDGET) : filteredOptions;
+    const curIdx = freshRows.findIndex((o) => o.value === selectedValue);
     setHighlightedIndex(curIdx >= 0 ? curIdx : 0);
   };
 
@@ -266,14 +298,19 @@ export default function CustomSelect({
       handleClose();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlightedIndex((prev) => (prev < filteredOptions.length - 1 ? prev + 1 : 0));
+      if (highlightedIndex >= navRows.length - 1 && remainingRows > 0) {
+        showMoreRows();
+        setHighlightedIndex(navRows.length);
+      } else {
+        setHighlightedIndex((prev) => (prev < navRows.length - 1 ? prev + 1 : 0));
+      }
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filteredOptions.length - 1));
+      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : navRows.length - 1));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      if (highlightedIndex >= 0 && highlightedIndex < filteredOptions.length) {
-        const target = filteredOptions[highlightedIndex];
+      if (highlightedIndex >= 0 && highlightedIndex < navRows.length) {
+        const target = navRows[highlightedIndex];
         if (!target.disabled) handleSelect(target.value);
       }
     }
@@ -361,9 +398,74 @@ export default function CustomSelect({
             )}
 
             {/* Options List */}
-            <div className="max-h-64 overflow-y-auto scrollbar-thin py-1">
+            <div
+              className="max-h-64 overflow-y-auto scrollbar-thin py-1"
+              onScroll={(e) => {
+                const el = e.currentTarget;
+                if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && remainingRows > 0) {
+                  showMoreRows();
+                }
+              }}
+            >
               {filteredOptions.length === 0 ? (
                 <div className="py-3 px-3.5 text-center text-xs text-neutral-500">No matching options</div>
+              ) : groupedMode ? (
+                <>
+                  {(() => {
+                    let rowIdx = -1;
+                    let lastLetter = "";
+                    return visibleSlice.map((opt) => {
+                      rowIdx += 1;
+                      const idx = rowIdx;
+                      const letter = letterOf(opt.label);
+                      const header = letter !== lastLetter ? letter : null;
+                      lastLetter = letter;
+                      const isSelected = opt.value === selectedValue;
+                      return (
+                        <div key={`${opt.value}-${idx}`}>
+                          {header && (
+                            <div className="sticky top-0 z-10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold tracking-wider text-neutral-500 uppercase select-none">
+                              {header}
+                            </div>
+                          )}
+                          <button
+                            type="button"
+                            role="option"
+                            aria-selected={isSelected}
+                            disabled={opt.disabled}
+                            onClick={() => !opt.disabled && handleSelect(opt.value)}
+                            onMouseEnter={() => setHighlightedIndex(idx)}
+                            className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
+                              isSelected
+                                ? "text-white font-bold"
+                                : "text-neutral-400 hover:text-neutral-200"
+                            } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}
+                          >
+                            <div className="min-w-0 flex-1 flex flex-col">
+                              <span className="truncate">{opt.label}</span>
+                              {opt.description && (
+                                <span className="text-[10px] truncate text-neutral-500">
+                                  {opt.description}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                              {opt.badge && (
+                                <span className="text-[10px] font-mono text-neutral-500">{opt.badge}</span>
+                              )}
+                              {isSelected && <Check size={14} className="text-white shrink-0" />}
+                            </div>
+                          </button>
+                        </div>
+                      );
+                    });
+                  })()}
+                  {remainingRows > 0 && (
+                    <div className="py-2 px-3.5 text-center text-[11px] text-neutral-500 border-t border-white/5">
+                      +{remainingRows} more — scroll for more
+                    </div>
+                  )}
+                </>
               ) : (
                 filteredOptions.map((opt, idx) => {
                   const isSelected = opt.value === selectedValue;
