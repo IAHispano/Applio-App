@@ -71,6 +71,9 @@ def main(argv=None) -> int:
         "outtmpl": os.path.join(args.output_dir, "%(title).80s [%(id)s].%(ext)s"),
         "postprocessors": postprocessors,
         "progress_hooks": [progress_hook],
+        # Newlines (not \r redraws) so job logs stay line-oriented and the
+        # APPLIO_JSON report below is always on its own line.
+        "progress_with_newline": True,
         "quiet": True,
         "no_warnings": True,
     }

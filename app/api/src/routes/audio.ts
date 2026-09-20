@@ -52,12 +52,11 @@ router.post("/youtube", (req: Request, res: Response) => {
       ],
       {
         parse: (stdout) => {
-          const line = stdout.split("\n").find((l) => l.startsWith("APPLIO_JSON:"));
-          if (!line) throw new Error("Download finished without reporting a file.");
-          const data = JSON.parse(line.slice("APPLIO_JSON:".length)) as {
-            file?: string;
-            title?: string;
-          };
+          // Regex (not line-split): progress output may use \r redraws that
+          // glue everything into one line.
+          const m = stdout.match(/APPLIO_JSON:([^\r\n]+)/);
+          if (!m) throw new Error("Download finished without reporting a file.");
+          const data = JSON.parse(m[1]) as { file?: string; title?: string };
           if (!data.file || !fs.existsSync(data.file)) throw new Error("Downloaded file not found.");
           return {
             result: {
@@ -65,7 +64,8 @@ router.post("/youtube", (req: Request, res: Response) => {
               title: data.title ?? "",
               message: data.title ? `Downloaded "${data.title}".` : "YouTube audio downloaded.",
             },
-            outputFile: repoRel(data.file),
+            // Absolute here: startCliJob applies repoRel() once itself.
+            outputFile: data.file,
           };
         },
       },

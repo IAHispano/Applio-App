@@ -149,24 +149,27 @@ router.post("/separate", upload.single("audio"), (req: Request, res: Response) =
       args,
       {
         parse: (stdout) => {
-          const line = stdout.split("\n").find((l) => l.startsWith("APPLIO_JSON:"));
-          if (!line) throw new Error("Separator finished without reporting outputs.");
-          const data = JSON.parse(line.slice("APPLIO_JSON:".length)) as { outputs?: string[] };
+          // Regex (not line-split): progress bars may use \r redraws that
+          // glue everything into one line.
+          const m = stdout.match(/APPLIO_JSON:([^\r\n]+)/);
+          if (!m) throw new Error("Separator finished without reporting outputs.");
+          const data = JSON.parse(m[1]) as { outputs?: string[] };
           if (!data.outputs || data.outputs.length === 0) throw new Error("No stems produced.");
           const stems = data.outputs.map((abs) => ({
             label: stemLabel(abs, inputAbs),
             file: repoRel(abs),
           }));
-          const primary =
-            stems.find((s) => /vocals/i.test(s.label)) ??
-            stems.find((s) => /instrumental/i.test(s.label)) ??
-            stems[0];
+          const primaryAbs =
+            data.outputs.find((abs) => /vocals/i.test(stemLabel(abs, inputAbs))) ??
+            data.outputs.find((abs) => /instrumental/i.test(stemLabel(abs, inputAbs))) ??
+            data.outputs[0];
           return {
             result: {
               stems,
               message: `Separated ${stems.length} stems with ${p.model}.`,
             },
-            outputFile: primary.file,
+            // Absolute here: startCliJob applies repoRel() once itself.
+            outputFile: primaryAbs,
           };
         },
       },
