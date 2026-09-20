@@ -525,9 +525,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Applio Voice Converter Inference")
     # File / folder paths
-    parser.add_argument("--input-path", "--audio-input-path", dest="input_path", default=None)
-    parser.add_argument("--output-path", "--audio-output-path", dest="output_path", default=None)
-    parser.add_argument("--input-folder", "--audio-input-paths", dest="input_folder", default=None)
+    parser.add_argument(
+        "--input-path", "--audio-input-path", dest="input_path", default=None
+    )
+    parser.add_argument(
+        "--output-path", "--audio-output-path", dest="output_path", default=None
+    )
+    parser.add_argument(
+        "--input-folder", "--audio-input-paths", dest="input_folder", default=None
+    )
     parser.add_argument("--output-folder", dest="output_folder", default=None)
     parser.add_argument("--pth-path", "--model-path", dest="model_path", required=True)
     parser.add_argument("--index-path", default="")
@@ -630,5 +636,7 @@ if __name__ == "__main__":
         )
         print(f"File {input_path} inferred successfully.")
     else:
-        print("Error: Specify either --input-path and --output-path, or --input-folder and --output-folder.")
+        print(
+            "Error: Specify either --input-path and --output-path, or --input-folder and --output-folder."
+        )
         sys.exit(1)

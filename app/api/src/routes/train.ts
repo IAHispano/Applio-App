@@ -347,11 +347,7 @@ function buildTrainArgs(p: TrainStepParams): string[] {
 }
 
 function buildIndexArgs(name: string, indexAlgorithm: string): string[] {
-  return [
-    path.join("rvc", "train", "process", "extract_index.py"),
-    path.join("logs", name),
-    indexAlgorithm,
-  ];
+  return [path.join("rvc", "train", "process", "extract_index.py"), path.join("logs", name), indexAlgorithm];
 }
 
 router.post("/preprocess", (req: Request, res: Response) => {

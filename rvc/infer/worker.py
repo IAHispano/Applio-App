@@ -172,9 +172,7 @@ def run_worker():
                 kwargs["model_path"] = kwargs.pop("pth_path", "")
 
                 vc.convert_audio(**kwargs)
-                final_out = output_path.replace(
-                    ".wav", f".{export_format.lower()}"
-                )
+                final_out = output_path.replace(".wav", f".{export_format.lower()}")
                 info_msg = f"File {input_path} inferred successfully."
                 sys.stdout.flush()
                 send_ipc(

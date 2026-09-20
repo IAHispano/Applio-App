@@ -548,7 +548,11 @@ export function startInstall(): Job {
 
       appendLog(job, "Downloading base voice models and prerequisites (hubert, rmvpe)…");
       try {
-        await streamRun(job, venvPy, [path.join("rvc", "lib", "tools", "prerequisites_download.py"), "--models", "--exe"]);
+        await streamRun(job, venvPy, [
+          path.join("rvc", "lib", "tools", "prerequisites_download.py"),
+          "--models",
+          "--exe",
+        ]);
       } catch (e) {
         appendLog(job, `Note: Prerequisites download step: ${e}`);
       }
