@@ -7,7 +7,7 @@ import multer from "multer";
 import { z } from "zod";
 import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "@/cli";
 import { errMsg } from "@/errors";
-import { appendLog, createJob, getJob, listJobs, setDone, setError, setRunning } from "@/jobs";
+import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
 
 const router = Router();
@@ -350,6 +350,33 @@ function buildIndexArgs(name: string, indexAlgorithm: string): string[] {
   return [path.join("rvc", "train", "process", "extract_index.py"), path.join("logs", name), indexAlgorithm];
 }
 
+// Derive determinate 0-100 progress from training stdout lines so the
+// Epoch Progress tile moves during long epochs, not just at epoch end.
+// Parses `model | epoch=E | step=S | batch=B/T` heartbeats (see
+// rvc/train/train.py) and falls back to `epoch=E` alone.
+function trainProgressHandler(job: { id: string; progress?: number }, totalEpoch: number) {
+  return (line: string) => {
+    const mEpoch = line.match(/epoch[=:]\s*(\d+)/i);
+    if (!mEpoch) return;
+    const epoch = Number(mEpoch[1]);
+    if (!Number.isFinite(epoch) || epoch < 1) return;
+    const mBatch = line.match(/batch\s*=\s*(\d+)\s*\/\s*(\d+)/i);
+    let pct: number;
+    if (mBatch) {
+      const done = Number(mBatch[1]);
+      const total = Number(mBatch[2]);
+      const frac = total > 0 ? Math.min(0.999, Math.max(0, done / total)) : 0;
+      pct = ((epoch - 1 + frac) / Math.max(1, totalEpoch)) * 100;
+    } else {
+      pct = (epoch / Math.max(1, totalEpoch)) * 100;
+    }
+    if (!Number.isFinite(pct)) return;
+    const clamped = Math.max(0, Math.min(99, Math.round(pct)));
+    const cur = typeof job.progress === "number" ? job.progress : -1;
+    if (clamped > cur) setProgress(job as Parameters<typeof setProgress>[0], clamped);
+  };
+}
+
 router.post("/preprocess", (req: Request, res: Response) => {
   const parsed = z
     .object({
@@ -463,7 +490,10 @@ router.post("/train", (req: Request, res: Response) => {
     setRunning(job);
     try {
       const trainArgs = buildTrainArgs(p);
-      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
+      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
+        onLine: trainProgressHandler(job, p.totalEpoch),
+      });
+      setProgress(job, 100);
       if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
         appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
         const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
@@ -589,7 +619,10 @@ router.post("/pipeline", (req: Request, res: Response) => {
 
       appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
       const trainArgs = buildTrainArgs(p);
-      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training");
+      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
+        onLine: trainProgressHandler(job, p.totalEpoch),
+      });
+      setProgress(job, 100);
       if (aborted()) return;
 
       if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {

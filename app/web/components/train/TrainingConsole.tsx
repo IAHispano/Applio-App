@@ -251,10 +251,14 @@ export default function TrainingConsole({
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
+  // Prefer determinate backend progress (epoch + intra-epoch batch fraction)
+  // so the bar moves during long epochs; fall back to parsed epoch lines.
   const progressPercent =
-    metrics.currentEpoch && totalEpochs
-      ? Math.min(100, Math.round((metrics.currentEpoch / totalEpochs) * 100))
-      : null;
+    typeof job?.progress === "number" && Number.isFinite(job.progress)
+      ? Math.max(0, Math.min(100, Math.round(job.progress)))
+      : metrics.currentEpoch && totalEpochs
+        ? Math.min(100, Math.round((metrics.currentEpoch / totalEpochs) * 100))
+        : null;
 
   return (
     <Card
@@ -299,8 +303,6 @@ export default function TrainingConsole({
                 <Clock size={12} className="text-neutral-400" />
                 <span>{formatTime(elapsedSeconds)}</span>
               </span>
-              <span>•</span>
-              <span>{t("Integrated Engine Activity")}</span>
             </div>
           </div>
         </div>

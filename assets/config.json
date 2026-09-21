@@ -19,7 +19,7 @@
   "rmvpe_high_register": {
     "enabled": false,
     "mode": "true_pitch",
-    "f0_ceil": 1250
+    "f0_ceil": 1440
   },
   "realtime": {
     "input_device": "",

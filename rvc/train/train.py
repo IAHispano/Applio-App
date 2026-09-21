@@ -215,6 +215,8 @@ def main():
             try:
                 existing_data = json.load(pid_file)
                 pid_data.update(existing_data)
+                # Drop stale PIDs from crashed runs before appending new ones.
+                pid_data["process_pids"] = []
             except json.JSONDecodeError:
                 pass
         with open(config_save_path, "w") as pid_file:
@@ -451,7 +453,7 @@ def run(
     # Load checkpoint if available
     scaler_dict = {}
     try:
-        print("Starting training...")
+        print("Starting training...", flush=True)
         _, _, _, epoch_str, scaler_dict = load_checkpoint(
             latest_checkpoint_path(experiment_dir, "D_*.pth"), net_d, optim_d
         )
@@ -644,7 +646,15 @@ def train_and_evaluate(
         data_iterator = enumerate(train_loader)
 
     epoch_recorder = EpochRecorder()
-    with tqdm(total=len(train_loader), leave=False) as pbar:
+    num_batches = max(1, len(train_loader))
+    # Heartbeat for the web console (~10x/epoch): end-of-epoch prints alone
+    # leave progress stalled during long epochs. Parsed by the API/UI for a
+    # determinate bar; no time=/training_speed= so it never spams the epoch
+    # timeline. max(1, ...) keeps tiny datasets reporting too.
+    print_every = max(1, num_batches // 10)
+    with tqdm(
+        total=num_batches, leave=False, mininterval=2.0, maxinterval=10.0, dynamic_ncols=True
+    ) as pbar:
         for batch_idx, info in data_iterator:
             if device.type == "cuda" and not cache_data_in_gpu:
                 info = [tensor.cuda(device_id, non_blocking=True) for tensor in info]
@@ -802,6 +812,11 @@ def train_and_evaluate(
                 )
 
             pbar.update(1)
+            if rank == 0 and (batch_idx + 1) % print_every == 0:
+                print(
+                    f"{model_name} | epoch={epoch} | step={global_step} | batch={batch_idx + 1}/{num_batches}",
+                    flush=True,
+                )
         # end of batch train
     # end of tqdm
     with torch.no_grad():
@@ -901,7 +916,7 @@ def train_and_evaluate(
                 record
                 + f" | lowest_value={lowest_value_rounded} (epoch {lowest_value['epoch']} and step {lowest_value['step']})"
             )
-        print(record)
+        print(record, flush=True)
 
         # Save weights every N epochs
         if epoch % save_every_epoch == 0:
@@ -932,10 +947,12 @@ def train_and_evaluate(
         # Check completion
         if epoch >= custom_total_epoch:
             print(
-                f"Training has been successfully completed with {epoch} epoch, {global_step} steps and {round(loss_gen_all.item(), 3)} loss gen."
+                f"Training has been successfully completed with {epoch} epoch, {global_step} steps and {round(loss_gen_all.item(), 3)} loss gen.",
+                flush=True,
             )
             print(
-                f"Lowest generator loss: {lowest_value_rounded} at epoch {lowest_value['epoch']}, step {lowest_value['step']}"
+                f"Lowest generator loss: {lowest_value_rounded} at epoch {lowest_value['epoch']}, step {lowest_value['step']}",
+                flush=True,
             )
             # Final model
             model_add.append(

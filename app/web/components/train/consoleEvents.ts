@@ -37,6 +37,12 @@ const TASK_DONE_RE = /^(pitch|embedding) extraction completed in ([\d.]+) second
 // "Saved model 'C:\...\G_2333333.pth' (epoch 30)" and
 // "Saved model 'C:\...\model_30e_720s.pth' (epoch 30 and step 720)".
 const SAVE_RE = /^Saved model '(.+)' \(epoch (\d+)(?: and step (\d+))?\)\s*$/;
+// Intra-epoch heartbeat from rvc/train/train.py:
+// "mymodel | epoch=12 | step=1456 | batch=48/128". Folded into the live
+// per-epoch progress bar (same as tqdm lines) instead of one log row each,
+// so the Activity Log stays readable while the bar fills until the epoch
+// completes. Epoch/step tiles still read these lines from the raw logs.
+const HEARTBEAT_RE = /^(.+?)\s*\|\s*epoch=(\d+)\s*\|\s*step=(\d+)\s*\|\s*batch=\s*(\d+)\s*\/\s*(\d+)\s*$/;
 const ERROR_RE = /error|fail|exception|traceback/i;
 
 function isContinuationOfError(line: string): boolean {
@@ -69,6 +75,8 @@ function messageTone(text: string): "info" | "success" | "muted" {
 export function splitLogFragments(lines: string[]): string[] {
   const out: string[] = [];
   for (const entry of lines) {
+    // Note: ANSI codes are already stripped by the API (appendChunkLogs),
+    // so every stored line matches anchored patterns directly.
     for (const frag of entry.split(/\r+\n?|\n/)) {
       const text = frag.trim();
       if (text) out.push(text);
@@ -176,6 +184,16 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
       continue;
     }
 
+    const heartbeat = line.match(HEARTBEAT_RE);
+    if (heartbeat) {
+      const done = Number(heartbeat[4]);
+      const total = Number(heartbeat[5]);
+      const percent =
+        total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
+      pushProgress(percent, `epoch ${heartbeat[2]} · batch ${done}/${total}`);
+      continue;
+    }
+
     const epochLine = line.match(EPOCH_RE);
     if (epochLine) {
       const lossValue = epochLine[6];
@@ -220,11 +238,26 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
     events.push({ kind: "message", key: "", text: line, tone: messageTone(line) });
   }
 
-  // Stable positional keys: the parser re-runs on every log update, and React
-  // must reconcile rows instead of remounting them (remounts restart the bar
-  // width transitions, making progress look like it starts over).
+  // Pin live progress bars to the bottom. New rows (epoch completions, saves)
+  // pile up below wherever the bar was first created, so with auto-scroll on
+  // it quickly scrolls out of view. Progress events are live state mutated in
+  // place — not history — so they render last, after every log row.
+  {
+    const rows: ConsoleEvent[] = [];
+    const bars: ConsoleEvent[] = [];
+    for (const ev of events) (ev.kind === "progress" ? bars : rows).push(ev);
+    events.length = 0;
+    events.push(...rows, ...bars);
+  }
+
+  // Stable keys: the parser re-runs on every log update, and React must
+  // reconcile rows instead of remounting them (remounts restart the bar
+  // width transitions, making progress look like it starts over). Plain rows
+  // only ever append, so positional keys are stable for them; the bottom-
+  // pinned progress bars keep phase-based keys so moving them last doesn't
+  // remount the bar on every update.
   events.forEach((ev, i) => {
-    ev.key = `ev-${i}`;
+    ev.key = ev.kind === "progress" ? `ev-progress-${ev.phase || "global"}` : `ev-${i}`;
     if (ev.kind === "error")
       ev.lines.forEach((l, j) => {
         l.key = `ev-${i}-l${j}`;

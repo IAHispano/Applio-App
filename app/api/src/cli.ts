@@ -8,6 +8,59 @@ const jobPids = new Map<string, number>();
 const jobGroups = new Set<string>();
 const useGroupKill = () => process.platform !== "win32";
 
+// Terminal noise (tqdm bars) vs. load-bearing status lines.
+// tqdm redraws arrive as many `\r`-separated fragments per second; keeping
+// every one floods the 500-entry job log and evicts the `epoch=` lines the
+// training console parses for Epoch Progress. Throttle noise, always keep
+// status lines (epoch/step/save/markers/errors) so progress never stalls.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI ESC prefix is required to strip terminal codes
+const ANSI_RE = /\x1b\[[0-9;?]*[a-zA-Z]/g;
+const TQDM_NOISE_RE = /(\d{1,3})%\s*\|/;
+const IMPORTANT_LINE_RE =
+  /epoch=|step=|lowest_value|saved model|>>>|starting|completed|successfully|error|fail|exception|traceback|training_speed|batch=/i;
+const lastTqdmAt = new Map<string, number>();
+const TQDM_THROTTLE_MS = 2000;
+
+function stripAnsi(s: string): string {
+  return s.replace(ANSI_RE, "");
+}
+
+function isTqdmNoise(frag: string): boolean {
+  return TQDM_NOISE_RE.test(frag) && !IMPORTANT_LINE_RE.test(frag);
+}
+
+function shouldKeepTqdm(jobId: string, frag: string): boolean {
+  // Always show completion bars; otherwise at most one tqdm entry per window.
+  if (/100%\s*\|/.test(frag)) return true;
+  const now = Date.now();
+  const last = lastTqdmAt.get(jobId) ?? 0;
+  if (now - last < TQDM_THROTTLE_MS) return false;
+  lastTqdmAt.set(jobId, now);
+  return true;
+}
+
+// Split arbitrary stdout/stderr chunks into display fragments BEFORE
+// truncating. The old `chunk.trim().slice(0, 1000)` kept only the head of a
+// large chunk, so an `epoch=` line sharing a chunk with a tqdm burst was
+// silently dropped and Epoch Progress stayed at "—" while training ran.
+export function appendChunkLogs(
+  job: Job,
+  chunk: string,
+  stream: "stdout" | "stderr",
+  opts: { prefix?: boolean } = {},
+): string[] {
+  const kept: string[] = [];
+  for (const raw of stripAnsi(chunk).split(/\r+\n?|\n/)) {
+    const frag = raw.trim();
+    if (!frag) continue;
+    if (isTqdmNoise(frag) && !shouldKeepTqdm(job.id, frag)) continue;
+    const line = (opts.prefix === false ? frag : `[${stream}] ${frag}`).slice(0, 2000);
+    appendLog(job, line);
+    kept.push(frag);
+  }
+  return kept;
+}
+
 export function trackPid(jobId: string, pid?: number, group = false) {
   if (pid) {
     jobPids.set(jobId, pid);
@@ -74,8 +127,7 @@ export function startCliJob(
       const r = await runPythonModule(args, {
         detached: group,
         onData: (chunk, stream) => {
-          const trimmed = chunk.trim().slice(0, 1000);
-          if (trimmed) appendLog(job, trimmed);
+          appendChunkLogs(job, chunk, stream, { prefix: false });
           try {
             opts.onChunk?.(chunk, stream);
           } catch {
@@ -116,11 +168,28 @@ function lastStdoutLine(out: string): string {
 
 // One pipeline step: spawn in a killable group, require exit code 0 (or legacy 2333333)
 // and success line match if expected.
-export async function runJobStep(job: Job, args: string[], expected: string, step: string): Promise<void> {
+export async function runJobStep(
+  job: Job,
+  args: string[],
+  expected: string,
+  step: string,
+  opts: { onLine?: (line: string, stream: "stdout" | "stderr") => void } = {},
+): Promise<void> {
   const group = useGroupKill();
   const r = await runPythonModule(args, {
     detached: group,
-    onData: (chunk, stream) => appendLog(job, `[${stream}] ${chunk.trim().slice(0, 1000)}`),
+    onData: (chunk, stream) => {
+      const kept = appendChunkLogs(job, chunk, stream);
+      if (opts.onLine) {
+        for (const line of kept) {
+          try {
+            opts.onLine(line, stream);
+          } catch {
+            /* progress parsing must never fail the job */
+          }
+        }
+      }
+    },
     onSpawn: (pid) => trackPid(job.id, pid, group),
   });
   trackPid(job.id, undefined);
