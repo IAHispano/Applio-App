@@ -595,24 +595,26 @@ export default function RealtimePage() {
               }}
             />
           </div>
-          <div>
-            <label htmlFor="rt-speaker-id">{t("Speaker ID")}</label>
-            <CustomSelect
-              id="rt-speaker-id"
-              value={String(sid)}
-              onChange={(e) => {
-                setSid(Number(e.target.value));
-                if (streaming) changeConfig("sid", Number(e.target.value));
-              }}
-              className="w-full mt-1"
-            >
-              {speakers.map((s) => (
-                <option key={s} value={String(s)}>
-                  {s}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
+          {speakers.length > 1 && (
+            <div>
+              <label htmlFor="rt-speaker-id">{t("Speaker ID (Multi-Speaker Model)")}</label>
+              <CustomSelect
+                id="rt-speaker-id"
+                value={String(sid)}
+                onChange={(e) => {
+                  setSid(Number(e.target.value));
+                  if (streaming) changeConfig("sid", Number(e.target.value));
+                }}
+                className="w-full mt-1"
+              >
+                {speakers.map((s) => (
+                  <option key={s} value={String(s)}>
+                    {t("Speaker")} {s}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+          )}
           <PitchMethodSelect
             id="rt-f0-method"
             label={t("Pitch extraction algorithm")}
