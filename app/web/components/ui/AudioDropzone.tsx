@@ -344,12 +344,12 @@ export default function AudioDropzone({
       {/* When audio is active, show the modern WaveSurfer player preview */}
       {hasAudio ? (
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
-            <span className="flex items-center gap-1.5 font-medium text-neutral-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{t("Audio Source Preview")}</span>
+          <div className="flex items-center justify-between gap-2 text-xs text-neutral-400 px-1">
+            <span className="flex items-center gap-1.5 font-medium text-neutral-300 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">{t("Audio Source Preview")}</span>
             </span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 shrink-0">
               {audioFile && <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>}
               <button
                 type="button"
@@ -377,11 +377,11 @@ export default function AudioDropzone({
           {/* Quick source selector when toggled */}
           {showSourcePicker && (
             <div className="p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200">
-              <div className="flex items-center gap-1.5 border-b border-white/10 pb-2">
+              <div className="flex items-center gap-1.5 border-b border-white/10 pb-2 overflow-x-auto hide-scrollbar max-w-full">
                 <button
                   type="button"
                   onClick={() => setTab("upload")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "upload"
                       ? "bg-white/10 text-white font-medium"
                       : "text-neutral-400 hover:text-white"
@@ -396,7 +396,7 @@ export default function AudioDropzone({
                 <button
                   type="button"
                   onClick={() => setTab("samples")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "samples"
                       ? "bg-white/10 text-white font-medium"
                       : "text-neutral-400 hover:text-white"
@@ -411,7 +411,7 @@ export default function AudioDropzone({
                 <button
                   type="button"
                   onClick={() => setTab("mic")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                   }`}
                 >
@@ -425,7 +425,7 @@ export default function AudioDropzone({
                   <button
                     type="button"
                     onClick={() => setTab("youtube")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                       tab === "youtube"
                         ? "bg-white/10 text-white font-medium"
                         : "text-neutral-400 hover:text-white"
@@ -542,12 +542,12 @@ export default function AudioDropzone({
         /* When no audio is selected, render tab switcher and picker contents */
         <div className="space-y-3">
           {/* Tab Switcher: Upload / Samples / Mic */}
-          <div className="flex items-center justify-between border-b border-white/10 pb-2">
-            <div className="flex items-center gap-1.5">
+          <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2 max-w-full">
+            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar max-w-full min-w-0">
               <button
                 type="button"
                 onClick={() => setTab("upload")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "upload"
                     ? "bg-white/10 text-white font-medium"
                     : "text-neutral-400 hover:text-white"
@@ -562,7 +562,7 @@ export default function AudioDropzone({
               <button
                 type="button"
                 onClick={() => setTab("samples")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "samples"
                     ? "bg-white/10 text-white font-medium"
                     : "text-neutral-400 hover:text-white"
@@ -577,7 +577,7 @@ export default function AudioDropzone({
               <button
                 type="button"
                 onClick={() => setTab("mic")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                 }`}
               >
@@ -591,7 +591,7 @@ export default function AudioDropzone({
                 <button
                   type="button"
                   onClick={() => setTab("youtube")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "youtube"
                       ? "bg-white/10 text-white font-medium"
                       : "text-neutral-400 hover:text-white"

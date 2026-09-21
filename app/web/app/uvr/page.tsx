@@ -242,7 +242,7 @@ export default function UvrPage() {
         {error && <Alert variant="error">{error}</Alert>}
 
         <div className="flex items-center gap-3 pt-3.5 border-t border-white/5 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
             <label htmlFor="uvr-device" className="text-xs text-neutral-400 whitespace-nowrap">
               {t("Device")}
             </label>
@@ -250,7 +250,7 @@ export default function UvrPage() {
               id="uvr-device"
               value={device}
               onValueChange={setDevice}
-              className="w-52"
+              className="w-full sm:w-52"
               options={[
                 { value: "auto", label: t("Auto (GPU if available)") },
                 { value: "cpu", label: t("CPU (saves VRAM)") },

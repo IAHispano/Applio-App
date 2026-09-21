@@ -70,6 +70,16 @@ body {
   user-select: none;
   -webkit-user-select: none;
   scroll-behavior: smooth;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+summary {
+  touch-action: manipulation;
 }
 
 ::selection {
@@ -1008,5 +1018,95 @@ summary:focus-visible {
 }
 audio {
   width: 100%;
+  max-width: 100%;
   margin-top: 12px;
+}
+
+/* ---------- Responsive / mobile layer ---------- */
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+#main-content {
+  overflow-x: clip;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /* Keep focused / scrolled-to content clear of the floating bottom nav. */
+  scroll-padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+}
+
+/* Prevent iOS Safari auto-zoom on focus: inputs must be >= 16px on small screens */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="number"],
+  input[type="search"],
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  /* Bigger grab targets for range sliders on mobile. The track itself
+     stays thin (SliderField paints its fill on the input element), only
+     the thumb grows so touch drags land reliably. */
+  input[type="range"]::-webkit-slider-thumb {
+    width: 22px;
+    height: 22px;
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Segmented tab bars scroll horizontally instead of overflowing */
+  .segmented {
+    width: 100%;
+  }
+
+  /* Long logs / diagnostics never force horizontal page scroll */
+  .log,
+  pre,
+  code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+  pre {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  /* Tables embedded in cards scroll inside their card on narrow screens */
+  .card table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Model meta rows stay readable on 320px screens */
+  .model-meta > div {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 1023.98px) {
+  /* Bottom floating nav reserves space via main pb-24; keep the last card
+     flush with that padding instead of adding its own margin. */
+  .card {
+    margin-bottom: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition {
+    animation: none;
+  }
 }

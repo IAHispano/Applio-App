@@ -96,7 +96,7 @@ export default function Modal({
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click closes modal
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -109,9 +109,9 @@ export default function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`w-full ${widthClass} bg-neutral-900 border ${
+        className={`w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto bg-neutral-900 border ${
           danger ? "border-red-500/30 shadow-red-500/10" : "border-white/15"
-        } rounded-2xl p-6 shadow-2xl space-y-4 focus:outline-none`}
+        } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
       >
         <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
           <div className="flex items-center gap-2.5">

@@ -25,7 +25,11 @@ export default function SegmentedControl<T extends string>({
   tabPanels = false,
 }: SegmentedControlProps<T>) {
   return (
-    <div className="segmented" role="tablist" aria-label={ariaLabel}>
+    <div
+      className="segmented max-w-full overflow-x-auto hide-scrollbar"
+      role="tablist"
+      aria-label={ariaLabel}
+    >
       {options.map((option) => {
         const Icon = option.icon;
         const active = option.value === value;
@@ -37,7 +41,7 @@ export default function SegmentedControl<T extends string>({
             id={tabPanels ? `tab-${option.value}` : undefined}
             aria-controls={tabPanels ? `panel-${option.value}` : undefined}
             aria-selected={active}
-            className={`segmented-item ${active ? "is-active" : ""}`}
+            className={`segmented-item shrink-0 whitespace-nowrap ${active ? "is-active" : ""}`}
             onClick={() => onChange(option.value)}
           >
             {Icon && <Icon size={14} />}

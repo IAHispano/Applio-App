@@ -115,7 +115,7 @@ export default function ReportPage() {
           </li>
         </ol>
 
-        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5">
+        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5 flex-wrap">
           <Button
             variant={recording ? "ghost" : "primary"}
             onClick={toggleRecord}

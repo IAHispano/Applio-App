@@ -246,8 +246,8 @@ export default function ModelsPage() {
       {section === "library" && (
         <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" className="space-y-4">
           {/* Controls bar: Search, Refresh, Download CTA */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center flex-1 min-w-[240px] max-w-md 2xl:max-w-lg px-1">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center w-full sm:flex-1 sm:min-w-0 sm:max-w-md 2xl:max-w-lg px-1">
               <Search
                 size={15}
                 className="text-neutral-500 shrink-0 mr-2 pointer-events-none"
@@ -266,7 +266,7 @@ export default function ModelsPage() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
               <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer select-none mr-1">
                 <input
                   type="checkbox"

@@ -433,7 +433,7 @@ export default function SettingsPage() {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-6 right-6 z-50 px-4 py-2 rounded-xl border border-[var(--border)] text-[var(--heading)] bg-[var(--surface)] backdrop-blur-md text-xs font-medium shadow-xl flex items-center gap-2"
+          className="fixed bottom-[calc(6.5rem+env(safe-area-inset-bottom))] lg:bottom-6 right-4 sm:right-6 z-50 px-4 py-2 rounded-xl border border-[var(--border)] text-[var(--heading)] bg-[var(--surface)] backdrop-blur-md text-xs font-medium shadow-xl flex items-center gap-2"
         >
           <Check size={14} className="text-emerald-400" />
           <span>{saved}</span>

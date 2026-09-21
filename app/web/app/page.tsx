@@ -205,7 +205,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5 shrink-0 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 w-full md:w-auto shrink-0">
             <Button onClick={() => router.push("/inference")} icon={<Sparkles size={16} />}>
               {t("Open Inference")}
             </Button>

@@ -688,7 +688,7 @@ export default function InferenceForm() {
               description={t("-24 to 24 semitones (±12 = 1 full octave)")}
             />
             {/* Octave Quick Buttons */}
-            <div className="flex items-center gap-1.5 pt-1">
+            <div className="flex items-center gap-1.5 pt-1 flex-wrap">
               <span className="text-[10px] text-neutral-500 mr-1">{t("Quick:")}</span>
               <button
                 type="button"

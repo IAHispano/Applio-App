@@ -6,21 +6,19 @@ import { NAV_SECTIONS } from "@/components/layout/nav";
 import { useI18n } from "@/lib/i18n";
 import webPackage from "@/package.json";
 
-export default function Sidebar() {
+export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
 
   return (
-    <aside
-      className="flex flex-col w-64 shrink-0 bg-[var(--panel)] backdrop-blur-md border border-[var(--border)] text-[var(--text)] p-3 ml-3 mr-0 my-4 rounded-2xl select-none min-h-0 transition-colors duration-200"
-      aria-label="Sidebar Navigation"
-    >
+    <>
       {/* Brand Header */}
       <div className="px-3 pt-2 pb-3 mb-1 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <Link
           href="/"
           prefetch={true}
-          className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none"
+          onClick={onNavigate}
+          className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
           aria-label="Applio - Home"
         >
           <span className="text-lg font-semibold tracking-tight text-[var(--heading)] group-hover:opacity-80 transition-opacity">
@@ -53,8 +51,9 @@ export default function Sidebar() {
                     <Link
                       href={item.to}
                       prefetch={true}
+                      onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-none ${
+                      className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-none min-h-[44px] sm:min-h-0 ${
                         active
                           ? "bg-[var(--accent-soft)] text-[var(--accent)] font-medium shadow-xs"
                           : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"
@@ -86,6 +85,17 @@ export default function Sidebar() {
           </div>
         ))}
       </nav>
+    </>
+  );
+}
+
+export default function Sidebar() {
+  return (
+    <aside
+      className="hidden lg:flex flex-col w-64 shrink-0 bg-[var(--panel)] backdrop-blur-md border border-[var(--border)] text-[var(--text)] p-3 ml-3 mr-0 my-4 rounded-2xl select-none min-h-0 transition-colors duration-200"
+      aria-label="Sidebar Navigation"
+    >
+      <SidebarNavContent />
     </aside>
   );
 }

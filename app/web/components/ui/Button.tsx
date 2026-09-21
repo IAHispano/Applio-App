@@ -68,7 +68,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const isDisabled = disabled || loading;
     const base =
-      "flex items-center justify-center cursor-pointer select-none transition-colors shrink-0 whitespace-nowrap no-underline";
+      "flex items-center justify-center cursor-pointer select-none transition-colors shrink-0 whitespace-nowrap no-underline max-w-full";
     const classes = [
       base,
       variantClasses[variant],
@@ -87,7 +87,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         ) : icon ? (
           <span className="shrink-0 flex items-center">{icon}</span>
         ) : null}
-        {children && <span>{children}</span>}
+        {children && <span className="truncate min-w-0">{children}</span>}
         {iconAfter && <span className="shrink-0 flex items-center">{iconAfter}</span>}
       </>
     );
