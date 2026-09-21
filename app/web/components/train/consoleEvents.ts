@@ -188,8 +188,7 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
     if (heartbeat) {
       const done = Number(heartbeat[4]);
       const total = Number(heartbeat[5]);
-      const percent =
-        total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
+      const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
       pushProgress(percent, `epoch ${heartbeat[2]} · batch ${done}/${total}`);
       continue;
     }
