@@ -653,7 +653,11 @@ def train_and_evaluate(
     # timeline. max(1, ...) keeps tiny datasets reporting too.
     print_every = max(1, num_batches // 10)
     with tqdm(
-        total=num_batches, leave=False, mininterval=2.0, maxinterval=10.0, dynamic_ncols=True
+        total=num_batches,
+        leave=False,
+        mininterval=2.0,
+        maxinterval=10.0,
+        dynamic_ncols=True,
     ) as pbar:
         for batch_idx, info in data_iterator:
             if device.type == "cuda" and not cache_data_in_gpu:
