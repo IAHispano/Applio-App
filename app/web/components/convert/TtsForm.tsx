@@ -313,22 +313,23 @@ export default function TtsForm() {
               onIndexChange={setIndexPath}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-              <FormField label={t("Speaker ID")} htmlFor="tts-speaker-id">
-                <CustomSelect
-                  id="tts-speaker-id"
-                  value={String(sid)}
-                  onChange={(e) => setSid(Number(e.target.value))}
-                  disabled={speakers.length <= 1}
-                  className="w-full mt-1"
-                >
-                  {speakers.map((s) => (
-                    <option key={s} value={String(s)}>
-                      {s}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </FormField>
+            <div className={`grid grid-cols-1 gap-4 pt-1 ${speakers.length > 1 ? "md:grid-cols-2" : ""}`}>
+              {speakers.length > 1 && (
+                <FormField label={t("Speaker ID (Multi-Speaker Model)")} htmlFor="tts-speaker-id">
+                  <CustomSelect
+                    id="tts-speaker-id"
+                    value={String(sid)}
+                    onChange={(e) => setSid(Number(e.target.value))}
+                    className="w-full mt-1"
+                  >
+                    {speakers.map((s) => (
+                      <option key={s} value={String(s)}>
+                        {t("Speaker")} {s}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                </FormField>
+              )}
 
               <FormField label={t("Export Format")} htmlFor="tts-export-format">
                 <CustomSelect
@@ -479,7 +480,17 @@ export default function TtsForm() {
         <Card as="section" className="space-y-4">
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-3">
-              <Button type="submit" disabled={busy} icon={<Wand2 size={16} />}>
+              <Button
+                type="submit"
+                disabled={
+                  busy ||
+                  job?.status === "running" ||
+                  job?.status === "queued" ||
+                  !pthPath ||
+                  (!text.trim() && !file)
+                }
+                icon={<Wand2 size={16} />}
+              >
                 {busy ? t("Submitting…") : t("Convert Speech")}
               </Button>
 

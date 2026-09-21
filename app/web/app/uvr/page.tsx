@@ -6,7 +6,7 @@ import AudioWavePlayer from "@/components/AudioWavePlayer";
 import JobPanel from "@/components/JobPanel";
 import PageHeader from "@/components/layout/PageHeader";
 import type { GpuDevice } from "@/components/train/GpuSelect";
-import { Alert, Badge, Button, Card, CardHeader, CustomSelect, SliderField } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, CustomSelect, SliderField, ToggleField } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
 import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -46,8 +46,26 @@ export default function UvrPage() {
   const [stemMode, setStemMode] = useState("all");
   const [vrAggression, setVrAggression] = useState(5);
   const [vrWindow, setVrWindow] = useState(512);
+  const [vrBatch, setVrBatch] = useState(1);
+  const [vrTta, setVrTta] = useState(false);
+  const [vrHighEnd, setVrHighEnd] = useState(false);
+  const [vrPostProcess, setVrPostProcess] = useState(false);
+  const [vrPostThreshold, setVrPostThreshold] = useState(0.2);
   const [mdxSegment, setMdxSegment] = useState(256);
   const [mdxOverlap, setMdxOverlap] = useState(0.25);
+  const [mdxBatch, setMdxBatch] = useState(1);
+  const [mdxHop, setMdxHop] = useState(1024);
+  const [mdxDenoise, setMdxDenoise] = useState(false);
+  const [mdxcSegment, setMdxcSegment] = useState(256);
+  const [mdxcOverlap, setMdxcOverlap] = useState(8);
+  const [mdxcBatch, setMdxcBatch] = useState(1);
+  const [demucsSegment, setDemucsSegment] = useState("");
+  const [demucsShifts, setDemucsShifts] = useState(2);
+  const [demucsOverlap, setDemucsOverlap] = useState(0.25);
+  const [demucsSplit, setDemucsSplit] = useState(true);
+  const [roformerChunk, setRoformerChunk] = useState("");
+  const [roformerOverlap, setRoformerOverlap] = useState(2);
+  const [roformerBatch, setRoformerBatch] = useState(1);
   const [device, setDevice] = useState("auto");
   const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
   const [jobId, setJobId] = usePersistentJobId("uvr");
@@ -98,7 +116,7 @@ export default function UvrPage() {
     const list = (selectedModel?.stems ?? []).filter((s) => s && s !== "Unknown");
     return list.length > 0 ? list : ["Vocals", "Instrumental"];
   }, [selectedModel]);
-  const arch = selectedModel?.type ?? "";
+  const arch = (selectedModel?.type ?? "").toUpperCase();
 
   function handleModelChange(filename: string) {
     setModel(filename);
@@ -128,8 +146,26 @@ export default function UvrPage() {
     fd.append("singleStem", stemMode);
     fd.append("vrAggression", String(vrAggression));
     fd.append("vrWindow", String(vrWindow));
+    fd.append("vrBatch", String(vrBatch));
+    fd.append("vrTta", String(vrTta));
+    fd.append("vrHighEnd", String(vrHighEnd));
+    fd.append("vrPostProcess", String(vrPostProcess));
+    fd.append("vrPostThreshold", String(vrPostThreshold));
     fd.append("mdxSegment", String(mdxSegment));
     fd.append("mdxOverlap", String(mdxOverlap));
+    fd.append("mdxBatch", String(mdxBatch));
+    fd.append("mdxHop", String(mdxHop));
+    fd.append("mdxDenoise", String(mdxDenoise));
+    fd.append("mdxcSegment", String(mdxcSegment));
+    fd.append("mdxcOverlap", String(mdxcOverlap));
+    fd.append("mdxcBatch", String(mdxcBatch));
+    fd.append("demucsSegment", demucsSegment.trim() || "Default");
+    fd.append("demucsShifts", String(demucsShifts));
+    fd.append("demucsOverlap", String(demucsOverlap));
+    fd.append("demucsSplit", String(demucsSplit));
+    if (roformerChunk.trim()) fd.append("roformerChunk", roformerChunk.trim());
+    fd.append("roformerOverlap", String(roformerOverlap));
+    fd.append("roformerBatch", String(roformerBatch));
     fd.append("device", device);
     setBusy(true);
     try {
@@ -274,12 +310,23 @@ export default function UvrPage() {
         </div>
       </Card>
 
-      {/* Engine tuning */}
+      {/* Separation settings (per architecture) */}
       <Card>
         <CardHeader
           icon={<FlaskConical size={18} className="text-white" />}
-          title={t("Engine Tuning")}
-          description={t("Quality / VRAM trade-offs. Defaults suit most songs.")}
+          title={t("Separation Settings")}
+          description={
+            arch
+              ? t(`Quality / VRAM trade-offs specific to the ${arch} architecture. Defaults suit most songs.`)
+              : t("Pick a model above to tune its separation settings.")
+          }
+          action={
+            arch ? (
+              <Badge variant="neutral" size="sm">
+                {arch}
+              </Badge>
+            ) : undefined
+          }
         />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {arch === "VR" && (
@@ -289,54 +336,237 @@ export default function UvrPage() {
                 label={t("VR Aggression")}
                 value={vrAggression}
                 min={1}
-                max={20}
+                max={100}
                 step={1}
                 onChange={setVrAggression}
-                description={t("Higher cuts vocals more aggressively.")}
+                description={t("Intensity of primary stem extraction — higher removes more but can damage instruments.")}
               />
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-vr-window">{t("VR Window Size")}</label>
-                <CustomSelect
-                  id="uvr-vr-window"
-                  value={String(vrWindow)}
-                  onValueChange={(v) => setVrWindow(Number(v))}
-                  className="w-full"
-                  options={["320", "512", "1024"]}
+              <SliderField
+                id="uvr-vr-window"
+                label={t("VR Window Size")}
+                value={vrWindow}
+                min={320}
+                max={1024}
+                step={32}
+                onChange={setVrWindow}
+                description={t("Lower windows give cleaner output but take longer.")}
+              />
+              <SliderField
+                id="uvr-vr-batch"
+                label={t("VR Batch Size")}
+                value={vrBatch}
+                min={1}
+                max={16}
+                step={1}
+                onChange={setVrBatch}
+                description={t("Higher batches run faster but use more VRAM.")}
+              />
+              <ToggleField
+                id="uvr-vr-tta"
+                label={t("Test-Time Augmentation")}
+                checked={vrTta}
+                onChange={setVrTta}
+                description={t("Slow second pass that improves quality.")}
+              />
+              <ToggleField
+                id="uvr-vr-high-end"
+                label={t("High-End Process")}
+                checked={vrHighEnd}
+                onChange={setVrHighEnd}
+                description={t("Mirror the missing high-frequency range of the output.")}
+              />
+              <ToggleField
+                id="uvr-vr-post-process"
+                label={t("Post-Process Vocals")}
+                checked={vrPostProcess}
+                onChange={setVrPostProcess}
+                description={t("Mute low-volume vocals left in the instrumental.")}
+              />
+              {vrPostProcess && (
+                <SliderField
+                  id="uvr-vr-post-threshold"
+                  label={t("Post-Process Threshold")}
+                  value={vrPostThreshold}
+                  min={0.01}
+                  max={0.3}
+                  step={0.01}
+                  onChange={setVrPostThreshold}
+                  description={t("Lower values remove more leftover residues.")}
                 />
-              </div>
+              )}
             </>
           )}
           {arch === "MDX" && (
             <>
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-mdx-seg">{t("MDX Segment Size")}</label>
-                <CustomSelect
-                  id="uvr-mdx-seg"
-                  value={String(mdxSegment)}
-                  onValueChange={(v) => setMdxSegment(Number(v))}
-                  className="w-full"
-                  options={["64", "128", "256", "512"]}
-                />
-              </div>
+              <SliderField
+                id="uvr-mdx-seg"
+                label={t("MDX Segment Size")}
+                value={mdxSegment}
+                min={32}
+                max={4000}
+                step={32}
+                onChange={setMdxSegment}
+                description={t("Larger consumes more resources, but may give better results.")}
+              />
               <SliderField
                 id="uvr-mdx-overlap"
                 label={t("MDX Overlap")}
                 value={mdxOverlap}
                 min={0}
-                max={0.9}
-                step={0.05}
+                max={0.99}
+                step={0.01}
                 onChange={setMdxOverlap}
-                description={t("Higher overlap is cleaner but slower.")}
+                description={t("Higher overlap is cleaner but slower. Above ~0.93 gets tremendously slow with little gain.")}
+              />
+              <SliderField
+                id="uvr-mdx-batch"
+                label={t("MDX Batch Size")}
+                value={mdxBatch}
+                min={1}
+                max={16}
+                step={1}
+                onChange={setMdxBatch}
+                description={t("Higher batches run faster but use more VRAM.")}
+              />
+              <SliderField
+                id="uvr-mdx-hop"
+                label={t("MDX Hop Length")}
+                value={mdxHop}
+                min={32}
+                max={2048}
+                step={32}
+                onChange={setMdxHop}
+                description={t("Stride of the network — only change if you know what you're doing.")}
+              />
+              <ToggleField
+                id="uvr-mdx-denoise"
+                label={t("Denoise Output")}
+                checked={mdxDenoise}
+                onChange={setMdxDenoise}
+                description={t("Dual-pass denoise; reduces MDX noise but can muddy instrumentals.")}
               />
             </>
           )}
-          {arch !== "VR" && arch !== "MDX" && (
+          {arch === "MDXC" && (
+            <>
+              <SliderField
+                id="uvr-mdxc-seg"
+                label={t("MDXC Segment Size")}
+                value={mdxcSegment}
+                min={32}
+                max={4000}
+                step={32}
+                onChange={setMdxcSegment}
+                description={t("Larger consumes more resources, but may give better results.")}
+              />
+              <SliderField
+                id="uvr-mdxc-overlap"
+                label={t("MDXC Overlap")}
+                value={mdxcOverlap}
+                min={1}
+                max={50}
+                step={1}
+                onChange={setMdxcOverlap}
+                description={t("Overlapping prediction windows — higher is cleaner but slower.")}
+              />
+              <SliderField
+                id="uvr-mdxc-batch"
+                label={t("MDXC Batch Size")}
+                value={mdxcBatch}
+                min={1}
+                max={16}
+                step={1}
+                onChange={setMdxcBatch}
+                description={t("Higher batches run faster but use more VRAM.")}
+              />
+            </>
+          )}
+          {arch === "DEMUCS" && (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-demucs-seg">{t("Demucs Segment Size (seconds)")}</label>
+                <input
+                  id="uvr-demucs-seg"
+                  type="number"
+                  min={1}
+                  value={demucsSegment}
+                  onChange={(e) => setDemucsSegment(e.target.value)}
+                  placeholder={t("Default (optimal size)")}
+                  className="w-full mt-1"
+                />
+              </div>
+              <SliderField
+                id="uvr-demucs-shifts"
+                label={t("Demucs Shifts")}
+                value={demucsShifts}
+                min={0}
+                max={20}
+                step={1}
+                onChange={setDemucsShifts}
+                description={t("More shifted predictions average out artifacts but take longer.")}
+              />
+              <SliderField
+                id="uvr-demucs-overlap"
+                label={t("Demucs Overlap")}
+                value={demucsOverlap}
+                min={0}
+                max={0.99}
+                step={0.01}
+                onChange={setDemucsOverlap}
+                description={t("Impacts quality more than shifts; above ~0.75 gets very slow.")}
+              />
+              <ToggleField
+                id="uvr-demucs-split"
+                label={t("Chunk Splitting")}
+                checked={demucsSplit}
+                onChange={setDemucsSplit}
+                description={t("Split the track into chunks to save VRAM.")}
+                className="mt-3"
+              />
+            </>
+          )}
+          {arch === "ROFORMER" && (
+            <>
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-roformer-chunk">{t("Roformer Chunk Size (seconds)")}</label>
+                <input
+                  id="uvr-roformer-chunk"
+                  type="number"
+                  min={1}
+                  value={roformerChunk}
+                  onChange={(e) => setRoformerChunk(e.target.value)}
+                  placeholder={t("Model default (from config)")}
+                  className="w-full mt-1"
+                />
+                <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
+                  {t("Higher than the training value can help until quality degrades; lower it if you run out of VRAM.")}
+                </p>
+              </div>
+              <SliderField
+                id="uvr-roformer-overlap"
+                label={t("Roformer Overlap")}
+                value={roformerOverlap}
+                min={1}
+                max={32}
+                step={1}
+                onChange={setRoformerOverlap}
+                description={t("4 is balanced for speed and quality; higher is slightly cleaner but much slower.")}
+              />
+              <SliderField
+                id="uvr-roformer-batch"
+                label={t("Roformer Batch Size")}
+                value={roformerBatch}
+                min={1}
+                max={16}
+                step={1}
+                onChange={setRoformerBatch}
+                description={t("Higher batches run faster but use more VRAM.")}
+              />
+            </>
+          )}
+          {arch !== "VR" && arch !== "MDX" && arch !== "MDXC" && arch !== "DEMUCS" && arch !== "ROFORMER" && (
             <p className="text-xs text-neutral-400 m-0 sm:col-span-2 xl:col-span-4">
-              {arch === "MDXC"
-                ? t("Roformer models separate with built-in settings.")
-                : arch === "Demucs"
-                  ? t("Demucs models separate with built-in settings.")
-                  : t("Pick a model above to tune its engine settings.")}
+              {t("Pick a model above to tune its separation settings.")}
             </p>
           )}
         </div>

@@ -68,8 +68,20 @@ class RoformerSeparator(BaseSeparator):
         self.secondary_stem_name = self.counterpart
 
         self.sample_rate = int(self.cfg_audio.get("sample_rate", 44100))
-        self.chunk_size = int(self.cfg_audio.get("chunk_size", 352800))
-        self.overlap = max(1, int(self.cfg_infer.get("num_overlap", 2)))
+        # Runtime overrides (Roformer settings): chunk length in seconds,
+        # overlapping prediction windows, and batched forward passes.
+        # Unset values fall back to the model's yaml config.
+        chunk_seconds = arch_config.get("chunk_seconds")
+        if chunk_seconds:
+            self.chunk_size = max(1, int(float(chunk_seconds) * self.sample_rate))
+        else:
+            self.chunk_size = int(self.cfg_audio.get("chunk_size", 352800))
+        overlap_override = arch_config.get("overlap")
+        if overlap_override:
+            self.overlap = max(1, int(overlap_override))
+        else:
+            self.overlap = max(1, int(self.cfg_infer.get("num_overlap", 2)))
+        self.batch_size = max(1, int(arch_config.get("batch_size", 1) or 1))
 
         model_kwargs = dict(cfg.get("model", {}) or {})
         self.logger.debug(
@@ -111,42 +123,69 @@ class RoformerSeparator(BaseSeparator):
         results = {}
         counters = {}
         order = []
-        n_chunks = max(1, (length + step - 1) // step)
+
+        def _forward(chunk_2ch):
+            out = self.model_run(chunk_2ch[None].to(self.torch_device))
+            if isinstance(out, (list, tuple)):
+                out = out[0]
+            out = out.detach().cpu()
+            if out.ndim == 4:
+                out = out[0]
+            if out.ndim == 2:
+                out = out[None]
+            return out
+
+        # Collect chunk jobs first so the model can run batched forward
+        # passes (batch_size=1 keeps the original one-by-one behavior).
+        jobs = []
+        for i in range(0, length, step):
+            end = min(i + chunk_size, length)
+            chunk = mix_tensor[:, i:end]
+            cur_len = chunk.shape[-1]
+            if cur_len < chunk_size:
+                chunk = torch.nn.functional.pad(chunk, (0, chunk_size - cur_len))
+            jobs.append((i, end, cur_len, chunk))
+
+        n_batches = max(1, (len(jobs) + self.batch_size - 1) // self.batch_size)
         with torch.no_grad():
-            for i in tqdm(range(0, length, step), desc="Separating", total=n_chunks):
-                end = min(i + chunk_size, length)
-                chunk = mix_tensor[:, i:end]
-                cur_len = chunk.shape[-1]
-                if cur_len < chunk_size:
-                    chunk = torch.nn.functional.pad(chunk, (0, chunk_size - cur_len))
-                out = self.model_run(chunk[None].to(self.torch_device))
-                if isinstance(out, (list, tuple)):
-                    out = out[0]
-                out = out.detach().cpu()
-                if out.ndim == 4:
-                    out = out[0]
-                if out.ndim == 2:
-                    out = out[None]
-                n_stems = out.shape[0]
-                if not order:
-                    order = self._stem_names(n_stems)
-                    for name in order:
-                        results[name] = torch.zeros_like(mix_tensor)
-                        counters[name] = torch.zeros(
-                            mix_tensor.shape[-1], dtype=torch.float32
-                        )
-                w = window[:cur_len].clone()
-                if i == 0:
-                    w[:fade] = 1.0
-                if end >= length:
-                    w[-fade:] = 1.0
-                for idx, name in enumerate(order):
-                    stem = out[idx] if idx < n_stems else out[0]
-                    if stem.shape[0] == 1:
-                        stem = stem.repeat(2, 1)
-                    stem = stem[:, :cur_len]
-                    results[name][:, i:end] += stem * w
-                    counters[name][i:end] += w
+            for b in tqdm(
+                range(0, len(jobs), self.batch_size),
+                desc="Separating",
+                total=n_batches,
+            ):
+                batch_jobs = jobs[b : b + self.batch_size]
+                if len(batch_jobs) == 1:
+                    outs = [_forward(batch_jobs[0][3])]
+                else:
+                    stacked = torch.stack([j[3] for j in batch_jobs], dim=0).to(
+                        self.torch_device
+                    )
+                    out = self.model_run(stacked)
+                    if isinstance(out, (list, tuple)):
+                        out = out[0]
+                    out = out.detach().cpu()
+                    outs = [o[0] if o.ndim == 4 else (o[None] if o.ndim == 2 else o) for o in out]
+                for (i, end, cur_len, _), out in zip(batch_jobs, outs):
+                    n_stems = out.shape[0]
+                    if not order:
+                        order = self._stem_names(n_stems)
+                        for name in order:
+                            results[name] = torch.zeros_like(mix_tensor)
+                            counters[name] = torch.zeros(
+                                mix_tensor.shape[-1], dtype=torch.float32
+                            )
+                    w = window[:cur_len].clone()
+                    if i == 0:
+                        w[:fade] = 1.0
+                    if end >= length:
+                        w[-fade:] = 1.0
+                    for idx, name in enumerate(order):
+                        stem = out[idx] if idx < n_stems else out[0]
+                        if stem.shape[0] == 1:
+                            stem = stem.repeat(2, 1)
+                        stem = stem[:, :cur_len]
+                        results[name][:, i:end] += stem * w
+                        counters[name][i:end] += w
 
         stems = {}
         for name in order:

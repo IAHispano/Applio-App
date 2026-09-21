@@ -40,6 +40,13 @@ export default function BlenderPanel() {
       setError(t("Name and two models are required (path or upload)."));
       return;
     }
+    const picked = [f1?.name || p1, f2?.name || p2].map((s) => s.split(/[\\/]/).pop() || "");
+    if (picked.some((n) => n.startsWith("G_") || n.startsWith("D_"))) {
+      setError(
+        t("Training checkpoints (G_*.pth / D_*.pth) can't be blended. Use exported inference .pth files."),
+      );
+      return;
+    }
     setBusy(true);
     try {
       const fd = new FormData();
@@ -183,7 +190,11 @@ export default function BlenderPanel() {
               <Sparkles size={16} className="text-white" />
               <span>{t("Interpolate weights between two checkpoint files.")}</span>
             </div>
-            <Button type="submit" disabled={busy} icon={<Layers size={16} />}>
+            <Button
+              type="submit"
+              disabled={busy || !name.trim() || (!p1 && !f1) || (!p2 && !f2)}
+              icon={<Layers size={16} />}
+            >
               {busy ? t("Blending…") : t("Fuse Models")}
             </Button>
           </div>

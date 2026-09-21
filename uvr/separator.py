@@ -86,12 +86,20 @@ def _default_arch_params(arch):
             "batch_size": 1,
             "enable_denoise": False,
         }
-    return {
-        "segment_size": "Default",
-        "shifts": 1,
-        "overlap": 0.25,
-        "segments_enabled": True,
-    }
+    if arch == "mdxc":
+        return {
+            "segment_size": 256,
+            "overlap": 8,
+            "batch_size": 1,
+        }
+    if arch == "demucs":
+        return {
+            "segment_size": "Default",
+            "shifts": 2,
+            "overlap": 0.25,
+            "segments_enabled": True,
+        }
+    return {}
 
 
 def separate_stems(

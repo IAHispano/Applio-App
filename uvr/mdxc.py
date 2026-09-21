@@ -74,7 +74,17 @@ class MdxcSeparator(BaseSeparator):
 
         output_files = []
         instruments = list(self.model_data_cfg.training.instruments)
-        for key, value in zip(instruments, source):
+        # Single-target checkpoints return one stereo array (not a per-stem
+        # stack): treat it as a single pair instead of iterating channels.
+        if (
+            len(instruments) == 1
+            and isinstance(source, np.ndarray)
+            and source.ndim == 2
+        ):
+            pairs = [(instruments[0], source)]
+        else:
+            pairs = list(zip(instruments, source))
+        for key, value in pairs:
             if (
                 self.output_single_stem
                 and self.output_single_stem.lower() != key.lower()
