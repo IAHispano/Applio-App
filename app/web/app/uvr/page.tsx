@@ -6,7 +6,16 @@ import AudioWavePlayer from "@/components/AudioWavePlayer";
 import JobPanel from "@/components/JobPanel";
 import PageHeader from "@/components/layout/PageHeader";
 import type { GpuDevice } from "@/components/train/GpuSelect";
-import { Alert, Badge, Button, Card, CardHeader, CustomSelect, SliderField, ToggleField } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  SliderField,
+  ToggleField,
+} from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
 import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -339,7 +348,9 @@ export default function UvrPage() {
                 max={100}
                 step={1}
                 onChange={setVrAggression}
-                description={t("Intensity of primary stem extraction — higher removes more but can damage instruments.")}
+                description={t(
+                  "Intensity of primary stem extraction — higher removes more but can damage instruments.",
+                )}
               />
               <SliderField
                 id="uvr-vr-window"
@@ -416,7 +427,9 @@ export default function UvrPage() {
                 max={0.99}
                 step={0.01}
                 onChange={setMdxOverlap}
-                description={t("Higher overlap is cleaner but slower. Above ~0.93 gets tremendously slow with little gain.")}
+                description={t(
+                  "Higher overlap is cleaner but slower. Above ~0.93 gets tremendously slow with little gain.",
+                )}
               />
               <SliderField
                 id="uvr-mdx-batch"
@@ -539,7 +552,9 @@ export default function UvrPage() {
                   className="w-full mt-1"
                 />
                 <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
-                  {t("Higher than the training value can help until quality degrades; lower it if you run out of VRAM.")}
+                  {t(
+                    "Higher than the training value can help until quality degrades; lower it if you run out of VRAM.",
+                  )}
                 </p>
               </div>
               <SliderField
@@ -550,7 +565,9 @@ export default function UvrPage() {
                 max={32}
                 step={1}
                 onChange={setRoformerOverlap}
-                description={t("4 is balanced for speed and quality; higher is slightly cleaner but much slower.")}
+                description={t(
+                  "4 is balanced for speed and quality; higher is slightly cleaner but much slower.",
+                )}
               />
               <SliderField
                 id="uvr-roformer-batch"

@@ -82,9 +82,7 @@ router.get("/formant/:name", (req: Request, res: Response) => {
     const full = path.join(formantDir(), file);
     if (!fs.existsSync(full)) return res.status(404).json({ error: "Formant preset not found" });
     const values = JSON.parse(fs.readFileSync(full, "utf-8"));
-    const parsed = z
-      .object({ formant_qfrency: z.number(), formant_timbre: z.number() })
-      .parse(values);
+    const parsed = z.object({ formant_qfrency: z.number(), formant_timbre: z.number() }).parse(values);
     res.json({ name: file.replace(/\.json$/i, ""), values: parsed });
   } catch (err) {
     res.status(400).json({ error: errMsg(err) || "Invalid formant preset" });

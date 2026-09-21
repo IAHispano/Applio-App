@@ -57,7 +57,9 @@ def main():
     parser.add_argument("--vr-window", type=int, default=None, help="VR window size")
     parser.add_argument("--vr-batch", type=int, default=None, help="VR batch size")
     parser.add_argument(
-        "--vr-tta", action="store_true", help="VR test-time augmentation (slow, cleaner)"
+        "--vr-tta",
+        action="store_true",
+        help="VR test-time augmentation (slow, cleaner)",
     )
     parser.add_argument(
         "--vr-high-end",

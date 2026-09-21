@@ -90,7 +90,10 @@ const separateSchema = z.object({
   mdxcSegment: z.coerce.number().int().min(32).max(4000).default(256),
   mdxcOverlap: z.coerce.number().int().min(1).max(50).default(8),
   mdxcBatch: z.coerce.number().int().min(1).max(16).default(1),
-  demucsSegment: z.string().regex(/^(Default|\d+)$/).default("Default"),
+  demucsSegment: z
+    .string()
+    .regex(/^(Default|\d+)$/)
+    .default("Default"),
   demucsShifts: z.coerce.number().int().min(0).max(20).default(2),
   demucsOverlap: z.coerce.number().min(0).max(0.99).default(0.25),
   demucsSplit: z.coerce.boolean().default(true),

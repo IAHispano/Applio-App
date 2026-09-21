@@ -944,7 +944,8 @@ export default function InferenceForm() {
             {formantPresets.length > 0 && (
               <div className="max-w-xs">
                 <label htmlFor="infer-formant-preset" className="text-xs font-medium text-neutral-300">
-                  {t("Browse presets for formanting")} <span className="text-neutral-500">(assets/formant_shift)</span>
+                  {t("Browse presets for formanting")}{" "}
+                  <span className="text-neutral-500">(assets/formant_shift)</span>
                 </label>
                 <CustomSelect
                   id="infer-formant-preset"

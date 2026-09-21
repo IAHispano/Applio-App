@@ -517,34 +517,90 @@ export default function BatchForm() {
         <div className="space-y-3 pt-3">
           <Disclosure title={t("Advanced Pitch & Audio Cleanup")}>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <ToggleField id="batch-split-audio" label={t("Split in Chunks")} checked={splitAudio} onChange={setSplitAudio} />
-              <ToggleField id="batch-f0-autotune" label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />
-              <ToggleField id="batch-proposed-pitch" label={t("Proposed Pitch")} checked={proposedPitch} onChange={setProposedPitch} />
-              <ToggleField id="batch-clean-audio" label={t("Clean Audio")} checked={cleanAudio} onChange={setCleanAudio} />
+              <ToggleField
+                id="batch-split-audio"
+                label={t("Split in Chunks")}
+                checked={splitAudio}
+                onChange={setSplitAudio}
+              />
+              <ToggleField
+                id="batch-f0-autotune"
+                label={t("Autotune")}
+                checked={f0Autotune}
+                onChange={setF0Autotune}
+              />
+              <ToggleField
+                id="batch-proposed-pitch"
+                label={t("Proposed Pitch")}
+                checked={proposedPitch}
+                onChange={setProposedPitch}
+              />
+              <ToggleField
+                id="batch-clean-audio"
+                label={t("Clean Audio")}
+                checked={cleanAudio}
+                onChange={setCleanAudio}
+              />
             </div>
             {(f0Autotune || proposedPitch || cleanAudio) && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
                 {f0Autotune && (
-                  <SliderField id="batch-autotune-strength" label={t("Autotune Strength")} value={f0AutotuneStrength} min={0} max={1} step={0.05} onChange={setF0AutotuneStrength} />
+                  <SliderField
+                    id="batch-autotune-strength"
+                    label={t("Autotune Strength")}
+                    value={f0AutotuneStrength}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={setF0AutotuneStrength}
+                  />
                 )}
                 {proposedPitch && (
-                  <SliderField id="batch-proposed-threshold" label={t("Proposed Pitch Threshold")} value={proposedPitchThreshold} min={50} max={1200} step={1} unit="Hz" onChange={setProposedPitchThreshold} />
+                  <SliderField
+                    id="batch-proposed-threshold"
+                    label={t("Proposed Pitch Threshold")}
+                    value={proposedPitchThreshold}
+                    min={50}
+                    max={1200}
+                    step={1}
+                    unit="Hz"
+                    onChange={setProposedPitchThreshold}
+                  />
                 )}
                 {cleanAudio && (
-                  <SliderField id="batch-clean-strength" label={t("Clean Strength")} value={cleanStrength} min={0} max={1} step={0.05} onChange={setCleanStrength} />
+                  <SliderField
+                    id="batch-clean-strength"
+                    label={t("Clean Strength")}
+                    value={cleanStrength}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    onChange={setCleanStrength}
+                  />
                 )}
               </div>
             )}
           </Disclosure>
 
           <Disclosure title={t("Formant Shifting")} icon={<Sparkles size={15} />}>
-            <ToggleField id="batch-formant-shifting" label={t("Enable Formant Shifting")} checked={formantShifting} onChange={setFormantShifting} />
+            <ToggleField
+              id="batch-formant-shifting"
+              label={t("Enable Formant Shifting")}
+              checked={formantShifting}
+              onChange={setFormantShifting}
+            />
             {formantPresets.length > 0 && (
               <div className="max-w-xs">
                 <label htmlFor="batch-formant-preset" className="text-xs font-medium text-neutral-300">
                   {t("Browse presets for formanting")}
                 </label>
-                <CustomSelect id="batch-formant-preset" value={formantPreset} onChange={(e) => applyFormantPreset(e.target.value)} placeholder={t("Select formant preset…")} className="w-full mt-1">
+                <CustomSelect
+                  id="batch-formant-preset"
+                  value={formantPreset}
+                  onChange={(e) => applyFormantPreset(e.target.value)}
+                  placeholder={t("Select formant preset…")}
+                  className="w-full mt-1"
+                >
                   <option value="">{t("None (manual)")}</option>
                   {formantPresets.map((p) => (
                     <option key={p} value={p}>
@@ -556,8 +612,24 @@ export default function BatchForm() {
             )}
             {formantShifting && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <SliderField id="batch-formant-qfrency" label={t("Quefrency for formant shifting")} value={formantQfrency} min={0} max={16} step={0.1} onChange={setFormantQfrency} />
-                <SliderField id="batch-formant-timbre" label={t("Timbre for formant shifting")} value={formantTimbre} min={0} max={16} step={0.1} onChange={setFormantTimbre} />
+                <SliderField
+                  id="batch-formant-qfrency"
+                  label={t("Quefrency for formant shifting")}
+                  value={formantQfrency}
+                  min={0}
+                  max={16}
+                  step={0.1}
+                  onChange={setFormantQfrency}
+                />
+                <SliderField
+                  id="batch-formant-timbre"
+                  label={t("Timbre for formant shifting")}
+                  value={formantTimbre}
+                  min={0}
+                  max={16}
+                  step={0.1}
+                  onChange={setFormantTimbre}
+                />
               </div>
             )}
           </Disclosure>
@@ -566,70 +638,321 @@ export default function BatchForm() {
             {postProcess && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <ToggleField id="batch-reverb" label={t("Reverb")} checked={reverb} onChange={setReverb} />
-                <ToggleField id="batch-pitch-shift" label={t("Pitch Shift")} checked={pitchShift} onChange={setPitchShift} />
-                <ToggleField id="batch-limiter" label={t("Limiter")} checked={limiter} onChange={setLimiter} />
+                <ToggleField
+                  id="batch-pitch-shift"
+                  label={t("Pitch Shift")}
+                  checked={pitchShift}
+                  onChange={setPitchShift}
+                />
+                <ToggleField
+                  id="batch-limiter"
+                  label={t("Limiter")}
+                  checked={limiter}
+                  onChange={setLimiter}
+                />
                 <ToggleField id="batch-gain" label={t("Gain")} checked={gain} onChange={setGain} />
-                <ToggleField id="batch-distortion" label={t("Distortion")} checked={distortion} onChange={setDistortion} />
+                <ToggleField
+                  id="batch-distortion"
+                  label={t("Distortion")}
+                  checked={distortion}
+                  onChange={setDistortion}
+                />
                 <ToggleField id="batch-chorus" label={t("Chorus")} checked={chorus} onChange={setChorus} />
-                <ToggleField id="batch-bitcrush" label={t("Bitcrush")} checked={bitcrush} onChange={setBitcrush} />
-                <ToggleField id="batch-clipping" label={t("Clipping")} checked={clipping} onChange={setClipping} />
-                <ToggleField id="batch-compressor" label={t("Compressor")} checked={compressor} onChange={setCompressor} />
+                <ToggleField
+                  id="batch-bitcrush"
+                  label={t("Bitcrush")}
+                  checked={bitcrush}
+                  onChange={setBitcrush}
+                />
+                <ToggleField
+                  id="batch-clipping"
+                  label={t("Clipping")}
+                  checked={clipping}
+                  onChange={setClipping}
+                />
+                <ToggleField
+                  id="batch-compressor"
+                  label={t("Compressor")}
+                  checked={compressor}
+                  onChange={setCompressor}
+                />
                 <ToggleField id="batch-delay" label={t("Delay")} checked={delay} onChange={setDelay} />
               </div>
             )}
             {postProcess && reverb && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <SliderField id="batch-reverb-room" label={t("Reverb Room Size")} value={reverbRoomSize} min={0} max={1} step={0.05} onChange={setReverbRoomSize} />
-                <SliderField id="batch-reverb-damping" label={t("Reverb Damping")} value={reverbDamping} min={0} max={1} step={0.05} onChange={setReverbDamping} />
-                <SliderField id="batch-reverb-wet" label={t("Reverb Wet Gain")} value={reverbWetGain} min={0} max={1} step={0.05} onChange={setReverbWetGain} />
-                <SliderField id="batch-reverb-dry" label={t("Reverb Dry Gain")} value={reverbDryGain} min={0} max={1} step={0.05} onChange={setReverbDryGain} />
-                <SliderField id="batch-reverb-width" label={t("Reverb Width")} value={reverbWidth} min={0} max={1} step={0.05} onChange={setReverbWidth} />
-                <SliderField id="batch-reverb-freeze" label={t("Reverb Freeze Mode")} value={reverbFreezeMode} min={0} max={1} step={0.05} onChange={setReverbFreezeMode} />
+                <SliderField
+                  id="batch-reverb-room"
+                  label={t("Reverb Room Size")}
+                  value={reverbRoomSize}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbRoomSize}
+                />
+                <SliderField
+                  id="batch-reverb-damping"
+                  label={t("Reverb Damping")}
+                  value={reverbDamping}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbDamping}
+                />
+                <SliderField
+                  id="batch-reverb-wet"
+                  label={t("Reverb Wet Gain")}
+                  value={reverbWetGain}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbWetGain}
+                />
+                <SliderField
+                  id="batch-reverb-dry"
+                  label={t("Reverb Dry Gain")}
+                  value={reverbDryGain}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbDryGain}
+                />
+                <SliderField
+                  id="batch-reverb-width"
+                  label={t("Reverb Width")}
+                  value={reverbWidth}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbWidth}
+                />
+                <SliderField
+                  id="batch-reverb-freeze"
+                  label={t("Reverb Freeze Mode")}
+                  value={reverbFreezeMode}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setReverbFreezeMode}
+                />
               </div>
             )}
             {postProcess && pitchShift && (
-              <div className="pt-2"><SliderField id="batch-pitch-semitones" label={t("Pitch Shift Semitones")} value={pitchShiftSemitones} min={-12} max={12} step={1} onChange={setPitchShiftSemitones} /></div>
+              <div className="pt-2">
+                <SliderField
+                  id="batch-pitch-semitones"
+                  label={t("Pitch Shift Semitones")}
+                  value={pitchShiftSemitones}
+                  min={-12}
+                  max={12}
+                  step={1}
+                  onChange={setPitchShiftSemitones}
+                />
+              </div>
             )}
             {postProcess && limiter && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <SliderField id="batch-limiter-thresh" label={t("Limiter Threshold dB")} value={limiterThreshold} min={-60} max={0} step={0.5} unit="dB" onChange={setLimiterThreshold} />
-                <SliderField id="batch-limiter-release" label={t("Limiter Release Time")} value={limiterReleaseTime} min={0.01} max={1} step={0.01} unit="s" onChange={setLimiterReleaseTime} />
+                <SliderField
+                  id="batch-limiter-thresh"
+                  label={t("Limiter Threshold dB")}
+                  value={limiterThreshold}
+                  min={-60}
+                  max={0}
+                  step={0.5}
+                  unit="dB"
+                  onChange={setLimiterThreshold}
+                />
+                <SliderField
+                  id="batch-limiter-release"
+                  label={t("Limiter Release Time")}
+                  value={limiterReleaseTime}
+                  min={0.01}
+                  max={1}
+                  step={0.01}
+                  unit="s"
+                  onChange={setLimiterReleaseTime}
+                />
               </div>
             )}
             {postProcess && gain && (
-              <div className="pt-2"><SliderField id="batch-gain-db" label={t("Gain dB")} value={gainDb} min={-60} max={60} step={0.5} unit="dB" onChange={setGainDb} /></div>
+              <div className="pt-2">
+                <SliderField
+                  id="batch-gain-db"
+                  label={t("Gain dB")}
+                  value={gainDb}
+                  min={-60}
+                  max={60}
+                  step={0.5}
+                  unit="dB"
+                  onChange={setGainDb}
+                />
+              </div>
             )}
             {postProcess && distortion && (
-              <div className="pt-2"><SliderField id="batch-dist-gain" label={t("Distortion Gain")} value={distortionGain} min={-60} max={60} step={1} unit="dB" onChange={setDistortionGain} /></div>
+              <div className="pt-2">
+                <SliderField
+                  id="batch-dist-gain"
+                  label={t("Distortion Gain")}
+                  value={distortionGain}
+                  min={-60}
+                  max={60}
+                  step={1}
+                  unit="dB"
+                  onChange={setDistortionGain}
+                />
+              </div>
             )}
             {postProcess && chorus && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <SliderField id="batch-chorus-rate" label={t("Chorus Rate Hz")} value={chorusRate} min={0.1} max={100} step={0.1} unit="Hz" onChange={setChorusRate} />
-                <SliderField id="batch-chorus-depth" label={t("Chorus Depth")} value={chorusDepth} min={0.05} max={1} step={0.05} onChange={setChorusDepth} />
-                <SliderField id="batch-chorus-center" label={t("Chorus Center Delay ms")} value={chorusCenterDelay} min={7} max={8} step={0.1} unit="ms" onChange={setChorusCenterDelay} />
-                <SliderField id="batch-chorus-feedback" label={t("Chorus Feedback")} value={chorusFeedback} min={0} max={1} step={0.05} onChange={setChorusFeedback} />
-                <SliderField id="batch-chorus-mix" label={t("Chorus Mix")} value={chorusMix} min={0} max={1} step={0.05} onChange={setChorusMix} />
+                <SliderField
+                  id="batch-chorus-rate"
+                  label={t("Chorus Rate Hz")}
+                  value={chorusRate}
+                  min={0.1}
+                  max={100}
+                  step={0.1}
+                  unit="Hz"
+                  onChange={setChorusRate}
+                />
+                <SliderField
+                  id="batch-chorus-depth"
+                  label={t("Chorus Depth")}
+                  value={chorusDepth}
+                  min={0.05}
+                  max={1}
+                  step={0.05}
+                  onChange={setChorusDepth}
+                />
+                <SliderField
+                  id="batch-chorus-center"
+                  label={t("Chorus Center Delay ms")}
+                  value={chorusCenterDelay}
+                  min={7}
+                  max={8}
+                  step={0.1}
+                  unit="ms"
+                  onChange={setChorusCenterDelay}
+                />
+                <SliderField
+                  id="batch-chorus-feedback"
+                  label={t("Chorus Feedback")}
+                  value={chorusFeedback}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setChorusFeedback}
+                />
+                <SliderField
+                  id="batch-chorus-mix"
+                  label={t("Chorus Mix")}
+                  value={chorusMix}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setChorusMix}
+                />
               </div>
             )}
             {postProcess && bitcrush && (
-              <div className="pt-2"><SliderField id="batch-bitcrush-depth" label={t("Bitcrush Bit Depth")} value={bitcrushBitDepth} min={1} max={32} step={1} onChange={setBitcrushBitDepth} /></div>
+              <div className="pt-2">
+                <SliderField
+                  id="batch-bitcrush-depth"
+                  label={t("Bitcrush Bit Depth")}
+                  value={bitcrushBitDepth}
+                  min={1}
+                  max={32}
+                  step={1}
+                  onChange={setBitcrushBitDepth}
+                />
+              </div>
             )}
             {postProcess && clipping && (
-              <div className="pt-2"><SliderField id="batch-clip-thresh" label={t("Clipping Threshold")} value={clippingThreshold} min={-60} max={0} step={0.5} unit="dB" onChange={setClippingThreshold} /></div>
+              <div className="pt-2">
+                <SliderField
+                  id="batch-clip-thresh"
+                  label={t("Clipping Threshold")}
+                  value={clippingThreshold}
+                  min={-60}
+                  max={0}
+                  step={0.5}
+                  unit="dB"
+                  onChange={setClippingThreshold}
+                />
+              </div>
             )}
             {postProcess && compressor && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                <SliderField id="batch-comp-thresh" label={t("Compressor Threshold dB")} value={compressorThreshold} min={-60} max={0} step={1} unit="dB" onChange={setCompressorThreshold} />
-                <SliderField id="batch-comp-ratio" label={t("Compressor Ratio")} value={compressorRatio} min={1} max={20} step={0.5} onChange={setCompressorRatio} />
-                <SliderField id="batch-comp-attack" label={t("Compressor Attack ms")} value={compressorAttack} min={0} max={100} step={1} unit="ms" onChange={setCompressorAttack} />
-                <SliderField id="batch-comp-release" label={t("Compressor Release ms")} value={compressorRelease} min={0.01} max={100} step={0.5} unit="ms" onChange={setCompressorRelease} />
+                <SliderField
+                  id="batch-comp-thresh"
+                  label={t("Compressor Threshold dB")}
+                  value={compressorThreshold}
+                  min={-60}
+                  max={0}
+                  step={1}
+                  unit="dB"
+                  onChange={setCompressorThreshold}
+                />
+                <SliderField
+                  id="batch-comp-ratio"
+                  label={t("Compressor Ratio")}
+                  value={compressorRatio}
+                  min={1}
+                  max={20}
+                  step={0.5}
+                  onChange={setCompressorRatio}
+                />
+                <SliderField
+                  id="batch-comp-attack"
+                  label={t("Compressor Attack ms")}
+                  value={compressorAttack}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="ms"
+                  onChange={setCompressorAttack}
+                />
+                <SliderField
+                  id="batch-comp-release"
+                  label={t("Compressor Release ms")}
+                  value={compressorRelease}
+                  min={0.01}
+                  max={100}
+                  step={0.5}
+                  unit="ms"
+                  onChange={setCompressorRelease}
+                />
               </div>
             )}
             {postProcess && delay && (
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                <SliderField id="batch-delay-time" label={t("Delay Seconds")} value={delaySeconds} min={0} max={5} step={0.05} unit="s" onChange={setDelaySeconds} />
-                <SliderField id="batch-delay-feedback" label={t("Delay Feedback")} value={delayFeedback} min={0} max={1} step={0.05} onChange={setDelayFeedback} />
-                <SliderField id="batch-delay-mix" label={t("Delay Mix")} value={delayMix} min={0} max={1} step={0.05} onChange={setDelayMix} />
+                <SliderField
+                  id="batch-delay-time"
+                  label={t("Delay Seconds")}
+                  value={delaySeconds}
+                  min={0}
+                  max={5}
+                  step={0.05}
+                  unit="s"
+                  onChange={setDelaySeconds}
+                />
+                <SliderField
+                  id="batch-delay-feedback"
+                  label={t("Delay Feedback")}
+                  value={delayFeedback}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setDelayFeedback}
+                />
+                <SliderField
+                  id="batch-delay-mix"
+                  label={t("Delay Mix")}
+                  value={delayMix}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={setDelayMix}
+                />
               </div>
             )}
           </Disclosure>

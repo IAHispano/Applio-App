@@ -164,7 +164,10 @@ class RoformerSeparator(BaseSeparator):
                     if isinstance(out, (list, tuple)):
                         out = out[0]
                     out = out.detach().cpu()
-                    outs = [o[0] if o.ndim == 4 else (o[None] if o.ndim == 2 else o) for o in out]
+                    outs = [
+                        o[0] if o.ndim == 4 else (o[None] if o.ndim == 2 else o)
+                        for o in out
+                    ]
                 for (i, end, cur_len, _), out in zip(batch_jobs, outs):
                     n_stems = out.shape[0]
                     if not order:
