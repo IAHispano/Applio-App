@@ -8,8 +8,8 @@ interface ModalProps {
   title: string;
   description?: string;
   children: ReactNode;
-  maxWidth?: "sm" | "md" | "lg" | "xl";
-  size?: "sm" | "md" | "lg" | "xl";
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
+  size?: "sm" | "md" | "lg" | "xl" | "2xl";
   danger?: boolean;
   icon?: ReactNode;
 }
@@ -87,10 +87,11 @@ export default function Modal({
   if (!isOpen) return null;
 
   const widthClass = {
-    sm: "max-w-sm",
-    md: "max-w-md",
-    lg: "max-w-lg",
-    xl: "max-w-xl",
+    sm: "max-w-md",
+    md: "max-w-xl",
+    lg: "max-w-3xl",
+    xl: "max-w-4xl",
+    "2xl": "max-w-5xl",
   }[maxWidth || size];
 
   return (
@@ -109,7 +110,7 @@ export default function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto bg-neutral-900 border ${
+        className={`w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-neutral-900 border ${
           danger ? "border-red-500/30 shadow-red-500/10" : "border-white/15"
         } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
       >
@@ -120,7 +121,7 @@ export default function Modal({
                 {icon}
               </span>
             )}
-            <div className="space-y-0.5">
+            <div className="space-y-0.5 min-w-0">
               <h2 id={titleId} className="text-lg font-bold text-white tracking-tight m-0">
                 {title}
               </h2>
@@ -134,7 +135,7 @@ export default function Modal({
         </div>
 
         {/* Modal Content */}
-        <div>{children}</div>
+        <div className="min-w-0 space-y-4">{children}</div>
       </div>
     </div>
   );

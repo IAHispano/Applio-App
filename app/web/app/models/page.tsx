@@ -5,6 +5,7 @@ import {
   Database,
   Download,
   FileCheck,
+  FileDown,
   FileX,
   Folder,
   Info,
@@ -22,7 +23,16 @@ import PageHeader from "@/components/layout/PageHeader";
 import BlenderPanel from "@/components/models/BlenderPanel";
 import DownloadPanel from "@/components/models/DownloadPanel";
 import ModelInfoCard, { type ModelMetadata } from "@/components/models/ModelInfoCard";
-import { Button, Card, CardHeader, EmptyState, IconButton, Modal, SegmentedControl } from "@/components/ui";
+import {
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  EmptyState,
+  IconButton,
+  Modal,
+  SegmentedControl,
+} from "@/components/ui";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -37,7 +47,7 @@ interface ModelItem {
   folder: string;
 }
 
-type Section = "library" | "download" | "blend" | "inspect";
+type Section = "library" | "download" | "blend" | "inspect" | "export";
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return "0 B";
@@ -73,6 +83,13 @@ export default function ModelsPage() {
   const [customLoading, setCustomLoading] = useState(false);
   const [customError, setCustomError] = useState("");
 
+  // Export (trained artifacts in logs/)
+  const [expModels, setExpModels] = useState<string[]>([]);
+  const [expIndexes, setExpIndexes] = useState<string[]>([]);
+  const [expModel, setExpModel] = useState("");
+  const [expIndex, setExpIndex] = useState("");
+  const [expLoading, setExpLoading] = useState(false);
+
   const loadLibrary = useCallback(async () => {
     setLoading(true);
     setError("");
@@ -86,11 +103,29 @@ export default function ModelsPage() {
     }
   }, []);
 
+  const loadExports = useCallback(async () => {
+    setExpLoading(true);
+    try {
+      const e = await apiGet<{ models: string[]; indexes: string[] }>("/api/train/exports");
+      setExpModels(e.models || []);
+      setExpIndexes(e.indexes || []);
+      setExpModel((prev) => prev || e.models?.[0] || "");
+      setExpIndex((prev) => prev || e.indexes?.[0] || "");
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setExpLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (section === "library") {
       loadLibrary();
     }
-  }, [section, loadLibrary]);
+    if (section === "export") {
+      loadExports();
+    }
+  }, [section, loadLibrary, loadExports]);
 
   async function openInspect(item: ModelItem) {
     setInspectModal(item);
@@ -146,6 +181,23 @@ export default function ModelsPage() {
     setDeleting(false);
     if (failed.length > 0) setError(`${t("Could not delete:")} ${failed.join(", ")}`);
     await loadLibrary();
+  }
+
+  async function downloadExport(file: string) {
+    if (!file) return;
+    try {
+      const r = await fetch(`/api/train/export-file?file=${encodeURIComponent(file)}`);
+      if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || t("Download failed"));
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = file.split(/[\\/]/).pop() || "export";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(errMsg(e));
+    }
   }
 
   function openInInference(item: ModelItem) {
@@ -228,6 +280,7 @@ export default function ModelsPage() {
             { value: "download", label: t("Download Models"), icon: Download },
             { value: "blend", label: t("Voice Blender"), icon: Layers },
             { value: "inspect", label: t("Inspect Model"), icon: Info },
+            { value: "export", label: t("Export"), icon: FileDown },
           ]}
         />
       </PageHeader>
@@ -495,6 +548,72 @@ export default function ModelsPage() {
             error={customError}
             pthPath={customPth}
           />
+        </div>
+      )}
+
+      {/* 5. EXPORT TRAINED ARTIFACTS */}
+      {section === "export" && (
+        <div id="panel-export" role="tabpanel" aria-labelledby="tab-export" className="space-y-4">
+          <Card>
+            <CardHeader
+              icon={<FileDown size={18} />}
+              title={t("Export Model")}
+              description={t("Download a trained .pth and its .index from logs/.")}
+              action={
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={loadExports}
+                  disabled={expLoading}
+                  icon={<RefreshCw size={14} className={expLoading ? "animate-spin" : ""} />}
+                >
+                  {t("Refresh")}
+                </Button>
+              }
+            />
+            <div className="grid2">
+              <div>
+                <label htmlFor="models-exp-model">{t("Model (.pth)")}</label>
+                <CustomSelect
+                  id="models-exp-model"
+                  value={expModel}
+                  onChange={(e) => setExpModel(e.target.value)}
+                  className="w-full mt-1"
+                >
+                  <option value="">—</option>
+                  {expModels.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </CustomSelect>
+              </div>
+              <div>
+                <label htmlFor="models-exp-index">{t("Index (.index)")}</label>
+                <CustomSelect
+                  id="models-exp-index"
+                  value={expIndex}
+                  onChange={(e) => setExpIndex(e.target.value)}
+                  className="w-full mt-1"
+                >
+                  <option value="">—</option>
+                  {expIndexes.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </CustomSelect>
+              </div>
+            </div>
+            <div className="row mt-4">
+              <Button variant="ghost" onClick={() => downloadExport(expModel)} disabled={!expModel}>
+                {t("Download .pth")}
+              </Button>
+              <Button variant="ghost" onClick={() => downloadExport(expIndex)} disabled={!expIndex}>
+                {t("Download .index")}
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
 

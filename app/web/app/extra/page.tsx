@@ -1,13 +1,13 @@
 "use client";
 
-import { Activity, AudioWaveform, LineChart } from "lucide-react";
+import { Activity, AudioWaveform, FolderUp, LineChart } from "lucide-react";
 import { useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import F0CurveExtractor from "@/components/extra/F0CurveExtractor";
 import NativeAnalyzer from "@/components/extra/NativeAnalyzer";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card, CardHeader, CustomSelect } from "@/components/ui";
-import { fetchModels } from "@/lib/api";
+import { Button, Card, CardHeader, CustomSelect } from "@/components/ui";
+import { errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 
@@ -120,6 +120,107 @@ export default function ExtraPage() {
 
           <F0CurveExtractor file={audio} fallbackPath={audio ? undefined : inputPath} />
         </Card>
+      </div>
+
+      {/* Training data uploads */}
+      <Card>
+        <CardHeader
+          icon={<FolderUp size={18} />}
+          title={t("Dataset & Checkpoint Uploads")}
+          description={t("Upload local dataset files, pretrained weights, or custom embedders for training.")}
+        />
+        <UploadBox
+          path="/api/train/upload-dataset"
+          fields={[{ name: "datasetName", label: t("Dataset name (e.g. my_vocals)") }]}
+          files="files"
+          multiple
+          label={t("Dataset Audio Files (WAV/MP3/FLAC) → assets/datasets/<name>/")}
+        />
+        <UploadBox
+          path="/api/train/upload-pretrained"
+          fields={[]}
+          files="file"
+          label={t("Custom Pretrained Weights (.pth) → rvc/models/pretraineds/custom/")}
+        />
+        <UploadBox
+          path="/api/train/upload-embedder"
+          fields={[{ name: "folderName", label: t("Folder Name") }]}
+          files="bin"
+          extra="config"
+          label={t("Custom Embedder (.bin + .json)")}
+        />
+      </Card>
+    </div>
+  );
+}
+
+function UploadBox({
+  path,
+  fields,
+  files,
+  extra,
+  multiple,
+  label,
+}: {
+  path: string;
+  fields: Array<{ name: string; label: string }>;
+  files: string;
+  extra?: string;
+  multiple?: boolean;
+  label: string;
+}) {
+  const { t } = useI18n();
+  const [vals, setVals] = useState<Record<string, string>>({});
+  const [picked, setPicked] = useState<FileList | null>(null);
+  const [picked2, setPicked2] = useState<FileList | null>(null);
+  const [msg, setMsg] = useState("");
+  async function send() {
+    setMsg("");
+    const fd = new FormData();
+    for (const f of fields) fd.append(f.name, vals[f.name] || "");
+    if (picked) for (const f of Array.from(picked)) fd.append(files, f);
+    if (extra && picked2) for (const f of Array.from(picked2)) fd.append(extra, f);
+    try {
+      const r = await fetch(path, { method: "POST", body: fd });
+      const b = await r.json();
+      if (!r.ok) throw new Error(b?.error || t("Upload failed."));
+      setMsg(t("Uploaded."));
+    } catch (e) {
+      setMsg(errMsg(e));
+    }
+  }
+  return (
+    <div className="bg-white/5 border border-white/5 rounded-lg p-3">
+      <p className="text-xs font-medium text-neutral-300 mb-2">{label}</p>
+      <div className="row flex-wrap gap-2">
+        {fields.map((f) => (
+          <input
+            key={f.name}
+            type="text"
+            placeholder={f.label}
+            aria-label={f.label}
+            value={vals[f.name] || ""}
+            onChange={(e) => setVals({ ...vals, [f.name]: e.target.value })}
+            style={{ maxWidth: 200 }}
+          />
+        ))}
+        <input
+          type="file"
+          aria-label={label}
+          multiple={multiple}
+          onChange={(e) => setPicked(e.target.files)}
+        />
+        {extra && (
+          <input
+            type="file"
+            aria-label={`${label} (${t("extra config")})`}
+            onChange={(e) => setPicked2(e.target.files)}
+          />
+        )}
+        <Button variant="ghost" onClick={send}>
+          {t("Upload")}
+        </Button>
+        <span className="text-xs text-neutral-300">{msg}</span>
       </div>
     </div>
   );
