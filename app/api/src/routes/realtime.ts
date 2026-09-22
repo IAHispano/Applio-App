@@ -16,7 +16,10 @@ let rtStartedAt: string | null = null;
 let rtLogs: string[] = [];
 
 function backend(pathname: string): string {
-  return `http://127.0.0.1:${RT_PORT}/api${pathname}`;
+  // The uvicorn engine (rvc/realtime/client.py) serves unprefixed routes:
+  // /ws-audio, /change-config, /record. The /api prefix only exists on
+  // this gateway + the Next.js rewrites, never upstream.
+  return `http://127.0.0.1:${RT_PORT}${pathname}`;
 }
 
 function portOpen(port: number): Promise<boolean> {
@@ -153,9 +156,9 @@ export function attachRealtimeProxy(server: http.Server) {
   server.on("upgrade", (req, socket, head) => {
     const url = req.url || "";
     let target: string | null = null;
-    if (url.startsWith("/api/realtime/ws-audio")) target = `ws://127.0.0.1:${RT_PORT}/api/ws-audio`;
+    if (url.startsWith("/api/realtime/ws-audio")) target = `ws://127.0.0.1:${RT_PORT}/ws-audio`;
     else if (url.startsWith("/api/realtime/change-config"))
-      target = `ws://127.0.0.1:${RT_PORT}/api/change-config`;
+      target = `ws://127.0.0.1:${RT_PORT}/change-config`;
     if (!target) return; // not ours
     wss.handleUpgrade(req, socket, head, (client) => proxySocket(client, target as string));
   });

@@ -19,14 +19,13 @@ import {
 import CustomSelect from "@/components/ui/CustomSelect";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
+import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { useSpeakers } from "@/lib/useSpeakers";
 
-const API_HTTP = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 function apiWs(path: string): string {
-  const u = API_HTTP.replace(/^http/, "ws");
-  return `${u}${path}`;
+  return realtimeWsUrl(path);
 }
 
 const INPUT_WORKLET = `
