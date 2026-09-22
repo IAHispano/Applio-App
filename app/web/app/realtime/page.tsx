@@ -19,9 +19,9 @@ import {
 import CustomSelect from "@/components/ui/CustomSelect";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
-import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { useSpeakers } from "@/lib/useSpeakers";
 
 function apiWs(path: string): string {
