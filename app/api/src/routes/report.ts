@@ -4,20 +4,15 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "@/errors";
-import { getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
+import { getAppVersion, getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
 
 const router = Router();
 const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";
 
 router.get("/info", async (_req: Request, res: Response) => {
-  let version = "unknown";
-  try {
-    version =
-      JSON.parse(fs.readFileSync(path.join(getRepoRoot(), "assets", "config_template.json"), "utf-8"))
-        .version || version;
-  } catch {
-    /* ignore */
-  }
+  // Same source as /api/settings/version: the code root package.json, not
+  // the stale seeded copy in the writable data dir.
+  const version = getAppVersion();
   let python = "";
   try {
     const r = await runPythonModule(["--version"]);

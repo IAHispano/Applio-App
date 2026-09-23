@@ -6,11 +6,20 @@ export function errMsg(err: unknown): string {
 
 export function cleanVersion(v?: string | null): string {
   if (!v) return "";
-  return String(v).trim().replace(/^v+/i, "");
+  const s = String(v).trim();
+  if (!s) return "";
+  // "unknown" is not a version — callers use "" to mean missing, and
+  // displayVersion() renders it as "unknown" without a "v" prefix.
+  if (s.toLowerCase() === "unknown" || s.toLowerCase() === "vunknown") return "";
+  return s.replace(/^v+/i, "");
 }
 
 export function displayVersion(v?: string | null): string {
-  const c = cleanVersion(v);
+  if (v === undefined || v === null) return "";
+  const raw = String(v).trim();
+  if (!raw) return "";
+  if (raw.toLowerCase() === "unknown" || raw.toLowerCase() === "vunknown") return "unknown";
+  const c = cleanVersion(raw);
   return c ? `v${c}` : "";
 }
 

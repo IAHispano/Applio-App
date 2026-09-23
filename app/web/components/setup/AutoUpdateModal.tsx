@@ -19,7 +19,7 @@ import { useI18n } from "@/lib/i18n";
 export interface VersionCheckData {
   local: string;
   latest: string;
-  status: "up-to-date" | "behind" | "ahead";
+  status: "up-to-date" | "behind" | "ahead" | "unknown";
   versionsBehind: number;
   isOutdated: boolean;
   isDev?: boolean;

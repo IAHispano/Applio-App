@@ -4,7 +4,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "@/errors";
-import { getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
+import { getAppVersion, getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
 
 const router = Router();
 
@@ -109,16 +109,12 @@ function saveConfig(cfg: JsonObject) {
 // Single source of truth for the installed app version: the root
 // package.json (bumped with releases). The mutable assets/config.json
 // "version" field goes stale (user values override the template merge) and
-// must never drive update comparisons.
+// must never drive update comparisons. Delegates to getAppVersion() which
+// checks APPLIO_CODE_ROOT first — in the packaged app getRepoRoot() is the
+// writable data dir (no package.json there) while the real version ships in
+// the read-only code dir (resources/app).
 function readPackageVersion(): string {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(getRepoRoot(), "package.json"), "utf-8")) as {
-      version?: unknown;
-    };
-    return typeof pkg.version === "string" && pkg.version ? pkg.version : "unknown";
-  } catch {
-    return "unknown";
-  }
+  return getAppVersion();
 }
 
 const settingsSchema = z.object({
@@ -467,8 +463,12 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     const latestRelease = releases[0];
     const rawLatest = latestRelease.tag_name || "";
     const cleanLatest = String(rawLatest).replace(/^v+/i, "");
-    const cleanLocal = String(local).replace(/^v+/i, "");
+    const rawLocal = String(local || "").trim();
+    const isUnknownLocal =
+      !rawLocal || rawLocal.toLowerCase() === "unknown" || rawLocal.toLowerCase() === "vunknown";
+    const cleanLocal = isUnknownLocal ? "" : rawLocal.replace(/^v+/i, "");
     const latest = cleanLatest ? `v${cleanLatest}` : "unknown";
+    const normalizedLocal = cleanLocal ? `v${cleanLocal}` : "unknown";
 
     const cmp = (a: string, b: string) => {
       const pa = String(a)
@@ -485,6 +485,34 @@ router.get("/version-check", async (_req: Request, res: Response) => {
       }
       return 0;
     };
+
+    const winAsset = latestRelease.assets?.find((a) => a.name.toLowerCase().endsWith(".exe"));
+    const downloadUrl =
+      winAsset?.browser_download_url ||
+      latestRelease.assets?.[0]?.browser_download_url ||
+      latestRelease.html_url ||
+      `https://github.com/IAHispano/Applio-App/releases/tag/${latest}`;
+
+    // Local version could not be determined (e.g. missing package.json).
+    // Never report "behind" with an inflated gap — that is how a fresh
+    // install of the latest release ends up showing
+    // "unknown → vX.Y.Z (N updates behind)". Surface status "unknown" so
+    // the UI stays quiet instead of pushing a bogus update.
+    if (isUnknownLocal) {
+      return res.json({
+        local: "unknown",
+        latest,
+        status: "unknown",
+        versionsBehind: 0,
+        isOutdated: false,
+        isDev,
+        releaseName: latestRelease.name || `Applio ${latest}`,
+        releaseNotes: latestRelease.body || "",
+        publishedAt: latestRelease.published_at || "",
+        htmlUrl: latestRelease.html_url || `https://github.com/IAHispano/Applio-App/releases/tag/${latest}`,
+        downloadUrl,
+      });
+    }
 
     const c = cmp(String(cleanLocal || local), String(cleanLatest || latest));
     const status = c === 0 ? "up-to-date" : c < 0 ? "behind" : "ahead";
@@ -508,15 +536,8 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     // A few updates older (e.g. >= 2 versions behind) means outdated -> requires auto-update for security
     const isOutdated = status === "behind" && versionsBehind >= 2;
 
-    const winAsset = latestRelease.assets?.find((a) => a.name.toLowerCase().endsWith(".exe"));
-    const downloadUrl =
-      winAsset?.browser_download_url ||
-      latestRelease.assets?.[0]?.browser_download_url ||
-      latestRelease.html_url ||
-      `https://github.com/IAHispano/Applio-App/releases/tag/${latest}`;
-
     res.json({
-      local: cleanLocal ? `v${cleanLocal}` : local,
+      local: normalizedLocal,
       latest,
       status,
       versionsBehind,

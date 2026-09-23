@@ -10,6 +10,64 @@ export function getRepoRoot(): string {
   return path.resolve(__dirname, "..", "..", "..");
 }
 
+// Read-only code dir in the packaged app (resources/app). main.ts exports it
+// as APPLIO_CODE_ROOT while APPLIO_ROOT points at the writable user data dir.
+// In dev there is no such var and the code root is the repo root.
+export function getCodeRoot(): string {
+  const code = process.env.APPLIO_CODE_ROOT;
+  if (code && fs.existsSync(code)) {
+    return path.resolve(code);
+  }
+  return getRepoRoot();
+}
+
+// Single source of truth for the installed app version. Tries the code root
+// first (packaged app), then the repo/data root (dev), then the bundled
+// sub-packages, then config_template.json (kept in sync by sync-version.mjs).
+// Never reads the mutable assets/config.json "version" field — user values
+// override the template merge there so it goes stale and must not drive
+// update comparisons.
+export function getAppVersion(): string {
+  const codeRoot = getCodeRoot();
+  const repoRoot = getRepoRoot();
+  const candidates = [
+    path.join(codeRoot, "package.json"),
+    path.join(repoRoot, "package.json"),
+    path.join(codeRoot, "app", "desktop", "package.json"),
+    path.join(repoRoot, "app", "desktop", "package.json"),
+    path.join(codeRoot, "app", "api", "package.json"),
+    path.join(repoRoot, "app", "api", "package.json"),
+  ];
+  for (const f of candidates) {
+    try {
+      if (!fs.existsSync(f)) continue;
+      const pkg = JSON.parse(fs.readFileSync(f, "utf-8")) as { version?: unknown };
+      if (typeof pkg.version === "string" && pkg.version.trim()) {
+        const v = pkg.version.trim();
+        if (v.toLowerCase() === "unknown") continue;
+        return v;
+      }
+    } catch {
+      /* try next candidate */
+    }
+  }
+  for (const base of [codeRoot, repoRoot]) {
+    try {
+      const f = path.join(base, "assets", "config_template.json");
+      if (!fs.existsSync(f)) continue;
+      const cfg = JSON.parse(fs.readFileSync(f, "utf-8")) as { version?: unknown };
+      if (typeof cfg.version === "string" && cfg.version.trim()) {
+        const v = cfg.version.trim();
+        if (v.toLowerCase() === "unknown") continue;
+        return v;
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return "unknown";
+}
+
 // Inspects pyvenv.cfg without spawning a process.
 export function resolveBasePythonFromCfg(venvDir: string): string | null {
   try {
