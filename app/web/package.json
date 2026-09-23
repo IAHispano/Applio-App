@@ -1,6 +1,6 @@
 {
   "name": "@applio/web",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "private": true,
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "scripts": {
