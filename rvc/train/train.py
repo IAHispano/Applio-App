@@ -64,7 +64,6 @@ cache_data_in_gpu = _strtobool(sys.argv[11])
 cleanup = _strtobool(sys.argv[12])
 vocoder = sys.argv[13]
 checkpointing = _strtobool(sys.argv[14])
-# experimental settings
 randomized = True
 d_lr_coeff = 1.0
 g_lr_coeff = 1.0
