@@ -35,12 +35,10 @@
 </p>
 
 <p align="center">
-  <a href="assets/demo.mp4">
-    <img src="assets/demo-thumbnail.png" alt="Applio App Showcase Video" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
-  </a>
+  <img src="assets/demo.gif" alt="Applio App Showcase" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
 </p>
 <p align="center">
-  <em>🎬 Click the preview above to watch the full 1080p showcase walkthrough (<a href="assets/demo.mp4">MP4</a> • <a href="assets/demo.webm">WebM</a>)</em>
+  <em>🎬 Applio Studio walkthrough showcase (<a href="assets/demo.mp4?raw=true">Watch MP4</a> • <a href="assets/demo.webm?raw=true">WebM</a>)</em>
 </p>
 
 ## Introduction
