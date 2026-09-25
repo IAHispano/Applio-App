@@ -465,7 +465,7 @@ async function waitFor(
   return false;
 }
 
-function getSplashHtml(version: string): string {
+function getSplashHtml(_version: string): string {
   const html = `<!doctype html>
 <html>
 <head>

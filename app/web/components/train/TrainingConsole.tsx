@@ -10,26 +10,19 @@ import {
   Clock,
   Copy,
   Cpu,
-  Download,
-  Flame,
   Layers,
   Loader2,
-  Pause,
-  Play,
-  RotateCcw,
   Save,
   Search,
-  Sparkles,
   StopCircle,
   Terminal,
-  Zap,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
-import { errMsg, type Job, stopJob } from "@/lib/api";
+import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs, useJob } from "@/lib/useJob";
@@ -90,7 +83,7 @@ export default function TrainingConsole({
       setElapsedSeconds((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [job?.status]);
+  }, [job?.status, job]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 

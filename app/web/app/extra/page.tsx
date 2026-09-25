@@ -1,15 +1,24 @@
 "use client";
 
 import { Activity, AudioWaveform, FolderUp, LineChart } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
-import F0CurveExtractor from "@/components/extra/F0CurveExtractor";
-import NativeAnalyzer from "@/components/extra/NativeAnalyzer";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button, Card, CardHeader, CustomSelect } from "@/components/ui";
 import { errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
+
+const NativeAnalyzer = dynamic(() => import("@/components/extra/NativeAnalyzer"), {
+  ssr: false,
+  loading: () => <div className="p-8 text-center text-xs text-neutral-500">Loading audio analyzer…</div>,
+});
+
+const F0CurveExtractor = dynamic(() => import("@/components/extra/F0CurveExtractor"), {
+  ssr: false,
+  loading: () => <div className="p-8 text-center text-xs text-neutral-500">Loading F0 extractor…</div>,
+});
 
 export default function ExtraPage() {
   const { t } = useI18n();
@@ -220,7 +229,11 @@ function UploadBox({
         <Button variant="ghost" onClick={send}>
           {t("Upload")}
         </Button>
-        <span className="text-xs text-neutral-300">{msg}</span>
+        {msg && (
+          <span className="text-xs text-neutral-300" role="status" aria-live="polite">
+            {msg}
+          </span>
+        )}
       </div>
     </div>
   );

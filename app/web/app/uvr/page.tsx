@@ -604,7 +604,14 @@ export default function UvrPage() {
                   <Badge variant={/vocals/i.test(s.label) ? "success" : "neutral"} dot>
                     {s.label}
                   </Badge>
-                  <Button href={s.url} download variant="ghost" size="xs" icon={<Download size={13} />}>
+                  <Button
+                    href={s.url}
+                    download
+                    variant="ghost"
+                    size="xs"
+                    icon={<Download size={13} />}
+                    aria-label={`${t("Download")} ${s.label}`}
+                  >
                     {t("Download")}
                   </Button>
                 </div>

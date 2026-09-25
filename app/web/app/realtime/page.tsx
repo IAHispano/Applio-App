@@ -4,7 +4,6 @@ import { ChevronDown, Disc, Gauge, ListMusic, Play, Radio, Square, Wand2 } from 
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -167,12 +166,18 @@ export default function RealtimePage() {
       .catch(() => {});
   }
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
+  const configDebounceRef = useRef<Record<string, NodeJS.Timeout>>({});
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch and unmount cleanup
   useEffect(() => {
     refreshEngine();
     loadModels();
     const t = setInterval(refreshEngine, 5000);
-    return () => clearInterval(t);
+    return () => {
+      clearInterval(t);
+      stopStream(true);
+      for (const timer of Object.values(configDebounceRef.current)) clearTimeout(timer);
+    };
   }, []);
 
   function handleModelSelect(selected: string, idxList = indexes) {
@@ -242,12 +247,21 @@ export default function RealtimePage() {
         },
       });
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
-      await ctx.audioWorklet.addModule(
-        URL.createObjectURL(new Blob([INPUT_WORKLET], { type: "application/javascript" })),
-      );
-      await ctx.audioWorklet.addModule(
-        URL.createObjectURL(new Blob([PLAYBACK_WORKLET], { type: "application/javascript" })),
-      );
+      const inputBlob = new Blob([INPUT_WORKLET], { type: "application/javascript" });
+      const inputBlobUrl = URL.createObjectURL(inputBlob);
+      try {
+        await ctx.audioWorklet.addModule(inputBlobUrl);
+      } finally {
+        URL.revokeObjectURL(inputBlobUrl);
+      }
+
+      const playbackBlob = new Blob([PLAYBACK_WORKLET], { type: "application/javascript" });
+      const playbackBlobUrl = URL.createObjectURL(playbackBlob);
+      try {
+        await ctx.audioWorklet.addModule(playbackBlobUrl);
+      } finally {
+        URL.revokeObjectURL(playbackBlobUrl);
+      }
       const src = ctx.createMediaStreamSource(stream);
       const inNode = new AudioWorkletNode(ctx, "input-processor");
       inNode.port.postMessage({ block_frame: block });
@@ -388,6 +402,17 @@ export default function RealtimePage() {
       setMsg(errMsg(e));
     }
   }
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: debounced config wrapper
+  const changeConfigDebounced = useCallback(
+    (key: string, value: number | string | boolean, ifKwargs = false) => {
+      if (configDebounceRef.current[key]) clearTimeout(configDebounceRef.current[key]);
+      configDebounceRef.current[key] = setTimeout(() => {
+        changeConfig(key, value, ifKwargs);
+      }, 100);
+    },
+    [],
+  );
 
   async function toggleRecord() {
     setMsg("");
@@ -548,7 +573,7 @@ export default function RealtimePage() {
               unit="st"
               onChange={(v) => {
                 setPitch(v);
-                if (streaming) changeConfig("f0_up_key", v);
+                if (streaming) changeConfigDebounced("f0_up_key", v);
               }}
             />
           </div>
@@ -562,7 +587,7 @@ export default function RealtimePage() {
               step={0.05}
               onChange={(v) => {
                 setIndexRate(v);
-                if (streaming) changeConfig("index_rate", v);
+                if (streaming) changeConfigDebounced("index_rate", v);
               }}
             />
           </div>
@@ -576,7 +601,7 @@ export default function RealtimePage() {
               step={0.01}
               onChange={(v) => {
                 setProtect(v);
-                if (streaming) changeConfig("protect", v);
+                if (streaming) changeConfigDebounced("protect", v);
               }}
             />
           </div>
@@ -590,7 +615,7 @@ export default function RealtimePage() {
               step={0.05}
               onChange={(v) => {
                 setVolumeEnvelope(v);
-                if (streaming) changeConfig("volume_envelope", v);
+                if (streaming) changeConfigDebounced("volume_envelope", v);
               }}
             />
           </div>
@@ -690,7 +715,7 @@ export default function RealtimePage() {
                 step={0.05}
                 onChange={(v) => {
                   setAutotuneStrength(v);
-                  if (streaming) changeConfig("autotune_strength", v);
+                  if (streaming) changeConfigDebounced("autotune_strength", v);
                 }}
               />
             </div>
@@ -705,7 +730,7 @@ export default function RealtimePage() {
                 unit="Hz"
                 onChange={(v) => {
                   setProposedPitchThreshold(v);
-                  if (streaming) changeConfig("proposed_pitch_threshold", v);
+                  if (streaming) changeConfigDebounced("proposed_pitch_threshold", v);
                 }}
               />
             </div>
@@ -719,7 +744,7 @@ export default function RealtimePage() {
                 step={0.05}
                 onChange={(v) => {
                   setCleanStrength(v);
-                  if (streaming) changeConfig("clean_strength", v);
+                  if (streaming) changeConfigDebounced("clean_strength", v);
                 }}
               />
             </div>
@@ -750,7 +775,7 @@ export default function RealtimePage() {
                 unit="s"
                 onChange={(v) => {
                   setCrossfade(v);
-                  if (streaming) changeConfig("cross_fade_overlap_size", v);
+                  if (streaming) changeConfigDebounced("cross_fade_overlap_size", v);
                 }}
               />
             </div>
@@ -765,7 +790,7 @@ export default function RealtimePage() {
                 unit="s"
                 onChange={(v) => {
                   setExtraSize(v);
-                  if (streaming) changeConfig("extra_convert_size", v);
+                  if (streaming) changeConfigDebounced("extra_convert_size", v);
                 }}
               />
             </div>
@@ -780,7 +805,7 @@ export default function RealtimePage() {
                 unit="dB"
                 onChange={(v) => {
                   setSilent(v);
-                  if (streaming) changeConfig("silent_threshold", v);
+                  if (streaming) changeConfigDebounced("silent_threshold", v);
                 }}
               />
             </div>

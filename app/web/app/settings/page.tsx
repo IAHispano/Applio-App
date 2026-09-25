@@ -516,7 +516,10 @@ export default function SettingsPage() {
           )}
         />
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3">
+        <fieldset
+          aria-label={t("Theme selection")}
+          className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-3 border-0 p-0 m-0"
+        >
           {allThemes.map((opt) => {
             const isSelected = selectedThemeFile === opt.id;
             return (
@@ -583,7 +586,7 @@ export default function SettingsPage() {
               </button>
             );
           })}
-        </div>
+        </fieldset>
 
         <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-4 border-t border-white/5">
           <div className="space-y-1.5">

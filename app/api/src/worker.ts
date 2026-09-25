@@ -62,7 +62,12 @@ export class InferenceWorkerManager {
     this.isReady = false;
     this.warmedUp = false;
 
-    const rlOut = readline.createInterface({ input: child.stdout! });
+    if (!child.stdout || !child.stderr) {
+      this.child = null;
+      return;
+    }
+
+    const rlOut = readline.createInterface({ input: child.stdout });
     rlOut.on("line", (line) => {
       const trimmed = line.trim();
       if (!trimmed) return;
@@ -78,7 +83,7 @@ export class InferenceWorkerManager {
       }
     });
 
-    const rlErr = readline.createInterface({ input: child.stderr! });
+    const rlErr = readline.createInterface({ input: child.stderr });
     rlErr.on("line", (line) => {
       const trimmed = line.trim();
       if (!trimmed) return;
@@ -165,7 +170,7 @@ export class InferenceWorkerManager {
     if (this.warmedUp || this.activeJob || this.queue.length > 0 || !this.child) return;
     this.warmedUp = true;
     try {
-      this.child.stdin!.write(`${JSON.stringify({ command: "warmup" })}\n`);
+      this.child.stdin?.write(`${JSON.stringify({ command: "warmup" })}\n`);
     } catch {
       this.warmedUp = false;
     }
@@ -194,7 +199,8 @@ export class InferenceWorkerManager {
 
   private processNext() {
     if (this.activeJob || this.queue.length === 0 || !this.isReady || !this.child) return;
-    const req = this.queue.shift()!;
+    const req = this.queue.shift();
+    if (!req) return;
     this.activeJob = req;
     const payload = {
       command: "infer",
@@ -204,7 +210,7 @@ export class InferenceWorkerManager {
       params: req.params,
     };
     try {
-      this.child.stdin!.write(JSON.stringify(payload) + "\n");
+      this.child.stdin?.write(`${JSON.stringify(payload)}\n`);
     } catch (err: unknown) {
       this.activeJob = null;
       req.reject(err instanceof Error ? err : new Error(String(err)));

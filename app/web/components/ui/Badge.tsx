@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { memo } from "react";
 
 export type BadgeVariant = "neutral" | "success" | "warning" | "danger" | "info" | "outline";
 
@@ -44,7 +45,7 @@ const variantStyles: Record<BadgeVariant, { badge: string; dot: string }> = {
   },
 };
 
-export default function Badge({
+function BadgeInner({
   variant = "neutral",
   size = "sm",
   dot = false,
@@ -65,3 +66,6 @@ export default function Badge({
     </span>
   );
 }
+
+const Badge = memo(BadgeInner);
+export default Badge;

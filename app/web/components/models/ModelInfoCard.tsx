@@ -1,19 +1,6 @@
 "use client";
 
-import {
-  ArrowRight,
-  Calendar,
-  Check,
-  Copy,
-  Cpu,
-  FileCheck,
-  Hash,
-  Layers,
-  Music,
-  Sliders,
-  Sparkles,
-  User,
-} from "lucide-react";
+import { ArrowRight, Calendar, Check, Copy, FileCheck, Hash, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Alert, Badge, Button, StatTile } from "@/components/ui";

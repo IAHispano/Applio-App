@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Music, RotateCcw, Sliders, Volume2, Wand2 } from "lucide-react";
+import { FileText, Music, RotateCcw, Sliders, Wand2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import {
@@ -532,12 +532,19 @@ export default function TtsForm() {
             <div
               className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200"
               role="status"
+              aria-live="polite"
             >
               <div className="flex items-center justify-between text-xs text-neutral-300">
                 <span className="font-medium">{t("Synthesizing speech & converting timbre…")}</span>
                 <span className="text-neutral-400 capitalize">{job.status}</span>
               </div>
-              <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+              <div
+                className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={t("Synthesizing speech & converting timbre…")}
+              >
                 <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
               </div>
             </div>
@@ -548,7 +555,7 @@ export default function TtsForm() {
           )}
 
           {/* Synthesized Output Waveform Player */}
-          {job && job.outputFile && job.status === "done" && (
+          {job?.outputFile && job.status === "done" && (
             <div className="space-y-2 pt-2 border-t border-white/5 animate-in fade-in duration-200">
               <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
                 <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>

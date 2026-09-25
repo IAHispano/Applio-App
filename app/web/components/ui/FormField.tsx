@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { memo, useId } from "react";
 
 export interface FormFieldProps {
   /** Form field label */
@@ -21,9 +22,9 @@ export interface FormFieldProps {
   className?: string;
 }
 
-export default function FormField({
+function FormFieldInner({
   label,
-  htmlFor,
+  htmlFor: customHtmlFor,
   description,
   error,
   required = false,
@@ -31,6 +32,11 @@ export default function FormField({
   children,
   className = "",
 }: FormFieldProps) {
+  const autoId = useId();
+  const htmlFor = customHtmlFor || `field-${autoId}`;
+  const descId = description ? `${htmlFor}-desc` : undefined;
+  const errorId = error ? `${htmlFor}-error` : undefined;
+
   return (
     <div className={`space-y-1.5 ${className}`}>
       {label && (
@@ -44,13 +50,18 @@ export default function FormField({
       )}
       <div>{children}</div>
       {description && !error && (
-        <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">{description}</p>
+        <p id={descId} className="text-[11px] text-neutral-500 m-0 leading-relaxed">
+          {description}
+        </p>
       )}
       {error && (
-        <p className="text-[11px] text-red-400 font-medium m-0 leading-relaxed" role="alert">
+        <p id={errorId} className="text-[11px] text-red-400 font-medium m-0 leading-relaxed" role="alert">
           {error}
         </p>
       )}
     </div>
   );
 }
+
+const FormField = memo(FormFieldInner);
+export default FormField;

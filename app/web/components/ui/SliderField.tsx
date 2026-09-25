@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useEffect, useId, useState } from "react";
+import { memo, useEffect, useId, useState } from "react";
 
-interface SliderFieldProps {
+export interface SliderFieldProps {
   id?: string;
   label: string;
   value: number;
@@ -19,7 +19,7 @@ interface SliderFieldProps {
   className?: string;
 }
 
-export default function SliderField({
+function SliderFieldInner({
   id: customId,
   label,
   value,
@@ -127,7 +127,8 @@ export default function SliderField({
             <input
               type="text"
               inputMode="decimal"
-              aria-label={`${label} value`}
+              aria-label={`${label} numeric value`}
+              aria-describedby={description ? descId : undefined}
               value={inputText}
               disabled={disabled}
               onFocus={() => setIsFocused(true)}
@@ -153,6 +154,7 @@ export default function SliderField({
           onClick={handleDecrement}
           disabled={disabled || value <= min}
           aria-label={`Decrease ${label}`}
+          aria-controls={id}
           className="slider-step-btn"
           style={{
             width: 28,
@@ -234,6 +236,7 @@ export default function SliderField({
           onClick={handleIncrement}
           disabled={disabled || value >= max}
           aria-label={`Increase ${label}`}
+          aria-controls={id}
           className="slider-step-btn"
           style={{
             width: 28,
@@ -291,3 +294,22 @@ export default function SliderField({
     </div>
   );
 }
+
+function areSliderPropsEqual(prev: SliderFieldProps, next: SliderFieldProps) {
+  return (
+    prev.id === next.id &&
+    prev.value === next.value &&
+    prev.min === next.min &&
+    prev.max === next.max &&
+    prev.step === next.step &&
+    prev.unit === next.unit &&
+    prev.label === next.label &&
+    prev.disabled === next.disabled &&
+    prev.description === next.description &&
+    prev.defaultValueText === next.defaultValueText &&
+    prev.className === next.className
+  );
+}
+
+const SliderField = memo(SliderFieldInner, areSliderPropsEqual);
+export default SliderField;

@@ -35,7 +35,7 @@ export function CinematicSplash({
     }
     window.addEventListener("resize", updateWidth);
     return () => window.removeEventListener("resize", updateWidth);
-  }, [title]);
+  }, []);
 
   React.useEffect(() => {
     if (typeof progress === "number") {
@@ -71,6 +71,7 @@ export function CinematicSplash({
       >
         {/* Background Lines SVG - Inset, centered, with soft edge fade */}
         <svg
+          aria-hidden="true"
           viewBox="0 0 1373 777"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"

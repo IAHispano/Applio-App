@@ -1001,12 +1001,19 @@ export default function BatchForm() {
           <div
             className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3 animate-in fade-in duration-200"
             role="status"
+            aria-live="polite"
           >
             <div className="flex items-center justify-between text-xs text-neutral-300">
               <span className="font-medium">{t("Batch Conversion in Progress…")}</span>
               <span className="text-neutral-400 capitalize">{job.status}</span>
             </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t("Batch Conversion in Progress…")}
+            >
               <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-neutral-400 pt-1 break-all">

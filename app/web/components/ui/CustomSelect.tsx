@@ -224,12 +224,12 @@ export default function CustomSelect({
     setHighlightedIndex(curIdx >= 0 ? curIdx : 0);
   };
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setOpen(false);
     setSearch("");
     setHighlightedIndex(-1);
     triggerRef.current?.focus();
-  };
+  }, []);
 
   // Selection handler
   const handleSelect = (val: string) => {
@@ -272,7 +272,7 @@ export default function CustomSelect({
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
     };
-  }, [open, updatePosition]);
+  }, [open, updatePosition, handleClose]);
 
   // Focus search input when opened
   useEffect(() => {
@@ -470,7 +470,7 @@ export default function CustomSelect({
 
                   return (
                     <button
-                      key={`${opt.value}-${idx}`}
+                      key={`${opt.value}-${opt.label}`}
                       type="button"
                       role="option"
                       aria-selected={isSelected}

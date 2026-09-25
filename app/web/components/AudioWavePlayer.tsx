@@ -15,7 +15,8 @@ import {
   VolumeX,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Hover from "wavesurfer.js/plugins/hover";
 import { useI18n } from "@/lib/i18n";
@@ -40,7 +41,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s < 10 ? "0" : ""}${s}`;
 }
 
-export default function AudioWavePlayer({
+function AudioWavePlayerInner({
   src,
   file,
   originalSrc,
@@ -201,7 +202,7 @@ export default function AudioWavePlayer({
   }, [activeSrc, file, activeTrack, compact]);
 
   // Play / Pause toggle
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     const ws = wavesurferRef.current;
     if (!ws) return;
     if (isPlaying) {
@@ -211,7 +212,7 @@ export default function AudioWavePlayer({
         console.warn("Audio playback error:", err);
       });
     }
-  };
+  }, [isPlaying]);
 
   // Restart playback from start
   const handleRestart = () => {
@@ -238,6 +239,38 @@ export default function AudioWavePlayer({
       wavesurferRef.current.setPlaybackRate(nextRate);
     }
   };
+
+  const handleScrubberKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      const ws = wavesurferRef.current;
+      if (!ws || duration <= 0) return;
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 5;
+        const target = Math.max(0, currentTime - step);
+        ws.setTime(target);
+        setCurrentTime(target);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 5;
+        const target = Math.min(duration, currentTime + step);
+        ws.setTime(target);
+        setCurrentTime(target);
+      } else if (e.key === " " || e.key === "k" || e.key === "K") {
+        e.preventDefault();
+        handlePlayPause();
+      } else if (e.key === "Home") {
+        e.preventDefault();
+        ws.setTime(0);
+        setCurrentTime(0);
+      } else if (e.key === "End") {
+        e.preventDefault();
+        ws.setTime(duration);
+        setCurrentTime(duration);
+      }
+    },
+    [duration, currentTime, handlePlayPause],
+  );
 
   // Switch A/B track while keeping playback position
   const handleTrackSwitch = (track: "converted" | "original") => {
@@ -351,7 +384,18 @@ export default function AudioWavePlayer({
 
       {/* Real Waveform Container (WaveSurfer) */}
       <div className="relative w-full rounded-xl bg-black/50 border border-white/10 overflow-hidden px-2 py-1 select-none">
-        <div ref={containerRef} className="w-full cursor-pointer min-h-[40px]" />
+        <div
+          ref={containerRef}
+          role="slider"
+          aria-label={t("Audio scrubber")}
+          aria-valuemin={0}
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(currentTime)}
+          aria-valuetext={`${formatTime(currentTime)} of ${formatTime(duration)}`}
+          tabIndex={isReady ? 0 : -1}
+          onKeyDown={handleScrubberKeyDown}
+          className="w-full cursor-pointer min-h-[40px] focus:outline-none focus-visible:ring-1 focus-visible:ring-white/40 rounded-lg"
+        />
 
         {/* Loading Spinner / Skeleton */}
         {!isReady && !error && (
@@ -517,6 +561,10 @@ export default function AudioWavePlayer({
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               aria-label={t("Volume")}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
+              aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
               className="w-20 h-1.5 bg-white/15 rounded-full accent-white cursor-pointer hover:bg-white/25 transition-colors"
             />
           </div>
@@ -550,3 +598,6 @@ export default function AudioWavePlayer({
     </section>
   );
 }
+
+const AudioWavePlayer = memo(AudioWavePlayerInner);
+export default AudioWavePlayer;

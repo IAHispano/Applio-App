@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { resolveAudioUrl } from "@/lib/api";
 
 // Object-URL helper with automatic revoke.
 export function usePreviewUrl(file: File | Blob | null, fallbackPath?: string): string | null {
@@ -18,7 +19,7 @@ export function usePreviewUrl(file: File | Blob | null, fallbackPath?: string): 
 
   return useMemo(() => {
     if (objectUrl) return objectUrl;
-    if (fallbackPath) return `/${fallbackPath.replace(/^[\\/]+/, "").replace(/\\/g, "/")}`;
+    if (fallbackPath) return resolveAudioUrl(fallbackPath);
     return null;
   }, [objectUrl, fallbackPath]);
 }

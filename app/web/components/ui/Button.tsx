@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { forwardRef } from "react";
+import { forwardRef, memo } from "react";
 
 export type ButtonVariant = "primary" | "ghost" | "danger";
 export type ButtonSize = "xs" | "sm" | "md" | "lg";
@@ -83,12 +83,24 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const content = (
       <>
         {loading ? (
-          <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0" />
+          <>
+            <span
+              className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0"
+              aria-hidden="true"
+            />
+            <span className="sr-only">Loading...</span>
+          </>
         ) : icon ? (
-          <span className="shrink-0 flex items-center">{icon}</span>
+          <span className="shrink-0 flex items-center" aria-hidden="true">
+            {icon}
+          </span>
         ) : null}
         {children && <span className="truncate min-w-0">{children}</span>}
-        {iconAfter && <span className="shrink-0 flex items-center">{iconAfter}</span>}
+        {iconAfter && (
+          <span className="shrink-0 flex items-center" aria-hidden="true">
+            {iconAfter}
+          </span>
+        )}
       </>
     );
 
@@ -101,6 +113,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           target={target}
           rel={rel ?? (target === "_blank" ? "noreferrer" : undefined)}
           aria-disabled={isDisabled || undefined}
+          aria-busy={loading || undefined}
           onClick={isDisabled ? (e) => e.preventDefault() : onClick}
           className={classes}
         >
@@ -110,7 +123,15 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     }
 
     return (
-      <button ref={ref} type={type} disabled={isDisabled} onClick={onClick} className={classes} {...rest}>
+      <button
+        ref={ref}
+        type={type}
+        disabled={isDisabled}
+        aria-busy={loading || undefined}
+        onClick={onClick}
+        className={classes}
+        {...rest}
+      >
         {content}
       </button>
     );
@@ -119,4 +140,5 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
 
 Button.displayName = "Button";
 
-export default Button;
+const MemoizedButton = memo(Button) as typeof Button;
+export default MemoizedButton;

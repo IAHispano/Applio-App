@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { memo } from "react";
 
 export interface CardHeaderProps {
   /** Optional icon displayed before the title */
@@ -19,7 +20,7 @@ export interface CardHeaderProps {
   className?: string;
 }
 
-export function CardHeader({
+function CardHeaderInner({
   icon,
   title,
   description,
@@ -33,14 +34,21 @@ export function CardHeader({
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0">
           {step !== undefined && (
-            <span
-              className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center shrink-0"
-              aria-hidden="true"
-            >
-              {step}
+            <>
+              <span className="sr-only">Step {step}: </span>
+              <span
+                className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center shrink-0"
+                aria-hidden="true"
+              >
+                {step}
+              </span>
+            </>
+          )}
+          {icon && (
+            <span className="text-white shrink-0 flex items-center" aria-hidden="true">
+              {icon}
             </span>
           )}
-          {icon && <span className="text-white shrink-0 flex items-center">{icon}</span>}
           {typeof title === "string" ? (
             <h2 className="text-base font-bold text-white m-0 truncate">{title}</h2>
           ) : (
@@ -54,13 +62,15 @@ export function CardHeader({
   );
 }
 
+export const CardHeader = memo(CardHeaderInner);
+
 export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
   as?: "div" | "section" | "article";
   children: React.ReactNode;
   className?: string;
 }
 
-export function Card({ as: Component = "div", children, className = "", ...props }: CardProps) {
+function CardInner({ as: Component = "div", children, className = "", ...props }: CardProps) {
   return (
     <Component className={`card space-y-4 ${className}`} {...props}>
       {children}
@@ -68,4 +78,5 @@ export function Card({ as: Component = "div", children, className = "", ...props
   );
 }
 
+export const Card = memo(CardInner);
 export default Card;

@@ -22,7 +22,8 @@
     "enabled": true,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineWidth": 110
+    "lineWidth": 110,
+    "lineEnding": "crlf"
   },
   "linter": {
     "enabled": true,
@@ -30,6 +31,12 @@
       "preset": "recommended",
       "a11y": {
         "noLabelWithoutControl": "off"
+      },
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+      "style": {
+        "noDescendingSpecificity": "off"
       }
     }
   },

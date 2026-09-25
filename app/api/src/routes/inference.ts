@@ -117,7 +117,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
         const trimmed = chunk.trim().slice(0, 1000);
         if (trimmed) {
           appendLog(job, trimmed);
-          runStdout += trimmed + "\n";
+          runStdout += `${trimmed}\n`;
           trackProgress(trimmed);
         }
       });
@@ -131,7 +131,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
           const trimmed = chunk.trim().slice(0, 1000);
           if (trimmed) {
             appendLog(job, trimmed);
-            runStdout += trimmed + "\n";
+            runStdout += `${trimmed}\n`;
             trackProgress(trimmed);
           }
         },

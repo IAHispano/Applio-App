@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import type React from "react";
+import { memo } from "react";
 
 export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   /** Icon element to render inside the button */
@@ -16,7 +17,7 @@ export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonEl
   loading?: boolean;
 }
 
-export default function IconButton({
+function IconButtonInner({
   icon,
   label,
   variant = "ghost",
@@ -40,13 +41,21 @@ export default function IconButton({
     <button
       type={type}
       disabled={disabled || loading}
+      aria-busy={loading || undefined}
       title={label}
       aria-label={label}
       className={`icon-btn rounded-lg ${variantClass} ${sizeClass} ${className}`}
       style={{ padding: 0 }}
       {...props}
     >
-      {loading ? <Loader2 size={size === "md" ? 16 : 14} className="animate-spin shrink-0" /> : icon}
+      {loading ? (
+        <Loader2 size={size === "md" ? 16 : 14} className="animate-spin shrink-0" aria-hidden="true" />
+      ) : (
+        icon
+      )}
     </button>
   );
 }
+
+const IconButton = memo(IconButtonInner);
+export default IconButton;

@@ -2,6 +2,7 @@
 
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import type React from "react";
+import { memo } from "react";
 
 export type AlertVariant = "error" | "warning" | "info" | "success";
 
@@ -50,19 +51,13 @@ const variantStyles: Record<
   },
 };
 
-export default function Alert({
-  variant = "error",
-  title,
-  children,
-  icon,
-  onDismiss,
-  className = "",
-}: AlertProps) {
+function AlertInner({ variant = "error", title, children, icon, onDismiss, className = "" }: AlertProps) {
   const styles = variantStyles[variant];
 
   return (
     <div
       role="alert"
+      aria-live={variant === "error" ? "assertive" : "polite"}
       className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 animate-in fade-in duration-200 ${styles.container} ${className}`}
     >
       <span className={`${styles.iconColor} shrink-0 mt-0.5`}>{icon ?? styles.defaultIcon}</span>
@@ -83,3 +78,6 @@ export default function Alert({
     </div>
   );
 }
+
+const Alert = memo(AlertInner);
+export default Alert;

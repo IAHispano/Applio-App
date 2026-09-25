@@ -34,6 +34,14 @@
   <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio_NoUI.ipynb" target="_blank">💻 Colab (No UI)</a>
 </p>
 
+<p align="center">
+  <a href="assets/demo.mp4">
+    <img src="assets/demo-thumbnail.png" alt="Applio App Showcase Video" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
+  </a>
+</p>
+<p align="center">
+  <em>🎬 Click the preview above to watch the full 1080p showcase walkthrough (<a href="assets/demo.mp4">MP4</a> • <a href="assets/demo.webm">WebM</a>)</em>
+</p>
 
 ## Introduction
 

@@ -468,7 +468,7 @@ router.post("/train", (req: Request, res: Response) => {
       dPretrainedPath: z.string().optional(),
       cleanup: z.coerce.boolean().default(false),
       cacheDataInGpu: z.coerce.boolean().default(false),
-      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans"]).default("Auto"),
+      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans", "Skip"]).default("Auto"),
     })
     .safeParse(req.body);
   if (!parsed.success)
@@ -514,7 +514,7 @@ router.post("/index", (req: Request, res: Response) => {
   const parsed = z
     .object({
       modelName,
-      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans"]).default("Auto"),
+      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans", "Skip"]).default("Auto"),
     })
     .safeParse(req.body);
   if (!parsed.success)
@@ -572,7 +572,7 @@ router.post("/pipeline", (req: Request, res: Response) => {
       cacheDataInGpu: z.coerce.boolean().default(false),
       checkpointing: z.coerce.boolean().default(false),
       gpu: z.string().default("0"),
-      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans"]).default("Auto"),
+      indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans", "Skip"]).default("Auto"),
     })
     .safeParse(req.body);
 

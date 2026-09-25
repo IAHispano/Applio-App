@@ -60,21 +60,25 @@ export function RadioGroup({
 
           if (variant === "pills") {
             return (
-              <button
+              <label
                 key={item.value}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                disabled={isDisabled}
-                onClick={() => !isDisabled && onChange(item.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none border shrink-0 ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all select-none border shrink-0 inline-flex items-center justify-center ${
                   isSelected
                     ? "bg-white text-black border-white shadow-sm font-semibold"
                     : "bg-white/5 text-neutral-300 border-white/10 hover:bg-white/10 hover:text-white"
                 } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
               >
-                {item.label || item.value}
-              </button>
+                <input
+                  type="radio"
+                  name={groupName}
+                  value={item.value}
+                  checked={isSelected}
+                  disabled={isDisabled}
+                  onChange={() => !isDisabled && onChange(item.value)}
+                  className="sr-only"
+                />
+                <span>{item.label || item.value}</span>
+              </label>
             );
           }
 

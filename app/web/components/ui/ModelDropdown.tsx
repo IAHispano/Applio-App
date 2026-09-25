@@ -122,9 +122,9 @@ export default function ModelDropdown({
   // Reset highlight whenever the menu opens or the list changes.
   useEffect(() => {
     if (!open) return;
-    const selected = filteredModels.findIndex((m) => m === selectedModel);
+    const selected = filteredModels.indexOf(selectedModel);
     setHighlighted(selected >= 0 ? selected : filteredModels.length > 0 ? 0 : -1);
-  }, [open, search, selectedModel, filteredModels]);
+  }, [open, selectedModel, filteredModels]);
 
   // Keep the highlighted option visible while navigating.
   useEffect(() => {
@@ -216,6 +216,7 @@ export default function ModelDropdown({
               borderRadius: "var(--radius-card)",
             }}
             className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
+            tabIndex={0}
           >
             <div
               className="px-3.5 py-2 flex items-center gap-2 shrink-0"

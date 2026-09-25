@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Loader2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
 import { Button, StatTile } from "@/components/ui";
@@ -96,56 +96,12 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   const viewRef = useRef({ start: 0, end: 0 });
   const isReadyRef = useRef(false);
 
-  function fitPxPerSec(): number {
+  const fitPxPerSec = useCallback((): number => {
     const w = waveRef.current?.clientWidth || 600;
     return Math.max(1, w / Math.max(0.01, durationRef.current || 1));
-  }
+  }, []);
 
-  function applyZoom(mult: number) {
-    const ws = wsRef.current;
-    if (!ws || durationRef.current <= 0) return;
-    zoomMultRef.current = mult;
-    if (zoomBaseRef.current <= 0) zoomBaseRef.current = fitPxPerSec();
-    ws.zoom(Math.max(1, zoomBaseRef.current * mult));
-    setZoomLabel(mult <= 1 ? "Fit" : `${Math.round(mult * 100)}%`);
-    requestAnimationFrame(() => drawRuler());
-  }
-
-  function drawFreqAxis(nyquist: number) {
-    const cv = freqRef.current;
-    if (!cv || typeof window === "undefined" || !(nyquist > 0)) return;
-    const dpr = window.devicePixelRatio || 1;
-    const w = cv.clientWidth;
-    const h = SPEC_HEIGHT;
-    if (w < 10) return;
-    cv.width = Math.round(w * dpr);
-    cv.height = Math.round(h * dpr);
-    const ctx = cv.getContext("2d");
-    if (!ctx) return;
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, w, h);
-    const steps = [1000, 2000, 2500, 5000, 10000, 12000, 20000];
-    const step = steps.find((s) => nyquist / s <= 7) ?? nyquist;
-    ctx.fillStyle = "rgba(255,255,255,0.55)";
-    ctx.strokeStyle = "rgba(255,255,255,0.25)";
-    ctx.lineWidth = 1;
-    ctx.font = "9px ui-monospace, monospace";
-    ctx.textBaseline = "middle";
-    ctx.textAlign = "right";
-    for (let f = 0; f <= nyquist + 1; f += step) {
-      const y = h - (f / nyquist) * h;
-      ctx.beginPath();
-      ctx.moveTo(w - 5, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-      const label = f >= 1000 ? `${Math.round((f / 1000) * 10) / 10}k` : `${Math.round(f)}`;
-      ctx.fillText(f === 0 ? "0" : label, w - 7, Math.min(h - 6, Math.max(6, y)));
-    }
-    ctx.fillStyle = "rgba(255,255,255,0.35)";
-    ctx.fillText("kHz", w - 7, 8);
-  }
-
-  function drawRuler() {
+  const drawRuler = useCallback(() => {
     const cv = rulerRef.current;
     if (!cv || typeof window === "undefined") return;
     const dpr = window.devicePixelRatio || 1;
@@ -178,14 +134,68 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       ctx.stroke();
       if (x < w - 28) ctx.fillText(formatClock(tt), x + 3, 5);
     }
-  }
+  }, []);
 
-  function movePlayhead(time: number) {
+  const applyZoom = useCallback(
+    (mult: number) => {
+      const ws = wsRef.current;
+      if (!ws || durationRef.current <= 0) return;
+      zoomMultRef.current = mult;
+      if (zoomBaseRef.current <= 0) zoomBaseRef.current = fitPxPerSec();
+      ws.zoom(Math.max(1, zoomBaseRef.current * mult));
+      setZoomLabel(mult <= 1 ? "Fit" : `${Math.round(mult * 100)}%`);
+      requestAnimationFrame(() => drawRuler());
+    },
+    [fitPxPerSec, drawRuler],
+  );
+
+  const zoomStep = useCallback(
+    (factor: number) => {
+      applyZoom(Math.min(32, Math.max(1, zoomMultRef.current * factor)));
+    },
+    [applyZoom],
+  );
+
+  const drawFreqAxis = useCallback((nyquist: number) => {
+    const cv = freqRef.current;
+    if (!cv || typeof window === "undefined" || !(nyquist > 0)) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = cv.clientWidth;
+    const h = SPEC_HEIGHT;
+    if (w < 10) return;
+    cv.width = Math.round(w * dpr);
+    cv.height = Math.round(h * dpr);
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+    const steps = [1000, 2000, 2500, 5000, 10000, 12000, 20000];
+    const step = steps.find((s) => nyquist / s <= 7) ?? nyquist;
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 1;
+    ctx.font = "9px ui-monospace, monospace";
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "right";
+    for (let f = 0; f <= nyquist + 1; f += step) {
+      const y = h - (f / nyquist) * h;
+      ctx.beginPath();
+      ctx.moveTo(w - 5, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+      const label = f >= 1000 ? `${Math.round((f / 1000) * 10) / 10}k` : `${Math.round(f)}`;
+      ctx.fillText(f === 0 ? "0" : label, w - 7, Math.min(h - 6, Math.max(6, y)));
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillText("kHz", w - 7, 8);
+  }, []);
+
+  const movePlayhead = useCallback((time: number) => {
     const el = playheadRef.current;
     const dur = durationRef.current;
     if (!el || !(dur > 0)) return;
     el.style.left = `${Math.min(100, Math.max(0, (time / dur) * 100))}%`;
-  }
+  }, []);
 
   useEffect(() => {
     isReadyRef.current = isReady;
@@ -206,7 +216,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
     setIsReady(false);
     setError("");
-    let alive = true;
+    let _alive = true;
     setStats(null);
     setZoomLabel("Fit");
     zoomBaseRef.current = 0;
@@ -312,7 +322,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     }
 
     return () => {
-      alive = false;
+      _alive = false;
       try {
         ws?.destroy();
       } catch {
@@ -322,7 +332,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       if (zoomHost && onWheel) zoomHost.removeEventListener("wheel", onWheel);
     };
-  }, [file, fallbackPath, t]);
+  }, [file, fallbackPath, t, movePlayhead, zoomStep, drawRuler, fitPxPerSec, drawFreqAxis]);
 
   useEffect(() => {
     function onResize() {
@@ -332,11 +342,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     return () => {
       window.removeEventListener("resize", onResize);
     };
-  }, []);
-
-  function zoomStep(factor: number) {
-    applyZoom(Math.min(32, Math.max(1, zoomMultRef.current * factor)));
-  }
+  }, [drawRuler]);
 
   function downloadSpectrogram() {
     const canvases = specRef.current?.querySelectorAll("canvas");
@@ -361,20 +367,26 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     <div className="space-y-4 animate-in fade-in duration-200">
       <div className="flex items-center justify-between">
         <span className="text-xs text-neutral-400 font-medium">{t("Waveform")}</span>
-        <Button
-          variant="ghost"
-          size="xs"
-          onClick={downloadSpectrogram}
-          disabled={!isReady}
-          icon={<Download size={13} />}
-        >
-          {t("Download Plot")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="xs" onClick={() => applyZoom(1)} disabled={!isReady}>
+            {t("Reset Zoom")}
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={downloadSpectrogram}
+            disabled={!isReady}
+            icon={<Download size={13} />}
+          >
+            {t("Download Plot")}
+          </Button>
+        </div>
       </div>
 
-      <div
+      <section
         ref={viewsRef}
-        className="space-y-3"
+        aria-label={t("Audio waveform and spectrogram visualization")}
+        className="space-y-3 rounded-xl"
         onDoubleClick={() => applyZoom(1)}
         title={t("Scroll to zoom • Double-click to reset")}
       >
@@ -406,12 +418,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
             </div>
           </div>
           <div className="flex gap-2">
-            <canvas
-              ref={freqRef}
-              className="block w-11 shrink-0"
-              style={{ height: SPEC_HEIGHT }}
-              aria-hidden="true"
-            />
+            <canvas ref={freqRef} className="block w-11 shrink-0" style={{ height: SPEC_HEIGHT }} />
             <div className="flex-1 min-w-0">
               <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black">
                 <div ref={specRef} className="w-full" />
@@ -444,7 +451,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
             {t("Scroll over the views to zoom • Double-click to reset • Click the spectrogram to seek.")}
           </p>
         </div>
-      </div>
+      </section>
 
       {stats && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">

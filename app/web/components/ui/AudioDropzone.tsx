@@ -1,12 +1,13 @@
 "use client";
 
 import { ChevronDown, Mic, Music, SquarePlay, UploadCloud } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { apiSend, errMsg, resolveAudioUrl } from "@/lib/api";
+import { apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob } from "@/lib/useJob";
+import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import Alert from "./Alert";
 import Button from "./Button";
 
@@ -84,7 +85,7 @@ function formatBytes(bytes: number): string {
   return `${Number.parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
-export default function AudioDropzone({
+function AudioDropzoneInner({
   audioFile,
   inputPath,
   sampleAudios,
@@ -112,24 +113,7 @@ export default function AudioDropzone({
 
   const hasAudio = !!audioFile || !!inputPath;
 
-  const previewSrc = useMemo(() => {
-    if (audioFile) {
-      return URL.createObjectURL(audioFile);
-    }
-    if (inputPath) {
-      return resolveAudioUrl(inputPath);
-    }
-    return "";
-  }, [audioFile, inputPath]);
-
-  // Clean up object URL when file changes or unmounts
-  useEffect(() => {
-    return () => {
-      if (previewSrc?.startsWith("blob:")) {
-        URL.revokeObjectURL(previewSrc);
-      }
-    };
-  }, [previewSrc]);
+  const previewSrc = usePreviewUrl(audioFile, inputPath) || "";
 
   // Cleanup mic recording on unmount
   useEffect(() => {
@@ -377,9 +361,17 @@ export default function AudioDropzone({
           {/* Quick source selector when toggled */}
           {showSourcePicker && (
             <div className="p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200">
-              <div className="flex items-center gap-1.5 border-b border-white/10 pb-2 overflow-x-auto hide-scrollbar max-w-full">
+              <div
+                role="tablist"
+                aria-label={t("Audio source selection")}
+                className="flex items-center gap-1.5 border-b border-white/10 pb-2 overflow-x-auto hide-scrollbar max-w-full"
+              >
                 <button
                   type="button"
+                  role="tab"
+                  id="picker-tab-upload"
+                  aria-selected={tab === "upload"}
+                  aria-controls="picker-panel-upload"
                   onClick={() => setTab("upload")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "upload"
@@ -395,6 +387,10 @@ export default function AudioDropzone({
 
                 <button
                   type="button"
+                  role="tab"
+                  id="picker-tab-samples"
+                  aria-selected={tab === "samples"}
+                  aria-controls="picker-panel-samples"
                   onClick={() => setTab("samples")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "samples"
@@ -410,6 +406,10 @@ export default function AudioDropzone({
 
                 <button
                   type="button"
+                  role="tab"
+                  id="picker-tab-mic"
+                  aria-selected={tab === "mic"}
+                  aria-controls="picker-panel-mic"
                   onClick={() => setTab("mic")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
@@ -424,6 +424,10 @@ export default function AudioDropzone({
                 {youtube && (
                   <button
                     type="button"
+                    role="tab"
+                    id="picker-tab-youtube"
+                    aria-selected={tab === "youtube"}
+                    aria-controls="picker-panel-youtube"
                     onClick={() => setTab("youtube")}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                       tab === "youtube"
@@ -440,24 +444,26 @@ export default function AudioDropzone({
               </div>
 
               {tab === "upload" && (
-                // biome-ignore lint/a11y/useSemanticElements: interactive dropzone container
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") fileInputRef.current?.click();
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  className="py-6 px-4 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.05] text-center cursor-pointer transition-all"
-                >
-                  <p className="text-xs font-medium text-white m-0">
-                    {t("Click to choose a new audio file or drag & drop here")}
-                  </p>
+                <div id="picker-panel-upload" role="tabpanel" aria-labelledby="picker-tab-upload">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-6 px-4 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.05] text-center cursor-pointer transition-all"
+                  >
+                    <p className="text-xs font-medium text-white m-0">
+                      {t("Click to choose a new audio file or drag & drop here")}
+                    </p>
+                  </button>
                 </div>
               )}
 
               {tab === "samples" && (
-                <div className="space-y-2">
+                <div
+                  id="picker-panel-samples"
+                  role="tabpanel"
+                  aria-labelledby="picker-tab-samples"
+                  className="space-y-2"
+                >
                   <label
                     htmlFor="change-sample-audio-select"
                     className="text-xs font-medium text-neutral-300"
@@ -496,10 +502,19 @@ export default function AudioDropzone({
                 </div>
               )}
 
-              {youtube && tab === "youtube" && renderYoutubePanel("change")}
+              {youtube && tab === "youtube" && (
+                <div id="picker-panel-youtube" role="tabpanel" aria-labelledby="picker-tab-youtube">
+                  {renderYoutubePanel("change")}
+                </div>
+              )}
 
               {tab === "mic" && (
-                <div className="py-4 flex flex-col items-center justify-center text-center space-y-3">
+                <div
+                  id="picker-panel-mic"
+                  role="tabpanel"
+                  aria-labelledby="picker-tab-mic"
+                  className="py-4 flex flex-col items-center justify-center text-center space-y-3"
+                >
                   <div
                     className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
                       recording
@@ -543,9 +558,17 @@ export default function AudioDropzone({
         <div className="space-y-3">
           {/* Tab Switcher: Upload / Samples / Mic */}
           <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2 max-w-full">
-            <div className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar max-w-full min-w-0">
+            <div
+              role="tablist"
+              aria-label={t("Audio source selection")}
+              className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar max-w-full min-w-0"
+            >
               <button
                 type="button"
+                role="tab"
+                id="empty-tab-upload"
+                aria-selected={tab === "upload"}
+                aria-controls="empty-panel-upload"
                 onClick={() => setTab("upload")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "upload"
@@ -561,6 +584,10 @@ export default function AudioDropzone({
 
               <button
                 type="button"
+                role="tab"
+                id="empty-tab-samples"
+                aria-selected={tab === "samples"}
+                aria-controls="empty-panel-samples"
                 onClick={() => setTab("samples")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "samples"
@@ -576,6 +603,10 @@ export default function AudioDropzone({
 
               <button
                 type="button"
+                role="tab"
+                id="empty-tab-mic"
+                aria-selected={tab === "mic"}
+                aria-controls="empty-panel-mic"
                 onClick={() => setTab("mic")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
@@ -590,6 +621,10 @@ export default function AudioDropzone({
               {youtube && (
                 <button
                   type="button"
+                  role="tab"
+                  id="empty-tab-youtube"
+                  aria-selected={tab === "youtube"}
+                  aria-controls="empty-panel-youtube"
                   onClick={() => setTab("youtube")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "youtube"
@@ -607,52 +642,53 @@ export default function AudioDropzone({
           </div>
 
           {tab === "upload" && (
-            // biome-ignore lint/a11y/useSemanticElements: interactive dropzone container
-            <div
-              onDragOver={handleDragOver}
-              onDragEnter={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => fileInputRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  fileInputRef.current?.click();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-              className={`relative w-full py-9 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none ${
-                isDragging
-                  ? "border-white bg-white/15 scale-[1.01] shadow-2xl"
-                  : "border-white/15 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.06]"
-              } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
-            >
-              <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-3 shadow-inner">
-                <UploadCloud size={24} />
-              </div>
+            <div id="empty-panel-upload" role="tabpanel" aria-labelledby="empty-tab-upload">
+              <button
+                type="button"
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className={`relative w-full py-9 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none ${
+                  isDragging
+                    ? "border-white bg-white/15 scale-[1.01] shadow-2xl"
+                    : "border-white/15 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.06]"
+                } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+              >
+                <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white mb-3 shadow-inner">
+                  <UploadCloud size={24} />
+                </div>
 
-              <p className="text-sm font-semibold text-white m-0">
-                {isDragging ? t("Drop audio file here") : t("Click to browse or drag and drop audio")}
-              </p>
-              <p className="text-xs text-neutral-400 m-0 mt-1 max-w-sm">
-                {t("Supports WAV, MP3, FLAC, OGG, M4A, Opus, and AAC (max 200MB)")}
-              </p>
+                <p className="text-sm font-semibold text-white m-0">
+                  {isDragging ? t("Drop audio file here") : t("Click to browse or drag and drop audio")}
+                </p>
+                <p className="text-xs text-neutral-400 m-0 mt-1 max-w-sm">
+                  {t("Supports WAV, MP3, FLAC, OGG, M4A, Opus, and AAC (max 200MB)")}
+                </p>
 
-              <div className="flex items-center gap-1.5 mt-4 flex-wrap justify-center">
-                {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((fmt) => (
-                  <span
-                    key={fmt}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 border border-white/5"
-                  >
-                    {fmt}
-                  </span>
-                ))}
-              </div>
+                <div className="flex items-center gap-1.5 mt-4 flex-wrap justify-center">
+                  {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((fmt) => (
+                    <span
+                      key={fmt}
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 border border-white/5"
+                    >
+                      {fmt}
+                    </span>
+                  ))}
+                </div>
+              </button>
             </div>
           )}
 
           {tab === "samples" && (
-            <div className="space-y-2 py-1">
+            <div
+              id="empty-panel-samples"
+              role="tabpanel"
+              aria-labelledby="empty-tab-samples"
+              className="space-y-2 py-1"
+            >
               <label htmlFor="sample-audio-select" className="text-xs font-medium text-neutral-300">
                 {t("Pick a sample audio from assets/audios")}
               </label>
@@ -687,10 +723,19 @@ export default function AudioDropzone({
             </div>
           )}
 
-          {youtube && tab === "youtube" && renderYoutubePanel("empty")}
+          {youtube && tab === "youtube" && (
+            <div id="empty-panel-youtube" role="tabpanel" aria-labelledby="empty-tab-youtube">
+              {renderYoutubePanel("empty")}
+            </div>
+          )}
 
           {tab === "mic" && (
-            <div className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center space-y-4">
+            <div
+              id="empty-panel-mic"
+              role="tabpanel"
+              aria-labelledby="empty-tab-mic"
+              className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center space-y-4"
+            >
               <div
                 className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
                   recording
@@ -736,3 +781,17 @@ export default function AudioDropzone({
     </div>
   );
 }
+
+function areAudioDropzonePropsEqual(prev: AudioDropzoneProps, next: AudioDropzoneProps): boolean {
+  if (prev.audioFile !== next.audioFile) return false;
+  if (prev.inputPath !== next.inputPath) return false;
+  if (prev.disabled !== next.disabled) return false;
+  if (prev.youtube !== next.youtube) return false;
+  if (prev.sampleAudios.length !== next.sampleAudios.length) return false;
+  if (prev.onFileSelect !== next.onFileSelect) return false;
+  if (prev.onPathSelect !== next.onPathSelect) return false;
+  return true;
+}
+
+const AudioDropzone = React.memo(AudioDropzoneInner, areAudioDropzonePropsEqual);
+export default AudioDropzone;

@@ -134,8 +134,18 @@ export default function TensorboardPage() {
             className="w-full h-full border-0 absolute inset-0"
           />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center gap-4 text-neutral-400 p-8">
-            <div className="w-56 h-1.5 rounded-full bg-white/10 overflow-hidden relative">
+          <div
+            className="w-full h-full flex flex-col items-center justify-center gap-4 text-neutral-400 p-8"
+            role="status"
+            aria-live="polite"
+          >
+            <div
+              className="w-56 h-1.5 rounded-full bg-white/10 overflow-hidden relative"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")}
+            >
               <div className="h-full bg-white rounded-full animate-pulse w-3/4" />
             </div>
             <div className="text-center space-y-1">

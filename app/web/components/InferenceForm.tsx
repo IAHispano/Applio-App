@@ -3,7 +3,7 @@
 import { Activity, AudioWaveform, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
 import {
@@ -38,6 +38,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { usePersistentJobId } from "@/lib/useJob";
+import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import { useSpeakers } from "@/lib/useSpeakers";
 
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
@@ -271,6 +272,9 @@ export default function InferenceForm() {
     }
   }, []);
 
+  const presetStateRef = useRef({ pitch, indexRate, volumeEnvelope, protect });
+  presetStateRef.current = { pitch, indexRate, volumeEnvelope, protect };
+
   // PresetsPanel bridge (Gradio had preset dropdown + import/export per tab).
   useEffect(() => {
     const onApply = (e: Event) => {
@@ -288,7 +292,7 @@ export default function InferenceForm() {
     const onRequest = () => {
       window.dispatchEvent(
         new CustomEvent("applio:read-preset", {
-          detail: { pitch, index_rate: indexRate, rms_mix_rate: volumeEnvelope, protect },
+          detail: presetStateRef.current,
         }),
       );
     };
@@ -298,7 +302,7 @@ export default function InferenceForm() {
       window.removeEventListener("applio:apply-preset", onApply);
       window.removeEventListener("applio:request-preset", onRequest);
     };
-  }, [pitch, indexRate, volumeEnvelope, protect]);
+  }, []);
 
   // Poll running jobs
   // biome-ignore lint/correctness/useExhaustiveDependencies: poll active job until completion
@@ -337,12 +341,8 @@ export default function InferenceForm() {
     setSid(0);
   };
 
-  // Temporary original audio URL for A/B comparison waveplayer
-  const originalAudioUrl = useMemo(() => {
-    if (audioFile) return URL.createObjectURL(audioFile);
-    if (inputPath) return `/${inputPath}`;
-    return null;
-  }, [audioFile, inputPath]);
+  // Temporary original audio URL for A/B comparison waveplayer (safe auto-revoke)
+  const originalAudioUrl = usePreviewUrl(audioFile, inputPath);
 
   const directAudioUrl = job?.outputFile ? outputUrl(job.outputFile) : null;
 

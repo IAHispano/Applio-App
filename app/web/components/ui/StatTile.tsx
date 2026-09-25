@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { memo } from "react";
 
 export interface StatTileProps {
   /** Metric label / caption */
@@ -21,7 +22,7 @@ export interface StatTileProps {
   children?: React.ReactNode;
 }
 
-export default function StatTile({
+function StatTileInner({
   label,
   value,
   subtext,
@@ -45,3 +46,6 @@ export default function StatTile({
     </div>
   );
 }
+
+const StatTile = memo(StatTileInner);
+export default StatTile;

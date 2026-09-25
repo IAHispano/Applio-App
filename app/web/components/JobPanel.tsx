@@ -138,12 +138,16 @@ export default function JobPanel({ jobId, compact, showLogs = false, embedded = 
           <div
             className="mt-2 max-h-48 overflow-y-auto text-xs p-3 rounded-xl bg-black/50 border border-white/10 space-y-0.5"
             role="log"
+            aria-live="polite"
           >
-            {cleanedLogs.slice(-60).map((l, idx) => (
-              <p key={idx} className="m-0 leading-relaxed text-neutral-300">
-                {l}
-              </p>
-            ))}
+            {cleanedLogs
+              .slice(-60)
+              .map((line, pos) => ({ id: `${pos}:${line.substring(0, 40)}`, line }))
+              .map((entry) => (
+                <p key={entry.id} className="m-0 leading-relaxed text-neutral-300">
+                  {entry.line}
+                </p>
+              ))}
           </div>
         </details>
       )}

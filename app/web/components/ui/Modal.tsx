@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 
 interface ModalProps {
@@ -115,7 +116,7 @@ export default function Modal({
         } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
       >
         <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
               <span aria-hidden="true" className="shrink-0">
                 {icon}
@@ -132,6 +133,14 @@ export default function Modal({
               )}
             </div>
           </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close dialog"
+            className="text-neutral-400 hover:text-white rounded-lg p-1 transition-colors hover:bg-white/10 shrink-0 cursor-pointer -mr-1 -mt-1"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
 
         {/* Modal Content */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, FileText, Image as ImageIcon, LineChart, StopCircle, Waves } from "lucide-react";
+import { Download, FileText, LineChart, StopCircle, Waves } from "lucide-react";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import { errMsg, fileBasename, outputUrl, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
