@@ -81,9 +81,7 @@ export default function TensorboardPage() {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {isRunning && (
             <>
-              <Badge variant="info" dot size="sm">
-                {`:${tbPort}`}
-              </Badge>
+      
               <Button
                 variant="ghost"
                 size="xs"

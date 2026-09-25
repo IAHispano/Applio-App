@@ -24,6 +24,12 @@ const nextConfig: NextConfig = {
       { source: "/assets/:path*", destination: `${API_URL}/assets/:path*` },
     ];
   },
+  async redirects() {
+    return [
+      { source: "/convert", destination: "/inference", permanent: true },
+      { source: "/tools", destination: "/extra", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

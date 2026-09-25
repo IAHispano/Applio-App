@@ -1,7 +1,7 @@
 "use client";
 
-import TtsForm from "@/components/convert/TtsForm";
 import PageHeader from "@/components/layout/PageHeader";
+import TtsForm from "@/components/TtsForm";
 import { useI18n } from "@/lib/i18n";
 
 export default function TtsPage() {

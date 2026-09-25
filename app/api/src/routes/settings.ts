@@ -107,17 +107,6 @@ function saveConfig(cfg: JsonObject) {
   fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2));
 }
 
-// Single source of truth for the installed app version: the root
-// package.json (bumped with releases). The mutable assets/config.json
-// "version" field goes stale (user values override the template merge) and
-// must never drive update comparisons. Delegates to getAppVersion() which
-// checks APPLIO_CODE_ROOT first — in the packaged app getRepoRoot() is the
-// writable data dir (no package.json there) while the real version ships in
-// the read-only code dir (resources/app).
-function readPackageVersion(): string {
-  return getAppVersion();
-}
-
 const settingsSchema = z.object({
   model_index_filter: z.boolean().optional(),
   discord_presence: z.boolean().optional(),
@@ -449,7 +438,7 @@ router.get("/theme", (req: Request, res: Response) => {
 
 router.get("/version-check", async (_req: Request, res: Response) => {
   try {
-    const local = readPackageVersion();
+    const local = getAppVersion();
     const headers: Record<string, string> = { "User-Agent": "Applio" };
     // Authenticated requests get 5k/hr instead of 60 — avoids the 403 wall.
     if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
@@ -581,7 +570,7 @@ router.get("/version-check", async (_req: Request, res: Response) => {
 // show the real version even when the GitHub comparison fails (offline,
 // rate-limited).
 router.get("/version", (_req: Request, res: Response) => {
-  res.json({ version: readPackageVersion() });
+  res.json({ version: getAppVersion() });
 });
 
 router.post("/apply-update", async (_req: Request, res: Response) => {
@@ -604,7 +593,7 @@ router.post("/apply-update", async (_req: Request, res: Response) => {
       try {
         // Sync the (display-only) config version with the real installed
         // version so every surface agrees after an update.
-        newVersion = readPackageVersion();
+        newVersion = getAppVersion();
         if (newVersion && newVersion !== "unknown") {
           const cfg = loadConfig();
           cfg.version = newVersion;
