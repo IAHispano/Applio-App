@@ -154,17 +154,46 @@ def run_worker():
             if cmd == "ping":
                 send_ipc({"type": "pong", "id": job_id})
             elif cmd == "warmup":
-                # Pay one-time costs (CUDA context, default embedder weights)
-                # outside any conversion so the first real request is fast.
+                # Warm up CUDA, PyTorch, audio libraries, embedder, and the most recent model
                 try:
                     import torch
 
                     if torch.cuda.is_available():
                         torch.cuda.init()
+
+                    # Pre-import heavy numerical and DSP libraries
+                    import librosa
+                    import soundfile
+
                     vc.load_hubert("contentvec", None)
-                    send_ipc(
-                        {"type": "log", "id": job_id, "message": "Worker warmed up."}
+
+                    # Look for the latest model in logs/ to preload so the first user conversion is instant
+                    preloaded_name = None
+                    logs_dir = os.path.join(now_dir, "logs")
+                    if os.path.isdir(logs_dir):
+                        candidates = []
+                        for r, _, files in os.walk(logs_dir):
+                            for f in files:
+                                if f.lower().endswith(".pth") and not f.startswith(("G_", "D_")):
+                                    full_p = os.path.join(r, f)
+                                    try:
+                                        candidates.append((os.path.getmtime(full_p), full_p))
+                                    except Exception:
+                                        pass
+                        if candidates:
+                            candidates.sort(reverse=True)
+                            latest_model = candidates[0][1]
+                            try:
+                                vc.get_vc(latest_model, 0)
+                                preloaded_name = os.path.basename(latest_model)
+                            except Exception:
+                                pass
+
+                    msg = (
+                        f"Worker warmed up (embedder: contentvec"
+                        + (f", active model: {preloaded_name})" if preloaded_name else ")")
                     )
+                    send_ipc({"type": "log", "id": job_id, "message": msg})
                 except Exception as e:
                     send_ipc(
                         {"type": "log", "id": job_id, "message": f"Warmup notice: {e}"}
@@ -198,6 +227,182 @@ def run_worker():
                         "success": True,
                         "outputPath": final_out,
                         "info": info_msg,
+                    }
+                )
+            elif cmd == "infer_batch":
+                params = req.get("params", {})
+                input_folder = req.get("inputFolder")
+                output_folder = req.get("outputFolder")
+                kwargs = map_params(params, "", "")
+                kwargs.pop("input_path", None)
+                kwargs.pop("output_path", None)
+                kwargs["model_path"] = kwargs.pop("pth_path", "")
+
+                vc.convert_audio_batch(
+                    audio_input_paths=input_folder,
+                    audio_output_path=output_folder,
+                    **kwargs,
+                )
+                sys.stdout.flush()
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "info": f"Batch conversion in {input_folder} completed.",
+                    }
+                )
+            elif cmd == "tts":
+                import asyncio
+                import edge_tts
+
+                tts_text = req.get("ttsText", "")
+                tts_file = req.get("ttsFile", "")
+                tts_voice = req.get("ttsVoice", "en-US-AnaNeural")
+                tts_rate = int(req.get("ttsRate", 0))
+                output_tts_path = req.get("outputTtsPath")
+                output_rvc_path = req.get("outputRvcPath")
+                params = req.get("params", {})
+
+                if tts_file and os.path.exists(tts_file):
+                    try:
+                        with open(tts_file, "r", encoding="utf-8") as f:
+                            tts_text = f.read()
+                    except Exception:
+                        with open(tts_file, "r") as f:
+                            tts_text = f.read()
+
+                if not tts_text.strip():
+                    raise ValueError("No text provided for TTS synthesis.")
+
+                os.makedirs(os.path.dirname(os.path.abspath(output_tts_path)), exist_ok=True)
+                rate_str = f"+{tts_rate}%" if tts_rate >= 0 else f"{tts_rate}%"
+                asyncio.run(
+                    edge_tts.Communicate(tts_text, tts_voice, rate=rate_str).save(
+                        output_tts_path
+                    )
+                )
+                print(f"TTS audio generated at '{output_tts_path}'")
+
+                final_out = output_tts_path
+                if output_rvc_path and params.get("pthPath"):
+                    os.makedirs(
+                        os.path.dirname(os.path.abspath(output_rvc_path)), exist_ok=True
+                    )
+                    kwargs = map_params(params, output_tts_path, output_rvc_path)
+                    kwargs["audio_input_path"] = output_tts_path
+                    kwargs["audio_output_path"] = output_rvc_path
+                    kwargs["model_path"] = kwargs.pop("pth_path", "")
+                    vc.convert_audio(**kwargs)
+                    export_format = kwargs.get("export_format", "WAV")
+                    final_out = output_rvc_path.replace(
+                        ".wav", f".{export_format.lower()}"
+                    )
+                    print(f"TTS RVC conversion completed at '{final_out}'")
+
+                sys.stdout.flush()
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "outputTtsPath": output_tts_path,
+                        "outputRvcPath": final_out if output_rvc_path else None,
+                        "outputPath": final_out,
+                        "info": "TTS synthesis completed.",
+                    }
+                )
+            elif cmd == "preload_model":
+                pth_path = req.get("pthPath")
+                sid = int(req.get("sid", 0))
+                if pth_path and os.path.isfile(pth_path):
+                    vc.get_vc(pth_path, sid)
+                    send_ipc(
+                        {
+                            "type": "done",
+                            "id": job_id,
+                            "success": True,
+                            "info": f"Model '{os.path.basename(pth_path)}' preloaded.",
+                        }
+                    )
+                else:
+                    send_ipc(
+                        {
+                            "type": "error",
+                            "id": job_id,
+                            "error": f"Model file not found: {pth_path}",
+                        }
+                    )
+            elif cmd == "inspect_model":
+                pth_path = req.get("pthPath")
+                if not pth_path or not os.path.isfile(pth_path):
+                    raise ValueError(f"Model file not found: {pth_path}")
+                from rvc.lib.tools.inspect_checkpoint import inspect_checkpoint
+
+                meta = inspect_checkpoint(pth_path)
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "metadata": meta,
+                    }
+                )
+            elif cmd == "analyze_audio":
+                input_path = req.get("inputPath")
+                plot_path = req.get("plotPath")
+                if not input_path or not os.path.isfile(input_path):
+                    raise ValueError(f"Audio file not found: {input_path}")
+                from rvc.lib.tools.analyzer import analyze_audio
+
+                os.makedirs(os.path.dirname(os.path.abspath(plot_path)), exist_ok=True)
+                info, plot = analyze_audio(input_path, plot_path)
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "info": info,
+                        "plot": plot,
+                    }
+                )
+            elif cmd == "f0_curve":
+                input_path = req.get("inputPath")
+                method = req.get("method", "rmvpe")
+                output_image = req.get("outputImage")
+                output_txt = req.get("outputTxt")
+                if not input_path or not os.path.isfile(input_path):
+                    raise ValueError(f"Audio file not found: {input_path}")
+                from rvc.lib.tools.f0_curve import extract_f0_curve
+
+                os.makedirs(os.path.dirname(os.path.abspath(output_image)), exist_ok=True)
+                os.makedirs(os.path.dirname(os.path.abspath(output_txt)), exist_ok=True)
+                img, txt = extract_f0_curve(input_path, method, output_image, output_txt)
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "outputImage": img,
+                        "outputTxt": txt,
+                    }
+                )
+            elif cmd == "model_blender":
+                model_name = req.get("modelName")
+                pth1 = req.get("pth1")
+                pth2 = req.get("pth2")
+                ratio = float(req.get("ratio", 0.5))
+                from rvc.train.process.model_blender import model_blender
+
+                r = model_blender(model_name, pth1, pth2, ratio)
+                msg, f = (r if isinstance(r, tuple) else (str(r), None))
+                send_ipc(
+                    {
+                        "type": "done",
+                        "id": job_id,
+                        "success": True,
+                        "message": msg,
+                        "file": f,
                     }
                 )
             else:

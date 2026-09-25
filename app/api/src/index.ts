@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import cors from "cors";
 import express from "express";
+import { startStorageCleaner } from "@/cleaner";
 import { killJobTree } from "@/cli";
 import { errMsg } from "@/errors";
 import { getJob, setError } from "@/jobs";
@@ -169,6 +170,8 @@ const server = app.listen(PORT, "127.0.0.1", () => {
   // Warm the inference worker (CUDA context + default embedder) in the
   // background so the first conversion doesn't pay one-time load costs.
   inferenceWorker.warmupDelayed();
+  // Automatically clean expired temporary audio files and uploads
+  startStorageCleaner();
 });
 
 // Realtime audio frames ride raw WebSockets (Next rewrites don't proxy upgrades),

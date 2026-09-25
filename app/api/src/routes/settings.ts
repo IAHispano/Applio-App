@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
+import { cleanStorage, getStorageStats } from "@/cleaner";
 import { errMsg } from "@/errors";
 import { getAppVersion, getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
 
@@ -334,6 +335,28 @@ router.post("/restart", (_req: Request, res: Response) => {
       "API is restarting. If it does not come back, restart it manually (dev watcher, systemd, docker or pm2).",
   });
   setTimeout(() => process.exit(0), 500).unref?.();
+});
+
+// Storage and cache management
+router.get("/storage", (_req: Request, res: Response) => {
+  try {
+    const stats = getStorageStats();
+    res.json({ stats });
+  } catch (err) {
+    res.status(500).json({ error: errMsg(err) });
+  }
+});
+
+router.post("/storage/clean", (req: Request, res: Response) => {
+  try {
+    const maxAgeMs = typeof req.body?.maxAgeMs === "number" ? req.body.maxAgeMs : 0;
+    const cleanUploads = req.body?.cleanUploads !== false;
+    const cleanOutputs = req.body?.cleanOutputs !== false;
+    const result = cleanStorage({ maxAgeMs, cleanUploads, cleanOutputs });
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.status(500).json({ error: errMsg(err) });
+  }
 });
 
 // Theme system (Gradio themes parity, ours is file-based: assets/themes/*.json).

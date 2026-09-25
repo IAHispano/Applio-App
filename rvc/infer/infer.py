@@ -435,7 +435,12 @@ class VoiceConverter:
             _toast(f"Batch conversion failed: {e}", warning=True)
             raise
         finally:
-            os.remove(os.path.join(now_dir, "assets", "infer_pid.txt"))
+            pid_path = os.path.join(now_dir, "assets", "infer_pid.txt")
+            if os.path.exists(pid_path):
+                try:
+                    os.remove(pid_path)
+                except Exception:
+                    pass
 
     def get_vc(self, weight_root, sid):
         """

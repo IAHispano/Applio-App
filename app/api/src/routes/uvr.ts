@@ -6,7 +6,7 @@ import { startCliJob } from "@/cli";
 import { errMsg } from "@/errors";
 import { setProgress } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
-import { getOutputsDir, resolveUserPath, runPythonModule } from "@/python";
+import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
 
 const router = Router();
 
@@ -20,9 +20,24 @@ export interface UvrModelEntry {
   target_stem: string | null;
 }
 
-// Live registry from uvr/models.py (single source of truth). The catalog
-// script is dependency-free, so this answers in well under a second.
+const catalogCache: { mtimeMs: number; entries: UvrModelEntry[] } = { mtimeMs: 0, entries: [] };
+
+// Live registry from uvr/models.py (single source of truth).
+// Cached in-memory with file mtime check to avoid launching Python repeatedly.
 async function fetchCatalog(): Promise<UvrModelEntry[]> {
+  const modelsPy = path.join(getRepoRoot(), "uvr", "models.py");
+  let currentMtime = 0;
+  try {
+    if (fs.existsSync(modelsPy)) {
+      currentMtime = fs.statSync(modelsPy).mtimeMs;
+      if (catalogCache.entries.length > 0 && catalogCache.mtimeMs === currentMtime) {
+        return catalogCache.entries;
+      }
+    }
+  } catch {
+    /* fallback to dynamic run */
+  }
+
   const r = await runPythonModule([path.join("uvr", "separate.py"), "--list-models"]);
   if (r.code !== 0) throw new Error(r.stderr.slice(-500) || "Model catalog failed.");
   // Regex (not line-split): vendored libs may print warnings to stdout that
@@ -31,13 +46,16 @@ async function fetchCatalog(): Promise<UvrModelEntry[]> {
   if (!m) throw new Error("Model catalog returned no data.");
   const data = JSON.parse(m[1]) as { models: CatalogModel[] };
   if (!Array.isArray(data.models)) throw new Error("Model catalog returned no data.");
-  return data.models.map((m) => ({
+  const entries = data.models.map((m) => ({
     filename: m.filename,
     name: m.label,
     type: m.arch.toUpperCase(),
     stems: m.stems.map(titleCase),
     target_stem: m.target ? titleCase(m.target) : null,
   }));
+  catalogCache.mtimeMs = currentMtime;
+  catalogCache.entries = entries;
+  return entries;
 }
 
 interface CatalogModel {

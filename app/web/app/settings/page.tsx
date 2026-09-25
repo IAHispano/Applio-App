@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Check, Cpu, Palette, Power, RefreshCw, Sliders } from "lucide-react";
+import { Activity, Check, Cpu, HardDrive, Palette, Power, RefreshCw, Sliders, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -186,6 +186,53 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState("");
   const [presenceRunning, setPresenceRunning] = useState<boolean | null>(null);
   const [restartMsg, setRestartMsg] = useState("");
+  const [storageStats, setStorageStats] = useState<{
+    uploadsBytes: number;
+    uploadsCount: number;
+    outputsBytes: number;
+    outputsCount: number;
+    totalBytes: number;
+    totalFiles: number;
+  } | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [cleanMsg, setCleanMsg] = useState<string | null>(null);
+
+  const fetchStorage = useCallback(async () => {
+    try {
+      const res = await apiGet<{
+        stats: {
+          uploadsBytes: number;
+          uploadsCount: number;
+          outputsBytes: number;
+          outputsCount: number;
+          totalBytes: number;
+          totalFiles: number;
+        };
+      }>("/api/settings/storage");
+      setStorageStats(res.stats);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleCleanStorage = async () => {
+    setCleaning(true);
+    setCleanMsg(null);
+    try {
+      const res = await apiSend<{ ok: boolean; result: { deletedFiles: number; freedBytes: number } }>(
+        "/api/settings/storage/clean",
+        "POST",
+        { maxAgeMs: 0 },
+      );
+      const mb = (res.result.freedBytes / (1024 * 1024)).toFixed(1);
+      setCleanMsg(`Freed ${mb} MB across ${res.result.deletedFiles} temporary files.`);
+      await fetchStorage();
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setCleaning(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -259,6 +306,7 @@ export default function SettingsPage() {
   useEffect(() => {
     load();
     checkVersion();
+    fetchStorage();
     apiGet<{ version: string }>("/api/settings/version")
       .then((v) => setLocalVer(v.version))
       .catch(() => {});
@@ -286,7 +334,7 @@ export default function SettingsPage() {
         return unsub;
       }
     }
-  }, [load, checkVersion]);
+  }, [load, checkVersion, fetchStorage]);
 
   async function save(patch: unknown) {
     setError("");
@@ -832,7 +880,47 @@ export default function SettingsPage() {
         </div>
       </Card>
 
-      {/* 6. Restart API */}
+      {/* 6. Disk & Cache Storage */}
+      <Card>
+        <CardHeader
+          icon={<HardDrive size={18} />}
+          title={t("Disk & Cache Storage")}
+          description={t(
+            "Manage temporary audio outputs, cached files, and upload storage to free up disk space.",
+          )}
+        />
+
+        <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-white m-0">
+              {storageStats
+                ? `${(storageStats.totalBytes / (1024 * 1024)).toFixed(1)} MB (${storageStats.totalFiles} ${t("temporary files")})`
+                : t("Calculating disk usage…")}
+            </p>
+            <p className="text-xs text-neutral-400 m-0">
+              {storageStats &&
+                `${(storageStats.uploadsBytes / (1024 * 1024)).toFixed(1)} MB uploads · ${(storageStats.outputsBytes / (1024 * 1024)).toFixed(1)} MB temporary outputs`}
+            </p>
+            {cleanMsg && (
+              <span className="text-xs text-emerald-400 block pt-0.5" role="status" aria-live="polite">
+                {cleanMsg}
+              </span>
+            )}
+          </div>
+
+          <Button
+            size="md"
+            variant="ghost"
+            onClick={handleCleanStorage}
+            disabled={cleaning || storageStats?.totalFiles === 0}
+            icon={<Trash2 size={14} className="text-white" />}
+          >
+            {cleaning ? t("Cleaning…") : t("Clean Temporary Files")}
+          </Button>
+        </div>
+      </Card>
+
+      {/* 7. Restart API */}
       <Card>
         <CardHeader
           icon={<Power size={18} />}

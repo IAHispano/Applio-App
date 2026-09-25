@@ -7,6 +7,7 @@ import { runPythonJson } from "@/cli";
 import { errMsg } from "@/errors";
 import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { inferenceWorker } from "@/worker";
 
 const router = Router();
 
@@ -58,16 +59,24 @@ router.post(
         setRunning(job);
         try {
           appendLog(job, `Blending into logs/${safeName}.pth (ratio ${p.ratio})`);
-          const code = [
-            "import json",
-            "from rvc.train.process.model_blender import model_blender",
-            `r = model_blender(${JSON.stringify(safeName)}, ${JSON.stringify(p1)}, ${JSON.stringify(p2)}, ${p.ratio})`,
-            "msg, f = (r if isinstance(r, tuple) else (str(r), None))",
-            "print('APPLIO_JSON:' + json.dumps({'message': msg, 'file': f}))",
-          ].join("; ");
-          const out = await runPythonJson<{ message: string; file: string | null }>(code, (l) =>
-            appendLog(job, l),
-          );
+          let out: { message: string; file: string | null };
+          try {
+            out = await inferenceWorker.blendModels(job.id, safeName, p1, p2, p.ratio, (l) =>
+              appendLog(job, l),
+            );
+          } catch {
+            appendLog(job, "Running model blender via fallback runner...");
+            const code = [
+              "import json",
+              "from rvc.train.process.model_blender import model_blender",
+              `r = model_blender(${JSON.stringify(safeName)}, ${JSON.stringify(p1)}, ${JSON.stringify(p2)}, ${p.ratio})`,
+              "msg, f = (r if isinstance(r, tuple) else (str(r), None))",
+              "print('APPLIO_JSON:' + json.dumps({'message': msg, 'file': f}))",
+            ].join("; ");
+            out = await runPythonJson<{ message: string; file: string | null }>(code, (l) =>
+              appendLog(job, l),
+            );
+          }
           if (!out.file || !fs.existsSync(path.resolve(getRepoRoot(), out.file))) {
             throw new Error(out.message || "Blending failed");
           }

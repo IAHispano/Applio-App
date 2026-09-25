@@ -172,6 +172,7 @@ export default function RealtimePage() {
   useEffect(() => {
     refreshEngine();
     loadModels();
+    void apiSend("/api/realtime/prewarm", "POST").catch(() => {});
     const t = setInterval(refreshEngine, 5000);
     return () => {
       clearInterval(t);

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui";
 import {
   apiGet,
+  apiSend,
   errMsg,
   fetchJob,
   fetchModels,
@@ -102,6 +103,9 @@ export default function TtsForm() {
     setPthPath(selected);
     setIndexPath(matchIndex(selected, idxList));
     setSid(0);
+    if (selected) {
+      void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
+    }
   }
 
   function handleUnloadModel() {

@@ -333,6 +333,9 @@ export default function InferenceForm() {
     const matched = matchIndex(selected, idxList);
     setIndexPath(matched);
     setSid(0);
+    if (selected) {
+      void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
+    }
   };
 
   const handleUnloadModel = () => {

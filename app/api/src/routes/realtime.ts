@@ -55,35 +55,56 @@ router.get("/status", async (_req: Request, res: Response) => {
   });
 });
 
+function startRealtimeProcess(): ChildProcess {
+  rtProc?.kill();
+  rtLogs = [];
+  const proc = spawn(
+    getPythonBin(),
+    ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
+    {
+      cwd: getRepoRoot(),
+      env: pythonEnv(),
+      windowsHide: true,
+    },
+  );
+  rtStartedAt = new Date().toISOString();
+  proc.stdout?.on("data", (d: Buffer) => {
+    rtLogs.push(d.toString().trim().slice(0, 500));
+    if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
+  });
+  proc.stderr?.on("data", (d: Buffer) => {
+    rtLogs.push(`[stderr] ${d.toString().trim().slice(0, 500)}`);
+    if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
+  });
+  proc.on("error", (e) => {
+    rtLogs.push(`spawn error: ${String(e)}`);
+    if (rtProc === proc) rtProc = null;
+  });
+  rtProc = proc;
+  return proc;
+}
+
+// Background prewarm of the realtime engine so it is instantly reachable
+router.post("/prewarm", async (_req: Request, res: Response) => {
+  try {
+    if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
+      return res.json({ ok: true, running: true, startedAt: rtStartedAt });
+    }
+    if (!rtProc || rtProc.exitCode !== null) {
+      startRealtimeProcess();
+    }
+    return res.json({ ok: true, starting: true });
+  } catch (err) {
+    return res.status(500).json({ error: errMsg(err) });
+  }
+});
+
 router.post("/start", async (_req: Request, res: Response) => {
   try {
     if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
       return res.json({ ok: true, reused: true, startedAt: rtStartedAt });
     }
-    rtProc?.kill();
-    rtLogs = [];
-    rtProc = spawn(
-      getPythonBin(),
-      ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
-      {
-        cwd: getRepoRoot(),
-        env: pythonEnv(),
-        windowsHide: true,
-      },
-    );
-    rtStartedAt = new Date().toISOString();
-    rtProc.stdout?.on("data", (d: Buffer) => {
-      rtLogs.push(d.toString().trim().slice(0, 500));
-      if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
-    });
-    rtProc.stderr?.on("data", (d: Buffer) => {
-      rtLogs.push(`[stderr] ${d.toString().trim().slice(0, 500)}`);
-      if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
-    });
-    rtProc.on("error", (e) => {
-      rtLogs.push(`spawn error: ${String(e)}`);
-      rtProc = null;
-    });
+    startRealtimeProcess();
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 1000));
       if (!rtProc || (rtProc.exitCode !== null && rtProc.exitCode !== undefined)) {
