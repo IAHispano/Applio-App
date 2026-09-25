@@ -81,7 +81,6 @@ export default function TensorboardPage() {
         <div className="flex items-center gap-2 self-start sm:self-auto">
           {isRunning && (
             <>
-      
               <Button
                 variant="ghost"
                 size="xs"
