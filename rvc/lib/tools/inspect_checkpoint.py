@@ -18,7 +18,9 @@ class _TolerantUnpickler(_pickle.Unpickler):
 class _TolerantPickle:
     Unpickler = _TolerantUnpickler
     load = staticmethod(lambda f, **kw: _TolerantUnpickler(f, **kw).load())
-    loads = staticmethod(lambda s, **kw: _TolerantUnpickler(_io.BytesIO(s), **kw).load())
+    loads = staticmethod(
+        lambda s, **kw: _TolerantUnpickler(_io.BytesIO(s), **kw).load()
+    )
 
 
 def inspect_checkpoint(path: str) -> dict:

@@ -174,10 +174,14 @@ def run_worker():
                         candidates = []
                         for r, _, files in os.walk(logs_dir):
                             for f in files:
-                                if f.lower().endswith(".pth") and not f.startswith(("G_", "D_")):
+                                if f.lower().endswith(".pth") and not f.startswith(
+                                    ("G_", "D_")
+                                ):
                                     full_p = os.path.join(r, f)
                                     try:
-                                        candidates.append((os.path.getmtime(full_p), full_p))
+                                        candidates.append(
+                                            (os.path.getmtime(full_p), full_p)
+                                        )
                                     except Exception:
                                         pass
                         if candidates:
@@ -189,9 +193,8 @@ def run_worker():
                             except Exception:
                                 pass
 
-                    msg = (
-                        f"Worker warmed up (embedder: contentvec"
-                        + (f", active model: {preloaded_name})" if preloaded_name else ")")
+                    msg = f"Worker warmed up (embedder: contentvec" + (
+                        f", active model: {preloaded_name})" if preloaded_name else ")"
                     )
                     send_ipc({"type": "log", "id": job_id, "message": msg})
                 except Exception as e:
@@ -275,7 +278,9 @@ def run_worker():
                 if not tts_text.strip():
                     raise ValueError("No text provided for TTS synthesis.")
 
-                os.makedirs(os.path.dirname(os.path.abspath(output_tts_path)), exist_ok=True)
+                os.makedirs(
+                    os.path.dirname(os.path.abspath(output_tts_path)), exist_ok=True
+                )
                 rate_str = f"+{tts_rate}%" if tts_rate >= 0 else f"{tts_rate}%"
                 asyncio.run(
                     edge_tts.Communicate(tts_text, tts_voice, rate=rate_str).save(
@@ -375,9 +380,13 @@ def run_worker():
                     raise ValueError(f"Audio file not found: {input_path}")
                 from rvc.lib.tools.f0_curve import extract_f0_curve
 
-                os.makedirs(os.path.dirname(os.path.abspath(output_image)), exist_ok=True)
+                os.makedirs(
+                    os.path.dirname(os.path.abspath(output_image)), exist_ok=True
+                )
                 os.makedirs(os.path.dirname(os.path.abspath(output_txt)), exist_ok=True)
-                img, txt = extract_f0_curve(input_path, method, output_image, output_txt)
+                img, txt = extract_f0_curve(
+                    input_path, method, output_image, output_txt
+                )
                 send_ipc(
                     {
                         "type": "done",
@@ -395,7 +404,7 @@ def run_worker():
                 from rvc.train.process.model_blender import model_blender
 
                 r = model_blender(model_name, pth1, pth2, ratio)
-                msg, f = (r if isinstance(r, tuple) else (str(r), None))
+                msg, f = r if isinstance(r, tuple) else (str(r), None)
                 send_ipc(
                     {
                         "type": "done",
