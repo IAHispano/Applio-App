@@ -24,7 +24,6 @@ import inferenceRouter from "@/routes/inference";
 import jobsRouter from "@/routes/jobs";
 import modelsRouter from "@/routes/models";
 import pluginsRouter from "@/routes/plugins";
-import presetsRouter from "@/routes/presets";
 import realtimeRouter, { attachRealtimeProxy } from "@/routes/realtime";
 import reportRouter from "@/routes/report";
 import settingsRouter, { autoStartPresence, stopPresence } from "@/routes/settings";
@@ -121,7 +120,6 @@ app.get("/api/diagnostics", async (_req, res) => {
 app.use("/api/models", modelsRouter);
 app.use("/api/inference/batch", batchRouter); // before /api/inference (more specific first)
 app.use("/api/inference", inferenceRouter);
-app.use("/api/presets", presetsRouter);
 app.use("/api/tts", ttsRouter);
 app.use("/api/voice-blender", blenderRouter);
 app.use("/api/download", downloadRouter);

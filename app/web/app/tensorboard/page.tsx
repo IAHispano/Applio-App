@@ -3,7 +3,7 @@
 import { ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import { Alert, Badge, Button } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -19,6 +19,7 @@ export default function TensorboardPage() {
   const [restarting, setRestarting] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const autoStartedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -31,24 +32,40 @@ export default function TensorboardPage() {
       }>("/api/tensorboard/status", { ttlMs: 0 });
       setStatus(res);
       setError("");
+
+      // Attempt background auto-start once if service is not running and not starting when tab opens
+      if (!res.running && !res.starting && !autoStartedRef.current) {
+        autoStartedRef.current = true;
+        apiSend("/api/tensorboard/start", "POST")
+          .then(() => {
+            void apiGet<{
+              running: boolean;
+              starting?: boolean;
+              url: string;
+              startedAt: string | null;
+            }>("/api/tensorboard/status", { ttlMs: 0 }).then(setStatus);
+          })
+          .catch((err) => setError(errMsg(err)));
+      }
     } catch (e) {
       setError(errMsg(e));
     }
   }, []);
 
   useEffect(() => {
+    if (restarting) return;
     refresh();
-    // Poll more frequently if starting up, then ease into 5s interval
-    const t = setInterval(refresh, status?.running ? 5000 : 2000);
+    // Poll every 5s if running, every 2s if starting
+    const interval = status?.running ? 5000 : 2000;
+    const t = setInterval(refresh, interval);
     return () => clearInterval(t);
-  }, [refresh, status?.running]);
+  }, [refresh, status?.running, restarting]);
 
   async function handleRestart() {
     setRestarting(true);
     setError("");
     try {
-      await apiSend("/api/tensorboard/stop", "POST");
-      await apiSend("/api/tensorboard/start", "POST");
+      await apiSend("/api/tensorboard/restart", "POST");
       await refresh();
       setIframeKey((k) => k + 1);
     } catch (e) {
@@ -68,6 +85,7 @@ export default function TensorboardPage() {
   const iframeUrl = `http://${tbHost}:${tbPort}/`;
 
   const isRunning = status?.running ?? false;
+  const isStarting = restarting || (status?.starting ?? false);
 
   return (
     <div className="w-full max-w-[2400px] mx-auto flex-1 h-full flex flex-col min-h-0 space-y-3 pb-1">
@@ -130,7 +148,7 @@ export default function TensorboardPage() {
             title={t("TensorBoard")}
             className="w-full h-full border-0 absolute inset-0"
           />
-        ) : (
+        ) : isStarting ? (
           <div
             className="w-full h-full flex flex-col items-center justify-center gap-4 text-neutral-400 p-8"
             role="status"
@@ -153,6 +171,27 @@ export default function TensorboardPage() {
                 {t("The service is initializing in the backend and will display automatically.")}
               </p>
             </div>
+          </div>
+        ) : (
+          <div
+            className="w-full h-full flex flex-col items-center justify-center gap-4 text-neutral-400 p-8"
+            role="status"
+          >
+            <RotateCcw className="w-8 h-8 text-neutral-500" />
+            <div className="text-center space-y-1">
+              <p className="text-sm font-medium text-neutral-200">{t("TensorBoard is not running")}</p>
+              <p className="text-xs text-neutral-500 max-w-sm">
+                {t("Start or restart the service to monitor training loss, metrics, and audio spectrograms.")}
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleRestart}
+              icon={<RotateCcw className="w-3.5 h-3.5" />}
+            >
+              {t("Start TensorBoard")}
+            </Button>
           </div>
         )}
       </div>

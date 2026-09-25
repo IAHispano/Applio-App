@@ -24,7 +24,7 @@ import {
 } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SliderField from "@/components/ui/SliderField";
-import { apiGet, errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "@/lib/api";
+import { errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { usePersistentJobId } from "@/lib/useJob";
@@ -60,8 +60,6 @@ export default function BatchForm() {
   const [formantShifting, setFormantShifting] = useState(false);
   const [formantQfrency, setFormantQfrency] = useState(1.0);
   const [formantTimbre, setFormantTimbre] = useState(1.0);
-  const [formantPresets, setFormantPresets] = useState<string[]>([]);
-  const [formantPreset, setFormantPreset] = useState("");
   // Post-process FX rack (parity with Gradio batch tab; backend already supports it)
   const [postProcess, setPostProcess] = useState(false);
   const [reverb, setReverb] = useState(false);
@@ -128,24 +126,6 @@ export default function BatchForm() {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
 
-  // PresetsPanel can also target the batch form (Gradio had preset settings per tab).
-  useEffect(() => {
-    const onApply = (e: Event) => {
-      const v = (e as CustomEvent).detail as {
-        pitch: number;
-        index_rate: number;
-        rms_mix_rate: number;
-        protect: number;
-      };
-      if (typeof v.pitch === "number") setPitch(Math.max(-24, Math.min(24, v.pitch)));
-      if (typeof v.index_rate === "number") setIndexRate(v.index_rate);
-      if (typeof v.rms_mix_rate === "number") setVolumeEnvelope(v.rms_mix_rate);
-      if (typeof v.protect === "number") setProtect(v.protect);
-    };
-    window.addEventListener("applio:apply-preset-batch", onApply);
-    return () => window.removeEventListener("applio:apply-preset-batch", onApply);
-  }, []);
-
   useEffect(() => {
     fetchModels()
       .then((m) => {
@@ -157,9 +137,6 @@ export default function BatchForm() {
         }
       })
       .catch(() => {});
-    apiGet<{ presets: string[] }>("/api/presets/formant")
-      .then((r) => setFormantPresets(r.presets || []))
-      .catch(() => setFormantPresets([]));
   }, []);
 
   function handleModelSelect(selected: string, idxList = indexes) {
@@ -181,20 +158,6 @@ export default function BatchForm() {
         setIndexes(m.indexes);
       })
       .catch(() => {});
-  }
-
-  async function applyFormantPreset(name: string) {
-    setFormantPreset(name);
-    if (!name) return;
-    try {
-      const r = await apiGet<{ values: { formant_qfrency: number; formant_timbre: number } }>(
-        `/api/presets/formant/${encodeURIComponent(name.replace(/\.json$/i, ""))}`,
-      );
-      if (typeof r.values.formant_qfrency === "number") setFormantQfrency(r.values.formant_qfrency);
-      if (typeof r.values.formant_timbre === "number") setFormantTimbre(r.values.formant_timbre);
-    } catch (e) {
-      setError(errMsg(e));
-    }
   }
 
   function resetDefaults() {
@@ -589,27 +552,6 @@ export default function BatchForm() {
               checked={formantShifting}
               onChange={setFormantShifting}
             />
-            {formantPresets.length > 0 && (
-              <div className="max-w-xs">
-                <label htmlFor="batch-formant-preset" className="text-xs font-medium text-neutral-300">
-                  {t("Browse presets for formanting")}
-                </label>
-                <CustomSelect
-                  id="batch-formant-preset"
-                  value={formantPreset}
-                  onChange={(e) => applyFormantPreset(e.target.value)}
-                  placeholder={t("Select formant preset…")}
-                  className="w-full mt-1"
-                >
-                  <option value="">{t("None (manual)")}</option>
-                  {formantPresets.map((p) => (
-                    <option key={p} value={p}>
-                      {p.replace(/\.json$/i, "")}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-            )}
             {formantShifting && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <SliderField

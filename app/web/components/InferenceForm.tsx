@@ -3,7 +3,7 @@
 import { Activity, AudioWaveform, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
 import {
@@ -98,28 +98,6 @@ export default function InferenceForm() {
   const [formantShifting, setFormantShifting] = useState(false);
   const [formantQfrency, setFormantQfrency] = useState(1.0);
   const [formantTimbre, setFormantTimbre] = useState(1.0);
-  const [formantPresets, setFormantPresets] = useState<string[]>([]);
-  const [formantPreset, setFormantPreset] = useState("");
-
-  useEffect(() => {
-    apiGet<{ presets: string[] }>("/api/presets/formant")
-      .then((r) => setFormantPresets(r.presets || []))
-      .catch(() => setFormantPresets([]));
-  }, []);
-
-  async function applyFormantPreset(name: string) {
-    setFormantPreset(name);
-    if (!name) return;
-    try {
-      const r = await apiGet<{ values: { formant_qfrency: number; formant_timbre: number } }>(
-        `/api/presets/formant/${encodeURIComponent(name.replace(/\.json$/i, ""))}`,
-      );
-      if (typeof r.values.formant_qfrency === "number") setFormantQfrency(r.values.formant_qfrency);
-      if (typeof r.values.formant_timbre === "number") setFormantTimbre(r.values.formant_timbre);
-    } catch (e) {
-      setSubmitError(errMsg(e));
-    }
-  }
 
   // FX Rack
   const [postProcess, setPostProcess] = useState(false);
@@ -270,38 +248,6 @@ export default function InferenceForm() {
         if (idx) setIndexPath(idx);
       }
     }
-  }, []);
-
-  const presetStateRef = useRef({ pitch, indexRate, volumeEnvelope, protect });
-  presetStateRef.current = { pitch, indexRate, volumeEnvelope, protect };
-
-  // PresetsPanel bridge (Gradio had preset dropdown + import/export per tab).
-  useEffect(() => {
-    const onApply = (e: Event) => {
-      const v = (e as CustomEvent).detail as {
-        pitch: number;
-        index_rate: number;
-        rms_mix_rate: number;
-        protect: number;
-      };
-      if (typeof v.pitch === "number") setPitch(Math.max(-24, Math.min(24, v.pitch)));
-      if (typeof v.index_rate === "number") setIndexRate(v.index_rate);
-      if (typeof v.rms_mix_rate === "number") setVolumeEnvelope(v.rms_mix_rate);
-      if (typeof v.protect === "number") setProtect(v.protect);
-    };
-    const onRequest = () => {
-      window.dispatchEvent(
-        new CustomEvent("applio:read-preset", {
-          detail: presetStateRef.current,
-        }),
-      );
-    };
-    window.addEventListener("applio:apply-preset", onApply);
-    window.addEventListener("applio:request-preset", onRequest);
-    return () => {
-      window.removeEventListener("applio:apply-preset", onApply);
-      window.removeEventListener("applio:request-preset", onRequest);
-    };
   }, []);
 
   // Poll running jobs
@@ -944,28 +890,6 @@ export default function InferenceForm() {
               checked={formantShifting}
               onChange={setFormantShifting}
             />
-            {formantPresets.length > 0 && (
-              <div className="max-w-xs">
-                <label htmlFor="infer-formant-preset" className="text-xs font-medium text-neutral-300">
-                  {t("Browse presets for formanting")}{" "}
-                  <span className="text-neutral-500">(assets/formant_shift)</span>
-                </label>
-                <CustomSelect
-                  id="infer-formant-preset"
-                  value={formantPreset}
-                  onChange={(e) => applyFormantPreset(e.target.value)}
-                  placeholder={t("Select formant preset…")}
-                  className="w-full mt-1"
-                >
-                  <option value="">{t("None (manual)")}</option>
-                  {formantPresets.map((p) => (
-                    <option key={p} value={p}>
-                      {p.replace(/\.json$/i, "")}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-            )}
 
             {formantShifting && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">

@@ -67,7 +67,6 @@ export function clearApiCache(pathPrefix?: string) {
 
 function invalidateFor(path: string) {
   if (path.includes("/models")) clearApiCache("/api/models");
-  if (path.includes("/presets")) clearApiCache("/api/presets");
   if (path.includes("/train")) clearApiCache("/api/train");
   if (path.includes("/settings")) clearApiCache("/api/settings");
   if (path.includes("/plugins")) clearApiCache("/api/plugins");
