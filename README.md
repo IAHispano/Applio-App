@@ -85,6 +85,7 @@ First run: open the app, press **Install / Repair** on the setup screen (creates
 
 | Command | What it does |
 | --- | --- |
+| `applio` / `pnpm cli` | Interactive Applio CLI & command suite |
 | `pnpm dev` | API + web with hot reload |
 | `pnpm desktop:dev` | API + web + Electron shell |
 | `pnpm build` | Production build of API + web |
@@ -92,6 +93,25 @@ First run: open the app, press **Install / Repair** on the setup screen (creates
 | `pnpm typecheck` | TypeScript checks across all packages |
 | `pnpm test` | Smoke test suite |
 | `pnpm format` | Format/lint-fix `app` + `tests` with Biome |
+
+### CLI Mode
+
+You can run Applio directly from your terminal using the `applio` command:
+
+```bash
+# Launch interactive terminal menu
+applio
+
+# Or execute specific commands directly:
+applio infer --input-path input.wav --output-path out.wav --pth-path model.pth
+applio batch-infer --input-folder inputs/ --output-folder outputs/ --pth-path model.pth
+applio tts --tts-text "Hello world" --output-tts-path tts.wav
+applio uvr --input-path song.mp3 --output-dir stems/
+applio train --model-name my_voice
+applio download --model-link <url>
+applio web
+applio --help
+```
 
 
 ## Terms of Use and Commercial Usage

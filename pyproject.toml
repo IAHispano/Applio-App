@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "applio"
+version = "0.0.9"
+description = "Lightweight interface for fast interaction with advanced AI-based voice technology."
+authors = [{ name = "Pascal Aznar", email = "blaise@applio.org" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1.0",
+]
+
+[project.scripts]
+applio = "core:main"

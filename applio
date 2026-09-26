@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
+    PYTHON_EXE="$SCRIPT_DIR/.venv/bin/python"
+elif [ -f "$SCRIPT_DIR/venv/bin/python" ]; then
+    PYTHON_EXE="$SCRIPT_DIR/venv/bin/python"
+elif [ -f "$SCRIPT_DIR/env/bin/python" ]; then
+    PYTHON_EXE="$SCRIPT_DIR/env/bin/python"
+elif [ -n "$PYTHON_BIN" ] && [ -f "$PYTHON_BIN" ]; then
+    PYTHON_EXE="$PYTHON_BIN"
+elif command -v python3 >/dev/null 2>&1; then
+    PYTHON_EXE="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_EXE="python"
+elif command -v node >/dev/null 2>&1; then
+    exec node "$SCRIPT_DIR/bin/applio.js" "$@"
+else
+    echo "Error: Python or Node.js required to run Applio CLI." >&2
+    exit 1
+fi
+
+exec "$PYTHON_EXE" "$SCRIPT_DIR/core.py" "$@"

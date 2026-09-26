@@ -4,7 +4,12 @@
   "private": true,
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "packageManager": "pnpm@11.15.0",
+  "bin": {
+    "applio": "./bin/applio.js"
+  },
   "scripts": {
+    "cli": "node bin/applio.js",
+    "applio": "node bin/applio.js",
     "dev": "concurrently \"pnpm --filter @applio/api dev\" \"pnpm --filter @applio/web dev\"",
     "dev:api": "pnpm --filter @applio/api dev",
     "dev:web": "pnpm --filter @applio/web dev",
