@@ -26,7 +26,9 @@ def run_quiet(command, **kwargs):
 
 @lru_cache(maxsize=1)
 def load_voices_data():
-    tts_path = os.path.join(current_script_directory, "rvc", "lib", "tools", "tts_voices.json")
+    tts_path = os.path.join(
+        current_script_directory, "rvc", "lib", "tools", "tts_voices.json"
+    )
     if os.path.exists(tts_path):
         try:
             with open(tts_path, "r", encoding="utf-8") as file:
@@ -44,19 +46,25 @@ locales = list({voice["ShortName"] for voice in voices_data}) or ["en-US-AnaNeur
 def import_voice_converter():
     try:
         from rvc.infer.infer import VoiceConverter
+
         return VoiceConverter()
     except ImportError as e:
-        raise RuntimeError(f"Missing dependency: {e}. Please install requirements via 'pip install -r requirements.txt'")
+        raise RuntimeError(
+            f"Missing dependency: {e}. Please install requirements via 'pip install -r requirements.txt'"
+        )
 
 
 @lru_cache(maxsize=1)
 def get_config():
     from rvc.configs.config import Config
+
     return Config()
 
 
 def pretrained_selector(vocoder: str, sample_rate: int):
-    base_path = os.path.join(current_script_directory, "rvc", "models", "pretraineds", vocoder.lower())
+    base_path = os.path.join(
+        current_script_directory, "rvc", "models", "pretraineds", vocoder.lower()
+    )
     sr_tag = str(sample_rate)[:2]
     path_g = os.path.join(base_path, f"f0G{sr_tag}k.pth")
     path_d = os.path.join(base_path, f"f0D{sr_tag}k.pth")
@@ -467,7 +475,9 @@ def run_tts_script(
     embedder_model_custom: str = None,
     sid: int = 0,
 ):
-    tts_script_path = os.path.join(current_script_directory, "rvc", "lib", "tools", "tts.py")
+    tts_script_path = os.path.join(
+        current_script_directory, "rvc", "lib", "tools", "tts.py"
+    )
 
     if os.path.exists(output_tts_path) and os.path.abspath(output_tts_path).startswith(
         os.path.abspath(os.path.join(current_script_directory, "assets"))
@@ -497,7 +507,9 @@ def run_tts_script(
         err_msg = result.stderr.strip()
         if "No module named" in err_msg:
             pkg = err_msg.split("No module named")[-1].strip().strip("'\"")
-            raise RuntimeError(f"Missing Python package '{pkg}'. Please run: pip install -r requirements.txt")
+            raise RuntimeError(
+                f"Missing Python package '{pkg}'. Please run: pip install -r requirements.txt"
+            )
         raise RuntimeError(err_msg or f"TTS failed with code {result.returncode}")
 
     if output_rvc_path and pth_path and os.path.exists(pth_path):
@@ -579,7 +591,9 @@ def run_preprocess_script(
     overlap_len: float,
     normalization_mode: str = "none",
 ):
-    preprocess_script_path = os.path.join(current_script_directory, "rvc", "train", "preprocess", "preprocess.py")
+    preprocess_script_path = os.path.join(
+        current_script_directory, "rvc", "train", "preprocess", "preprocess.py"
+    )
     command = [
         python,
         preprocess_script_path,
@@ -617,7 +631,9 @@ def run_extract_script(
     include_mutes: int = 2,
 ):
     model_path = os.path.join(logs_path, model_name)
-    extract = os.path.join(current_script_directory, "rvc", "train", "extract", "extract.py")
+    extract = os.path.join(
+        current_script_directory, "rvc", "train", "extract", "extract.py"
+    )
 
     command_1 = [
         python,
@@ -706,12 +722,16 @@ def run_train_script(
             pg, pd = pretrained_selector(str(vocoder), int(sample_rate))
         else:
             if g_pretrained_path is None or d_pretrained_path is None:
-                raise ValueError("Please provide the path to the pretrained G and D models.")
+                raise ValueError(
+                    "Please provide the path to the pretrained G and D models."
+                )
             pg, pd = g_pretrained_path, d_pretrained_path
     else:
         pg, pd = "", ""
 
-    train_script_path = os.path.join(current_script_directory, "rvc", "train", "train.py")
+    train_script_path = os.path.join(
+        current_script_directory, "rvc", "train", "train.py"
+    )
     command = [
         python,
         train_script_path,
@@ -752,14 +772,18 @@ def run_train_script(
             shutdown_time=shutdown_datetime,
             os_name=os_name,
         )
-        print(f"Model {model_name} trained successfully. Shutdown scheduled at {shutdown_datetime}")
+        print(
+            f"Model {model_name} trained successfully. Shutdown scheduled at {shutdown_datetime}"
+        )
         return f"Model {model_name} trained successfully. Shutdown scheduled at {shutdown_datetime}"
 
     return f"Model {model_name} trained successfully."
 
 
 def run_index_script(model_name: str, index_algorithm: str):
-    index_script_path = os.path.join(current_script_directory, "rvc", "train", "process", "extract_index.py")
+    index_script_path = os.path.join(
+        current_script_directory, "rvc", "train", "process", "extract_index.py"
+    )
     command = [
         python,
         index_script_path,
@@ -777,49 +801,67 @@ def run_model_information_script(pth_path: str):
         raise FileNotFoundError(f"Model file not found: '{pth_path}'")
     try:
         from rvc.train.process.model_information import model_information as model_info
+
         info = model_info(pth_path)
         print(info)
         return info
     except ImportError as e:
-        raise RuntimeError(f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt")
+        raise RuntimeError(
+            f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt"
+        )
 
 
-def run_model_blender_script(model_name: str, pth_path_1: str, pth_path_2: str, ratio: float):
+def run_model_blender_script(
+    model_name: str, pth_path_1: str, pth_path_2: str, ratio: float
+):
     from rvc.train.process.model_blender import model_blender as blender
+
     message, model_blended = blender(model_name, pth_path_1, pth_path_2, ratio)
     return message, model_blended
 
 
 def run_tensorboard_script():
     from rvc.lib.tools.launch_tensorboard import launch_tensorboard_pipeline
+
     launch_tensorboard_pipeline()
 
 
 def run_download_script(model_link: str):
     try:
         from rvc.lib.tools.model_download import model_download_pipeline
+
         result = model_download_pipeline(model_link)
         if result == "Error" or result is None:
             return "An error occurred downloading the model. Please check the console logs for more details."
         return "Model downloaded successfully."
     except ImportError as e:
-        raise RuntimeError(f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt")
+        raise RuntimeError(
+            f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt"
+        )
 
 
-def run_prerequisites_script(pretraineds_hifigan: bool = True, models: bool = True, exe: bool = True):
+def run_prerequisites_script(
+    pretraineds_hifigan: bool = True, models: bool = True, exe: bool = True
+):
     try:
         from rvc.lib.tools.prerequisites_download import prequisites_download_pipeline
+
         prequisites_download_pipeline(pretraineds_hifigan, models, exe)
         return "Prerequisites downloaded and installed successfully."
     except ImportError as e:
-        raise RuntimeError(f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt")
+        raise RuntimeError(
+            f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt"
+        )
 
 
-def run_audio_analyzer_script(input_path: str, save_plot_path: str = "logs/audio_analysis.png"):
+def run_audio_analyzer_script(
+    input_path: str, save_plot_path: str = "logs/audio_analysis.png"
+):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Audio file not found: '{input_path}'")
     try:
         from rvc.lib.tools.analyzer import analyze_audio
+
         audio_info, plot_path = analyze_audio(input_path, save_plot_path)
         print(
             f"Audio info of {input_path}: {audio_info}\n"
@@ -827,7 +869,9 @@ def run_audio_analyzer_script(input_path: str, save_plot_path: str = "logs/audio
         )
         return audio_info, plot_path
     except ImportError as e:
-        raise RuntimeError(f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt")
+        raise RuntimeError(
+            f"Missing dependency: {e}. Please install requirements: pip install -r requirements.txt"
+        )
 
 
 def _get_version():
@@ -993,7 +1037,9 @@ def interactive_mode():
             voice = prompt_with_default("Voice", "en-US-AnaNeural")
             rate = int(prompt_with_default("Rate (-100 to 100)", "0"))
             out_tts = prompt_with_default("Output TTS path", "outputs/tts.wav")
-            pth = prompt_with_default("Model (.pth) path (optional, leave empty for TTS only)", "")
+            pth = prompt_with_default(
+                "Model (.pth) path (optional, leave empty for TTS only)", ""
+            )
             out_rvc = "outputs/tts_rvc.wav" if pth else None
             idx = ""
             pitch = 0
@@ -1037,9 +1083,13 @@ def interactive_mode():
             if not inp or not os.path.exists(inp):
                 print(f"Error: audio file '{inp}' does not exist.")
                 continue
-            model = prompt_with_default("UVR model (auto, MDX23C-8KFFT-InstVoc_HQ.ckpt, htdemucs)", "auto")
+            model = prompt_with_default(
+                "UVR model (auto, MDX23C-8KFFT-InstVoc_HQ.ckpt, htdemucs)", "auto"
+            )
             out_dir = prompt_with_default("Output directory", "outputs/uvr")
-            stem = prompt_with_default("Single stem (vocals, instrumental, or leave empty for all)", "")
+            stem = prompt_with_default(
+                "Single stem (vocals, instrumental, or leave empty for all)", ""
+            )
             print("\nStarting stem separation...")
             res = run_uvr_script(
                 input_path=inp,
@@ -1062,11 +1112,19 @@ def interactive_mode():
                 if not d_path or not os.path.isdir(d_path):
                     print("Error: Invalid dataset directory.")
                     continue
-                sr = int(prompt_with_default("Sample rate (40000, 48000, 32000)", "40000"))
-                print(run_preprocess_script(m_name, d_path, sr, 2, "Automatic", False, False, 0.7, 3.0, 0.3))
+                sr = int(
+                    prompt_with_default("Sample rate (40000, 48000, 32000)", "40000")
+                )
+                print(
+                    run_preprocess_script(
+                        m_name, d_path, sr, 2, "Automatic", False, False, 0.7, 3.0, 0.3
+                    )
+                )
             elif sub == "b":
                 m_name = prompt_with_default("Model name", "my_voice")
-                sr = int(prompt_with_default("Sample rate (40000, 48000, 32000)", "40000"))
+                sr = int(
+                    prompt_with_default("Sample rate (40000, 48000, 32000)", "40000")
+                )
                 f0_m = prompt_with_default("F0 method (rmvpe, fcpe, crepe)", "rmvpe")
                 print(run_extract_script(m_name, f0_m, 2, 0, sr, "contentvec"))
             elif sub == "c":
@@ -1075,7 +1133,11 @@ def interactive_mode():
                 save_every = int(prompt_with_default("Save every epoch", "10"))
                 sr = int(prompt_with_default("Sample rate", "40000"))
                 bs = int(prompt_with_default("Batch size", "8"))
-                print(run_train_script(m_name, save_every, False, True, epochs, sr, bs, 0, True, False))
+                print(
+                    run_train_script(
+                        m_name, save_every, False, True, epochs, sr, bs, 0, True, False
+                    )
+                )
             elif sub == "d":
                 m_name = prompt_with_default("Model name", "my_voice")
                 algo = prompt_with_default("Algorithm (Auto, Faiss, KMeans)", "Auto")
@@ -1099,7 +1161,9 @@ def interactive_mode():
                 name = prompt_with_default("Fused model name", "fused_model")
                 p1 = prompt_with_default("Path to Model 1 (.pth)", "")
                 p2 = prompt_with_default("Path to Model 2 (.pth)", "")
-                r = float(prompt_with_default("Ratio Model 1 weight (0.0 - 1.0)", "0.5"))
+                r = float(
+                    prompt_with_default("Ratio Model 1 weight (0.0 - 1.0)", "0.5")
+                )
                 if os.path.exists(p1) and os.path.exists(p2):
                     msg, out = run_model_blender_script(name, p1, p2, r)
                     print(f"\n{msg} -> {out}\n")
@@ -1117,9 +1181,14 @@ def interactive_mode():
                 inp = prompt_with_default("Audio file path", "")
                 if inp and os.path.exists(inp):
                     from rvc.lib.tools.f0_curve import extract_f0_curve
+
                     method = prompt_with_default("Method (rmvpe, fcpe, crepe)", "rmvpe")
-                    img = prompt_with_default("Output plot image path", "logs/f0_curve.png")
-                    txt = prompt_with_default("Output curve txt path", "logs/f0_curve.txt")
+                    img = prompt_with_default(
+                        "Output plot image path", "logs/f0_curve.png"
+                    )
+                    txt = prompt_with_default(
+                        "Output curve txt path", "logs/f0_curve.txt"
+                    )
                     img_res, txt_res = extract_f0_curve(inp, method, img, txt)
                     print(f"Extracted F0 curve: {img_res}, {txt_res}")
 
@@ -1149,19 +1218,37 @@ def interactive_mode():
 
         elif choice in ["h", "help", "?"]:
             print("\nApplio CLI Subcommands:")
-            print("  applio infer [options]            Run voice conversion on a single audio file")
-            print("  applio batch-infer [options]      Run voice conversion on a folder")
-            print("  applio tts [options]              Synthesize speech with Edge-TTS and apply RVC")
-            print("  applio uvr [options]              Separate audio into stems (vocals, instruments)")
+            print(
+                "  applio infer [options]            Run voice conversion on a single audio file"
+            )
+            print(
+                "  applio batch-infer [options]      Run voice conversion on a folder"
+            )
+            print(
+                "  applio tts [options]              Synthesize speech with Edge-TTS and apply RVC"
+            )
+            print(
+                "  applio uvr [options]              Separate audio into stems (vocals, instruments)"
+            )
             print("  applio train [options]            Train an RVC voice model")
-            print("  applio preprocess [options]       Preprocess a dataset for training")
+            print(
+                "  applio preprocess [options]       Preprocess a dataset for training"
+            )
             print("  applio extract [options]          Extract features from dataset")
-            print("  applio index [options]            Generate FAISS/KMeans index file")
+            print(
+                "  applio index [options]            Generate FAISS/KMeans index file"
+            )
             print("  applio model-information [opts]   Inspect model metadata")
             print("  applio model-blender [options]    Fuse two voice models")
-            print("  applio download [options]         Download model from direct link or HuggingFace")
-            print("  applio prerequisites [options]    Download prerequisites and models")
-            print("  applio audio-analyzer [options]   Analyze audio and export spectrogram")
+            print(
+                "  applio download [options]         Download model from direct link or HuggingFace"
+            )
+            print(
+                "  applio prerequisites [options]    Download prerequisites and models"
+            )
+            print(
+                "  applio audio-analyzer [options]   Analyze audio and export spectrogram"
+            )
             print("  applio f0-curve [options]         Extract F0 curve from audio")
             print("  applio tensorboard                Launch TensorBoard monitor")
             print("  applio web                        Start Web UI and API server")
@@ -1171,23 +1258,109 @@ def interactive_mode():
 
 # Build Click CLI if click is available
 if click is not None:
+
     def _infer_opts(func):
         opts = [
-            click.option("--pitch", type=click.IntRange(-24, 24), default=0, help="Pitch shift in semitones."),
-            click.option("--index-rate", type=click.FloatRange(0, 1), default=0.75, help="Search feature ratio."),
-            click.option("--volume-envelope", type=click.FloatRange(0, 1), default=1.0, help="Volume envelope adjustment."),
-            click.option("--protect", type=click.FloatRange(0, 0.5), default=0.33, help="Protect voiceless consonants and breath sounds."),
-            click.option("--f0-method", type=click.Choice(["crepe", "crepe-tiny", "rmvpe", "fcpe"]), default="rmvpe", help="Pitch extraction method."),
-            click.option("--split-audio", is_flag=True, default=False, help="Split audio into chunks before inference."),
-            click.option("--f0-autotune", is_flag=True, default=False, help="Apply pitch autotune."),
-            click.option("--f0-autotune-strength", type=click.FloatRange(0, 1), default=1.0, help="Pitch autotune strength."),
-            click.option("--proposed-pitch", is_flag=True, default=False, help="Propose pitch automatically."),
-            click.option("--proposed-pitch-threshold", type=click.FloatRange(50.0, 1100.0), default=155.0, help="Proposed pitch threshold."),
-            click.option("--clean-audio", is_flag=True, default=False, help="Clean audio with noise reduction."),
-            click.option("--clean-strength", type=click.FloatRange(0, 1), default=0.7, help="Cleaning strength."),
-            click.option("--export-format", type=click.Choice(["WAV", "MP3", "FLAC", "OGG", "M4A"]), default="WAV", help="Export audio format."),
-            click.option("--embedder-model", type=click.Choice(["contentvec", "spin", "spin-v2", "chinese-hubert-base", "japanese-hubert-base", "korean-hubert-base", "custom"]), default="contentvec", help="Speaker embedding model."),
-            click.option("--embedder-model-custom", type=str, default=None, help="Custom embedding model path."),
+            click.option(
+                "--pitch",
+                type=click.IntRange(-24, 24),
+                default=0,
+                help="Pitch shift in semitones.",
+            ),
+            click.option(
+                "--index-rate",
+                type=click.FloatRange(0, 1),
+                default=0.75,
+                help="Search feature ratio.",
+            ),
+            click.option(
+                "--volume-envelope",
+                type=click.FloatRange(0, 1),
+                default=1.0,
+                help="Volume envelope adjustment.",
+            ),
+            click.option(
+                "--protect",
+                type=click.FloatRange(0, 0.5),
+                default=0.33,
+                help="Protect voiceless consonants and breath sounds.",
+            ),
+            click.option(
+                "--f0-method",
+                type=click.Choice(["crepe", "crepe-tiny", "rmvpe", "fcpe"]),
+                default="rmvpe",
+                help="Pitch extraction method.",
+            ),
+            click.option(
+                "--split-audio",
+                is_flag=True,
+                default=False,
+                help="Split audio into chunks before inference.",
+            ),
+            click.option(
+                "--f0-autotune",
+                is_flag=True,
+                default=False,
+                help="Apply pitch autotune.",
+            ),
+            click.option(
+                "--f0-autotune-strength",
+                type=click.FloatRange(0, 1),
+                default=1.0,
+                help="Pitch autotune strength.",
+            ),
+            click.option(
+                "--proposed-pitch",
+                is_flag=True,
+                default=False,
+                help="Propose pitch automatically.",
+            ),
+            click.option(
+                "--proposed-pitch-threshold",
+                type=click.FloatRange(50.0, 1100.0),
+                default=155.0,
+                help="Proposed pitch threshold.",
+            ),
+            click.option(
+                "--clean-audio",
+                is_flag=True,
+                default=False,
+                help="Clean audio with noise reduction.",
+            ),
+            click.option(
+                "--clean-strength",
+                type=click.FloatRange(0, 1),
+                default=0.7,
+                help="Cleaning strength.",
+            ),
+            click.option(
+                "--export-format",
+                type=click.Choice(["WAV", "MP3", "FLAC", "OGG", "M4A"]),
+                default="WAV",
+                help="Export audio format.",
+            ),
+            click.option(
+                "--embedder-model",
+                type=click.Choice(
+                    [
+                        "contentvec",
+                        "spin",
+                        "spin-v2",
+                        "chinese-hubert-base",
+                        "japanese-hubert-base",
+                        "korean-hubert-base",
+                        "custom",
+                    ]
+                ),
+                default="contentvec",
+                help="Speaker embedding model.",
+            ),
+            click.option(
+                "--embedder-model-custom",
+                type=str,
+                default=None,
+                help="Custom embedding model path.",
+            ),
             click.option("--sid", type=int, default=0, help="Speaker ID."),
         ]
         for opt in reversed(opts):
@@ -1196,52 +1369,234 @@ if click is not None:
 
     def _post_process_opts(func):
         opts = [
-            click.option("--formant-shifting", is_flag=True, default=False, help="Enable formant shifting."),
-            click.option("--formant-qfrency", type=click.FloatRange(0.0, 16.0), default=1.0, help="Formant frequency factor."),
-            click.option("--formant-timbre", type=click.FloatRange(0.0, 16.0), default=1.0, help="Formant timbre factor."),
-            click.option("--post-process", is_flag=True, default=False, help="Enable post-processing effects."),
-            click.option("--reverb", is_flag=True, default=False, help="Enable reverb effect."),
-            click.option("--pitch-shift", is_flag=True, default=False, help="Enable pitch shift effect."),
-            click.option("--limiter", is_flag=True, default=False, help="Enable limiter effect."),
-            click.option("--gain", is_flag=True, default=False, help="Enable gain adjustment."),
-            click.option("--distortion", is_flag=True, default=False, help="Enable distortion effect."),
-            click.option("--chorus", is_flag=True, default=False, help="Enable chorus effect."),
-            click.option("--bitcrush", is_flag=True, default=False, help="Enable bitcrush effect."),
-            click.option("--clipping", is_flag=True, default=False, help="Enable clipping effect."),
-            click.option("--compressor", is_flag=True, default=False, help="Enable compressor effect."),
-            click.option("--delay", is_flag=True, default=False, help="Enable delay effect."),
-            click.option("--reverb-room-size", type=click.FloatRange(0, 1), default=0.5, help="Reverb room size."),
-            click.option("--reverb-damping", type=click.FloatRange(0, 1), default=0.5, help="Reverb damping."),
-            click.option("--reverb-wet-gain", type=click.FloatRange(0, 1), default=0.5, help="Reverb wet gain."),
-            click.option("--reverb-dry-gain", type=click.FloatRange(0, 1), default=0.5, help="Reverb dry gain."),
-            click.option("--reverb-width", type=click.FloatRange(0, 1), default=0.5, help="Reverb width."),
-            click.option("--reverb-freeze-mode", type=click.FloatRange(0, 1), default=0.5, help="Reverb freeze mode."),
-            click.option("--pitch-shift-semitones", type=click.FloatRange(-24, 24), default=0.0, help="Pitch shift semitones."),
-            click.option("--limiter-threshold", type=click.FloatRange(-60, 0), default=-6, help="Limiter threshold."),
-            click.option("--limiter-release-time", type=click.FloatRange(0.001, 1), default=0.01, help="Limiter release time."),
-            click.option("--gain-db", type=click.FloatRange(-60, 60), default=0.0, help="Gain in dB."),
-            click.option("--distortion-gain", type=click.FloatRange(-60, 60), default=25, help="Distortion gain."),
-            click.option("--chorus-rate", type=click.FloatRange(0, 100), default=1.0, help="Chorus rate."),
-            click.option("--chorus-depth", type=click.FloatRange(0, 1), default=0.25, help="Chorus depth."),
-            click.option("--chorus-center-delay", type=click.FloatRange(0, 100), default=7, help="Chorus center delay."),
-            click.option("--chorus-feedback", type=click.FloatRange(0, 1), default=0.0, help="Chorus feedback."),
-            click.option("--chorus-mix", type=click.FloatRange(0, 1), default=0.5, help="Chorus mix."),
-            click.option("--bitcrush-bit-depth", type=click.IntRange(1, 32), default=8, help="Bitcrush bit depth."),
-            click.option("--clipping-threshold", type=click.FloatRange(-60, 0), default=-6, help="Clipping threshold."),
-            click.option("--compressor-threshold", type=click.FloatRange(-60, 0), default=0, help="Compressor threshold."),
-            click.option("--compressor-ratio", type=click.FloatRange(1, 20), default=1, help="Compressor ratio."),
-            click.option("--compressor-attack", type=click.FloatRange(0.1, 100), default=1.0, help="Compressor attack."),
-            click.option("--compressor-release", type=click.FloatRange(1, 1000), default=100, help="Compressor release."),
-            click.option("--delay-seconds", type=click.FloatRange(0.01, 5.0), default=0.5, help="Delay in seconds."),
-            click.option("--delay-feedback", type=click.FloatRange(0.0, 1.0), default=0.0, help="Delay feedback."),
-            click.option("--delay-mix", type=click.FloatRange(0.0, 1.0), default=0.5, help="Delay mix."),
+            click.option(
+                "--formant-shifting",
+                is_flag=True,
+                default=False,
+                help="Enable formant shifting.",
+            ),
+            click.option(
+                "--formant-qfrency",
+                type=click.FloatRange(0.0, 16.0),
+                default=1.0,
+                help="Formant frequency factor.",
+            ),
+            click.option(
+                "--formant-timbre",
+                type=click.FloatRange(0.0, 16.0),
+                default=1.0,
+                help="Formant timbre factor.",
+            ),
+            click.option(
+                "--post-process",
+                is_flag=True,
+                default=False,
+                help="Enable post-processing effects.",
+            ),
+            click.option(
+                "--reverb", is_flag=True, default=False, help="Enable reverb effect."
+            ),
+            click.option(
+                "--pitch-shift",
+                is_flag=True,
+                default=False,
+                help="Enable pitch shift effect.",
+            ),
+            click.option(
+                "--limiter", is_flag=True, default=False, help="Enable limiter effect."
+            ),
+            click.option(
+                "--gain", is_flag=True, default=False, help="Enable gain adjustment."
+            ),
+            click.option(
+                "--distortion",
+                is_flag=True,
+                default=False,
+                help="Enable distortion effect.",
+            ),
+            click.option(
+                "--chorus", is_flag=True, default=False, help="Enable chorus effect."
+            ),
+            click.option(
+                "--bitcrush",
+                is_flag=True,
+                default=False,
+                help="Enable bitcrush effect.",
+            ),
+            click.option(
+                "--clipping",
+                is_flag=True,
+                default=False,
+                help="Enable clipping effect.",
+            ),
+            click.option(
+                "--compressor",
+                is_flag=True,
+                default=False,
+                help="Enable compressor effect.",
+            ),
+            click.option(
+                "--delay", is_flag=True, default=False, help="Enable delay effect."
+            ),
+            click.option(
+                "--reverb-room-size",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb room size.",
+            ),
+            click.option(
+                "--reverb-damping",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb damping.",
+            ),
+            click.option(
+                "--reverb-wet-gain",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb wet gain.",
+            ),
+            click.option(
+                "--reverb-dry-gain",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb dry gain.",
+            ),
+            click.option(
+                "--reverb-width",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb width.",
+            ),
+            click.option(
+                "--reverb-freeze-mode",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Reverb freeze mode.",
+            ),
+            click.option(
+                "--pitch-shift-semitones",
+                type=click.FloatRange(-24, 24),
+                default=0.0,
+                help="Pitch shift semitones.",
+            ),
+            click.option(
+                "--limiter-threshold",
+                type=click.FloatRange(-60, 0),
+                default=-6,
+                help="Limiter threshold.",
+            ),
+            click.option(
+                "--limiter-release-time",
+                type=click.FloatRange(0.001, 1),
+                default=0.01,
+                help="Limiter release time.",
+            ),
+            click.option(
+                "--gain-db",
+                type=click.FloatRange(-60, 60),
+                default=0.0,
+                help="Gain in dB.",
+            ),
+            click.option(
+                "--distortion-gain",
+                type=click.FloatRange(-60, 60),
+                default=25,
+                help="Distortion gain.",
+            ),
+            click.option(
+                "--chorus-rate",
+                type=click.FloatRange(0, 100),
+                default=1.0,
+                help="Chorus rate.",
+            ),
+            click.option(
+                "--chorus-depth",
+                type=click.FloatRange(0, 1),
+                default=0.25,
+                help="Chorus depth.",
+            ),
+            click.option(
+                "--chorus-center-delay",
+                type=click.FloatRange(0, 100),
+                default=7,
+                help="Chorus center delay.",
+            ),
+            click.option(
+                "--chorus-feedback",
+                type=click.FloatRange(0, 1),
+                default=0.0,
+                help="Chorus feedback.",
+            ),
+            click.option(
+                "--chorus-mix",
+                type=click.FloatRange(0, 1),
+                default=0.5,
+                help="Chorus mix.",
+            ),
+            click.option(
+                "--bitcrush-bit-depth",
+                type=click.IntRange(1, 32),
+                default=8,
+                help="Bitcrush bit depth.",
+            ),
+            click.option(
+                "--clipping-threshold",
+                type=click.FloatRange(-60, 0),
+                default=-6,
+                help="Clipping threshold.",
+            ),
+            click.option(
+                "--compressor-threshold",
+                type=click.FloatRange(-60, 0),
+                default=0,
+                help="Compressor threshold.",
+            ),
+            click.option(
+                "--compressor-ratio",
+                type=click.FloatRange(1, 20),
+                default=1,
+                help="Compressor ratio.",
+            ),
+            click.option(
+                "--compressor-attack",
+                type=click.FloatRange(0.1, 100),
+                default=1.0,
+                help="Compressor attack.",
+            ),
+            click.option(
+                "--compressor-release",
+                type=click.FloatRange(1, 1000),
+                default=100,
+                help="Compressor release.",
+            ),
+            click.option(
+                "--delay-seconds",
+                type=click.FloatRange(0.01, 5.0),
+                default=0.5,
+                help="Delay in seconds.",
+            ),
+            click.option(
+                "--delay-feedback",
+                type=click.FloatRange(0.0, 1.0),
+                default=0.0,
+                help="Delay feedback.",
+            ),
+            click.option(
+                "--delay-mix",
+                type=click.FloatRange(0.0, 1.0),
+                default=0.5,
+                help="Delay mix.",
+            ),
         ]
         for opt in reversed(opts):
             func = opt(func)
         return func
 
     @click.group(invoke_without_command=True)
-    @click.version_option(version=VERSION, prog_name="Applio", message="%(prog)s v%(version)s")
+    @click.version_option(
+        version=VERSION, prog_name="Applio", message="%(prog)s v%(version)s"
+    )
     @click.pass_context
     def cli(ctx):
         """Applio CLI - Voice Conversion Studio."""
@@ -1259,8 +1614,12 @@ if click is not None:
 
     @cli.command()
     @click.option("--input-path", required=True, help="Full path to input audio file.")
-    @click.option("--output-path", required=True, help="Full path to output audio file.")
-    @click.option("--pth-path", required=True, help="Full path to RVC model file (.pth).")
+    @click.option(
+        "--output-path", required=True, help="Full path to output audio file."
+    )
+    @click.option(
+        "--pth-path", required=True, help="Full path to RVC model file (.pth)."
+    )
     @click.option("--index-path", default="", help="Full path to index file (.index).")
     @_infer_opts
     @_post_process_opts
@@ -1274,9 +1633,15 @@ if click is not None:
             sys.exit(1)
 
     @cli.command(name="batch-infer")
-    @click.option("--input-folder", required=True, help="Folder containing input audio files.")
-    @click.option("--output-folder", required=True, help="Folder for saving output audio files.")
-    @click.option("--pth-path", required=True, help="Full path to RVC model file (.pth).")
+    @click.option(
+        "--input-folder", required=True, help="Folder containing input audio files."
+    )
+    @click.option(
+        "--output-folder", required=True, help="Folder for saving output audio files."
+    )
+    @click.option(
+        "--pth-path", required=True, help="Full path to RVC model file (.pth)."
+    )
     @click.option("--index-path", default="", help="Full path to index file (.index).")
     @_infer_opts
     @_post_process_opts
@@ -1292,10 +1657,23 @@ if click is not None:
     @cli.command()
     @click.option("--tts-file", default="", help="File with text to be synthesized.")
     @click.option("--tts-text", default="", help="Text to be synthesized.")
-    @click.option("--tts-voice", default="en-US-AnaNeural", help="Voice to use for TTS synthesis.")
-    @click.option("--tts-rate", type=click.IntRange(-100, 100), default=0, help="Speaking rate (-100 to 100).")
-    @click.option("--output-tts-path", required=True, help="Path to save the synthesized TTS audio.")
-    @click.option("--output-rvc-path", default="", help="Path to save the voice-converted audio.")
+    @click.option(
+        "--tts-voice", default="en-US-AnaNeural", help="Voice to use for TTS synthesis."
+    )
+    @click.option(
+        "--tts-rate",
+        type=click.IntRange(-100, 100),
+        default=0,
+        help="Speaking rate (-100 to 100).",
+    )
+    @click.option(
+        "--output-tts-path",
+        required=True,
+        help="Path to save the synthesized TTS audio.",
+    )
+    @click.option(
+        "--output-rvc-path", default="", help="Path to save the voice-converted audio."
+    )
     @click.option("--pth-path", default="", help="Full path to RVC model file (.pth).")
     @click.option("--index-path", default="", help="Full path to index file (.index).")
     @_infer_opts
@@ -1310,11 +1688,23 @@ if click is not None:
 
     @cli.command()
     @click.option("--input-path", required=True, help="Path to input audio file.")
-    @click.option("--model", default="auto", help="UVR model key (e.g. auto, MDX23C-8KFFT-InstVoc_HQ.ckpt, htdemucs).")
+    @click.option(
+        "--model",
+        default="auto",
+        help="UVR model key (e.g. auto, MDX23C-8KFFT-InstVoc_HQ.ckpt, htdemucs).",
+    )
     @click.option("--output-dir", default="outputs", help="Output directory for stems.")
-    @click.option("--output-format", default="WAV", help="Output format (WAV, FLAC, MP3).")
-    @click.option("--single-stem", default=None, help="Extract only a single stem (vocals, instrumental).")
-    @click.option("--device", default="auto", help="Device to use (auto, cpu, or CUDA index).")
+    @click.option(
+        "--output-format", default="WAV", help="Output format (WAV, FLAC, MP3)."
+    )
+    @click.option(
+        "--single-stem",
+        default=None,
+        help="Extract only a single stem (vocals, instrumental).",
+    )
+    @click.option(
+        "--device", default="auto", help="Device to use (auto, cpu, or CUDA index)."
+    )
     def uvr(**kwargs):
         """Separate audio into stems (vocals, instruments) using UVR."""
         try:
@@ -1326,16 +1716,50 @@ if click is not None:
 
     @cli.command()
     @click.option("--model-name", required=True, help="Name of the model to train.")
-    @click.option("--dataset-path", required=True, help="Path to the dataset directory.")
-    @click.option("--sample-rate", required=True, type=click.Choice(["32000", "40000", "48000"]), help="Target sampling rate.")
-    @click.option("--cpu-cores", type=click.IntRange(1, 64), default=2, help="Number of CPU cores.")
-    @click.option("--cut-preprocess", type=click.Choice(["Skip", "Simple", "Automatic"]), default="Automatic", help="Dataset cutting method.")
-    @click.option("--process-effects", is_flag=True, default=False, help="Disable filters during preprocessing.")
-    @click.option("--noise-reduction", is_flag=True, default=False, help="Enable noise reduction.")
-    @click.option("--noise-reduction-strength", type=click.FloatRange(0, 1), default=0.7, help="Noise reduction filter strength.")
+    @click.option(
+        "--dataset-path", required=True, help="Path to the dataset directory."
+    )
+    @click.option(
+        "--sample-rate",
+        required=True,
+        type=click.Choice(["32000", "40000", "48000"]),
+        help="Target sampling rate.",
+    )
+    @click.option(
+        "--cpu-cores",
+        type=click.IntRange(1, 64),
+        default=2,
+        help="Number of CPU cores.",
+    )
+    @click.option(
+        "--cut-preprocess",
+        type=click.Choice(["Skip", "Simple", "Automatic"]),
+        default="Automatic",
+        help="Dataset cutting method.",
+    )
+    @click.option(
+        "--process-effects",
+        is_flag=True,
+        default=False,
+        help="Disable filters during preprocessing.",
+    )
+    @click.option(
+        "--noise-reduction", is_flag=True, default=False, help="Enable noise reduction."
+    )
+    @click.option(
+        "--noise-reduction-strength",
+        type=click.FloatRange(0, 1),
+        default=0.7,
+        help="Noise reduction filter strength.",
+    )
     @click.option("--chunk-len", default="3.0", help="Chunk length in seconds.")
     @click.option("--overlap-len", default="0.3", help="Overlap length.")
-    @click.option("--normalization-mode", type=click.Choice(["none", "pre", "post"]), default="none", help="Normalization mode.")
+    @click.option(
+        "--normalization-mode",
+        type=click.Choice(["none", "pre", "post"]),
+        default="none",
+        help="Normalization mode.",
+    )
     def preprocess(**kwargs):
         """Preprocess a dataset for training."""
         kwargs["sample_rate"] = int(kwargs["sample_rate"])
@@ -1360,13 +1784,37 @@ if click is not None:
 
     @cli.command()
     @click.option("--model-name", required=True, help="Name of the model.")
-    @click.option("--f0-method", type=click.Choice(["crepe", "crepe-tiny", "rmvpe", "fcpe"]), default="rmvpe", help="Pitch extraction method.")
-    @click.option("--cpu-cores", type=click.IntRange(1, 64), default=2, help="Number of CPU cores.")
+    @click.option(
+        "--f0-method",
+        type=click.Choice(["crepe", "crepe-tiny", "rmvpe", "fcpe"]),
+        default="rmvpe",
+        help="Pitch extraction method.",
+    )
+    @click.option(
+        "--cpu-cores",
+        type=click.IntRange(1, 64),
+        default=2,
+        help="Number of CPU cores.",
+    )
     @click.option("--gpu", type=str, default="-", help="GPU device index (e.g. '0').")
-    @click.option("--sample-rate", required=True, type=click.Choice(["32000", "40000", "44100", "48000"]), help="Target sampling rate.")
-    @click.option("--embedder-model", default="contentvec", help="Speaker embedding model.")
-    @click.option("--embedder-model-custom", default=None, help="Custom embedding model path.")
-    @click.option("--include-mutes", type=click.IntRange(0, 10), default=2, help="Silent files to include.")
+    @click.option(
+        "--sample-rate",
+        required=True,
+        type=click.Choice(["32000", "40000", "44100", "48000"]),
+        help="Target sampling rate.",
+    )
+    @click.option(
+        "--embedder-model", default="contentvec", help="Speaker embedding model."
+    )
+    @click.option(
+        "--embedder-model-custom", default=None, help="Custom embedding model path."
+    )
+    @click.option(
+        "--include-mutes",
+        type=click.IntRange(0, 10),
+        default=2,
+        help="Silent files to include.",
+    )
     def extract(**kwargs):
         """Extract features from a preprocessed dataset."""
         kwargs["sample_rate"] = int(kwargs["sample_rate"])
@@ -1385,22 +1833,83 @@ if click is not None:
 
     @cli.command()
     @click.option("--model-name", required=True, help="Name of the model to train.")
-    @click.option("--vocoder", type=click.Choice(["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"]), default="HiFi-GAN", help="Vocoder to use.")
-    @click.option("--checkpointing", is_flag=True, default=False, help="Enable memory-efficient checkpointing.")
-    @click.option("--save-every-epoch", required=True, type=click.IntRange(1, 100), default=10, help="Save checkpoint every N epochs.")
-    @click.option("--save-only-latest", is_flag=True, default=False, help="Keep only latest checkpoint.")
-    @click.option("--save-every-weights", is_flag=True, default=True, help="Save weights every epoch.")
-    @click.option("--total-epoch", type=click.IntRange(1, 10000), default=1000, help="Total epochs.")
-    @click.option("--sample-rate", required=True, type=click.Choice(["32000", "40000", "48000"]), help="Sampling rate.")
-    @click.option("--batch-size", type=click.IntRange(1, 50), default=8, help="Batch size.")
+    @click.option(
+        "--vocoder",
+        type=click.Choice(["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"]),
+        default="HiFi-GAN",
+        help="Vocoder to use.",
+    )
+    @click.option(
+        "--checkpointing",
+        is_flag=True,
+        default=False,
+        help="Enable memory-efficient checkpointing.",
+    )
+    @click.option(
+        "--save-every-epoch",
+        required=True,
+        type=click.IntRange(1, 100),
+        default=10,
+        help="Save checkpoint every N epochs.",
+    )
+    @click.option(
+        "--save-only-latest",
+        is_flag=True,
+        default=False,
+        help="Keep only latest checkpoint.",
+    )
+    @click.option(
+        "--save-every-weights",
+        is_flag=True,
+        default=True,
+        help="Save weights every epoch.",
+    )
+    @click.option(
+        "--total-epoch",
+        type=click.IntRange(1, 10000),
+        default=1000,
+        help="Total epochs.",
+    )
+    @click.option(
+        "--sample-rate",
+        required=True,
+        type=click.Choice(["32000", "40000", "48000"]),
+        help="Sampling rate.",
+    )
+    @click.option(
+        "--batch-size", type=click.IntRange(1, 50), default=8, help="Batch size."
+    )
     @click.option("--gpu", type=str, default="0", help="GPU device.")
-    @click.option("--pretrained/--no-pretrained", default=True, help="Use pretrained model.")
-    @click.option("--custom-pretrained", is_flag=True, default=False, help="Custom pretrained paths.")
-    @click.option("--g-pretrained-path", default=None, help="Pretrained generator path.")
-    @click.option("--d-pretrained-path", default=None, help="Pretrained discriminator path.")
-    @click.option("--cleanup", is_flag=True, default=False, help="Clean up previous attempt.")
-    @click.option("--cache-data-in-gpu", is_flag=True, default=False, help="Cache training data in GPU.")
-    @click.option("--index-algorithm", type=click.Choice(["Auto", "Faiss", "KMeans"]), default="Auto", help="Index algorithm.")
+    @click.option(
+        "--pretrained/--no-pretrained", default=True, help="Use pretrained model."
+    )
+    @click.option(
+        "--custom-pretrained",
+        is_flag=True,
+        default=False,
+        help="Custom pretrained paths.",
+    )
+    @click.option(
+        "--g-pretrained-path", default=None, help="Pretrained generator path."
+    )
+    @click.option(
+        "--d-pretrained-path", default=None, help="Pretrained discriminator path."
+    )
+    @click.option(
+        "--cleanup", is_flag=True, default=False, help="Clean up previous attempt."
+    )
+    @click.option(
+        "--cache-data-in-gpu",
+        is_flag=True,
+        default=False,
+        help="Cache training data in GPU.",
+    )
+    @click.option(
+        "--index-algorithm",
+        type=click.Choice(["Auto", "Faiss", "KMeans"]),
+        default="Auto",
+        help="Index algorithm.",
+    )
     def train(**kwargs):
         """Train an RVC voice model."""
         result = run_train_script(
@@ -1426,7 +1935,12 @@ if click is not None:
 
     @cli.command()
     @click.option("--model-name", required=True, help="Name of the model.")
-    @click.option("--index-algorithm", type=click.Choice(["Auto", "Faiss", "KMeans"]), default="Auto", help="Index algorithm.")
+    @click.option(
+        "--index-algorithm",
+        type=click.Choice(["Auto", "Faiss", "KMeans"]),
+        default="Auto",
+        help="Index algorithm.",
+    )
     def index(**kwargs):
         """Generate an index file for an RVC model."""
         try:
@@ -1460,7 +1974,12 @@ if click is not None:
     @click.option("--model-name", required=True, help="Name of the fused model.")
     @click.option("--pth-path-1", required=True, help="Path to first .pth model.")
     @click.option("--pth-path-2", required=True, help="Path to second .pth model.")
-    @click.option("--ratio", type=click.Choice([str(i / 10) for i in range(11)]), default="0.5", help="Blending ratio (0.0 - 1.0).")
+    @click.option(
+        "--ratio",
+        type=click.Choice([str(i / 10) for i in range(11)]),
+        default="0.5",
+        help="Blending ratio (0.0 - 1.0).",
+    )
     def model_blender(**kwargs):
         """Fuse two RVC models together."""
         try:
@@ -1485,7 +2004,11 @@ if click is not None:
             sys.exit(1)
 
     @cli.command()
-    @click.option("--model-link", required=True, help="Direct link to model file or HuggingFace repo.")
+    @click.option(
+        "--model-link",
+        required=True,
+        help="Direct link to model file or HuggingFace repo.",
+    )
     def download(**kwargs):
         """Download a model from a provided link."""
         try:
@@ -1496,8 +2019,14 @@ if click is not None:
             sys.exit(1)
 
     @cli.command()
-    @click.option("--pretraineds-hifigan/--no-pretraineds-hifigan", default=True, help="Download pretrained HiFi-GAN models.")
-    @click.option("--models/--no-models", default=True, help="Download additional models.")
+    @click.option(
+        "--pretraineds-hifigan/--no-pretraineds-hifigan",
+        default=True,
+        help="Download pretrained HiFi-GAN models.",
+    )
+    @click.option(
+        "--models/--no-models", default=True, help="Download additional models."
+    )
     @click.option("--exe/--no-exe", default=True, help="Download required executables.")
     def prerequisites(**kwargs):
         """Install prerequisites for RVC."""
@@ -1512,35 +2041,61 @@ if click is not None:
 
     @cli.command(name="audio-analyzer")
     @click.option("--input-path", required=True, help="Path to input audio file.")
-    @click.option("--save-plot-path", default="logs/audio_analysis.png", help="Path to save analysis spectrogram.")
+    @click.option(
+        "--save-plot-path",
+        default="logs/audio_analysis.png",
+        help="Path to save analysis spectrogram.",
+    )
     def audio_analyzer(**kwargs):
         """Analyze an audio file and display information."""
         try:
-            run_audio_analyzer_script(kwargs["input_path"], kwargs.get("save_plot_path", "logs/audio_analysis.png"))
+            run_audio_analyzer_script(
+                kwargs["input_path"],
+                kwargs.get("save_plot_path", "logs/audio_analysis.png"),
+            )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
 
     @cli.command(name="analyze")
     @click.option("--input-path", required=True, help="Path to input audio file.")
-    @click.option("--save-plot-path", default="logs/audio_analysis.png", help="Path to save analysis spectrogram.")
+    @click.option(
+        "--save-plot-path",
+        default="logs/audio_analysis.png",
+        help="Path to save analysis spectrogram.",
+    )
     def analyze_alias(**kwargs):
         """Alias for audio-analyzer."""
         try:
-            run_audio_analyzer_script(kwargs["input_path"], kwargs.get("save_plot_path", "logs/audio_analysis.png"))
+            run_audio_analyzer_script(
+                kwargs["input_path"],
+                kwargs.get("save_plot_path", "logs/audio_analysis.png"),
+            )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
             sys.exit(1)
 
     @cli.command(name="f0-curve")
     @click.option("--input-path", required=True, help="Path to input audio file.")
-    @click.option("--method", type=click.Choice(["crepe", "fcpe", "rmvpe"]), default="rmvpe", help="Pitch extraction method.")
-    @click.option("--output-image", default="logs/f0_curve.png", help="Path to save F0 plot PNG.")
-    @click.option("--output-txt", default="logs/f0_curve.txt", help="Path to save F0 curve text file.")
+    @click.option(
+        "--method",
+        type=click.Choice(["crepe", "fcpe", "rmvpe"]),
+        default="rmvpe",
+        help="Pitch extraction method.",
+    )
+    @click.option(
+        "--output-image", default="logs/f0_curve.png", help="Path to save F0 plot PNG."
+    )
+    @click.option(
+        "--output-txt",
+        default="logs/f0_curve.txt",
+        help="Path to save F0 curve text file.",
+    )
     def f0_curve(**kwargs):
         """Extract the F0 curve of an audio file."""
         try:
             from rvc.lib.tools.f0_curve import extract_f0_curve
+
             image_path, txt_path = extract_f0_curve(
                 kwargs["input_path"],
                 kwargs["method"],
@@ -1558,7 +2113,11 @@ if click is not None:
         """Launch Applio Web UI and API server."""
         pnpm_cmd = "pnpm.cmd" if os.name == "nt" else "pnpm"
         npm_cmd = "npm.cmd" if os.name == "nt" else "npm"
-        cmd = [pnpm_cmd, "dev"] if shutil.which("pnpm") or shutil.which(pnpm_cmd) else [npm_cmd, "run", "dev"]
+        cmd = (
+            [pnpm_cmd, "dev"]
+            if shutil.which("pnpm") or shutil.which(pnpm_cmd)
+            else [npm_cmd, "run", "dev"]
+        )
         subprocess.run(cmd, cwd=current_script_directory)
 
     @cli.command(name="server")

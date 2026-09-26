@@ -597,7 +597,7 @@ class HDemucs(nn.Module):
                     dconv=dconv_mode & 1,
                     context=context_enc,
                     empty=last_freq,
-                    **kwt
+                    **kwt,
                 )
                 self.tencoder.append(tenc)
 
@@ -615,7 +615,7 @@ class HDemucs(nn.Module):
                 dconv=dconv_mode & 2,
                 last=index == 0,
                 context=context,
-                **kw_dec
+                **kw_dec,
             )
             if multi:
                 dec = MultiWrap(dec, multi_freqs)
@@ -627,7 +627,7 @@ class HDemucs(nn.Module):
                     empty=last_freq,
                     last=index == 0,
                     context=context,
-                    **kwt
+                    **kwt,
                 )
                 self.tdecoder.insert(0, tdec)
             self.decoder.insert(0, dec)

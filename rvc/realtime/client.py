@@ -289,7 +289,7 @@ async def websocket_audio(ws: WebSocket):
                 clean_audio=params["clean_audio"],
                 clean_strength=params["clean_strength"],
                 post_process=params["post_process"],
-                **params["kwargs"]
+                **params["kwargs"],
             )
 
         print("Realtime is ready!")

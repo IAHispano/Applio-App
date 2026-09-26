@@ -107,12 +107,15 @@ def download_file(url: str, output_path: str, logger=None, timeout=300):
                 f"Failed to download {url}, response code: {response.status_code}"
             )
         total = int(response.headers.get("content-length", 0))
-        with open(tmp_path, "wb") as f, tqdm(
-            total=total or None,
-            unit="B",
-            unit_scale=True,
-            desc=os.path.basename(output_path),
-        ) as bar:
+        with (
+            open(tmp_path, "wb") as f,
+            tqdm(
+                total=total or None,
+                unit="B",
+                unit_scale=True,
+                desc=os.path.basename(output_path),
+            ) as bar,
+        ):
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 if not chunk:
                     continue

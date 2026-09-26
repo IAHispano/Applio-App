@@ -94,9 +94,12 @@ def save_response_content(response):
     total_size = int(response.headers.get("Content-Length", 0))
     chunk_size = 1024
 
-    with open(os.path.join(zips_path, file_name), "wb") as file, tqdm(
-        total=total_size, unit="B", unit_scale=True, desc=file_name
-    ) as progress_bar:
+    with (
+        open(os.path.join(zips_path, file_name), "wb") as file,
+        tqdm(
+            total=total_size, unit="B", unit_scale=True, desc=file_name
+        ) as progress_bar,
+    ):
         for data in response.iter_content(chunk_size):
             file.write(data)
             progress_bar.update(len(data))
