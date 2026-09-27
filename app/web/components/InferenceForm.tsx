@@ -218,23 +218,26 @@ export default function InferenceForm() {
   }, [speakers, sid]);
 
   // Load models, indexes and sample audios
-  const loadAvailableModels = useCallback((force = true) => {
-    fetchModels(force)
-      .then((m) => {
-        setModels(m.models);
-        setIndexes(m.indexes);
-        setSampleAudios(m.audios);
-        if (m.models.length > 0 && !pthPath) {
-          handleModelSelect(m.models[0], m.indexes);
-        }
-        setLoadError("");
-      })
-      .catch((e) => setLoadError(errMsg(e)));
+  const loadAvailableModels = useCallback(
+    (force = true) => {
+      fetchModels(force)
+        .then((m) => {
+          setModels(m.models);
+          setIndexes(m.indexes);
+          setSampleAudios(m.audios);
+          if (m.models.length > 0 && !pthPath) {
+            handleModelSelect(m.models[0], m.indexes);
+          }
+          setLoadError("");
+        })
+        .catch((e) => setLoadError(errMsg(e)));
 
-    apiGet<{ models: ModelDetail[] }>("/api/models/library", { force })
-      .then((r) => setLibrary(r.models || []))
-      .catch(() => setLibrary([]));
-  }, [pthPath]);
+      apiGet<{ models: ModelDetail[] }>("/api/models/library", { force })
+        .then((r) => setLibrary(r.models || []))
+        .catch(() => setLibrary([]));
+    },
+    [pthPath],
+  );
 
   // Initial model fetch & refresh on window focus
   useEffect(() => {
@@ -681,9 +684,6 @@ export default function InferenceForm() {
 
         {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-         
-      
-
           {/* Search Feature Ratio */}
           <div>
             <SliderField

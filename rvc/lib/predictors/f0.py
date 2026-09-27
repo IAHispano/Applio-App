@@ -218,4 +218,3 @@ class SWIFT:
 
 Swift = SWIFT
 SwiftF0 = SWIFT
-

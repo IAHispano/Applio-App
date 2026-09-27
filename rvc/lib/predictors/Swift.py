@@ -100,7 +100,10 @@ class SwiftPredictor:
             options.add_session_config_entry("session.intra_op.allow_spinning", "0")
 
         providers = ["CPUExecutionProvider"]
-        if "cuda" in self.device and "CUDAExecutionProvider" in onnxruntime.get_available_providers():
+        if (
+            "cuda" in self.device
+            and "CUDAExecutionProvider" in onnxruntime.get_available_providers()
+        ):
             providers.insert(0, "CUDAExecutionProvider")
 
         self.session = onnxruntime.InferenceSession(
@@ -134,7 +137,11 @@ class SwiftPredictor:
     ):
         signal = _to_mono(audio)
         if signal.size == 0:
-            return np.zeros(0, dtype=np.float64), np.zeros(0, dtype=np.float64), np.zeros(0, dtype=np.float64)
+            return (
+                np.zeros(0, dtype=np.float64),
+                np.zeros(0, dtype=np.float64),
+                np.zeros(0, dtype=np.float64),
+            )
 
         if sample_rate != SAMPLE_RATE:
             try:
@@ -148,7 +155,11 @@ class SwiftPredictor:
                     signal, orig_sr=sample_rate, target_sr=SAMPLE_RATE
                 )
             if signal.size == 0:
-                return np.zeros(0, dtype=np.float64), np.zeros(0, dtype=np.float64), np.zeros(0, dtype=np.float64)
+                return (
+                    np.zeros(0, dtype=np.float64),
+                    np.zeros(0, dtype=np.float64),
+                    np.zeros(0, dtype=np.float64),
+                )
 
         fmin = max(FMIN, float(fmin))
         fmax = min(FMAX, float(fmax))

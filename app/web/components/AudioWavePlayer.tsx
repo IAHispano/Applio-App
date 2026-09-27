@@ -471,11 +471,7 @@ function AudioWavePlayerInner({
             aria-label={t("Toggle loop")}
             aria-pressed={isLooping}
             title={isLooping ? t("Looping Enabled") : t("Enable Loop")}
-            style={
-              isLooping
-                ? { padding: 0, color: "#000000", backgroundColor: "#ffffff" }
-                : { padding: 0 }
-            }
+            style={isLooping ? { padding: 0, color: "#000000", backgroundColor: "#ffffff" } : { padding: 0 }}
             className={`${btnSquare} border transition-all flex items-center justify-center cursor-pointer shrink-0 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${
               isLooping
                 ? "bg-white text-black border-white shadow-xs font-semibold"

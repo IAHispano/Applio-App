@@ -114,15 +114,18 @@ export default function TtsForm() {
     setSid(0);
   }
 
-  const loadModels = useCallback((force = true) => {
-    fetchModels(force)
-      .then((m) => {
-        setModels(m.models);
-        setIndexes(m.indexes);
-        if (m.models.length > 0 && !pthPath) handleModelSelect(m.models[0], m.indexes);
-      })
-      .catch(() => {});
-  }, [pthPath]);
+  const loadModels = useCallback(
+    (force = true) => {
+      fetchModels(force)
+        .then((m) => {
+          setModels(m.models);
+          setIndexes(m.indexes);
+          if (m.models.length > 0 && !pthPath) handleModelSelect(m.models[0], m.indexes);
+        })
+        .catch(() => {});
+    },
+    [pthPath],
+  );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
   useEffect(() => {

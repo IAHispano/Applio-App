@@ -961,7 +961,9 @@ def interactive_mode():
                 continue
             idx = prompt_with_default("Index (.index) path (optional)", "")
             pitch = int(prompt_with_default("Pitch shift (semitones, -24..24)", "0"))
-            f0_m = prompt_with_default("F0 pitch method (rmvpe, fcpe, crepe, swift)", "rmvpe")
+            f0_m = prompt_with_default(
+                "F0 pitch method (rmvpe, fcpe, crepe, swift)", "rmvpe"
+            )
             rate = float(prompt_with_default("Index rate (0..1)", "0.75"))
             os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
             print("\nStarting voice conversion...")
@@ -1003,7 +1005,9 @@ def interactive_mode():
                 continue
             idx = prompt_with_default("Index (.index) path (optional)", "")
             pitch = int(prompt_with_default("Pitch shift (semitones, -24..24)", "0"))
-            f0_m = prompt_with_default("F0 pitch method (rmvpe, fcpe, crepe, swift)", "rmvpe")
+            f0_m = prompt_with_default(
+                "F0 pitch method (rmvpe, fcpe, crepe, swift)", "rmvpe"
+            )
             os.makedirs(out_f, exist_ok=True)
             print("\nStarting batch voice conversion...")
             try:
@@ -1125,7 +1129,9 @@ def interactive_mode():
                 sr = int(
                     prompt_with_default("Sample rate (40000, 48000, 32000)", "40000")
                 )
-                f0_m = prompt_with_default("F0 method (rmvpe, fcpe, crepe, swift)", "rmvpe")
+                f0_m = prompt_with_default(
+                    "F0 method (rmvpe, fcpe, crepe, swift)", "rmvpe"
+                )
                 print(run_extract_script(m_name, f0_m, 2, 0, sr, "contentvec"))
             elif sub == "c":
                 m_name = prompt_with_default("Model name", "my_voice")
@@ -1182,7 +1188,9 @@ def interactive_mode():
                 if inp and os.path.exists(inp):
                     from rvc.lib.tools.f0_curve import extract_f0_curve
 
-                    method = prompt_with_default("Method (rmvpe, fcpe, crepe, swift)", "rmvpe")
+                    method = prompt_with_default(
+                        "Method (rmvpe, fcpe, crepe, swift)", "rmvpe"
+                    )
                     img = prompt_with_default(
                         "Output plot image path", "logs/f0_curve.png"
                     )
