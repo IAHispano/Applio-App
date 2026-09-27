@@ -11,7 +11,7 @@ import {
   Wand2,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Badge,
@@ -30,7 +30,7 @@ import { matchIndex } from "@/lib/model-index";
 import { usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
-const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe"];
+const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"];
 const FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"];
 
 export default function BatchForm() {
@@ -126,8 +126,8 @@ export default function BatchForm() {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
 
-  useEffect(() => {
-    fetchModels()
+  const loadAvailableModels = useCallback((force = true) => {
+    fetchModels(force)
       .then((m) => {
         setModels(m.models);
         setIndexes(m.indexes);
@@ -138,6 +138,13 @@ export default function BatchForm() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadAvailableModels(true);
+    const onFocus = () => loadAvailableModels(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadAvailableModels]);
 
   function handleModelSelect(selected: string, idxList = indexes) {
     setPthPath(selected);

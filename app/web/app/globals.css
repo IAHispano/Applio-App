@@ -745,6 +745,50 @@ button.icon-btn {
 button.icon-btn svg {
   flex-shrink: 0;
 }
+/* Audio waveplayer buttons */
+button.audioplayer-btn,
+a.audioplayer-btn,
+.audioplayer-btn {
+  padding: 0 !important;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+button.audioplayer-btn svg,
+a.audioplayer-btn svg,
+.audioplayer-btn svg {
+  flex-shrink: 0;
+  display: block;
+}
+button.audioplayer-btn-text,
+.audioplayer-btn-text {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+button.audioplayer-play-btn,
+.audioplayer-play-btn {
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+button.audioplayer-play-btn svg,
+.audioplayer-play-btn svg {
+  color: #000000 !important;
+  stroke: #000000 !important;
+  fill: #000000 !important;
+}
+.audioplayer-container button.audioplayer-btn {
+  padding: 0 !important;
+}
+.audioplayer-container button svg {
+  flex-shrink: 0;
+}
 button.ghost,
 a.ghost {
   background: transparent;

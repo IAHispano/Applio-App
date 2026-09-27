@@ -16,7 +16,7 @@ sys.path.append(os.path.join(now_dir))
 # Zluda hijack
 import rvc.lib.zluda
 from rvc.configs.config import Config
-from rvc.lib.predictors.f0 import CREPE, FCPE, RMVPE, load_high_register_settings
+from rvc.lib.predictors.f0 import CREPE, FCPE, RMVPE, SWIFT, load_high_register_settings
 from rvc.lib.utils import load_audio, load_embedding
 from rvc.train.extract.preparing_files import generate_config, generate_filelist
 
@@ -58,6 +58,10 @@ class FeatureInput:
             self.model = FCPE(
                 device=self.device, sample_rate=self.sample_rate, hop_size=self.hop_size
             )
+        elif f0_method in ("swift", "swiftf0", "swift-f0"):
+            self.model = SWIFT(
+                device=self.device, sample_rate=self.sample_rate, hop_size=self.hop_size
+            )
         self.f0_method = f0_method
 
     def compute_f0(self, x, p_len=None):
@@ -69,6 +73,14 @@ class FeatureInput:
             f0 = self.model.get_f0(x, filter_radius=0.03)
         elif self.f0_method == "fcpe":
             f0 = self.model.get_f0(x, p_len, filter_radius=0.006)
+        elif self.f0_method in ("swift", "swiftf0", "swift-f0"):
+            f0 = self.model.get_f0(
+                x,
+                p_len=p_len,
+                f0_min=self.f0_min,
+                f0_max=self.f0_max,
+                filter_radius=0.5,
+            )
         return f0
 
     def coarse_f0(self, f0):

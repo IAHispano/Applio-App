@@ -61,6 +61,12 @@ export default function ModelDropdown({
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (open) {
+      onRefresh?.();
+    }
+  }, [open, onRefresh]);
+
   // Position the floating menu against the trigger button. Rendered in a
   // portal so ancestor cards (backdrop-filter creates a stacking context)
   // can never paint over it.

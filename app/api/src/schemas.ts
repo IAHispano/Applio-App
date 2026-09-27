@@ -2,16 +2,7 @@ import { z } from "zod";
 
 // Mirrors rvc inference options.
 
-export const F0_METHODS = [
-  "crepe",
-  "crepe-tiny",
-  "rmvpe",
-  "fcpe",
-  "hybrid[crepe+rmvpe]",
-  "hybrid[crepe+fcpe]",
-  "hybrid[rmvpe+fcpe]",
-  "hybrid[crepe+rmvpe+fcpe]",
-] as const;
+export const F0_METHODS = ["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"] as const;
 
 export const EXPORT_FORMATS = ["WAV", "MP3", "FLAC", "OGG", "M4A"] as const;
 

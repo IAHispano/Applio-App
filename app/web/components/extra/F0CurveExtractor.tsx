@@ -12,7 +12,7 @@ interface F0CurveExtractorProps {
   fallbackPath?: string;
 }
 
-type MethodType = "rmvpe" | "fcpe" | "crepe";
+type MethodType = "rmvpe" | "fcpe" | "crepe" | "swift";
 
 export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtractorProps) {
   const { t } = useI18n();
@@ -118,6 +118,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
             options={[
               { value: "rmvpe", label: "RMVPE" },
               { value: "fcpe", label: "FCPE" },
+              { value: "swift", label: "SWIFT" },
               { value: "crepe", label: "CREPE" },
             ]}
             onChange={(val) => setMethod(val as MethodType)}

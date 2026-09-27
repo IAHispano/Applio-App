@@ -96,11 +96,27 @@ export default function UvrPage() {
     }
   }, []);
 
+  const refreshSampleAudios = useCallback(async () => {
+    try {
+      const m = await fetchModels(true);
+      if (m?.audios) setSampleAudios(m.audios);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   useEffect(() => {
     loadModels();
-    fetchModels()
-      .then((m) => setSampleAudios(m.audios))
-      .catch(() => {});
+    refreshSampleAudios();
+    const onFocus = () => {
+      refreshSampleAudios();
+      loadModels();
+    };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadModels, refreshSampleAudios]);
+
+  useEffect(() => {
     apiGet<{
       count: number | string;
       info: string;
@@ -118,7 +134,7 @@ export default function UvrPage() {
         }
       })
       .catch(() => setGpuDevices([]));
-  }, [loadModels]);
+  }, []);
 
   const selectedModel = useMemo(() => models.find((m) => m.filename === model), [models, model]);
   const modelStems = useMemo(() => {
@@ -227,6 +243,7 @@ export default function UvrPage() {
           sampleAudios={sampleAudios}
           onFileSelect={setAudioFile}
           onPathSelect={setInputPath}
+          onRefreshAudios={refreshSampleAudios}
           youtube
         />
 
@@ -236,6 +253,7 @@ export default function UvrPage() {
             <CustomSelect
               id="uvr-model"
               value={model}
+              onOpen={loadModels}
               onValueChange={handleModelChange}
               disabled={modelsLoading || models.length === 0}
               placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}

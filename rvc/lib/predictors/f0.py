@@ -3,6 +3,7 @@ import json
 import torch
 
 from rvc.lib.predictors.RMVPE import RMVPE0Predictor
+from rvc.lib.predictors.Swift import SwiftPredictor
 import numpy as np
 import librosa
 
@@ -184,3 +185,37 @@ class FCPE:
         )
 
         return f0
+
+
+class SWIFT:
+    def __init__(
+        self,
+        device="cpu",
+        model_name="swift.onnx",
+        sample_rate=16000,
+        hop_size=160,
+    ):
+        self.device = device
+        self.sample_rate = sample_rate
+        self.hop_size = hop_size
+        model_path = os.path.join("rvc", "models", "predictors", model_name)
+        self.model = SwiftPredictor(
+            model_path=model_path,
+            device=self.device,
+        )
+
+    def get_f0(self, x, p_len=None, f0_min=50, f0_max=1100, filter_radius=0.5):
+        return self.model.infer_from_audio(
+            x,
+            sample_rate=self.sample_rate,
+            p_len=p_len,
+            hop_size=self.hop_size,
+            f0_min=f0_min,
+            f0_max=f0_max,
+            thred=filter_radius,
+        )
+
+
+Swift = SWIFT
+SwiftF0 = SWIFT
+

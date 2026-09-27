@@ -1,10 +1,10 @@
 "use client";
 
 import { ChevronDown, Mic, Music, SquarePlay, UploadCloud } from "lucide-react";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import CustomSelect from "@/components/ui/CustomSelect";
-import { apiSend, errMsg } from "@/lib/api";
+import { apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
@@ -20,6 +20,8 @@ export interface AudioDropzoneProps {
   disabled?: boolean;
   /** Show the YouTube tab: paste a link, download to assets/audios, select it. */
   youtube?: boolean;
+  /** Optional callback when audios should be refreshed in parent */
+  onRefreshAudios?: () => void;
 }
 
 const YOUTUBE_RE =
@@ -93,6 +95,7 @@ function AudioDropzoneInner({
   onPathSelect,
   disabled = false,
   youtube = false,
+  onRefreshAudios,
 }: AudioDropzoneProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<DropzoneTab>("upload");
@@ -106,6 +109,31 @@ function AudioDropzoneInner({
   const [ytStarting, setYtStarting] = useState(false);
   const [ytError, setYtError] = useState("");
   const { job: ytJob } = useJob(youtube ? ytJobId : null);
+
+  const [localSampleAudios, setLocalSampleAudios] = useState<string[]>(sampleAudios);
+
+  useEffect(() => {
+    setLocalSampleAudios(sampleAudios);
+  }, [sampleAudios]);
+
+  const refreshSampleAudios = useCallback(async () => {
+    onRefreshAudios?.();
+    try {
+      const data = await fetchModels(true);
+      if (data?.audios) {
+        setLocalSampleAudios(data.audios);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [onRefreshAudios]);
+
+  // Whenever the samples tab is opened or picker is opened, reload audios from disk
+  useEffect(() => {
+    if (tab === "samples" || showSourcePicker) {
+      void refreshSampleAudios();
+    }
+  }, [tab, showSourcePicker, refreshSampleAudios]);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
@@ -235,6 +263,7 @@ function AudioDropzoneInner({
   useEffect(() => {
     if (!youtube || !ytJobId || !ytJob) return;
     if (ytJob.status === "done") {
+      void refreshSampleAudios();
       const file = (ytJob.result as { file?: string } | undefined)?.file;
       if (file) {
         onPathSelect(file);
@@ -249,7 +278,7 @@ function AudioDropzoneInner({
       setYtError(ytJob.error || t("YouTube download failed."));
       setYtJobId(null);
     }
-  }, [youtube, ytJobId, ytJob]);
+  }, [youtube, ytJobId, ytJob, refreshSampleAudios]);
 
   async function startYoutubeDownload() {
     const url = ytUrl.trim();
@@ -470,7 +499,7 @@ function AudioDropzoneInner({
                   >
                     {t("Pick a sample audio from assets/audios")}
                   </label>
-                  {sampleAudios.length === 0 ? (
+                  {localSampleAudios.length === 0 ? (
                     <p className="text-xs text-neutral-400 m-0 py-2">
                       {t("No sample files found in assets/audios")}
                     </p>
@@ -478,6 +507,7 @@ function AudioDropzoneInner({
                     <CustomSelect
                       id="change-sample-audio-select"
                       value={inputPath}
+                      onOpen={refreshSampleAudios}
                       onChange={(e) => {
                         if (e.target.value) {
                           onPathSelect(e.target.value);
@@ -489,7 +519,7 @@ function AudioDropzoneInner({
                       className="w-full"
                     >
                       <option value="">{t("Select an audio file…")}</option>
-                      {sampleAudios.map((s) => {
+                      {localSampleAudios.map((s) => {
                         const name = s.split(/[\\/]/).pop() || s;
                         return (
                           <option key={s} value={s}>
@@ -692,7 +722,7 @@ function AudioDropzoneInner({
               <label htmlFor="sample-audio-select" className="text-xs font-medium text-neutral-300">
                 {t("Pick a sample audio from assets/audios")}
               </label>
-              {sampleAudios.length === 0 ? (
+              {localSampleAudios.length === 0 ? (
                 <p className="text-xs text-neutral-400 m-0 py-2">
                   {t("No sample files found in assets/audios")}
                 </p>
@@ -700,6 +730,7 @@ function AudioDropzoneInner({
                 <CustomSelect
                   id="sample-audio-select"
                   value={inputPath}
+                  onOpen={refreshSampleAudios}
                   onChange={(e) => {
                     if (e.target.value) {
                       onPathSelect(e.target.value);
@@ -710,7 +741,7 @@ function AudioDropzoneInner({
                   className="w-full"
                 >
                   <option value="">{t("Select an audio file…")}</option>
-                  {sampleAudios.map((s) => {
+                  {localSampleAudios.map((s) => {
                     const name = s.split(/[\\/]/).pop() || s;
                     return (
                       <option key={s} value={s}>
@@ -790,6 +821,7 @@ function areAudioDropzonePropsEqual(prev: AudioDropzoneProps, next: AudioDropzon
   if (prev.sampleAudios.length !== next.sampleAudios.length) return false;
   if (prev.onFileSelect !== next.onFileSelect) return false;
   if (prev.onPathSelect !== next.onPathSelect) return false;
+  if (prev.onRefreshAudios !== next.onRefreshAudios) return false;
   return true;
 }
 

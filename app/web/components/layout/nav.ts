@@ -44,7 +44,12 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { icon: Database, label: "Models", to: "/models", blurb: "Manage installed voice models and weights" },
       { icon: Cpu, label: "Training", to: "/train", blurb: "Preprocess, extract, train, and index" },
-      { icon: Layers, label: "Voice Blender", to: "/voice-blender", blurb: "Fuse two models into a hybrid" },
+      {
+        icon: Layers,
+        label: "Voice Blender",
+        to: "/voice-blender",
+        blurb: "Fuse two models into a single checkpoint",
+      },
       { icon: Activity, label: "TensorBoard", to: "/tensorboard", blurb: "Track training loss and metrics" },
     ],
   },

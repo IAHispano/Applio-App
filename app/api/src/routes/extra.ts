@@ -117,7 +117,7 @@ router.post("/f0", upload.single("audio"), (req: Request, res: Response) => {
   try {
     const inputAbs = inputFrom(req);
     const parsed = z
-      .object({ method: z.enum(["crepe", "fcpe", "rmvpe"]).default("rmvpe") })
+      .object({ method: z.enum(["crepe", "fcpe", "rmvpe", "swift"]).default("rmvpe") })
       .safeParse(req.body);
     if (!parsed.success)
       return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });

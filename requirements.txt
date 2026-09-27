@@ -18,6 +18,7 @@ torch==2.11.0
 torchaudio==2.11.0
 torchcrepe==0.0.24
 torchfcpe==0.0.4
+swift-f0>=0.3.0
 einops==0.8.2
 transformers==5.13.1
 

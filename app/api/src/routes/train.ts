@@ -420,7 +420,7 @@ router.post("/extract", (req: Request, res: Response) => {
   const parsed = z
     .object({
       modelName,
-      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe"]).default("rmvpe"),
+      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
       cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
       gpu: z.string().default("0"),
       sampleRate: z.enum(["32000", "40000", "44100", "48000"]).default("40000"),
@@ -544,7 +544,7 @@ router.post("/pipeline", (req: Request, res: Response) => {
       noiseReduction: z.coerce.boolean().default(false),
       cleanStrength: z.coerce.number().min(0).max(1).default(0.7),
       normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
-      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe"]).default("rmvpe"),
+      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
       embedderModel: z
         .enum([
           "contentvec",

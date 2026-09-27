@@ -3,7 +3,7 @@
 import { Activity, AudioWaveform, Layers, Loader2, Music, Sliders, Sparkles, Wand2 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
 import {
@@ -218,8 +218,8 @@ export default function InferenceForm() {
   }, [speakers, sid]);
 
   // Load models, indexes and sample audios
-  const loadAvailableModels = () => {
-    fetchModels()
+  const loadAvailableModels = useCallback((force = true) => {
+    fetchModels(force)
       .then((m) => {
         setModels(m.models);
         setIndexes(m.indexes);
@@ -230,12 +230,19 @@ export default function InferenceForm() {
         setLoadError("");
       })
       .catch((e) => setLoadError(errMsg(e)));
-  };
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
+    apiGet<{ models: ModelDetail[] }>("/api/models/library", { force })
+      .then((r) => setLibrary(r.models || []))
+      .catch(() => setLibrary([]));
+  }, [pthPath]);
+
+  // Initial model fetch & refresh on window focus
   useEffect(() => {
-    loadAvailableModels();
-  }, []);
+    loadAvailableModels(true);
+    const onFocus = () => loadAvailableModels(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadAvailableModels]);
 
   // Pre-select model from URL params if available (e.g. from Models library)
   useEffect(() => {
@@ -642,6 +649,7 @@ export default function InferenceForm() {
               sampleAudios={sampleAudios}
               onFileSelect={setAudioFile}
               onPathSelect={setInputPath}
+              onRefreshAudios={() => loadAvailableModels(true)}
               disabled={isConverting}
               youtube
             />
@@ -673,46 +681,8 @@ export default function InferenceForm() {
 
         {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-          {/* Pitch Shift with Quick Octave Buttons */}
-          <div className="space-y-2">
-            <SliderField
-              id="infer-pitch"
-              label={t("Pitch")}
-              value={pitch}
-              min={-24}
-              max={24}
-              step={1}
-              unit="st"
-              formatValue={(v) => `${v > 0 ? `+${v}` : v} semitones`}
-              onChange={setPitch}
-              description={t("-24 to 24 semitones (±12 = 1 full octave)")}
-            />
-            {/* Octave Quick Buttons */}
-            <div className="flex items-center gap-1.5 pt-1 flex-wrap">
-              <span className="text-[10px] text-neutral-500 mr-1">{t("Quick:")}</span>
-              <button
-                type="button"
-                onClick={() => setPitch(-12)}
-                className="px-2 py-0.5 text-[10px] rounded bg-white/5 hover:bg-white/15 text-neutral-300 border border-white/10 transition-colors"
-              >
-                -12 (Male)
-              </button>
-              <button
-                type="button"
-                onClick={() => setPitch(0)}
-                className="px-2 py-0.5 text-[10px] rounded bg-white/5 hover:bg-white/15 text-neutral-300 border border-white/10 transition-colors"
-              >
-                0 (Default)
-              </button>
-              <button
-                type="button"
-                onClick={() => setPitch(12)}
-                className="px-2 py-0.5 text-[10px] rounded bg-white/5 hover:bg-white/15 text-neutral-300 border border-white/10 transition-colors"
-              >
-                +12 (Female)
-              </button>
-            </div>
-          </div>
+         
+      
 
           {/* Search Feature Ratio */}
           <div>

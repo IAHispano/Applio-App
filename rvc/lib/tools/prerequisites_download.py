@@ -29,7 +29,7 @@ pretraineds_refinegan_list = [
         ],
     ),
 ]
-models_list = [("predictors/", ["rmvpe.pt", "fcpe.pt"])]
+models_list = [("predictors/", ["rmvpe.pt", "fcpe.pt", "swift.onnx"])]
 embedders_list = [("embedders/contentvec/", ["pytorch_model.bin", "config.json"])]
 executables_list = [
     ("", ["ffmpeg.exe", "ffprobe.exe"]),

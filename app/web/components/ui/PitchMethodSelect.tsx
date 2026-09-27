@@ -4,19 +4,10 @@ import type React from "react";
 import CustomSelect from "./CustomSelect";
 
 /** Pitch extraction algorithms (mirrors the backend F0_METHODS validation). */
-export const F0_METHODS = [
-  "rmvpe",
-  "fcpe",
-  "crepe",
-  "crepe-tiny",
-  "hybrid[crepe+rmvpe]",
-  "hybrid[crepe+fcpe]",
-  "hybrid[rmvpe+fcpe]",
-  "hybrid[crepe+rmvpe+fcpe]",
-];
+export const F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"];
 
 /** Subset supported by the realtime streaming engine. */
-export const REALTIME_F0_METHODS = ["rmvpe", "fcpe", "crepe", "crepe-tiny"];
+export const REALTIME_F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"];
 
 /** Speaker embedding models (mirrors the backend EMBEDDER_MODELS validation). */
 export const EMBEDDER_MODELS = [

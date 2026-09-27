@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Music, RotateCcw, Sliders, Wand2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import {
   Alert,
@@ -114,15 +114,15 @@ export default function TtsForm() {
     setSid(0);
   }
 
-  function loadModels() {
-    fetchModels()
+  const loadModels = useCallback((force = true) => {
+    fetchModels(force)
       .then((m) => {
         setModels(m.models);
         setIndexes(m.indexes);
-        if (m.models.length > 0) handleModelSelect(m.models[0], m.indexes);
+        if (m.models.length > 0 && !pthPath) handleModelSelect(m.models[0], m.indexes);
       })
       .catch(() => {});
-  }
+  }, [pthPath]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
   useEffect(() => {
@@ -132,8 +132,14 @@ export default function TtsForm() {
         if (v.voices[0]) setVoice(v.voices[0].shortName);
       })
       .catch((e) => setError(errMsg(e)));
-    loadModels();
+    loadModels(true);
   }, []);
+
+  useEffect(() => {
+    const onFocus = () => loadModels(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadModels]);
 
   const resetDefaults = () => {
     setPitch(0);

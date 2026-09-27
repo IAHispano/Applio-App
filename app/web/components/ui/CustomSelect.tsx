@@ -30,6 +30,7 @@ export interface CustomSelectProps {
   options?: (CustomSelectOption | string)[];
   onChange?: (e: CustomSelectChangeEvent) => void;
   onValueChange?: (value: string) => void;
+  onOpen?: () => void;
   placeholder?: string;
   disabled?: boolean;
   searchable?: boolean;
@@ -54,6 +55,7 @@ export default function CustomSelect({
   options: propOptions,
   onChange,
   onValueChange,
+  onOpen,
   placeholder = "Select…",
   disabled = false,
   searchable: explicitSearchable,
@@ -222,6 +224,7 @@ export default function CustomSelect({
     const freshRows = groupedMode ? filteredOptions.slice(0, INITIAL_ROW_BUDGET) : filteredOptions;
     const curIdx = freshRows.findIndex((o) => o.value === selectedValue);
     setHighlightedIndex(curIdx >= 0 ? curIdx : 0);
+    onOpen?.();
   };
 
   const handleClose = useCallback(() => {

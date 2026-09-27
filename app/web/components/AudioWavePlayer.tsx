@@ -307,23 +307,31 @@ function AudioWavePlayerInner({
   };
 
   // Static class combinations so Tailwind scans every class literal
-  const btnSquare = compact ? "h-8 w-8 rounded-xl" : "h-9 w-9 rounded-xl";
-  const btnText = compact ? "h-8 px-2.5 rounded-xl" : "h-9 px-3 rounded-xl";
+  const btnSquare = compact
+    ? "audioplayer-btn h-8 w-8 !p-0 rounded-xl"
+    : "audioplayer-btn h-9 w-9 !p-0 rounded-xl";
+  const btnText = compact
+    ? "audioplayer-btn-text h-8 px-2.5 rounded-xl"
+    : "audioplayer-btn-text h-9 px-3 rounded-xl";
   const pillContainer = compact ? "h-8 rounded-xl" : "h-9 rounded-xl";
 
   return (
     <section
       aria-label={`Audio Waveplayer: ${displayName}`}
-      className={`w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 shadow-xl space-y-3 transition-all ${className}`}
+      className={`audioplayer-container w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 shadow-xl space-y-3 transition-all ${className}`}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
           <div
+            style={{ padding: 0 }}
             className={`${btnSquare} flex items-center justify-center shrink-0 border border-white/10 transition-all ${
               isPlaying ? "bg-white text-black shadow-md shadow-white/20" : "bg-white/5 text-neutral-300"
             }`}
           >
-            <Music className="w-4 h-4 shrink-0" />
+            <Music
+              className={`w-4 h-4 shrink-0 ${isPlaying ? "text-black stroke-black" : ""}`}
+              style={isPlaying ? { color: "#000000", stroke: "#000000" } : undefined}
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
@@ -361,6 +369,7 @@ function AudioWavePlayerInner({
                 type="button"
                 onClick={onReplace}
                 title={t("Replace audio file")}
+                style={{ paddingTop: 0, paddingBottom: 0 }}
                 className={`${btnText} text-xs font-medium bg-white/5 hover:bg-white/10 active:bg-white/15 text-neutral-300 hover:text-white transition-all border border-white/10 hover:border-white/20 flex items-center gap-1.5 cursor-pointer shadow-xs`}
               >
                 <Upload className="w-3.5 h-3.5 shrink-0" />
@@ -373,6 +382,7 @@ function AudioWavePlayerInner({
                 onClick={onRemove}
                 aria-label={t("Remove audio")}
                 title={t("Remove audio")}
+                style={{ padding: 0 }}
                 className={`${btnSquare} bg-white/5 hover:bg-red-500/10 active:bg-red-500/20 text-neutral-400 hover:text-red-400 border border-white/10 hover:border-red-500/30 transition-all flex items-center justify-center cursor-pointer shadow-xs`}
               >
                 <Trash2 className="w-4 h-4 shrink-0" />
@@ -424,12 +434,19 @@ function AudioWavePlayerInner({
             disabled={!isReady && !error}
             aria-label={isPlaying ? t("Pause audio") : t("Play audio")}
             title={isPlaying ? t("Pause") : t("Play")}
-            className={`${btnSquare} bg-white text-black flex items-center justify-center hover:bg-neutral-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer shrink-0`}
+            style={{ padding: 0, color: "#000000", backgroundColor: "#ffffff" }}
+            className={`${btnSquare} audioplayer-play-btn bg-white text-black flex items-center justify-center hover:bg-neutral-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed shadow-sm transition-all cursor-pointer shrink-0`}
           >
             {isPlaying ? (
-              <Pause className="w-4 h-4 shrink-0 fill-current" />
+              <Pause
+                className="w-4 h-4 shrink-0 fill-black stroke-black text-black"
+                style={{ color: "#000000", fill: "#000000", stroke: "#000000" }}
+              />
             ) : (
-              <Play className="w-4 h-4 shrink-0 fill-current ml-0.5" />
+              <Play
+                className="w-4 h-4 shrink-0 fill-black stroke-black text-black ml-0.5"
+                style={{ color: "#000000", fill: "#000000", stroke: "#000000" }}
+              />
             )}
           </button>
 
@@ -440,6 +457,7 @@ function AudioWavePlayerInner({
             disabled={!isReady}
             aria-label={t("Restart audio")}
             title={t("Restart")}
+            style={{ padding: 0 }}
             className={`${btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0 shadow-xs`}
           >
             <RotateCcw className="w-4 h-4 shrink-0" />
@@ -453,13 +471,21 @@ function AudioWavePlayerInner({
             aria-label={t("Toggle loop")}
             aria-pressed={isLooping}
             title={isLooping ? t("Looping Enabled") : t("Enable Loop")}
+            style={
+              isLooping
+                ? { padding: 0, color: "#000000", backgroundColor: "#ffffff" }
+                : { padding: 0 }
+            }
             className={`${btnSquare} border transition-all flex items-center justify-center cursor-pointer shrink-0 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed ${
               isLooping
                 ? "bg-white text-black border-white shadow-xs font-semibold"
                 : "bg-white/5 hover:bg-white/10 active:bg-white/15 border-white/10 hover:border-white/20 text-neutral-300 hover:text-white"
             }`}
           >
-            <Repeat className="w-4 h-4 shrink-0" />
+            <Repeat
+              className={`w-4 h-4 shrink-0 ${isLooping ? "text-black stroke-black" : ""}`}
+              style={isLooping ? { color: "#000000", stroke: "#000000" } : undefined}
+            />
           </button>
 
           {/* Playback speed selector */}
@@ -469,6 +495,7 @@ function AudioWavePlayerInner({
             disabled={!isReady}
             aria-label={`${t("Playback speed")}: ${playbackRate}x`}
             title={t("Playback Speed")}
+            style={{ paddingTop: 0, paddingBottom: 0 }}
             className={`${btnText} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed`}
           >
             <span>{playbackRate}x</span>
@@ -486,6 +513,11 @@ function AudioWavePlayerInner({
                 role="tab"
                 aria-selected={activeTrack === "original"}
                 onClick={() => handleTrackSwitch("original")}
+                style={
+                  activeTrack === "original"
+                    ? { color: "#000000", paddingTop: 0, paddingBottom: 0 }
+                    : { paddingTop: 0, paddingBottom: 0 }
+                }
                 className={`h-full px-2.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTrack === "original"
                     ? "bg-white text-black font-semibold shadow-xs"
@@ -506,6 +538,11 @@ function AudioWavePlayerInner({
                 role="tab"
                 aria-selected={activeTrack === "converted"}
                 onClick={() => handleTrackSwitch("converted")}
+                style={
+                  activeTrack === "converted"
+                    ? { color: "#000000", paddingTop: 0, paddingBottom: 0 }
+                    : { paddingTop: 0, paddingBottom: 0 }
+                }
                 className={`h-full px-2.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
                   activeTrack === "converted"
                     ? "bg-white text-black font-semibold shadow-xs"
@@ -545,7 +582,8 @@ function AudioWavePlayerInner({
               onClick={toggleMute}
               aria-label={isMuted ? t("Unmute audio") : t("Mute audio")}
               title={isMuted ? t("Unmute") : t("Mute")}
-              className="text-neutral-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center p-0"
+              style={{ padding: 0 }}
+              className="bg-transparent border-0 text-neutral-400 hover:text-white transition-colors cursor-pointer flex items-center justify-center p-0 w-5 h-5 shrink-0"
             >
               {isMuted || volume === 0 ? (
                 <VolumeX className="w-4 h-4 shrink-0" />
@@ -576,6 +614,7 @@ function AudioWavePlayerInner({
               download={displayName}
               aria-label={`${t("Download audio")}: ${displayName}`}
               title={t("Download audio")}
+              style={{ padding: 0 }}
               className={`${btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs`}
             >
               <Download className="w-4 h-4 shrink-0" />
@@ -588,6 +627,7 @@ function AudioWavePlayerInner({
               href="/extra"
               aria-label={t("Inspect in Audio Tools")}
               title={t("Inspect in Audio Tools")}
+              style={{ padding: 0 }}
               className={`${btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs`}
             >
               <ExternalLink className="w-4 h-4 shrink-0" />

@@ -2,7 +2,7 @@
 
 import { Activity, AudioWaveform, FolderUp, LineChart } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button, Card, CardHeader, CustomSelect } from "@/components/ui";
@@ -26,14 +26,24 @@ export default function ExtraPage() {
   const [inputPath, setInputPath] = useState("");
   const [audios, setAudios] = useState<string[]>([]);
 
-  useEffect(() => {
-    fetchModels()
-      .then((m) => {
+  const refreshAudios = useCallback(async () => {
+    try {
+      const m = await fetchModels(true);
+      if (m?.audios) {
         setAudios(m.audios);
-        if (m.audios.length > 0) setInputPath(m.audios[0]);
-      })
-      .catch(() => {});
+        setInputPath((prev) => (prev && m.audios.includes(prev) ? prev : m.audios[0] || ""));
+      }
+    } catch {
+      /* ignore */
+    }
   }, []);
+
+  useEffect(() => {
+    refreshAudios();
+    const onFocus = () => refreshAudios();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [refreshAudios]);
 
   const previewUrl = usePreviewUrl(audio, audio ? undefined : inputPath);
 
@@ -74,6 +84,7 @@ export default function ExtraPage() {
             <CustomSelect
               id="extra-audio-path"
               value={inputPath}
+              onOpen={refreshAudios}
               onChange={(e) => {
                 setInputPath(e.target.value);
                 if (e.target.value) setAudio(null);

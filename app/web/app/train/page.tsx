@@ -563,7 +563,7 @@ export default function TrainPage() {
                   onChange={(e) => setF0Method(e.target.value)}
                   className="w-full mt-1"
                 >
-                  {["rmvpe", "crepe", "crepe-tiny"].map((s) => (
+                  {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
@@ -880,7 +880,7 @@ export default function TrainPage() {
               onChange={(e) => setF0Method(e.target.value)}
               className="w-full mt-1"
             >
-              {["crepe", "crepe-tiny", "rmvpe"].map((s) => (
+              {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>

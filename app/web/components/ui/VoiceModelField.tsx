@@ -66,6 +66,7 @@ export default function VoiceModelField({
           <CustomSelect
             id={indexSelectId}
             value={indexPath}
+            onOpen={onRefresh}
             onChange={(e) => onIndexChange(e.target.value)}
             className="w-full"
           >
