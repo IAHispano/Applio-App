@@ -176,11 +176,7 @@ async function checkFfmpeg(): Promise<{ ok: boolean; detail: string }> {
   const localExe = path.join(root, exeName);
   let exe = exists(localExe) ? localExe : exeName;
   if (!exists(localExe) && process.platform === "darwin") {
-    const candidates = [
-      "/opt/homebrew/bin/ffmpeg",
-      "/usr/local/bin/ffmpeg",
-      "/opt/local/bin/ffmpeg",
-    ];
+    const candidates = ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/opt/local/bin/ffmpeg"];
     for (const cand of candidates) {
       if (exists(cand)) {
         exe = cand;

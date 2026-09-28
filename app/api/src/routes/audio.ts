@@ -15,11 +15,7 @@ function bundledFfmpeg(): string | null {
   const localExe = path.join(getRepoRoot(), exeName);
   if (fs.existsSync(localExe)) return localExe;
   if (process.platform === "darwin") {
-    for (const cand of [
-      "/opt/homebrew/bin/ffmpeg",
-      "/usr/local/bin/ffmpeg",
-      "/opt/local/bin/ffmpeg",
-    ]) {
+    for (const cand of ["/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/opt/local/bin/ffmpeg"]) {
       if (fs.existsSync(cand)) return cand;
     }
   }
