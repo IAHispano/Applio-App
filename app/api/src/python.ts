@@ -2,6 +2,25 @@ import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
+if (process.platform === "darwin") {
+  const extraPaths = [
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/opt/local/bin",
+    "/opt/local/sbin",
+  ];
+  const currentPath = process.env.PATH || "";
+  const parts = currentPath.split(path.delimiter).filter(Boolean);
+  for (const p of extraPaths) {
+    if (!parts.includes(p) && fs.existsSync(p)) {
+      parts.unshift(p);
+    }
+  }
+  process.env.PATH = parts.join(path.delimiter);
+}
+
 // app/api is two levels below the repo root, both as source and compiled.
 export function getRepoRoot(): string {
   if (process.env.APPLIO_ROOT && fs.existsSync(process.env.APPLIO_ROOT)) {
@@ -219,6 +238,7 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
   if (process.platform === "darwin") {
     env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
     env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
+    env.OMP_NUM_THREADS ??= "1";
   }
   return env;
 }

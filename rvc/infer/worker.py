@@ -1,5 +1,9 @@
 import os
 import sys
+
+if sys.platform == "darwin":
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 import json
 import traceback
 
@@ -58,6 +62,18 @@ def send_ipc(data: dict):
     real_stdout.flush()
 
 
+def to_bool(val, default=False) -> bool:
+    if val is None:
+        return default
+    if isinstance(val, bool):
+        return val
+    if isinstance(val, str):
+        return val.strip().lower() in ("true", "1", "yes", "on")
+    if isinstance(val, (int, float)):
+        return val != 0
+    return bool(val)
+
+
 def map_params(params: dict, input_path: str, output_path: str) -> dict:
     return {
         "pitch": int(params.get("pitch", 0)),
@@ -69,30 +85,30 @@ def map_params(params: dict, input_path: str, output_path: str) -> dict:
         "output_path": output_path,
         "pth_path": params.get("pthPath", ""),
         "index_path": params.get("indexPath", "") or "",
-        "split_audio": bool(params.get("splitAudio", False)),
-        "f0_autotune": bool(params.get("f0Autotune", False)),
+        "split_audio": to_bool(params.get("splitAudio", False)),
+        "f0_autotune": to_bool(params.get("f0Autotune", False)),
         "f0_autotune_strength": float(params.get("f0AutotuneStrength", 1.0)),
-        "proposed_pitch": bool(params.get("proposedPitch", False)),
+        "proposed_pitch": to_bool(params.get("proposedPitch", False)),
         "proposed_pitch_threshold": float(params.get("proposedPitchThreshold", 155.0)),
-        "clean_audio": bool(params.get("cleanAudio", False)),
+        "clean_audio": to_bool(params.get("cleanAudio", False)),
         "clean_strength": float(params.get("cleanStrength", 0.5)),
         "export_format": str(params.get("exportFormat", "WAV")),
         "embedder_model": str(params.get("embedderModel", "contentvec")),
         "embedder_model_custom": params.get("embedderModelCustom") or None,
-        "formant_shifting": bool(params.get("formantShifting", False)),
+        "formant_shifting": to_bool(params.get("formantShifting", False)),
         "formant_qfrency": float(params.get("formantQfrency", 1.0)),
         "formant_timbre": float(params.get("formantTimbre", 1.0)),
-        "post_process": bool(params.get("postProcess", False)),
-        "reverb": bool(params.get("reverb", False)),
-        "pitch_shift": bool(params.get("pitchShift", False)),
-        "limiter": bool(params.get("limiter", False)),
-        "gain": bool(params.get("gain", False)),
-        "distortion": bool(params.get("distortion", False)),
-        "chorus": bool(params.get("chorus", False)),
-        "bitcrush": bool(params.get("bitcrush", False)),
-        "clipping": bool(params.get("clipping", False)),
-        "compressor": bool(params.get("compressor", False)),
-        "delay": bool(params.get("delay", False)),
+        "post_process": to_bool(params.get("postProcess", False)),
+        "reverb": to_bool(params.get("reverb", False)),
+        "pitch_shift": to_bool(params.get("pitchShift", False)),
+        "limiter": to_bool(params.get("limiter", False)),
+        "gain": to_bool(params.get("gain", False)),
+        "distortion": to_bool(params.get("distortion", False)),
+        "chorus": to_bool(params.get("chorus", False)),
+        "bitcrush": to_bool(params.get("bitcrush", False)),
+        "clipping": to_bool(params.get("clipping", False)),
+        "compressor": to_bool(params.get("compressor", False)),
+        "delay": to_bool(params.get("delay", False)),
         "reverb_room_size": float(params.get("reverbRoomSize", 0.5)),
         "reverb_damping": float(params.get("reverbDamping", 0.5)),
         "reverb_wet_gain": float(params.get("reverbWetGain", 0.33)),

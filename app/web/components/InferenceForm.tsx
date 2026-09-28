@@ -334,11 +334,11 @@ export default function InferenceForm() {
     fd.append("exportFormat", exportFormat);
     fd.append("splitAudio", String(splitAudio));
     fd.append("f0Autotune", String(f0Autotune));
-    if (f0Autotune) fd.append("f0AutotuneStrength", String(f0AutotuneStrength));
+    fd.append("f0AutotuneStrength", String(f0AutotuneStrength));
     fd.append("proposedPitch", String(proposedPitch));
-    if (proposedPitch) fd.append("proposedPitchThreshold", String(proposedPitchThreshold));
+    fd.append("proposedPitchThreshold", String(proposedPitchThreshold));
     fd.append("cleanAudio", String(cleanAudio));
-    if (cleanAudio) fd.append("cleanStrength", String(cleanStrength));
+    fd.append("cleanStrength", String(cleanStrength));
     fd.append("sid", String(sid));
 
     if (formantShifting) {

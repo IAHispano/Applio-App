@@ -3,6 +3,9 @@ import os
 import shutil
 import subprocess
 import sys
+
+if sys.platform == "darwin":
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
 from functools import lru_cache
 from datetime import datetime, timedelta
 

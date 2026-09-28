@@ -1,5 +1,9 @@
 import os
 import sys
+
+if sys.platform == "darwin":
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+
 import torch
 import torch.nn.functional as F
 import torchcrepe
@@ -299,7 +303,7 @@ class Pipeline:
         # f0 adjustments
         if f0_autotune is True:
             f0 = self.autotune.autotune_f0(f0, f0_autotune_strength)
-        elif proposed_pitch is True:
+        if proposed_pitch is True:
             limit = 12
             # calculate median f0 of the audio
             valid_f0 = np.where(f0 > 0)[0]

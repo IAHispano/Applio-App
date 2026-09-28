@@ -7,6 +7,7 @@ import { errMsg } from "@/errors";
 import { setProgress } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
+import { booleanCoerce } from "@/schemas";
 
 const router = Router();
 
@@ -96,15 +97,15 @@ const separateSchema = z.object({
   vrAggression: z.coerce.number().int().min(1).max(100).default(5),
   vrWindow: z.coerce.number().int().min(320).max(1024).default(512),
   vrBatch: z.coerce.number().int().min(1).max(16).default(1),
-  vrTta: z.coerce.boolean().default(false),
-  vrHighEnd: z.coerce.boolean().default(false),
-  vrPostProcess: z.coerce.boolean().default(false),
+  vrTta: booleanCoerce.default(false),
+  vrHighEnd: booleanCoerce.default(false),
+  vrPostProcess: booleanCoerce.default(false),
   vrPostThreshold: z.coerce.number().min(0.01).max(0.3).default(0.2),
   mdxSegment: z.coerce.number().int().min(32).max(4000).default(256),
   mdxOverlap: z.coerce.number().min(0).max(0.99).default(0.25),
   mdxBatch: z.coerce.number().int().min(1).max(16).default(1),
   mdxHop: z.coerce.number().int().min(32).max(2048).default(1024),
-  mdxDenoise: z.coerce.boolean().default(false),
+  mdxDenoise: booleanCoerce.default(false),
   mdxcSegment: z.coerce.number().int().min(32).max(4000).default(256),
   mdxcOverlap: z.coerce.number().int().min(1).max(50).default(8),
   mdxcBatch: z.coerce.number().int().min(1).max(16).default(1),
@@ -114,7 +115,7 @@ const separateSchema = z.object({
     .default("Default"),
   demucsShifts: z.coerce.number().int().min(0).max(20).default(2),
   demucsOverlap: z.coerce.number().min(0).max(0.99).default(0.25),
-  demucsSplit: z.coerce.boolean().default(true),
+  demucsSplit: booleanCoerce.default(true),
   roformerChunk: z.coerce.number().min(1).max(60).optional(),
   roformerOverlap: z.coerce.number().int().min(1).max(32).default(2),
   roformerBatch: z.coerce.number().int().min(1).max(16).default(1),

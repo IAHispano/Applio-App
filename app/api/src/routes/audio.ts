@@ -13,7 +13,17 @@ const router = Router();
 function bundledFfmpeg(): string | null {
   const exeName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   const localExe = path.join(getRepoRoot(), exeName);
-  return fs.existsSync(localExe) ? localExe : null;
+  if (fs.existsSync(localExe)) return localExe;
+  if (process.platform === "darwin") {
+    for (const cand of [
+      "/opt/homebrew/bin/ffmpeg",
+      "/usr/local/bin/ffmpeg",
+      "/opt/local/bin/ffmpeg",
+    ]) {
+      if (fs.existsSync(cand)) return cand;
+    }
+  }
+  return null;
 }
 
 const youtubeSchema = z.object({

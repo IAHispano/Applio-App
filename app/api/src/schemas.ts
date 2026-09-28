@@ -16,6 +16,20 @@ export const EMBEDDER_MODELS = [
   "custom",
 ] as const;
 
+// Safe boolean coercion that correctly handles string "false", "0", etc.
+// z.coerce.boolean() uses Boolean(val), which evaluates Boolean("false") === true.
+export const booleanCoerce = z.preprocess((val) => {
+  if (val === undefined || val === null) return undefined;
+  if (typeof val === "boolean") return val;
+  if (typeof val === "string") {
+    const s = val.trim().toLowerCase();
+    if (s === "true" || s === "1" || s === "yes" || s === "on") return true;
+    if (s === "false" || s === "0" || s === "no" || s === "off" || s === "") return false;
+  }
+  if (typeof val === "number") return val !== 0;
+  return Boolean(val);
+}, z.boolean());
+
 export const baseInferSchema = z.object({
   // Model selection (paths relative to repo root, e.g. logs/my-model/model.pth)
   pthPath: z.string().min(1, "pthPath is required"),
@@ -27,12 +41,12 @@ export const baseInferSchema = z.object({
   volumeEnvelope: z.coerce.number().min(0).max(1).default(1),
   protect: z.coerce.number().min(0).max(0.5).default(0.5),
   f0Method: z.enum(F0_METHODS).default("rmvpe"),
-  splitAudio: z.coerce.boolean().default(false),
-  f0Autotune: z.coerce.boolean().default(false),
+  splitAudio: booleanCoerce.default(false),
+  f0Autotune: booleanCoerce.default(false),
   f0AutotuneStrength: z.coerce.number().min(0).max(1).default(1),
-  proposedPitch: z.coerce.boolean().default(false),
+  proposedPitch: booleanCoerce.default(false),
   proposedPitchThreshold: z.coerce.number().min(50).max(1200).default(155),
-  cleanAudio: z.coerce.boolean().default(false),
+  cleanAudio: booleanCoerce.default(false),
   cleanStrength: z.coerce.number().min(0).max(1).default(0.5),
   exportFormat: z.enum(EXPORT_FORMATS).default("WAV"),
   embedderModel: z.enum(EMBEDDER_MODELS).default("contentvec"),
@@ -40,42 +54,42 @@ export const baseInferSchema = z.object({
   sid: z.coerce.number().int().min(0).default(0),
 
   // Post-process options — all optional, default off/neutral
-  formantShifting: z.coerce.boolean().default(false),
+  formantShifting: booleanCoerce.default(false),
   formantQfrency: z.coerce.number().default(1.0),
   formantTimbre: z.coerce.number().default(1.0),
-  postProcess: z.coerce.boolean().default(false),
-  reverb: z.coerce.boolean().default(false),
+  postProcess: booleanCoerce.default(false),
+  reverb: booleanCoerce.default(false),
   reverbRoomSize: z.coerce.number().default(0.5),
   reverbDamping: z.coerce.number().default(0.5),
   reverbWetGain: z.coerce.number().default(0.33),
   reverbDryGain: z.coerce.number().default(0.4),
   reverbWidth: z.coerce.number().default(1.0),
   reverbFreezeMode: z.coerce.number().default(0.0),
-  pitchShift: z.coerce.boolean().default(false),
+  pitchShift: booleanCoerce.default(false),
   pitchShiftSemitones: z.coerce.number().default(0),
-  limiter: z.coerce.boolean().default(false),
+  limiter: booleanCoerce.default(false),
   limiterThreshold: z.coerce.number().default(-6),
   limiterReleaseTime: z.coerce.number().default(0.05),
-  gain: z.coerce.boolean().default(false),
+  gain: booleanCoerce.default(false),
   gainDb: z.coerce.number().default(0),
-  distortion: z.coerce.boolean().default(false),
+  distortion: booleanCoerce.default(false),
   distortionGain: z.coerce.number().default(25),
-  chorus: z.coerce.boolean().default(false),
+  chorus: booleanCoerce.default(false),
   chorusRate: z.coerce.number().default(1.0),
   chorusDepth: z.coerce.number().default(0.25),
   chorusCenterDelay: z.coerce.number().default(7),
   chorusFeedback: z.coerce.number().default(0),
   chorusMix: z.coerce.number().default(0.5),
-  bitcrush: z.coerce.boolean().default(false),
+  bitcrush: booleanCoerce.default(false),
   bitcrushBitDepth: z.coerce.number().int().default(8),
-  clipping: z.coerce.boolean().default(false),
+  clipping: booleanCoerce.default(false),
   clippingThreshold: z.coerce.number().default(-6),
-  compressor: z.coerce.boolean().default(false),
+  compressor: booleanCoerce.default(false),
   compressorThreshold: z.coerce.number().default(0),
   compressorRatio: z.coerce.number().default(1),
   compressorAttack: z.coerce.number().default(1.0),
   compressorRelease: z.coerce.number().default(100),
-  delay: z.coerce.boolean().default(false),
+  delay: booleanCoerce.default(false),
   delaySeconds: z.coerce.number().default(0.5),
   delayFeedback: z.coerce.number().default(0),
   delayMix: z.coerce.number().default(0.5),

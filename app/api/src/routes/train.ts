@@ -9,6 +9,7 @@ import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "@
 import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { booleanCoerce } from "@/schemas";
 
 const router = Router();
 const AUDIO_EXTS = [
@@ -385,8 +386,8 @@ router.post("/preprocess", (req: Request, res: Response) => {
       sampleRate: z.enum(["32000", "40000", "48000"]).default("40000"),
       cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
       cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
-      processEffects: z.coerce.boolean().default(false),
-      noiseReduction: z.coerce.boolean().default(false),
+      processEffects: booleanCoerce.default(false),
+      noiseReduction: booleanCoerce.default(false),
       cleanStrength: z.coerce.number().min(0).max(1).default(0.5),
       chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
       overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
@@ -454,20 +455,20 @@ router.post("/train", (req: Request, res: Response) => {
     .object({
       modelName,
       vocoder: z.enum(["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"]).default("HiFi-GAN"),
-      checkpointing: z.coerce.boolean().default(false),
+      checkpointing: booleanCoerce.default(false),
       saveEveryEpoch: z.coerce.number().int().min(1).max(100).default(10),
-      saveOnlyLatest: z.coerce.boolean().default(true),
-      saveEveryWeights: z.coerce.boolean().default(true),
+      saveOnlyLatest: booleanCoerce.default(true),
+      saveEveryWeights: booleanCoerce.default(true),
       totalEpoch: z.coerce.number().int().min(1).max(10000).default(200),
       sampleRate: z.string().default("40000"),
       batchSize: z.coerce.number().int().min(1).max(64).default(4),
       gpu: z.string().default("0"),
-      pretrained: z.coerce.boolean().default(true),
-      customPretrained: z.coerce.boolean().default(false),
+      pretrained: booleanCoerce.default(true),
+      customPretrained: booleanCoerce.default(false),
       gPretrainedPath: z.string().optional(),
       dPretrainedPath: z.string().optional(),
-      cleanup: z.coerce.boolean().default(false),
-      cacheDataInGpu: z.coerce.boolean().default(false),
+      cleanup: booleanCoerce.default(false),
+      cacheDataInGpu: booleanCoerce.default(false),
       indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans", "Skip"]).default("Auto"),
     })
     .safeParse(req.body);
@@ -540,8 +541,8 @@ router.post("/pipeline", (req: Request, res: Response) => {
       cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
       chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
       overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
-      processEffects: z.coerce.boolean().default(false),
-      noiseReduction: z.coerce.boolean().default(false),
+      processEffects: booleanCoerce.default(false),
+      noiseReduction: booleanCoerce.default(false),
       cleanStrength: z.coerce.number().min(0).max(1).default(0.7),
       normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
       f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
@@ -562,15 +563,15 @@ router.post("/pipeline", (req: Request, res: Response) => {
       totalEpoch: z.coerce.number().int().min(1).max(10000).default(200),
       batchSize: z.coerce.number().int().min(1).max(64).default(4),
       saveEveryEpoch: z.coerce.number().int().min(1).max(100).default(10),
-      saveOnlyLatest: z.coerce.boolean().default(true),
-      saveEveryWeights: z.coerce.boolean().default(true),
-      pretrained: z.coerce.boolean().default(true),
-      customPretrained: z.coerce.boolean().default(false),
+      saveOnlyLatest: booleanCoerce.default(true),
+      saveEveryWeights: booleanCoerce.default(true),
+      pretrained: booleanCoerce.default(true),
+      customPretrained: booleanCoerce.default(false),
       gPretrainedPath: z.string().optional(),
       dPretrainedPath: z.string().optional(),
-      cleanup: z.coerce.boolean().default(false),
-      cacheDataInGpu: z.coerce.boolean().default(false),
-      checkpointing: z.coerce.boolean().default(false),
+      cleanup: booleanCoerce.default(false),
+      cacheDataInGpu: booleanCoerce.default(false),
+      checkpointing: booleanCoerce.default(false),
       gpu: z.string().default("0"),
       indexAlgorithm: z.enum(["Auto", "Faiss", "KMeans", "Skip"]).default("Auto"),
     })

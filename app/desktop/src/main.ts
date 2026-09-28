@@ -17,6 +17,27 @@ app.setName("Applio");
 if (process.platform === "darwin") {
   process.env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
   process.env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
+  // Restrict OpenMP to 1 thread to avoid FAISS crashes on Apple Silicon / macOS
+  process.env.OMP_NUM_THREADS ??= "1";
+
+  // macOS GUI apps launched from Finder do not inherit shell profile PATH.
+  // Ensure Homebrew and standard POSIX binary directories are present on PATH.
+  const extraPaths = [
+    "/opt/homebrew/bin",
+    "/opt/homebrew/sbin",
+    "/usr/local/bin",
+    "/usr/local/sbin",
+    "/opt/local/bin",
+    "/opt/local/sbin",
+  ];
+  const currentPath = process.env.PATH || "";
+  const parts = currentPath.split(path.delimiter).filter(Boolean);
+  for (const p of extraPaths) {
+    if (!parts.includes(p) && fs.existsSync(p)) {
+      parts.unshift(p);
+    }
+  }
+  process.env.PATH = parts.join(path.delimiter);
 }
 
 const isDev: boolean = !app.isPackaged;

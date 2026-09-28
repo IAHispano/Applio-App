@@ -174,7 +174,20 @@ async function checkFfmpeg(): Promise<{ ok: boolean; detail: string }> {
   const root = getRepoRoot();
   const exeName = process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   const localExe = path.join(root, exeName);
-  const exe = exists(localExe) ? localExe : exeName;
+  let exe = exists(localExe) ? localExe : exeName;
+  if (!exists(localExe) && process.platform === "darwin") {
+    const candidates = [
+      "/opt/homebrew/bin/ffmpeg",
+      "/usr/local/bin/ffmpeg",
+      "/opt/local/bin/ffmpeg",
+    ];
+    for (const cand of candidates) {
+      if (exists(cand)) {
+        exe = cand;
+        break;
+      }
+    }
+  }
   const r = await runCmd(exe, ["-version"], { timeoutMs: 15000 });
   if (r.code === 0) {
     const detail = (r.stdout + r.stderr).split("\n")[0].trim().slice(0, 120);
