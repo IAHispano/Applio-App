@@ -40,6 +40,12 @@ if (process.platform === "darwin") {
   process.env.PATH = parts.join(path.delimiter);
 }
 
+// AMD GPU on Windows: ensure AMD HIP SDK bin directory is in PATH and
+// ZLUDA environment variables are set so child processes (API, engine) inherit them.
+if (process.platform === "win32") {
+  setupWindowsAmdHipEnv();
+}
+
 const isDev: boolean = !app.isPackaged;
 const API_PORT: string = process.env.API_PORT || "8000";
 const WEB_PORT: string = process.env.WEB_PORT || "3000";
@@ -47,6 +53,50 @@ const WEB_URL: string = process.env.WEB_URL || `http://127.0.0.1:${WEB_PORT}/`;
 
 function noEnv(): boolean {
   return process.argv.includes("--no-env") || process.env.APPLIO_NO_ENV === "1";
+}
+
+function setupWindowsAmdHipEnv(): void {
+  const candidates: string[] = [];
+  if (process.env.HIP_PATH && fs.existsSync(process.env.HIP_PATH)) {
+    candidates.push(process.env.HIP_PATH);
+  }
+  if (process.env.ROCM_PATH && fs.existsSync(process.env.ROCM_PATH)) {
+    candidates.push(process.env.ROCM_PATH);
+  }
+  const baseDir = "C:\\Program Files\\AMD\\ROCm";
+  if (fs.existsSync(baseDir)) {
+    try {
+      const entries = fs.readdirSync(baseDir, { withFileTypes: true });
+      const versions = entries
+        .filter((e) => e.isDirectory())
+        .map((e) => e.name)
+        .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+      for (const v of versions) candidates.push(path.join(baseDir, v));
+    } catch {
+      /* ignore */
+    }
+  }
+  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.4");
+  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.2");
+  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.1");
+  candidates.push("C:\\Program Files\\AMD\\ROCm\\5.7");
+
+  for (const cand of candidates) {
+    if (!fs.existsSync(cand)) continue;
+    const binDir = path.join(cand, "bin");
+    if (fs.existsSync(binDir)) {
+      const currentPath = process.env.PATH || "";
+      const parts = currentPath.split(path.delimiter).filter(Boolean);
+      if (!parts.some((p) => p.toLowerCase() === binDir.toLowerCase())) {
+        process.env.PATH = `${binDir}${path.delimiter}${currentPath}`;
+      }
+      process.env.HIP_PATH ??= cand;
+      process.env.HIP_VISIBLE_DEVICES ??= "0";
+      process.env.ZLUDA_COMGR_LOG_LEVEL ??= "1";
+      process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
+      break;
+    }
+  }
 }
 
 let apiProc: ChildProcess | null = null;

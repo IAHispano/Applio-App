@@ -324,7 +324,49 @@ export async function getStatus(force = false): Promise<SetupStatus> {
     detail: models > 0 ? `${models} model(s) in logs/` : "none yet — use the Download tab",
   });
 
-  const ready = checks.every((c) => c.status === "ok" || c.id === "ffmpeg" || c.id === "models");
+  if (process.platform === "win32") {
+    try {
+      const { findHipSdk, getGpuHardware, isZludaPatched } = await import("@/zluda");
+      const gpu = getGpuHardware();
+      if (gpu.isAmd) {
+        const hip = findHipSdk();
+        const root = getRepoRoot();
+        const torchLibDir = py
+          ? path.join(path.dirname(py.cmd[0]), "..", "Lib", "site-packages", "torch", "lib")
+          : path.join(root, ".venv", "Lib", "site-packages", "torch", "lib");
+        const patched = isZludaPatched(torchLibDir);
+
+        if (!hip) {
+          checks.push({
+            id: "zluda",
+            label: "AMD GPU (HIP SDK)",
+            status: "warn",
+            detail: `${gpu.gpus.join(", ") || "AMD GPU"} detected, but AMD HIP SDK is missing. Install HIP SDK (5.7, 6.1, 6.2, or 6.4) from AMD to enable GPU acceleration.`,
+          });
+        } else if (!patched) {
+          checks.push({
+            id: "zluda",
+            label: "AMD GPU Acceleration (ZLUDA)",
+            status: "warn",
+            detail: `HIP SDK ${hip.version} found — ZLUDA will be automatically configured during Install/Repair.`,
+          });
+        } else {
+          checks.push({
+            id: "zluda",
+            label: "AMD GPU Acceleration (ZLUDA)",
+            status: "ok",
+            detail: `${gpu.gpus[0] || "AMD GPU"} via ZLUDA (HIP SDK ${hip.version}) ✓`,
+          });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const ready = checks.every(
+    (c) => c.status === "ok" || c.id === "ffmpeg" || c.id === "models" || c.id === "zluda",
+  );
   const status: SetupStatus = {
     ready,
     checks,
@@ -551,6 +593,33 @@ export function startInstall(): Job {
 
       process.env.PYTHON_BIN = venvPy;
       appendLog(job, `Using Python env: ${venvPy}`);
+
+      if (process.platform === "win32") {
+        try {
+          const { getGpuHardware, findHipSdk, installAndPatchZluda } = await import("@/zluda");
+          const gpu = getGpuHardware();
+          const hip = findHipSdk();
+
+          if (gpu.isAmd) {
+            appendLog(job, `Detected AMD GPU: ${gpu.gpus.join(", ") || "AMD Radeon"}`);
+            if (hip) {
+              appendLog(job, `Detected AMD HIP SDK at ${hip.path} (v${hip.version})`);
+              try {
+                await installAndPatchZluda(path.join(root, ".venv"), job);
+              } catch (zludaErr) {
+                appendLog(job, `[!] Warning: Failed to configure ZLUDA: ${zludaErr}`);
+              }
+            } else {
+              appendLog(
+                job,
+                "[!] AMD GPU detected, but AMD HIP SDK was not found. To enable GPU acceleration with ZLUDA, install AMD HIP SDK (v5.7, 6.1, 6.2, or 6.4) and run Install/Repair again.",
+              );
+            }
+          }
+        } catch (e) {
+          appendLog(job, `Note: ZLUDA detection step: ${e}`);
+        }
+      }
 
       appendLog(job, "Downloading base voice models and prerequisites (hubert, rmvpe)…");
       try {

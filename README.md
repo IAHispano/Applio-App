@@ -67,6 +67,18 @@ Run Applio online for free using cloud GPUs without installing anything locally:
 > ```
 > On Apple Silicon the app runs via PyTorch MPS with CPU fallback enabled automatically.
 
+### AMD GPU Support (Windows - ZLUDA)
+
+Applio supports AMD GPUs on Windows out-of-the-box via [ZLUDA](https://github.com/lshqqytiger/ZLUDA) and AMD ROCm / HIP SDK:
+
+1. **Install AMD HIP SDK**: Download and install AMD HIP SDK (v5.7, 6.1, 6.2, or 6.4) for your GPU.
+2. **Launch Applio**: Open Applio. On first launch, the desktop setup screen automatically detects your AMD GPU and installed HIP SDK.
+3. **Automatic Configuration**: Press **Install / Repair** — Applio automatically downloads the matching ZLUDA release, patches PyTorch libraries, and configures environment variables seamlessly.
+
+> [!NOTE]
+> **Initial Compilation**: The first time you run voice conversion or training with ZLUDA, it will compile GPU kernel code, which can take 15–20 minutes. The application may appear busy during this time. Please be patient and allow the compilation to finish.
+
+
 ### Developers (any OS)
 
 Prerequisites: Python 3.10–3.12, Node.js 22+, `pnpm@11`, ffmpeg.

@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import type http from "node:http";
 import net from "node:net";
@@ -6,7 +6,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { errMsg } from "@/errors";
-import { getPythonBin, getRepoRoot, pythonEnv } from "@/python";
+import { getRepoRoot, spawnPython } from "@/python";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);
@@ -58,13 +58,10 @@ router.get("/status", async (_req: Request, res: Response) => {
 function startRealtimeProcess(): ChildProcess {
   rtProc?.kill();
   rtLogs = [];
-  const proc = spawn(
-    getPythonBin(),
+  const proc = spawnPython(
     ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
     {
       cwd: getRepoRoot(),
-      env: pythonEnv(),
-      windowsHide: true,
     },
   );
   rtStartedAt = new Date().toISOString();

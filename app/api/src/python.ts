@@ -19,6 +19,13 @@ if (process.platform === "darwin") {
     }
   }
   process.env.PATH = parts.join(path.delimiter);
+} else if (process.platform === "win32") {
+  try {
+    const { applyAmdZludaEnv } = require("@/zluda");
+    applyAmdZludaEnv();
+  } catch {
+    /* ignore during early bootstrap */
+  }
 }
 
 // app/api is two levels below the repo root, both as source and compiled.
@@ -239,6 +246,16 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
     env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
     env.OMP_NUM_THREADS ??= "1";
+  } else if (process.platform === "win32") {
+    try {
+      const { applyAmdZludaEnv } = require("@/zluda");
+      applyAmdZludaEnv();
+    } catch {
+      /* ignore */
+    }
+    if (process.env.HIP_VISIBLE_DEVICES) env.HIP_VISIBLE_DEVICES = process.env.HIP_VISIBLE_DEVICES;
+    if (process.env.ZLUDA_COMGR_LOG_LEVEL) env.ZLUDA_COMGR_LOG_LEVEL = process.env.ZLUDA_COMGR_LOG_LEVEL;
+    if (process.env.DISABLE_ADDMM_CUDA_LT) env.DISABLE_ADDMM_CUDA_LT = process.env.DISABLE_ADDMM_CUDA_LT;
   }
   return env;
 }
@@ -265,6 +282,42 @@ export interface SpawnResult {
   code: number | null;
 }
 
+/**
+ * Spawns a Python child process, automatically using the ZLUDA launcher
+ * wrapper on Windows when an AMD GPU and ZLUDA are detected.
+ */
+export function spawnPython(
+  args: string[],
+  opts: {
+    cwd?: string;
+    env?: NodeJS.ProcessEnv;
+    detached?: boolean;
+  } = {},
+): ChildProcess {
+  const cwd = opts.cwd || getRepoRoot();
+  const py = getPythonBin();
+  let zluda: { exe: string } | null = null;
+  if (process.platform === "win32") {
+    try {
+      const { getZludaLauncher } = require("@/zluda");
+      zluda = getZludaLauncher();
+    } catch {
+      /* ignore */
+    }
+  }
+
+  const cmd = zluda ? zluda.exe : py;
+  const finalArgs = zluda ? ["--", py, ...args] : args;
+  const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
+
+  return spawn(cmd, finalArgs, {
+    cwd,
+    detached: opts.detached ?? false,
+    env: opts.env || pythonEnv({ PATH: pathEnv }),
+    windowsHide: true,
+  });
+}
+
 export function runPythonModule(
   args: string[],
   opts: {
@@ -276,14 +329,10 @@ export function runPythonModule(
     onSpawn?: (pid?: number) => void;
   } = {},
 ): Promise<SpawnResult> {
-  const cwd = opts.cwd || getRepoRoot();
   return new Promise((resolve, reject) => {
-    const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
-    const child: ChildProcess = spawn(getPythonBin(), args, {
-      cwd,
-      detached: opts.detached ?? false,
-      env: pythonEnv({ PATH: pathEnv }),
-      windowsHide: true,
+    const child: ChildProcess = spawnPython(args, {
+      cwd: opts.cwd,
+      detached: opts.detached,
     });
     opts.onSpawn?.(child.pid);
     let stdout = "";
