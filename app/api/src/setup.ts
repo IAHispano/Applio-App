@@ -570,7 +570,12 @@ export function startInstall(): Job {
           // bootstrap may have created the venv itself (macOS uv path).
           venvPy = venvPythonPath();
           if (!exists(venvPy)) {
-            await streamRun(job, py312.cmd[0], [...py312.cmd.slice(1), "-m", "venv", path.join(root, ".venv")]);
+            await streamRun(job, py312.cmd[0], [
+              ...py312.cmd.slice(1),
+              "-m",
+              "venv",
+              path.join(root, ".venv"),
+            ]);
           }
         }
       } else {
