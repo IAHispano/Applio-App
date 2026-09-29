@@ -351,11 +351,15 @@ export async function getStatus(force = false): Promise<SetupStatus> {
             detail: `HIP SDK ${hip.version} found — ZLUDA will be automatically configured during Install/Repair.`,
           });
         } else {
+          const { isZludaCompiled } = await import("@/zluda");
+          const compiled = isZludaCompiled(torchLibDir);
           checks.push({
             id: "zluda",
             label: "AMD GPU Acceleration (ZLUDA)",
-            status: "ok",
-            detail: `${gpu.gpus[0] || "AMD GPU"} via ZLUDA (HIP SDK ${hip.version}) ✓`,
+            status: compiled ? "ok" : "warn",
+            detail: compiled
+              ? `${gpu.gpus[0] || "AMD GPU"} via ZLUDA (HIP SDK ${hip.version}, kernels precompiled) ✓`
+              : `ZLUDA ready (HIP ${hip.version}) — Initial GPU kernel compilation pending (will compile during Install/Repair).`,
           });
         }
       }
@@ -630,6 +634,22 @@ export function startInstall(): Job {
         ]);
       } catch (e) {
         appendLog(job, `Note: Prerequisites download step: ${e}`);
+      }
+
+      // If AMD GPU and ZLUDA are active, perform the initial GPU kernel pre-compilation
+      // during setup so the user never experiences the 15-20 min freeze later during conversion.
+      if (process.platform === "win32") {
+        try {
+          const { getGpuHardware, findHipSdk, isZludaPatched, compileZludaKernels } = await import("@/zluda");
+          const gpu = getGpuHardware();
+          const hip = findHipSdk();
+          const torchLibDir = path.join(root, ".venv", "Lib", "site-packages", "torch", "lib");
+          if (gpu.isAmd && hip && isZludaPatched(torchLibDir)) {
+            await compileZludaKernels(venvPy, job);
+          }
+        } catch (e) {
+          appendLog(job, `Note: ZLUDA kernel pre-compilation step: ${e}`);
+        }
       }
 
       if (exists(path.join(root, "app", "api", "package.json"))) {

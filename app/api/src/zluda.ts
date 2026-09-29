@@ -354,7 +354,145 @@ export async function installAndPatchZluda(venvDir: string, job?: Job): Promise<
   applyAmdZludaEnv();
 
   log("✓ ZLUDA installed and PyTorch patched successfully for AMD GPU acceleration.");
-  log(
-    "NOTE: The first time voice conversion or model training runs, ZLUDA will compile GPU kernels (takes 15–20 minutes). The app may appear busy during this period.",
-  );
+}
+
+/**
+ * Check if initial ZLUDA GPU kernels have been compiled and cached.
+ */
+export function isZludaCompiled(torchLibDir?: string): boolean {
+  const root = getRepoRoot();
+  const marker1 = torchLibDir ? path.join(torchLibDir, ".zluda-compiled") : "";
+  const marker2 = path.join(root, "zluda", ".zluda-compiled");
+  return (marker1 !== "" && fs.existsSync(marker1)) || fs.existsSync(marker2);
+}
+
+/**
+ * Run the initial ZLUDA GPU kernel pre-compilation during setup.
+ * This runs warmup tensor operations (cuBLAS, Conv1D, STFT) through ZLUDA
+ * so the initial 15-20 min compilation happens during setup with real-time logs
+ * rather than freezing the app during the user's first voice conversion.
+ */
+export async function compileZludaKernels(venvPy: string, job?: Job): Promise<void> {
+  const root = getRepoRoot();
+  const log = (msg: string) => {
+    if (job) appendLog(job, msg);
+    else console.log(`[zluda] ${msg}`);
+  };
+
+  const zludaExe = path.join(root, "zluda", "zluda.exe");
+  if (!fs.existsSync(zludaExe)) {
+    log("[!] ZLUDA executable not found, skipping kernel pre-compilation.");
+    return;
+  }
+
+  const torchLibDir = path.join(path.dirname(venvPy), "..", "Lib", "site-packages", "torch", "lib");
+  if (isZludaCompiled(torchLibDir)) {
+    log("✓ ZLUDA GPU kernels are already compiled.");
+    return;
+  }
+
+  log("==============================================================================");
+  log("Starting initial ZLUDA GPU kernel pre-compilation for AMD GPU…");
+  log("This pre-compiles GPU shaders and translation caches so Applio runs smoothly.");
+  log("Initial compilation typically takes 15–20 minutes on first setup. Please wait…");
+  log("==============================================================================");
+
+  applyAmdZludaEnv();
+
+  const warmupScript = `
+import sys
+print("[warmup] Initializing PyTorch with ZLUDA...", flush=True)
+import torch
+
+if not torch.cuda.is_available():
+    print("[warmup] CUDA/ZLUDA device not available, skipping kernel compilation.", flush=True)
+    sys.exit(0)
+
+dev_name = torch.cuda.get_device_name(0)
+print(f"[warmup] Initializing GPU: {dev_name}", flush=True)
+
+print("[warmup] 1/4 Compiling matrix multiplication (cuBLAS) kernels...", flush=True)
+a = torch.randn(2048, 2048, device="cuda")
+b = torch.randn(2048, 2048, device="cuda")
+_ = torch.matmul(a, b)
+torch.cuda.synchronize()
+print("[warmup] Matrix multiplication kernels compiled successfully.", flush=True)
+
+print("[warmup] 2/4 Compiling 1D convolution and dilated kernels...", flush=True)
+conv = torch.nn.Conv1d(192, 192, kernel_size=3, padding=1).cuda()
+x = torch.randn(4, 192, 2048, device="cuda")
+_ = conv(x)
+torch.cuda.synchronize()
+conv_d = torch.nn.Conv1d(192, 192, kernel_size=3, dilation=3, padding=3).cuda()
+_ = conv_d(x)
+torch.cuda.synchronize()
+print("[warmup] Convolution kernels compiled successfully.", flush=True)
+
+print("[warmup] 3/4 Compiling STFT / FFT audio transform kernels...", flush=True)
+audio_sample = torch.randn(1, 16000 * 3, device="cuda")
+window = torch.hann_window(1024, device="cuda")
+_ = torch.stft(audio_sample, n_fft=1024, hop_length=256, win_length=1024, window=window, return_complex=True)
+torch.cuda.synchronize()
+print("[warmup] STFT / FFT kernels compiled successfully.", flush=True)
+
+print("[warmup] 4/4 Loading RVC ZLUDA module and predictor kernels...", flush=True)
+try:
+    import rvc.lib.zluda
+    print("[warmup] RVC ZLUDA module loaded and verified.", flush=True)
+except Exception as e:
+    print(f"[warmup] Note loading rvc.lib.zluda: {e}", flush=True)
+
+print("[warmup] Initial ZLUDA GPU kernel compilation complete! ✓", flush=True)
+`;
+
+  await new Promise<void>((resolve) => {
+    const child = spawn(zludaExe, ["--", venvPy, "-c", warmupScript], {
+      cwd: root,
+      windowsHide: true,
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8",
+        PYTHONUNBUFFERED: "1",
+        HIP_VISIBLE_DEVICES: "0",
+        ZLUDA_COMGR_LOG_LEVEL: "1",
+        DISABLE_ADDMM_CUDA_LT: "1",
+      },
+    });
+
+    child.stdout?.on("data", (d: Buffer) => {
+      for (const line of d.toString().split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed) log(trimmed.slice(0, 500));
+      }
+    });
+
+    child.stderr?.on("data", (d: Buffer) => {
+      for (const line of d.toString().split("\n")) {
+        const trimmed = line.trim();
+        if (trimmed) log(trimmed.slice(0, 500));
+      }
+    });
+
+    child.on("error", (err) => {
+      log(`[!] Warmup process spawn error: ${err.message}`);
+      resolve();
+    });
+
+    child.on("close", (code) => {
+      if (code === 0) {
+        log("✓ ZLUDA initial kernel compilation completed successfully.");
+        try {
+          if (fs.existsSync(torchLibDir)) {
+            fs.writeFileSync(path.join(torchLibDir, ".zluda-compiled"), new Date().toISOString());
+          }
+          fs.writeFileSync(path.join(root, "zluda", ".zluda-compiled"), new Date().toISOString());
+        } catch {
+          /* ignore */
+        }
+      } else {
+        log(`[!] Note: Kernel compilation exited with code ${code}. Kernels will compile on demand.`);
+      }
+      resolve();
+    });
+  });
 }

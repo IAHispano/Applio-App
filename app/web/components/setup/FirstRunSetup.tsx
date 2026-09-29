@@ -143,6 +143,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     const hasPy = logsText.includes("App virtualenv") || logsText.includes("Creating app virtualenv");
     const hasTorch = logsText.includes("Installing engine packages") || logsText.includes("torch");
     const hasDeps = logsText.includes("Using Python env") || logsText.includes("web dependencies");
+    const hasZluda = logsText.includes("ZLUDA") || logsText.includes("AMD GPU");
+    const hasZludaDone =
+      logsText.includes("kernel compilation complete") || logsText.includes("kernels are already compiled");
     const hasModels =
       logsText.includes("Downloading base voice models") || logsText.includes("prerequisites");
     const hasVerified = isDone || logsText.includes("Setup complete") || logsText.includes("checks passed");
@@ -156,9 +159,19 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       },
       {
         id: "torch",
-        title: "Hardware Acceleration",
-        desc: "CUDA, MPS, or high-performance compute backend",
-        status: hasTorch ? (hasDeps ? "done" : "running") : "pending",
+        title: hasZluda ? "Hardware Acceleration (ZLUDA / AMD)" : "Hardware Acceleration",
+        desc: hasZluda
+          ? "ZLUDA translation layer & GPU kernel compilation (first run only)"
+          : "CUDA, MPS, or high-performance compute backend",
+        status: hasTorch
+          ? hasZluda
+            ? hasZludaDone || hasDeps
+              ? "done"
+              : "running"
+            : hasDeps
+              ? "done"
+              : "running"
+          : "pending",
       },
       {
         id: "engine",
