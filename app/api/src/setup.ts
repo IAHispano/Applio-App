@@ -100,7 +100,7 @@ function parsePyVersion(out: string): string | null {
 function pySupported(version: string): boolean {
   const m = version.match(/(\d+)\.(\d+)/);
   if (!m) return false;
-  return Number(m[1]) === 3 && Number(m[2]) >= 10 && Number(m[2]) <= 12;
+  return Number(m[1]) === 3 && Number(m[2]) === 12;
 }
 
 export async function findPython(): Promise<PythonInfo | null> {
@@ -138,14 +138,14 @@ export async function findPython(): Promise<PythonInfo | null> {
       cmd: [path.join(root, "env", "Scripts", "pythonw.exe")],
       source: "app env/ (pythonw)",
     });
+    candidates.push({ cmd: ["py", "-V:3.12"], source: "py manager" });
     candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
-    candidates.push({ cmd: ["py", "-3.11"], source: "py launcher" });
-    candidates.push({ cmd: ["py", "-3"], source: "py launcher" });
     candidates.push({ cmd: ["python"], source: "PATH" });
   } else {
     candidates.push({ cmd: [path.join(root, "env", "bin", "python")], source: "app env/" });
     candidates.push({ cmd: [path.join(root, ".venv", "bin", "python")], source: "app .venv" });
     candidates.push({ cmd: [path.join(root, "venv", "bin", "python")], source: "app venv" });
+    candidates.push({ cmd: ["python3.12"], source: "PATH" });
     candidates.push({ cmd: ["python3"], source: "PATH" });
     candidates.push({ cmd: ["python"], source: "PATH" });
   }
@@ -235,7 +235,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
       checks: [
         { id: "node", label: `Node.js ${process.version}`, status: "ok", detail: "runtime OK" },
         { id: "web", label: "Web interface build", status: "ok", detail: "checks bypassed with --no-env" },
-        { id: "python", label: "Python 3.10–3.12", status: "ok", detail: "checks bypassed with --no-env" },
+        { id: "python", label: "Python 3.12", status: "ok", detail: "checks bypassed with --no-env" },
         {
           id: "engine",
           label: "Engine packages (torch, uvicorn, librosa)",
@@ -273,7 +273,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
   const py = await findPython();
   checks.push({
     id: "python",
-    label: "Python 3.10–3.12",
+    label: "Python 3.12",
     status: py ? "ok" : "missing",
     detail: py ? `${py.version} (${py.source})` : "no suitable Python found",
   });
@@ -472,7 +472,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
     return retry.cmd;
   }
   const manual =
-    "Install Python 3.10–3.12 (e.g. sudo apt install python3-venv python3-pip), then press Install again.";
+    "Install Python 3.12 (e.g. sudo apt install python3-venv python3-pip), then press Install again.";
   const uvBin = await ensureUv(job);
   if (uvBin) {
     const venvDir = path.join(getRepoRoot(), ".venv");
@@ -548,13 +548,31 @@ export function startInstall(): Job {
       const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
       const pnpmShell = process.platform === "win32";
 
-      const found = await findPython();
-      const sysPy: string[] = found ? found.cmd : await bootstrapSystemPython(job);
-
       let venvPy = venvPythonPath();
+      const hasUv = (await runCmd("uv", ["--version"], { timeoutMs: 15000 })).code === 0;
       if (!exists(venvPy)) {
         appendLog(job, "Creating app virtualenv (.venv)…");
-        await streamRun(job, sysPy[0], [...sysPy.slice(1), "-m", "venv", path.join(root, ".venv")]);
+        if (hasUv) {
+          await streamRun(job, "uv", ["venv", path.join(root, ".venv"), "--python", "3.12", "--seed"]);
+        } else {
+          // stdlib `venv` inherits the base interpreter version, and
+          // findPython() only resolves 3.12, so this venv is 3.12.
+          let py312 = await findPython();
+          if (!py312) {
+            await bootstrapSystemPython(job);
+            py312 = await findPython();
+          }
+          if (!py312) {
+            throw new Error(
+              "Python 3.12 could not be found or installed. Install Python 3.12 from https://www.python.org/downloads/ and press Install again.",
+            );
+          }
+          // bootstrap may have created the venv itself (macOS uv path).
+          venvPy = venvPythonPath();
+          if (!exists(venvPy)) {
+            await streamRun(job, py312.cmd[0], [...py312.cmd.slice(1), "-m", "venv", path.join(root, ".venv")]);
+          }
+        }
       } else {
         appendLog(job, "App virtualenv already exists ✓");
       }
@@ -566,7 +584,6 @@ export function startInstall(): Job {
 
       appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
       await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
-      const hasUv = (await runCmd("uv", ["--version"], { timeoutMs: 15000 })).code === 0;
       // NVIDIA GPU wheels live on the PyTorch index, not PyPI. Install the
       // whole requirements file against that index so torch/torchaudio resolve
       // to CUDA builds, e.g.:
