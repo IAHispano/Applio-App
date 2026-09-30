@@ -138,13 +138,17 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     return fs.existsSync(realTarget) ? realTarget : probe;
   }
 
+  const baseDir = path.dirname(base);
+
   // 1. Replace the venv shim with the real interpreter.
+  let probeReplaced = false;
   try {
     const probeStat = fs.statSync(probe);
     const baseStat = fs.statSync(base);
     if (probeStat.size !== baseStat.size) {
       fs.copyFileSync(base, probe);
     }
+    probeReplaced = true;
   } catch {
     // If probe is currently running or locked by Windows (EBUSY/EPERM), fall back to staging python.real.exe
   }
@@ -164,7 +168,6 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
   }
 
   try {
-    const baseDir = path.dirname(base);
     const basePythonw = path.join(baseDir, "pythonw.exe");
     const targetPythonw = path.join(venvDir, "Scripts", "pythonw.exe");
     if (fs.existsSync(basePythonw) && fs.existsSync(targetPythonw)) {
@@ -174,6 +177,57 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     }
   } catch {
     /* non-fatal */
+  }
+
+  // Real Windows Python binaries depend on companion DLLs (e.g. python312.dll, python3.dll, vcruntime140.dll).
+  // When copying python.exe into Scripts, Windows fails with STATUS_DLL_NOT_FOUND (code 3221225781 / 0xC0000135)
+  // unless those DLLs are in Scripts alongside the executable or baseDir is in PATH.
+  try {
+    for (const entry of fs.readdirSync(baseDir, { withFileTypes: true })) {
+      if (entry.isFile() && entry.name.toLowerCase().endsWith(".dll")) {
+        const src = path.join(baseDir, entry.name);
+        const dst = path.join(venvDir, "Scripts", entry.name);
+        try {
+          if (!fs.existsSync(dst) || fs.statSync(src).size !== fs.statSync(dst).size) {
+            fs.copyFileSync(src, dst);
+          }
+        } catch {
+          /* non-fatal */
+        }
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  // Prepend venv Scripts and base interpreter paths to process.env.PATH so any child process finds DLLs
+  try {
+    const currentPath = process.env.PATH || "";
+    const parts = currentPath.split(path.delimiter).filter(Boolean);
+    const toAdd = [path.join(venvDir, "Scripts"), baseDir, path.join(baseDir, "Scripts")];
+    let changed = false;
+    for (const p of toAdd) {
+      if (fs.existsSync(p) && !parts.some((existing) => existing.toLowerCase() === p.toLowerCase())) {
+        parts.unshift(p);
+        changed = true;
+      }
+    }
+    if (changed) {
+      process.env.PATH = parts.join(path.delimiter);
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  // Prefer python.exe when it matches the base interpreter size to keep multiprocessing child spawning working
+  if (probeReplaced && fs.existsSync(probe)) {
+    try {
+      if (fs.statSync(probe).size === fs.statSync(base).size) {
+        return probe;
+      }
+    } catch {
+      /* fallback */
+    }
   }
 
   return fs.existsSync(realTarget) ? realTarget : probe;

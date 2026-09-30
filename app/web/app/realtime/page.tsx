@@ -29,15 +29,35 @@ function apiWs(path: string): string {
 
 const INPUT_WORKLET = `
 class InputProcessor extends AudioWorkletProcessor {
-  constructor() { super(); this.ring = new Float32Array(48000); this.pos = 0; this.block = 0;
-    this.port.onmessage = (e) => { this.block = e.data.block_frame || 0; }; }
+  constructor() {
+    super();
+    this.buffer = new Float32Array(96000);
+    this.buffered = 0;
+    this.block = 0;
+    this.port.onmessage = (e) => {
+      this.block = e.data.block_frame || 0;
+      if (e.data.reset) this.buffered = 0;
+    };
+  }
   process(inputs) {
     const ch = inputs[0] && inputs[0][0];
-    if (ch) { for (let i = 0; i < ch.length; i++) { this.ring[this.pos] = ch[i]; this.pos = (this.pos + 1) % this.ring.length; } }
-    if (this.block > 0 && this.pos % this.block === 0 && ch) {
-      const out = new Float32Array(this.block);
-      for (let i = 0; i < this.block; i++) out[i] = this.ring[(this.pos - this.block + i + this.ring.length) % this.ring.length];
-      this.port.postMessage({ chunk: out }, [out.buffer]);
+    if (ch && ch.length > 0) {
+      if (this.buffered + ch.length > this.buffer.length) {
+        const nextBuf = new Float32Array(Math.max(this.buffer.length * 2, this.buffered + ch.length));
+        nextBuf.set(this.buffer.subarray(0, this.buffered));
+        this.buffer = nextBuf;
+      }
+      this.buffer.set(ch, this.buffered);
+      this.buffered += ch.length;
+    }
+    if (this.block > 0) {
+      while (this.buffered >= this.block) {
+        const out = new Float32Array(this.block);
+        out.set(this.buffer.subarray(0, this.block));
+        this.port.postMessage({ chunk: out }, [out.buffer]);
+        this.buffer.copyWithin(0, this.block, this.buffered);
+        this.buffered -= this.block;
+      }
     }
     return true;
   }

@@ -32,7 +32,6 @@ onnx>=1.18.0
 onnxruntime>=1.17.0
 onnx2torch-py313>=1.6.0
 torchvision>=0.26.0
-diffq>=0.2.0
 julius>=0.2.0
 # MSST Roformer models (uvr/roformer)
 rotary-embedding-torch>=0.6.0

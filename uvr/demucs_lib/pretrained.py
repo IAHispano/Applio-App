@@ -13,7 +13,10 @@ import typing as tp
 
 import logging
 
-from diffq import DiffQuantizer
+try:
+    from diffq import DiffQuantizer
+except ImportError:
+    DiffQuantizer = None
 import torch.hub
 
 from .model import Demucs
@@ -174,6 +177,8 @@ def demucs(pretrained=True, extra=False, quantized=False, hq=False, channels=64)
         if sum([extra, quantized, hq]) > 1:
             raise ValueError("Only one of extra, quantized, hq, can be True.")
         if quantized:
+            if DiffQuantizer is None:
+                raise ImportError("diffq is required to load quantized Demucs models.")
             quantizer = DiffQuantizer(model, group_size=8, min_size=1)
             name += "_quantized"
         if extra:

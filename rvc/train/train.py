@@ -174,7 +174,7 @@ def main():
     """
     global training_file_path, last_loss_gen_all, gpus
 
-    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_ADDR"] = "127.0.0.1"
     os.environ["MASTER_PORT"] = str(randint(20000, 55555))
     # Check sample rate
     wavs = glob.glob(
@@ -307,9 +307,15 @@ def run(
     else:
         writer_eval = None
 
+    master_addr = os.environ.get("MASTER_ADDR", "127.0.0.1")
+    if master_addr == "localhost":
+        master_addr = "127.0.0.1"
+    master_port = os.environ.get("MASTER_PORT", "24149")
+    os.environ["MASTER_ADDR"] = master_addr
+
     dist.init_process_group(
         backend="gloo" if sys.platform == "win32" or device.type != "cuda" else "nccl",
-        init_method="env://",
+        init_method=f"tcp://{master_addr}:{master_port}",
         world_size=n_gpus if device.type == "cuda" else 1,
         rank=rank if device.type == "cuda" else 0,
     )

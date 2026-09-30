@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
-import { ensureWindowsRealPythonSync, getRepoRoot, noEnv } from "@/python";
+import { ensureWindowsRealPythonSync, getRepoRoot, noEnv, resolveBasePythonFromCfg } from "@/python";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.
@@ -57,7 +57,16 @@ export function runCmd(
   return new Promise((resolve) => {
     let done = false;
     const cwd = opts.cwd || getRepoRoot();
-    const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
+    const extraDirs: string[] = [cwd];
+    if (path.isAbsolute(cmd)) extraDirs.push(path.dirname(cmd));
+    const currentPath = process.env.PATH || "";
+    const parts = currentPath.split(path.delimiter).filter(Boolean);
+    for (const d of extraDirs) {
+      if (exists(d) && !parts.some((p) => p.toLowerCase() === d.toLowerCase())) {
+        parts.unshift(d);
+      }
+    }
+    const pathEnv = parts.join(path.delimiter);
     const child = spawn(cmd, args, {
       cwd,
       windowsHide: true,
@@ -388,12 +397,29 @@ async function streamRun(
   opts: { shell?: boolean } = {},
 ): Promise<void> {
   appendLog(job, `$ ${cmd} ${args.join(" ")}`);
+  const root = getRepoRoot();
+  const extraDirs: string[] = [root];
+  if (path.isAbsolute(cmd)) extraDirs.push(path.dirname(cmd));
+  const venvDir = path.join(root, ".venv");
+  const basePy = resolveBasePythonFromCfg(venvDir);
+  if (basePy) {
+    extraDirs.push(path.dirname(basePy));
+    extraDirs.push(path.join(path.dirname(basePy), "Scripts"));
+  }
+  const currentPath = process.env.PATH || "";
+  const parts = currentPath.split(path.delimiter).filter(Boolean);
+  for (const d of extraDirs) {
+    if (exists(d) && !parts.some((p) => p.toLowerCase() === d.toLowerCase())) {
+      parts.unshift(d);
+    }
+  }
+  const pathEnv = parts.join(path.delimiter);
   await new Promise<void>((resolve, reject) => {
     const child = spawn(cmd, args, {
-      cwd: getRepoRoot(),
+      cwd: root,
       windowsHide: true,
       shell: opts.shell || false,
-      env: { ...process.env, PYTHONIOENCODING: "utf-8", UV_HTTP_TIMEOUT: "300" },
+      env: { ...process.env, PATH: pathEnv, PYTHONIOENCODING: "utf-8", UV_HTTP_TIMEOUT: "300" },
     });
     child.stdout?.on("data", (d: Buffer) => {
       for (const line of d.toString().split("\n")) {
@@ -523,6 +549,34 @@ export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promi
         if (exists(probeExe)) fs.copyFileSync(base, probeExe);
       } catch {
         /* locked */
+      }
+    }
+    const baseDir = path.dirname(base);
+    try {
+      for (const entry of fs.readdirSync(baseDir, { withFileTypes: true })) {
+        if (entry.isFile() && entry.name.toLowerCase().endsWith(".dll")) {
+          const src = path.join(baseDir, entry.name);
+          const dst = path.join(venvDir, "Scripts", entry.name);
+          try {
+            if (!exists(dst) || fs.statSync(src).size !== fs.statSync(dst).size) {
+              fs.copyFileSync(src, dst);
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+    const probeExe = path.join(venvDir, "Scripts", "python.exe");
+    if (exists(probeExe)) {
+      try {
+        if (fs.statSync(probeExe).size === fs.statSync(base).size) {
+          return probeExe;
+        }
+      } catch {
+        /* ignore */
       }
     }
     return target;

@@ -16,20 +16,29 @@ import io
 from pathlib import Path
 import warnings
 
-from diffq import DiffQuantizer, UniformQuantizer, restore_quantized_state
+try:
+    from diffq import DiffQuantizer, UniformQuantizer, restore_quantized_state
+except ImportError:
+    DiffQuantizer = None
+    UniformQuantizer = None
+    restore_quantized_state = None
 import torch
 
 
 def get_quantizer(model, args, optimizer=None):
     """Return the quantizer given the XP quantization args."""
     quantizer = None
-    if args.diffq:
+    if getattr(args, "diffq", False):
+        if DiffQuantizer is None:
+            raise ImportError("diffq is required for DiffQuantizer.")
         quantizer = DiffQuantizer(
             model, min_size=args.min_size, group_size=args.group_size
         )
         if optimizer is not None:
             quantizer.setup_optimizer(optimizer)
-    elif args.qat:
+    elif getattr(args, "qat", False):
+        if UniformQuantizer is None:
+            raise ImportError("diffq is required for UniformQuantizer.")
         quantizer = UniformQuantizer(model, bits=args.qat, min_size=args.min_size)
     return quantizer
 
@@ -89,6 +98,8 @@ def set_state(model, state, quantizer=None):
         if quantizer is not None:
             quantizer.restore_quantized_state(model, state["quantized"])
         else:
+            if restore_quantized_state is None:
+                raise ImportError("diffq is required to restore quantized Demucs models.")
             restore_quantized_state(model, state)
     else:
         model.load_state_dict(state)

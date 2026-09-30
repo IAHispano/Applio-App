@@ -23,7 +23,11 @@ import tempfile
 import warnings
 import zlib
 
-from diffq import UniformQuantizer, DiffQuantizer
+try:
+    from diffq import UniformQuantizer, DiffQuantizer
+except ImportError:
+    UniformQuantizer = None
+    DiffQuantizer = None
 import torch as th
 import tqdm
 from torch import distributed
@@ -406,11 +410,15 @@ def temp_filenames(count, delete=True):
 
 def get_quantizer(model, args, optimizer=None):
     quantizer = None
-    if args.diffq:
+    if getattr(args, "diffq", False):
+        if DiffQuantizer is None:
+            raise ImportError("diffq is required for DiffQuantizer.")
         quantizer = DiffQuantizer(model, min_size=args.q_min_size, group_size=8)
         if optimizer is not None:
             quantizer.setup_optimizer(optimizer)
-    elif args.qat:
+    elif getattr(args, "qat", False):
+        if UniformQuantizer is None:
+            raise ImportError("diffq is required for UniformQuantizer.")
         quantizer = UniformQuantizer(model, bits=args.qat, min_size=args.q_min_size)
     return quantizer
 

@@ -2,7 +2,7 @@
 
 Distilled from the UVR / audio-separator / MSST ecosystem. No external package
 imports from those libraries; only standard scientific Python dependencies
-(see `requirements.txt`: torch, onnx stack, julius, diffq, rotary/beartype).
+(see `requirements.txt`: torch, onnx stack, julius, rotary/beartype).
 
 ## Layout
 
