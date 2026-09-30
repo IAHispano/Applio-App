@@ -6,6 +6,7 @@ import {
   ensureWindowsRealPythonSync,
   getRepoRoot,
   getWindowsPythonCandidates,
+  killProcessesInVenv,
   noEnv,
   refreshWindowsEnv,
   resolveBasePythonFromCfg,
@@ -621,9 +622,10 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
     const uvBin = await ensureUv(job);
     if (uvBin) {
       const venvDir = path.join(getRepoRoot(), ".venv");
+      killProcessesInVenv(venvDir);
       appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
       try {
-        await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed"]);
+        await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
         const venvPy = path.join(venvDir, "Scripts", "python.exe");
         if (exists(venvPy)) return [venvPy];
       } catch (uvErr) {
@@ -715,7 +717,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
     if (uvBin) {
       const venvDir = path.join(getRepoRoot(), ".venv");
       appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
-      await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed"]);
+      await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
       const venvPy = path.join(venvDir, "bin", "python");
       if (exists(venvPy)) return [venvPy];
       appendLog(job, "uv venv did not produce a Python, falling back to Homebrew…");
@@ -737,7 +739,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   if (uvBin) {
     const venvDir = path.join(getRepoRoot(), ".venv");
     appendLog(job, "Creating app virtualenv with uv…");
-    await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed"]);
+    await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
     const venvPy = path.join(venvDir, "bin", "python");
     if (exists(venvPy)) return [venvPy];
   }
@@ -839,9 +841,19 @@ export function startInstall(): Job {
       let venvPy = venvPythonPath();
       const hasUv = (await runCmd("uv", ["--version"], { timeoutMs: 15000 })).code === 0;
       if (!exists(venvPy)) {
+        if (process.platform === "win32") {
+          killProcessesInVenv(path.join(root, ".venv"));
+        }
         appendLog(job, "Creating app virtualenv (.venv)…");
         if (hasUv) {
-          await streamRun(job, "uv", ["venv", path.join(root, ".venv"), "--python", "3.12", "--seed"]);
+          await streamRun(job, "uv", [
+            "venv",
+            path.join(root, ".venv"),
+            "--python",
+            "3.12",
+            "--seed",
+            "--clear",
+          ]);
         } else {
           // stdlib `venv` inherits the base interpreter version, and
           // findPython() only resolves 3.12, so this venv is 3.12.

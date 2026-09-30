@@ -1,4 +1,4 @@
-import { type ChildProcess, execSync, spawn } from "node:child_process";
+import { type ChildProcess, execSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -396,6 +396,17 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
   }
 
   return fs.existsSync(realTarget) ? realTarget : probe;
+}
+
+export function killProcessesInVenv(venvDir: string): void {
+  if (process.platform !== "win32") return;
+  try {
+    const escaped = venvDir.replace(/'/g, "''");
+    const psCmd = `Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '${escaped}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`;
+    spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", psCmd], { windowsHide: true });
+  } catch {
+    /* non-fatal */
+  }
 }
 
 export function getPythonBin(): string {

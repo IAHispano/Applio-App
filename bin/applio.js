@@ -123,6 +123,15 @@ if (firstArg === "web" || firstArg === "server" || firstArg === "serve") {
     /* ignore unreadable tmp */
   }
 
+  if (process.platform === "win32") {
+    try {
+      const psCmd = "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '*Applio*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+      spawnSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", psCmd], { windowsHide: true });
+    } catch {
+      /* ignore */
+    }
+  }
+
   for (const target of targets) {
     if (fs.existsSync(target)) {
       try {
