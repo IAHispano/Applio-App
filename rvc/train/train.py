@@ -323,7 +323,9 @@ def run(
                 rank=rank,
             )
         except Exception as e:
-            print(f"Warning: Failed to initialize distributed process group: {e}. Continuing without DDP.")
+            print(
+                f"Warning: Failed to initialize distributed process group: {e}. Continuing without DDP."
+            )
 
     torch.manual_seed(config.train.seed)
 

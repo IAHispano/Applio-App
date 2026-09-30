@@ -40,7 +40,9 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
                     alt_roots = [
                         os.environ.get("APPLIO_CODE_ROOT"),
                         os.environ.get("APPLIO_ROOT"),
-                        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")),
+                        os.path.abspath(
+                            os.path.join(os.path.dirname(__file__), "..", "..")
+                        ),
                     ]
                     found = False
                     for root in alt_roots:
@@ -51,7 +53,9 @@ class TextAudioLoaderMultiNSFsid(torch.utils.data.Dataset):
                                 found = True
                                 break
                     if not found and not os.path.exists(audiopath):
-                        print(f"Warning: Audio file not found at '{audiopath}', skipping.")
+                        print(
+                            f"Warning: Audio file not found at '{audiopath}', skipping."
+                        )
                         continue
                 audiopaths_and_text_new.append([audiopath, text, pitch, pitchf, dv])
                 lengths.append(os.path.getsize(audiopath) // (3 * self.hop_length))

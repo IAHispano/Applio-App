@@ -41,7 +41,13 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
     def find_mute_base(sub_dir: str) -> str:
         candidates = [
             os.path.join(current_directory, "logs", sub_dir),
-            os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..")), "logs", sub_dir),
+            os.path.join(
+                os.path.abspath(
+                    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+                ),
+                "logs",
+                sub_dir,
+            ),
         ]
         code_root = os.environ.get("APPLIO_CODE_ROOT") or os.environ.get("APPLIO_ROOT")
         if code_root:
@@ -76,7 +82,9 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
         )
 
     if include_mutes > 0:
-        mute_audio_raw = os.path.join(mute_base_path, "sliced_audios", f"mute{sample_rate}.wav")
+        mute_audio_raw = os.path.join(
+            mute_base_path, "sliced_audios", f"mute{sample_rate}.wav"
+        )
         mute_feature_raw = os.path.join(mute_base_path, "extracted", "mute.npy")
         mute_f0_raw = os.path.join(mute_base_path, "f0", "mute.wav.npy")
         mute_f0nsf_raw = os.path.join(mute_base_path, "f0_voiced", "mute.wav.npy")
@@ -98,7 +106,9 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
                     f"{mute_audio_path}|{mute_feature_path}|{mute_f0_path}|{mute_f0nsf_path}|{sid}"
                 )
         else:
-            print(f"Warning: Mute files missing in '{mute_base_path}', skipping mute inclusion.")
+            print(
+                f"Warning: Mute files missing in '{mute_base_path}', skipping mute inclusion."
+            )
 
     file_path = os.path.join(model_path, "model_info.json")
     if os.path.exists(file_path):
