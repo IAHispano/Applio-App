@@ -198,10 +198,107 @@ export async function findPython(): Promise<PythonInfo | null> {
   return null;
 }
 
+export async function isWindowsVcRedistInstalled(): Promise<boolean> {
+  if (process.platform !== "win32") return true;
+  const sys32 = path.join(process.env.SystemRoot || process.env.WINDIR || "C:\\Windows", "System32");
+  const msvcp = path.join(sys32, "msvcp140.dll");
+  const vcruntime = path.join(sys32, "vcruntime140_1.dll");
+  if (exists(msvcp) && exists(vcruntime)) {
+    return true;
+  }
+  try {
+    const { execSync } = require("node:child_process");
+    const out = execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" /v Installed', {
+      encoding: "utf-8",
+      windowsHide: true,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    if (out.includes("0x1")) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+export async function ensureWindowsVcRedist(job?: Job): Promise<boolean> {
+  if (process.platform !== "win32") return true;
+  if (await isWindowsVcRedistInstalled()) return true;
+
+  const log = (m: string) => {
+    if (job) appendLog(job, m);
+    else console.log(`[setup] ${m}`);
+  };
+
+  log("Microsoft Visual C++ 2015-2022 Redistributable is required by PyTorch (c10.dll) but missing.");
+  log("Installing Microsoft Visual C++ Redistributable…");
+
+  // 1. Try winget
+  try {
+    const wingetRes = await runCmd(
+      "winget",
+      [
+        "install",
+        "-e",
+        "--id",
+        "Microsoft.VCRedist.2015+.x64",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+      ],
+      { timeoutMs: 180000 },
+    );
+    if (wingetRes.code === 0 && (await isWindowsVcRedistInstalled())) {
+      log("Microsoft Visual C++ Redistributable installed successfully via winget ✓");
+      return true;
+    }
+  } catch (err) {
+    log(`winget VCRedist note: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // 2. Direct download fallback
+  try {
+    log("Downloading VC++ Redistributable from https://aka.ms/vs/17/release/vc_redist.x64.exe…");
+    const installerUrl = "https://aka.ms/vs/17/release/vc_redist.x64.exe";
+    const tmpInstaller = path.join(process.env.TEMP || getRepoRoot(), "VC_redist.x64.exe");
+    const res = await fetch(installerUrl, { signal: AbortSignal.timeout(120000), redirect: "follow" });
+    if (res.ok) {
+      const buf = Buffer.from(await res.arrayBuffer());
+      fs.writeFileSync(tmpInstaller, buf);
+      log("Running VC++ Redistributable installer silently…");
+      await runCmd(tmpInstaller, ["/quiet", "/norestart"], { timeoutMs: 180000 });
+      try {
+        fs.unlinkSync(tmpInstaller);
+      } catch {}
+      if (await isWindowsVcRedistInstalled()) {
+        log("Microsoft Visual C++ Redistributable installed successfully ✓");
+        return true;
+      }
+    }
+  } catch (dlErr) {
+    log(`VC++ Redistributable direct install note: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
+  }
+
+  return await isWindowsVcRedistInstalled();
+}
+
 async function checkEngineDeps(py: string[]): Promise<{ ok: boolean; detail: string }> {
   const code = "import torch, uvicorn, librosa; print(torch.__version__)";
   const r = await runCmd(py[0], [...py.slice(1), "-c", code], { timeoutMs: 180000 });
   if (r.code === 0) return { ok: true, detail: `torch ${r.stdout.trim()}` };
+  const errOutput = (r.stderr + "\n" + r.stdout).trim();
+  if (
+    errOutput.includes("126") ||
+    errOutput.includes("c10.dll") ||
+    errOutput.includes("VCRUNTIME") ||
+    errOutput.includes("MSVCP") ||
+    errOutput.includes("The specified module could not be found")
+  ) {
+    return {
+      ok: false,
+      detail:
+        "Visual C++ Redistributable missing (PyTorch c10.dll failed to load). Install from https://aka.ms/vs/17/release/vc_redist.x64.exe and retry.",
+    };
+  }
   return {
     ok: false,
     detail: (r.stderr.trim().split("\n").pop() || "engine packages missing").slice(0, 300),
@@ -403,6 +500,18 @@ export async function getStatus(force = false): Promise<SetupStatus> {
       }
     } catch {
       /* ignore */
+    }
+  }
+
+  if (process.platform === "win32") {
+    const vcInstalled = await isWindowsVcRedistInstalled();
+    if (!vcInstalled) {
+      checks.push({
+        id: "vcredist",
+        label: "Visual C++ 2015-2022 Redistributable",
+        status: "missing",
+        detail: "Required for PyTorch (c10.dll): https://aka.ms/vs/17/release/vc_redist.x64.exe",
+      });
     }
   }
 
@@ -751,6 +860,7 @@ export function startInstall(): Job {
         await ensureWindowsRealPython(path.join(root, ".venv"), job);
         // Re-resolve: the staging step may have just created python.real.exe.
         venvPy = venvPythonPath();
+        await ensureWindowsVcRedist(job);
       }
 
       appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
@@ -869,7 +979,23 @@ export function startInstall(): Job {
       }
 
       cached = null;
-      const final = await getStatus(true);
+      let final = await getStatus(true);
+      if (!final.ready && process.platform === "win32") {
+        const engineCheck = final.checks.find((c) => c.id === "engine" || c.id === "vcredist");
+        if (
+          engineCheck &&
+          engineCheck.status !== "ok" &&
+          (engineCheck.detail.includes("Visual C++") ||
+            engineCheck.detail.includes("126") ||
+            engineCheck.detail.includes("c10.dll") ||
+            engineCheck.detail.includes("The specified module could not be found"))
+        ) {
+          appendLog(job, "Engine check indicates Visual C++ Redistributable is needed. Installing…");
+          await ensureWindowsVcRedist(job);
+          cached = null;
+          final = await getStatus(true);
+        }
+      }
       for (const c of final.checks) {
         appendLog(
           job,
