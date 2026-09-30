@@ -545,7 +545,10 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
             "--accept-source-agreements",
           ]);
         } catch (retryErr) {
-          appendLog(job, `winget retry note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          appendLog(
+            job,
+            `winget retry note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+          );
         }
       }
     }
@@ -567,7 +570,12 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
         const buf = Buffer.from(await res.arrayBuffer());
         fs.writeFileSync(tmpInstaller, buf);
         appendLog(job, "Running Python 3.12 installer silently…");
-        await streamRun(job, tmpInstaller, ["/passive", "InstallAllUsers=0", "PrependPath=1", "SimpleInstall=1"]);
+        await streamRun(job, tmpInstaller, [
+          "/passive",
+          "InstallAllUsers=0",
+          "PrependPath=1",
+          "SimpleInstall=1",
+        ]);
         try {
           fs.unlinkSync(tmpInstaller);
         } catch {}

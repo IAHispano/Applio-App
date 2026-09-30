@@ -461,11 +461,23 @@ function findPythonBin(): { path: string; source: string; exists: boolean } {
     const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
     const userProfile = process.env.USERPROFILE || "";
     candidates.push(
-      { path: path.join(localAppData, "Programs", "Python", "Python312", "python.exe"), source: "standard Python 3.12" },
-      { path: path.join(localAppData, "Programs", "Python", "Python312-64", "python.exe"), source: "standard Python 3.12 (64-bit)" },
+      {
+        path: path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
+        source: "standard Python 3.12",
+      },
+      {
+        path: path.join(localAppData, "Programs", "Python", "Python312-64", "python.exe"),
+        source: "standard Python 3.12 (64-bit)",
+      },
       { path: path.join(programFiles, "Python312", "python.exe"), source: "Program Files Python 3.12" },
-      { path: path.join(programFilesX86, "Python312", "python.exe"), source: "Program Files (x86) Python 3.12" },
-      { path: path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"), source: "Scoop Python" },
+      {
+        path: path.join(programFilesX86, "Python312", "python.exe"),
+        source: "Program Files (x86) Python 3.12",
+      },
+      {
+        path: path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"),
+        source: "Scoop Python",
+      },
       { path: path.join(localAppData, "Programs", "Python", "Launcher", "py.exe"), source: "py launcher" },
     );
   }
