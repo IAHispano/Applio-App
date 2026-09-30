@@ -23,6 +23,7 @@ files:
     filter:
       - requirements.txt
       - LICENSE
+      - core.py
       - ffmpeg.exe
       - ffprobe.exe
       - ffmpeg
@@ -61,6 +62,13 @@ files:
       - "**/*"
       - "!**/.venv/**"
       - "!**/venv/**"
+  - from: ../../logs
+    to: logs
+    filter:
+      - "mute/**/*"
+      - "mute_spin/**/*"
+      - "mute_spin-v2/**/*"
+      - "reference/**/*"
   - from: ../../app/api/dist
     to: app/api/dist
   - from: ../../app/api/package.json

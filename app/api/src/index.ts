@@ -9,6 +9,7 @@ import { errMsg } from "@/errors";
 import { getJob, setError } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
+  getCodeRoot,
   getOutputsDir,
   getPythonBin,
   getRepoRoot,
@@ -45,6 +46,23 @@ const repoRoot = getRepoRoot();
 const outputsDir = getOutputsDir();
 app.use("/outputs", express.static(outputsDir, { maxAge: "1h", fallthrough: true }));
 app.use("/assets", express.static(path.join(repoRoot, "assets"), { maxAge: "1h", fallthrough: true }));
+
+// Ensure essential shipped log directories (mute, reference) exist in repoRoot
+try {
+  const codeRoot = getCodeRoot();
+  if (codeRoot !== repoRoot) {
+    const shipped = ["mute", "mute_spin", "mute_spin-v2", "reference"];
+    for (const sub of shipped) {
+      const src = path.join(codeRoot, "logs", sub);
+      const dest = path.join(repoRoot, "logs", sub);
+      if (fs.existsSync(src) && !fs.existsSync(dest)) {
+        fs.cpSync(src, dest, { recursive: true });
+      }
+    }
+  }
+} catch {
+  /* non-fatal */
+}
 
 // Drop stale analyzer/F0 byproducts on startup so assets/audios doesn't fill
 // with spectrogram pictures and pitch files. Only our generated filename

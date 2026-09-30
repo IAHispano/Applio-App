@@ -159,7 +159,7 @@ function seedDataRoot(code: string, data: string): void {
   } catch {
     /* first run */
   }
-  const codeEntries = ["requirements.txt", "LICENSE", "rvc", "uvr", "tools", "plugins"];
+  const codeEntries = ["requirements.txt", "LICENSE", "core.py", "rvc", "uvr", "tools", "plugins"];
   const dataEntries = ["assets"];
   const needsSeed = current !== version || !fs.existsSync(path.join(data, "rvc"));
   if (!needsSeed) {
@@ -173,6 +173,7 @@ function seedDataRoot(code: string, data: string): void {
       }
     }
     syncShippedThemes(code, data);
+    syncShippedLogs(code, data);
     return;
   }
   for (const entry of codeEntries) {
@@ -201,6 +202,26 @@ function seedDataRoot(code: string, data: string): void {
     /* non-fatal */
   }
   syncShippedThemes(code, data);
+  syncShippedLogs(code, data);
+}
+
+function syncShippedLogs(code: string, data: string): void {
+  try {
+    const shipped = ["mute", "mute_spin", "mute_spin-v2", "reference"];
+    for (const sub of shipped) {
+      const src = path.join(code, "logs", sub);
+      const dest = path.join(data, "logs", sub);
+      if (fs.existsSync(src) && !fs.existsSync(dest)) {
+        try {
+          fs.cpSync(src, dest, { recursive: true });
+        } catch {
+          /* non-fatal */
+        }
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
 }
 
 function syncShippedThemes(code: string, data: string): void {
