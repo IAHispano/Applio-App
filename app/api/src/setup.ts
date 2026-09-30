@@ -208,11 +208,14 @@ export async function isWindowsVcRedistInstalled(): Promise<boolean> {
   }
   try {
     const { execSync } = require("node:child_process");
-    const out = execSync('reg query "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" /v Installed', {
-      encoding: "utf-8",
-      windowsHide: true,
-      stdio: ["ignore", "pipe", "ignore"],
-    });
+    const out = execSync(
+      'reg query "HKLM\\SOFTWARE\\Microsoft\\VisualStudio\\14.0\\VC\\Runtimes\\x64" /v Installed',
+      {
+        encoding: "utf-8",
+        windowsHide: true,
+        stdio: ["ignore", "pipe", "ignore"],
+      },
+    );
     if (out.includes("0x1")) return true;
   } catch {
     /* ignore */
@@ -275,7 +278,9 @@ export async function ensureWindowsVcRedist(job?: Job): Promise<boolean> {
       }
     }
   } catch (dlErr) {
-    log(`VC++ Redistributable direct install note: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
+    log(
+      `VC++ Redistributable direct install note: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`,
+    );
   }
 
   return await isWindowsVcRedistInstalled();
