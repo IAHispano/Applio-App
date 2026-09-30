@@ -23,8 +23,23 @@ function findPython() {
     }
   }
 
-  // Windows: check for py launcher
+  // Windows: check standard paths and py launcher
   if (isWin) {
+    const stdPaths = [
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python312", "python.exe"),
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python312-64", "python.exe"),
+      path.join(process.env.ProgramFiles || "C:\\Program Files", "Python312", "python.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Python312", "python.exe"),
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Launcher", "py.exe"),
+    ];
+    for (const sp of stdPaths) {
+      if (fs.existsSync(sp)) {
+        if (sp.toLowerCase().endsWith("py.exe")) {
+          return { bin: sp, args: ["-3.12"] };
+        }
+        return { bin: sp, args: [] };
+      }
+    }
     try {
       const probe = spawnSync("py", ["-3.12", "-c", "import sys; print(sys.executable)"], {
         encoding: "utf-8",

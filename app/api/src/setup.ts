@@ -2,7 +2,14 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
-import { ensureWindowsRealPythonSync, getRepoRoot, noEnv, resolveBasePythonFromCfg } from "@/python";
+import {
+  ensureWindowsRealPythonSync,
+  getRepoRoot,
+  getWindowsPythonCandidates,
+  noEnv,
+  refreshWindowsEnv,
+  resolveBasePythonFromCfg,
+} from "@/python";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.
@@ -58,7 +65,10 @@ export function runCmd(
     let done = false;
     const cwd = opts.cwd || getRepoRoot();
     const extraDirs: string[] = [cwd];
-    if (path.isAbsolute(cmd)) extraDirs.push(path.dirname(cmd));
+    if (path.isAbsolute(cmd)) {
+      extraDirs.push(path.dirname(cmd));
+      extraDirs.push(path.join(path.dirname(cmd), "Scripts"));
+    }
     const currentPath = process.env.PATH || "";
     const parts = currentPath.split(path.delimiter).filter(Boolean);
     for (const d of extraDirs) {
@@ -115,6 +125,7 @@ function pySupported(version: string): boolean {
 export async function findPython(): Promise<PythonInfo | null> {
   const root = getRepoRoot();
   if (process.platform === "win32") {
+    refreshWindowsEnv();
     for (const sub of [".venv", "venv", "env"]) {
       ensureWindowsRealPythonSync(path.join(root, sub));
     }
@@ -147,6 +158,9 @@ export async function findPython(): Promise<PythonInfo | null> {
       cmd: [path.join(root, "env", "Scripts", "pythonw.exe")],
       source: "app env/ (pythonw)",
     });
+    for (const cand of getWindowsPythonCandidates()) {
+      candidates.push(cand);
+    }
     candidates.push({ cmd: ["py", "-V:3.12"], source: "py manager" });
     candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
     candidates.push({ cmd: ["python"], source: "PATH" });
@@ -163,6 +177,21 @@ export async function findPython(): Promise<PythonInfo | null> {
     const r = await runCmd(c.cmd[0], [...c.cmd.slice(1), "--version"], { timeoutMs: 15000 });
     const version = parsePyVersion(r.stdout + r.stderr);
     if (r.code === 0 && version && pySupported(version)) {
+      if (process.platform === "win32" && path.isAbsolute(c.cmd[0])) {
+        try {
+          const binDir = path.dirname(c.cmd[0]);
+          const scriptsDir = path.join(binDir, "Scripts");
+          const currentParts = (process.env.PATH || "").split(path.delimiter).filter(Boolean);
+          for (const d of [binDir, scriptsDir]) {
+            if (exists(d) && !currentParts.some((p) => p.toLowerCase() === d.toLowerCase())) {
+              currentParts.unshift(d);
+            }
+          }
+          process.env.PATH = currentParts.join(path.delimiter);
+        } catch {
+          /* non-fatal */
+        }
+      }
       return { cmd: c.cmd, version, source: c.source };
     }
   }
@@ -399,7 +428,10 @@ async function streamRun(
   appendLog(job, `$ ${cmd} ${args.join(" ")}`);
   const root = getRepoRoot();
   const extraDirs: string[] = [root];
-  if (path.isAbsolute(cmd)) extraDirs.push(path.dirname(cmd));
+  if (path.isAbsolute(cmd)) {
+    extraDirs.push(path.dirname(cmd));
+    extraDirs.push(path.join(path.dirname(cmd), "Scripts"));
+  }
   const venvDir = path.join(root, ".venv");
   const basePy = resolveBasePythonFromCfg(venvDir);
   if (basePy) {
@@ -440,8 +472,23 @@ async function streamRun(
 }
 
 async function ensureUv(job: Job): Promise<string | null> {
-  for (const c of ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")]) {
+  const uvCandidates = ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")];
+  if (process.platform === "win32") {
+    const localApp = process.env.LOCALAPPDATA || "";
+    const userProf = process.env.USERPROFILE || "";
+    uvCandidates.push(
+      path.join(localApp, "uv", "uv.exe"),
+      path.join(userProf, ".cargo", "bin", "uv.exe"),
+      path.join(localApp, "Programs", "uv", "uv.exe"),
+      path.join(userProf, ".local", "bin", "uv.exe"),
+    );
+  }
+  for (const c of uvCandidates) {
+    if (path.isAbsolute(c) && !exists(c)) continue;
     if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) return c;
+  }
+  if (process.platform === "win32") {
+    return null;
   }
   appendLog(job, "Installing uv…");
   await streamRun(job, "curl -LsSf https://astral.sh/uv/install.sh | sh", [], { shell: true });
@@ -456,20 +503,85 @@ async function ensureUv(job: Job): Promise<string | null> {
 async function bootstrapSystemPython(job: Job): Promise<string[]> {
   appendLog(job, "No system Python found — bootstrapping one…");
   if (process.platform === "win32") {
+    // If uv is available, use it to create virtualenv with Python 3.12 directly
+    const uvBin = await ensureUv(job);
+    if (uvBin) {
+      const venvDir = path.join(getRepoRoot(), ".venv");
+      appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
+      try {
+        await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed"]);
+        const venvPy = path.join(venvDir, "Scripts", "python.exe");
+        if (exists(venvPy)) return [venvPy];
+      } catch (uvErr) {
+        appendLog(job, `uv note: ${uvErr instanceof Error ? uvErr.message : String(uvErr)}`);
+      }
+    }
+
     appendLog(job, "Installing Python 3.12 via winget (no admin needed)…");
-    await streamRun(job, "winget", [
-      "install",
-      "-e",
-      "--id",
-      "Python.Python.3.12",
-      "--silent",
-      "--accept-package-agreements",
-      "--accept-source-agreements",
-    ]);
-    const retry = await findPython();
+    try {
+      await streamRun(job, "winget", [
+        "install",
+        "-e",
+        "--id",
+        "Python.Python.3.12",
+        "--scope",
+        "user",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+      ]);
+    } catch (wingetErr) {
+      appendLog(job, `winget note: ${wingetErr instanceof Error ? wingetErr.message : String(wingetErr)}`);
+      const msg = String(wingetErr);
+      if (!msg.includes("ENOENT")) {
+        try {
+          await streamRun(job, "winget", [
+            "install",
+            "-e",
+            "--id",
+            "Python.Python.3.12",
+            "--silent",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+          ]);
+        } catch (retryErr) {
+          appendLog(job, `winget retry note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+        }
+      }
+    }
+
+    refreshWindowsEnv();
+    let retry = await findPython();
+    if (retry) {
+      return retry.cmd;
+    }
+
+    // Direct download fallback if winget didn't install or register Python 3.12
+    appendLog(job, "winget did not yield Python 3.12 — attempting direct installer download…");
+    try {
+      const installerUrl = "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe";
+      const tmpInstaller = path.join(process.env.TEMP || getRepoRoot(), "python-3.12.9-installer.exe");
+      appendLog(job, "Downloading Python 3.12 installer from python.org…");
+      const res = await fetch(installerUrl, { signal: AbortSignal.timeout(120000) });
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer());
+        fs.writeFileSync(tmpInstaller, buf);
+        appendLog(job, "Running Python 3.12 installer silently…");
+        await streamRun(job, tmpInstaller, ["/passive", "InstallAllUsers=0", "PrependPath=1", "SimpleInstall=1"]);
+        try {
+          fs.unlinkSync(tmpInstaller);
+        } catch {}
+        refreshWindowsEnv();
+        retry = await findPython();
+        if (retry) return retry.cmd;
+      }
+    } catch (dlErr) {
+      appendLog(job, `Direct download note: ${dlErr instanceof Error ? dlErr.message : String(dlErr)}`);
+    }
+
     if (!retry) {
       throw new Error(
-        "winget install finished but no Python was found. Install Python 3.12 from https://www.python.org/downloads/ and press Install again.",
+        "Python 3.12 install finished or was attempted, but no suitable Python 3.12 was found. Install Python 3.12 from https://www.python.org/downloads/ (ensure 'Add python.exe to PATH' is checked) and press Retry Automated Setup.",
       );
     }
     return retry.cmd;

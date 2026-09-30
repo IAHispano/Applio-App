@@ -1,6 +1,170 @@
-import { type ChildProcess, spawn } from "node:child_process";
+import { type ChildProcess, execSync, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+
+export function refreshWindowsEnv(): void {
+  if (process.platform !== "win32") return;
+  try {
+    const currentPath = process.env.PATH || "";
+    const parts = currentPath.split(path.delimiter).filter(Boolean);
+    const keys = [
+      { key: "HKCU\\Environment", val: "Path" },
+      { key: "HKLM\\SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment", val: "Path" },
+    ];
+    for (const { key, val } of keys) {
+      try {
+        const out = execSync(`reg query "${key}" /v ${val}`, {
+          encoding: "utf-8",
+          windowsHide: true,
+          stdio: ["ignore", "pipe", "ignore"],
+        });
+        for (const line of out.split("\r\n")) {
+          const match = line.match(/Path\s+REG_(?:EXPAND_)?SZ\s+(.*)$/i);
+          if (match) {
+            const raw = match[1].trim();
+            for (const item of raw.split(";")) {
+              const trimmed = item.trim();
+              if (!trimmed) continue;
+              const expanded = trimmed.replace(/%([^%]+)%/g, (_, n) => process.env[n] || `%${n}%`);
+              if (fs.existsSync(expanded) && !parts.some((p) => p.toLowerCase() === expanded.toLowerCase())) {
+                parts.unshift(expanded);
+              }
+            }
+          }
+        }
+      } catch {
+        /* key not present */
+      }
+    }
+
+    // Also include standard Python installation directories if present
+    const localAppData = process.env.LOCALAPPDATA || "";
+    const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+    const standardDirs = [
+      path.join(localAppData, "Programs", "Python", "Python312"),
+      path.join(localAppData, "Programs", "Python", "Python312", "Scripts"),
+      path.join(localAppData, "Programs", "Python", "Launcher"),
+      path.join(programFiles, "Python312"),
+      path.join(programFiles, "Python312", "Scripts"),
+    ];
+    for (const dir of standardDirs) {
+      if (fs.existsSync(dir) && !parts.some((p) => p.toLowerCase() === dir.toLowerCase())) {
+        parts.unshift(dir);
+      }
+    }
+
+    process.env.PATH = parts.join(path.delimiter);
+  } catch {
+    /* non-fatal */
+  }
+}
+
+export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: string }> {
+  if (process.platform !== "win32") return [];
+  const results: Array<{ cmd: string[]; source: string }> = [];
+  const seen = new Set<string>();
+
+  const addExe = (exePath: string, source: string) => {
+    try {
+      const norm = path.resolve(exePath).toLowerCase();
+      if (!seen.has(norm) && fs.existsSync(exePath)) {
+        seen.add(norm);
+        results.push({ cmd: [exePath], source });
+      }
+    } catch {
+      /* ignore invalid path */
+    }
+  };
+
+  const localAppData = process.env.LOCALAPPDATA || "";
+  const programFiles = process.env.ProgramFiles || "C:\\Program Files";
+  const programFilesX86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const systemDrive = process.env.SystemDrive || "C:";
+  const userProfile = process.env.USERPROFILE || "";
+  const windir = process.env.WINDIR || process.env.SystemRoot || "C:\\Windows";
+
+  // 1. Well-known Python 3.12 install paths
+  const knownExePaths = [
+    // Standard user-scope (default for winget / silent install)
+    path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python312-64", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python312-32", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python312-arm64", "python.exe"),
+    path.join(localAppData, "Python", "pythoncore-3.12-64", "python.exe"),
+    // Standard machine-scope
+    path.join(programFiles, "Python312", "python.exe"),
+    path.join(programFilesX86, "Python312", "python.exe"),
+    path.join(systemDrive, "Python312", "python.exe"),
+    // WindowsApps
+    path.join(localAppData, "Microsoft", "WindowsApps", "python3.12.exe"),
+    path.join(localAppData, "Microsoft", "WindowsApps", "python.exe"),
+    // Scoop / pyenv-win / Chocolatey
+    path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"),
+    path.join(userProfile, "scoop", "shims", "python.exe"),
+    path.join(userProfile, ".pyenv", "pyenv-win", "shims", "python.exe"),
+    path.join(systemDrive, "tools", "python312", "python.exe"),
+    path.join(process.env.ProgramData || "C:\\ProgramData", "chocolatey", "bin", "python.exe"),
+  ];
+
+  for (const p of knownExePaths) {
+    if (p) addExe(p, "standard path");
+  }
+
+  // 2. Query Windows Registry for Python 3.12
+  try {
+    const regKeys = [
+      "HKCU\\Software\\Python\\PythonCore\\3.12\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.12\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore\\3.12-64\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.12-64\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore\\3.12-arm64\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.12-arm64\\InstallPath",
+      "HKLM\\SOFTWARE\\WOW6432Node\\Python\\PythonCore\\3.12\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore",
+      "HKLM\\Software\\Python\\PythonCore",
+    ];
+    for (const rk of regKeys) {
+      try {
+        const out = execSync(`reg query "${rk}" /s`, {
+          encoding: "utf-8",
+          windowsHide: true,
+          stdio: ["ignore", "pipe", "ignore"],
+        });
+        for (const line of out.split("\r\n")) {
+          const match = line.match(/\s+REG_SZ\s+(.*)$/i);
+          if (match) {
+            const rawVal = match[1].trim();
+            if (rawVal.toLowerCase().endsWith("python.exe") && fs.existsSync(rawVal)) {
+              addExe(rawVal, "registry");
+            } else if (fs.existsSync(path.join(rawVal, "python.exe"))) {
+              addExe(path.join(rawVal, "python.exe"), "registry");
+            }
+          }
+        }
+      } catch {
+        /* key not present */
+      }
+    }
+  } catch {
+    /* non-fatal */
+  }
+
+  // 3. Py launcher (py.exe) candidates
+  const pyLaunchers = [
+    path.join(localAppData, "Programs", "Python", "Launcher", "py.exe"),
+    path.join(windir, "py.exe"),
+    path.join(windir, "System32", "py.exe"),
+    "py",
+  ];
+  for (const pyExe of pyLaunchers) {
+    if (pyExe === "py" || fs.existsSync(pyExe)) {
+      results.push({ cmd: [pyExe, "-V:3.12"], source: "py manager" });
+      results.push({ cmd: [pyExe, "-3.12"], source: "py launcher" });
+    }
+  }
+
+  return results;
+}
 
 if (process.platform === "darwin") {
   const extraPaths = [
@@ -20,6 +184,7 @@ if (process.platform === "darwin") {
   }
   process.env.PATH = parts.join(path.delimiter);
 } else if (process.platform === "win32") {
+  refreshWindowsEnv();
   try {
     const { applyAmdZludaEnv } = require("@/zluda");
     applyAmdZludaEnv();
@@ -258,6 +423,11 @@ export function getPythonBin(): string {
     ];
     for (const candidate of venvCandidates) {
       if (fs.existsSync(candidate)) return candidate;
+    }
+    for (const cand of getWindowsPythonCandidates()) {
+      if (cand.cmd.length === 1 && fs.existsSync(cand.cmd[0])) {
+        return cand.cmd[0];
+      }
     }
     return "python";
   }
