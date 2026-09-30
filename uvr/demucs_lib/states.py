@@ -99,7 +99,9 @@ def set_state(model, state, quantizer=None):
             quantizer.restore_quantized_state(model, state["quantized"])
         else:
             if restore_quantized_state is None:
-                raise ImportError("diffq is required to restore quantized Demucs models.")
+                raise ImportError(
+                    "diffq is required to restore quantized Demucs models."
+                )
             restore_quantized_state(model, state)
     else:
         model.load_state_dict(state)
