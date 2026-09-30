@@ -10,6 +10,7 @@
   "scripts": {
     "cli": "node bin/applio.js",
     "applio": "node bin/applio.js",
+    "clean": "node bin/applio.js clean",
     "dev": "concurrently \"pnpm --filter @applio/api dev\" \"pnpm --filter @applio/web dev\"",
     "dev:api": "pnpm --filter @applio/api dev",
     "dev:web": "pnpm --filter @applio/web dev",

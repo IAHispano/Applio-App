@@ -2142,6 +2142,12 @@ if click is not None:
         pnpm_cmd = "pnpm.cmd" if os.name == "nt" else "pnpm"
         subprocess.run([pnpm_cmd, "desktop:dev"], cwd=current_script_directory)
 
+    @cli.command(name="clean")
+    def clean_command():
+        """Clean Applio traces, caches, and temporary files."""
+        js_path = os.path.join(current_script_directory, "bin", "applio.js")
+        subprocess.run(["node", js_path, "clean"], cwd=current_script_directory)
+
 
 def main():
     if click is not None:

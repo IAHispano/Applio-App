@@ -8,6 +8,11 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $corePy = Join-Path $scriptDir "core.py"
 $applioJs = Join-Path $scriptDir "bin\applio.js"
 
+if ($Arguments -and ($Arguments[0] -in @("clean", "purge", "uninstall"))) {
+    & node $applioJs @Arguments
+    exit $LASTEXITCODE
+}
+
 if (Test-Path (Join-Path $scriptDir ".venv\Scripts\python.exe")) {
     & (Join-Path $scriptDir ".venv\Scripts\python.exe") $corePy @Arguments
     exit $LASTEXITCODE

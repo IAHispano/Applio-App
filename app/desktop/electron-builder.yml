@@ -96,7 +96,8 @@ nsis:
   uninstallerIcon: ../../assets/ICON.ico
   installerHeaderIcon: ../../assets/ICON.ico
   runAfterFinish: true
-  deleteAppDataOnUninstall: false
+  deleteAppDataOnUninstall: true
+  include: installer.nsh
 
 mac:
   category: public.app-category.music

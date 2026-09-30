@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+if [ "$1" = "clean" ] || [ "$1" = "purge" ] || [ "$1" = "uninstall" ]; then
+    exec node "$SCRIPT_DIR/bin/applio.js" "$@"
+fi
+
 if [ -f "$SCRIPT_DIR/.venv/bin/python" ]; then
     PYTHON_EXE="$SCRIPT_DIR/.venv/bin/python"
 elif [ -f "$SCRIPT_DIR/venv/bin/python" ]; then

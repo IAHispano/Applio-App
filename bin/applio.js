@@ -75,6 +75,72 @@ if (firstArg === "web" || firstArg === "server" || firstArg === "serve") {
     shell: true,
   });
   child.on("exit", (code) => process.exit(code ?? 0));
+} else if (firstArg === "clean" || firstArg === "purge" || firstArg === "uninstall") {
+  const os = require("node:os");
+  console.log("Cleaning Applio traces, caches, and temporary files...\n");
+  let removedCount = 0;
+
+  const targets = [];
+
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA || "";
+    const localAppData = process.env.LOCALAPPDATA || "";
+    if (appData) {
+      targets.push(path.join(appData, "Applio"));
+      targets.push(path.join(appData, "applio"));
+      targets.push(path.join(appData, "@applio"));
+      targets.push(path.join(appData, "AI Hispano", "Applio"));
+    }
+    if (localAppData) {
+      targets.push(path.join(localAppData, "Applio"));
+      targets.push(path.join(localAppData, "applio"));
+      targets.push(path.join(localAppData, "applio-updater"));
+      targets.push(path.join(localAppData, "Applio-updater"));
+    }
+  } else if (process.platform === "darwin") {
+    const home = os.homedir();
+    targets.push(path.join(home, "Library", "Application Support", "Applio"));
+    targets.push(path.join(home, "Library", "Caches", "Applio"));
+    targets.push(path.join(home, "Library", "Logs", "Applio"));
+  } else {
+    const home = os.homedir();
+    targets.push(path.join(home, ".config", "Applio"));
+    targets.push(path.join(home, ".cache", "Applio"));
+  }
+
+  const home = os.homedir();
+  targets.push(path.join(home, ".applio"));
+  targets.push(path.join(home, ".cache", "applio"));
+
+  try {
+    const tmpDir = os.tmpdir();
+    for (const f of fs.readdirSync(tmpDir)) {
+      if (/^applio/i.test(f) || f === "VC_redist.x64.exe" || f === "python-3.12.9-installer.exe") {
+        targets.push(path.join(tmpDir, f));
+      }
+    }
+  } catch {
+    /* ignore unreadable tmp */
+  }
+
+  for (const target of targets) {
+    if (fs.existsSync(target)) {
+      try {
+        fs.rmSync(target, { recursive: true, force: true });
+        console.log(`  ✓ Removed: ${target}`);
+        removedCount++;
+      } catch (err) {
+        console.warn(`  ! Could not remove ${target}: ${err.message}`);
+      }
+    }
+  }
+
+  if (removedCount === 0) {
+    console.log("No lingering Applio traces found. System is clean!");
+  } else {
+    console.log(`\nSuccessfully cleaned ${removedCount} Applio trace path(s).`);
+  }
+  process.exit(0);
 } else {
   const py = findPython();
   const corePy = path.join(repoRoot, "core.py");
