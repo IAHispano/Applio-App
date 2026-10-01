@@ -1127,7 +1127,10 @@ export function startInstall(): Job {
       }
 
       if (isLegacySetup) {
-        appendLog(job, "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…");
+        appendLog(
+          job,
+          "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…",
+        );
         await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", "torch", "torchvision", "torchaudio"]);
         await streamRun(job, venvPy, [
           "-m",

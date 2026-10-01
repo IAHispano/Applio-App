@@ -67,7 +67,9 @@ class Config:
 
             compat, msg, legacy = check_torch_compatibility()
             if legacy and not compat:
-                print(f"\n[!] WARNING: Incompatible PyTorch version for {self.gpu_name}.")
+                print(
+                    f"\n[!] WARNING: Incompatible PyTorch version for {self.gpu_name}."
+                )
                 print(f"[!] {msg}")
                 print(
                     "[!] Run 'applio downgrade-torch' or 'python core.py downgrade-torch' to install PyTorch 2.7.1 (cu126) for older GPU support.\n"

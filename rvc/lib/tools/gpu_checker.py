@@ -96,7 +96,11 @@ def check_torch_compatibility():
     legacy = is_legacy_nvidia_gpu(gpus)
 
     if not legacy:
-        return True, "GPU is modern or non-NVIDIA; current PyTorch is compatible.", False
+        return (
+            True,
+            "GPU is modern or non-NVIDIA; current PyTorch is compatible.",
+            False,
+        )
 
     # Check installed torch version
     try:
@@ -152,7 +156,9 @@ def downgrade_torch(python_exe=None, cuda_tag="cu126"):
         python_exe = sys.executable
 
     index_url = f"https://download.pytorch.org/whl/{cuda_tag}"
-    print(f"[*] Downgrading PyTorch to 2.7.1 ({cuda_tag}) for legacy GPU compatibility...")
+    print(
+        f"[*] Downgrading PyTorch to 2.7.1 ({cuda_tag}) for legacy GPU compatibility..."
+    )
     print(f"[*] Target Python: {python_exe}")
     print(f"[*] Index URL: {index_url}\n")
 
@@ -243,7 +249,9 @@ def main():
             success = downgrade_torch(cuda_tag=args.cuda)
             sys.exit(0 if success else 1)
         else:
-            print("GPU is modern and PyTorch is already compatible. Use --force to override.")
+            print(
+                "GPU is modern and PyTorch is already compatible. Use --force to override."
+            )
     elif not compatible:
         print("To downgrade now, run:")
         print(f"  {sys.executable} -m rvc.lib.tools.gpu_checker --downgrade")
