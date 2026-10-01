@@ -878,7 +878,10 @@ async function resolveTorchCudaTag(job: Job): Promise<string | null> {
   const oldest = Math.min(...caps);
   appendLog(job, `NVIDIA GPU compute capability: ${caps.map((c) => c.toFixed(1)).join(", ")}`);
   if (oldest < 5.0) {
-    appendLog(job, "GPU predates Maxwell — no CUDA 12 kernels exist. Default PyPI torch (GPU will be unavailable).");
+    appendLog(
+      job,
+      "GPU predates Maxwell — no CUDA 12 kernels exist. Default PyPI torch (GPU will be unavailable).",
+    );
     return null;
   }
   if (oldest < 7.5) {
@@ -972,10 +975,7 @@ export function startInstall(): Job {
       // few PyPI packages at older versions.
       const torchCuda = await resolveTorchCudaTag(job);
       if (torchCuda)
-        appendLog(
-          job,
-          `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`,
-        );
+        appendLog(job, `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`);
       const torchIndex = torchCuda
         ? ["--extra-index-url", `https://download.pytorch.org/whl/${torchCuda}`]
         : [];
