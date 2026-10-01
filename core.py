@@ -2148,6 +2148,42 @@ if click is not None:
         js_path = os.path.join(current_script_directory, "bin", "applio.js")
         subprocess.run(["node", js_path, "clean"], cwd=current_script_directory)
 
+    @cli.command(name="downgrade-torch")
+    @click.option(
+        "--cuda",
+        default="cu126",
+        help="CUDA wheel tag for PyTorch download (default: cu126).",
+    )
+    @click.option(
+        "--force",
+        is_flag=True,
+        help="Force downgrade to PyTorch 2.7.1 regardless of detected GPU.",
+    )
+    def downgrade_torch_command(cuda, force):
+        """Downgrade PyTorch to 2.7.1 for older NVIDIA GPUs (GTX, P104-100, Pascal/Maxwell/Volta)."""
+        from rvc.lib.tools.gpu_checker import (
+            check_torch_compatibility,
+            downgrade_torch,
+            is_legacy_nvidia_gpu,
+        )
+
+        legacy = is_legacy_nvidia_gpu()
+        compat, msg, _ = check_torch_compatibility()
+        if not force and compat and not legacy:
+            click.echo(
+                f"Your GPU is modern and current PyTorch is already compatible ({msg}). Use --force to override."
+            )
+            return
+
+        click.echo("Starting PyTorch downgrade for legacy GPU compatibility...")
+        success = downgrade_torch(cuda_tag=cuda)
+        if success:
+            click.echo("PyTorch downgrade completed successfully.")
+        else:
+            click.echo("PyTorch downgrade failed.", err=True)
+            sys.exit(1)
+
+
 
 def main():
     if click is not None:

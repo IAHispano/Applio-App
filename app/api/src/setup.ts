@@ -294,9 +294,52 @@ export async function ensureWindowsVcRedist(job?: Job): Promise<boolean> {
 }
 
 async function checkEngineDeps(py: string[]): Promise<{ ok: boolean; detail: string }> {
-  const code = "import torch, uvicorn, librosa; print(torch.__version__)";
+  const code = [
+    "import sys",
+    "try:",
+    "    import torch, uvicorn, librosa",
+    "    ver = getattr(torch, '__version__', '')",
+    "    cuda_avail = torch.cuda.is_available()",
+    "    legacy_gpu = False",
+    "    kernel_broken = False",
+    "    gpu_info = ''",
+    "    if cuda_avail:",
+    "        try:",
+    "            cnt = torch.cuda.device_count()",
+    "            for i in range(cnt):",
+    "                name = torch.cuda.get_device_name(i)",
+    "                cap = torch.cuda.get_device_capability(i)",
+    "                cc = cap[0] + cap[1] / 10.0",
+    "                gpu_info = f'{name} (sm_{cap[0]}.{cap[1]})'",
+    "                if cc < 7.5:",
+    "                    legacy_gpu = True",
+    "                torch.zeros(1, device=f'cuda:{i}')",
+    "        except Exception as e:",
+    "            err = str(e)",
+    "            if 'no kernel image' in err or 'CUDA error' in err or legacy_gpu:",
+    "                kernel_broken = True",
+    "    print(f'OK|{ver}|{cuda_avail}|{legacy_gpu}|{kernel_broken}|{gpu_info}')",
+    "except Exception as e:",
+    "    print(f'ERR|{e}', file=sys.stderr)",
+    "    sys.exit(1)",
+  ].join("\n");
   const r = await runCmd(py[0], [...py.slice(1), "-c", code], { timeoutMs: 180000 });
-  if (r.code === 0) return { ok: true, detail: `torch ${r.stdout.trim()}` };
+  if (r.code === 0 && r.stdout.includes("OK|")) {
+    const parts = r.stdout.trim().split("|");
+    const ver = parts[1] || "";
+    const cudaAvail = parts[2] === "True";
+    const legacyGpu = parts[3] === "True";
+    const kernelBroken = parts[4] === "True";
+    const gpuInfo = parts[5] || "";
+
+    if ((legacyGpu || kernelBroken) && !ver.startsWith("2.7.")) {
+      return {
+        ok: false,
+        detail: `torch ${ver} incompatible with older GPU ${gpuInfo || "(GTX / P104-100 / Pascal / Maxwell)"}. PyTorch 2.7.1 (cu126) required — run Install/Repair to downgrade.`,
+      };
+    }
+    return { ok: true, detail: `torch ${ver}` };
+  }
   const errOutput = (r.stderr + "\n" + r.stdout).trim();
   if (
     errOutput.includes("126") ||
@@ -847,20 +890,52 @@ export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promi
 // Checking only the driver gives false positives (new driver + Pascal card
 // reports 12.8, but cu128 has no Pascal kernels), so the architecture wins.
 // Override with APPLIO_TORCH_CUDA=cu126|cu128|cpu (cpu = PyPI default).
-async function nvidiaComputeCaps(): Promise<number[] | null> {
+interface NvidiaGpuDevice {
+  name: string;
+  computeCap: number;
+}
+
+export const LEGACY_NVIDIA_GPU_REGEX =
+  /\b(?:gtx\s*(?!16\d\d)\d+|gt\s*\d+|p10[0-9]|p40|p4\b|cmp\s*(?:30|40|50)hx|titan\s*[xv]|tesla\s*[pmk]\d+)\b/i;
+
+async function getNvidiaGpus(): Promise<NvidiaGpuDevice[] | null> {
   try {
-    const q = await runCmd("nvidia-smi", ["--query-gpu=compute_cap", "--format=csv,noheader"], {
+    const q = await runCmd("nvidia-smi", ["--query-gpu=name,compute_cap", "--format=csv,noheader"], {
       timeoutMs: 15000,
     });
     if (q.code !== 0) return null;
-    const caps = q.stdout
-      .split(/[\r\n]+/)
-      .map((l) => Number(l.trim()))
-      .filter((n) => Number.isFinite(n) && n > 0);
-    return caps.length > 0 ? caps : null;
+    const gpus: NvidiaGpuDevice[] = [];
+    for (const line of q.stdout.split(/[\r\n]+/)) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      const parts = trimmed.split(",");
+      if (parts.length >= 2) {
+        const name = parts[0].trim();
+        const cap = Number(parts[1].trim());
+        gpus.push({ name, computeCap: Number.isFinite(cap) ? cap : 0 });
+      } else if (parts.length === 1) {
+        gpus.push({ name: parts[0].trim(), computeCap: 0 });
+      }
+    }
+    return gpus.length > 0 ? gpus : null;
   } catch {
     return null;
   }
+}
+
+export function isLegacyNvidiaGpu(gpus: NvidiaGpuDevice[]): boolean {
+  for (const g of gpus) {
+    if (g.computeCap > 0 && g.computeCap < 7.5) return true;
+    if (LEGACY_NVIDIA_GPU_REGEX.test(g.name)) return true;
+  }
+  return false;
+}
+
+async function nvidiaComputeCaps(): Promise<number[] | null> {
+  const gpus = await getNvidiaGpus();
+  if (!gpus) return null;
+  const caps = gpus.map((g) => g.computeCap).filter((n) => Number.isFinite(n) && n > 0);
+  return caps.length > 0 ? caps : null;
 }
 
 async function nvidiaDriverCuda(): Promise<[number, number] | null> {
@@ -881,24 +956,32 @@ async function resolveTorchCudaTag(job: Job): Promise<string | null> {
     return over === "cpu" ? null : over;
   }
   if (process.platform === "darwin") return null;
-  const caps = await nvidiaComputeCaps();
-  if (!caps) {
+  const gpus = await getNvidiaGpus();
+  if (!gpus || gpus.length === 0) {
     appendLog(job, "No NVIDIA GPU detected via nvidia-smi — assuming cu128.");
     return "cu128";
   }
-  const oldest = Math.min(...caps);
-  appendLog(job, `NVIDIA GPU compute capability: ${caps.map((c) => c.toFixed(1)).join(", ")}`);
-  if (oldest < 5.0) {
+  const hasLegacy = isLegacyNvidiaGpu(gpus);
+  const caps = gpus.map((g) => g.computeCap).filter((c) => c > 0);
+  const oldest = caps.length > 0 ? Math.min(...caps) : 0;
+  appendLog(
+    job,
+    `NVIDIA GPU: ${gpus.map((g) => `${g.name} (${g.computeCap ? `sm_${g.computeCap.toFixed(1)}` : "cap unknown"})`).join(", ")}`,
+  );
+  if (oldest > 0 && oldest < 5.0) {
     appendLog(
       job,
       "GPU predates Maxwell — no CUDA 12 kernels exist. Default PyPI torch (GPU will be unavailable).",
     );
     return null;
   }
-  if (oldest < 7.5) {
-    // Maxwell / Pascal / Volta: cu128 wheels ship no kernels for these
-    // archs, so cu126 is mandatory regardless of driver version.
-    appendLog(job, "Maxwell/Pascal/Volta card — cu128 has no kernels for it. Using cu126.");
+  if (hasLegacy || (oldest > 0 && oldest < 7.5)) {
+    // Maxwell / Pascal / Volta / P104-100 / older GTX: cu128 binaries have no kernels for
+    // these architectures. cu126 with PyTorch 2.7.1 is mandatory.
+    appendLog(
+      job,
+      "Legacy NVIDIA GPU (GTX / P104-100 / Maxwell / Pascal / Volta) detected — using cu126 with PyTorch 2.7.1.",
+    );
     return "cu126";
   }
   if (oldest >= 10.0) return "cu128"; // Blackwell needs cu128; its driver is new by necessity.
@@ -984,7 +1067,11 @@ export function startInstall(): Job {
       //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
       // unsafe-best-match is required because the torch index also mirrors a
       // few PyPI packages at older versions.
+      const gpus = await getNvidiaGpus();
+      const hasLegacyGpu = gpus ? isLegacyNvidiaGpu(gpus) : false;
       const torchCuda = await resolveTorchCudaTag(job);
+      const isLegacySetup = hasLegacyGpu || torchCuda === "cu126";
+
       if (torchCuda)
         appendLog(job, `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`);
       const torchIndex = torchCuda
@@ -1004,6 +1091,22 @@ export function startInstall(): Job {
           /* non-fatal */
         }
       }
+
+      let effectiveReqFile = reqFile;
+      if (isLegacySetup && exists(reqFile)) {
+        try {
+          let reqContent = fs.readFileSync(reqFile, "utf-8");
+          reqContent = reqContent.replace(/torch==\d+\.\d+\.\d+/g, "torch==2.7.1");
+          reqContent = reqContent.replace(/torchaudio==\d+\.\d+\.\d+/g, "torchaudio==2.7.1");
+          reqContent = reqContent.replace(/torchvision(?:>=|==)\d+\.\d+\.\d+/g, "torchvision==0.22.1");
+          const legacyReqFile = path.join(root, "requirements-legacy.txt");
+          fs.writeFileSync(legacyReqFile, reqContent, "utf-8");
+          effectiveReqFile = legacyReqFile;
+        } catch (e) {
+          appendLog(job, `Note: Could not prepare legacy requirements file (${e}).`);
+        }
+      }
+
       if (hasUv) {
         appendLog(job, "Using uv (fast installer)…");
         await streamRun(job, "uv", [
@@ -1012,7 +1115,7 @@ export function startInstall(): Job {
           "--python",
           venvPy,
           "-r",
-          reqFile,
+          effectiveReqFile,
           ...torchIndex,
           ...(torchIndex.length > 0 ? ["--index-strategy", "unsafe-best-match"] : []),
         ]);
@@ -1020,7 +1123,23 @@ export function startInstall(): Job {
         // Single requirements install so the GPU index applies to torch AND
         // torchaudio (a separate `pip install torch` first would be
         // overwritten by the CPU wheel from PyPI on the second call).
-        await streamRun(job, venvPy, ["-m", "pip", "install", "-r", reqFile, ...torchIndex]);
+        await streamRun(job, venvPy, ["-m", "pip", "install", "-r", effectiveReqFile, ...torchIndex]);
+      }
+
+      if (isLegacySetup) {
+        appendLog(job, "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…");
+        await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", "torch", "torchvision", "torchaudio"]);
+        await streamRun(job, venvPy, [
+          "-m",
+          "pip",
+          "install",
+          "--no-cache-dir",
+          "torch==2.7.1",
+          "torchvision==0.22.1",
+          "torchaudio==2.7.1",
+          "--extra-index-url",
+          `https://download.pytorch.org/whl/${torchCuda || "cu126"}`,
+        ]);
       }
 
       process.env.PYTHON_BIN = venvPy;
