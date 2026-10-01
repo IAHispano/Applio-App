@@ -172,6 +172,20 @@ function seedDataRoot(code: string, data: string): void {
         }
       }
     }
+    const shippedReq = path.join(code, "requirements.txt");
+    const dataReq = path.join(data, "requirements.txt");
+    if (fs.existsSync(shippedReq)) {
+      try {
+        if (
+          !fs.existsSync(dataReq) ||
+          fs.readFileSync(shippedReq, "utf-8") !== fs.readFileSync(dataReq, "utf-8")
+        ) {
+          fs.copyFileSync(shippedReq, dataReq);
+        }
+      } catch {
+        /* non-fatal */
+      }
+    }
     syncShippedThemes(code, data);
     syncShippedLogs(code, data);
     return;
@@ -494,6 +508,19 @@ function findPythonBin(): { path: string; source: string; exists: boolean } {
       {
         path: path.join(programFilesX86, "Python312", "python.exe"),
         source: "Program Files (x86) Python 3.12",
+      },
+      {
+        path: path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
+        source: "standard Python 3.11",
+      },
+      {
+        path: path.join(localAppData, "Programs", "Python", "Python311-64", "python.exe"),
+        source: "standard Python 3.11 (64-bit)",
+      },
+      { path: path.join(programFiles, "Python311", "python.exe"), source: "Program Files Python 3.11" },
+      {
+        path: path.join(programFilesX86, "Python311", "python.exe"),
+        source: "Program Files (x86) Python 3.11",
       },
       {
         path: path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"),

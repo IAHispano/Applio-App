@@ -30,6 +30,10 @@ function findPython() {
       path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python312-64", "python.exe"),
       path.join(process.env.ProgramFiles || "C:\\Program Files", "Python312", "python.exe"),
       path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Python312", "python.exe"),
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python311", "python.exe"),
+      path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Python311-64", "python.exe"),
+      path.join(process.env.ProgramFiles || "C:\\Program Files", "Python311", "python.exe"),
+      path.join(process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)", "Python311", "python.exe"),
       path.join(process.env.LOCALAPPDATA || "", "Programs", "Python", "Launcher", "py.exe"),
     ];
     for (const sp of stdPaths) {
@@ -40,16 +44,18 @@ function findPython() {
         return { bin: sp, args: [] };
       }
     }
-    try {
-      const probe = spawnSync("py", ["-3.12", "-c", "import sys; print(sys.executable)"], {
-        encoding: "utf-8",
-        windowsHide: true,
-      });
-      if (probe.status === 0 && probe.stdout.trim()) {
-        return { bin: "py", args: ["-3.12"] };
+    for (const ver of ["-3.12", "-3.11"]) {
+      try {
+        const probe = spawnSync("py", [ver, "-c", "import sys; print(sys.executable)"], {
+          encoding: "utf-8",
+          windowsHide: true,
+        });
+        if (probe.status === 0 && probe.stdout.trim()) {
+          return { bin: "py", args: [ver] };
+        }
+      } catch {
+        // py launcher not available
       }
-    } catch {
-      // py launcher not available
     }
   }
 

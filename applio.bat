@@ -49,8 +49,16 @@ if !ERRORLEVEL! equ 0 (
 :: 4. Fallback to py launcher or python
 where py >nul 2>nul
 if !ERRORLEVEL! equ 0 (
-    py -3.12 "%SCRIPT_DIR%core.py" %*
-    exit /b !ERRORLEVEL!
+    py -3.12 -c "" >nul 2>nul
+    if !ERRORLEVEL! equ 0 (
+        py -3.12 "%SCRIPT_DIR%core.py" %*
+        exit /b !ERRORLEVEL!
+    )
+    py -3.11 -c "" >nul 2>nul
+    if !ERRORLEVEL! equ 0 (
+        py -3.11 "%SCRIPT_DIR%core.py" %*
+        exit /b !ERRORLEVEL!
+    )
 )
 
 python "%SCRIPT_DIR%core.py" %*

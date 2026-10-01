@@ -36,8 +36,16 @@ if (Get-Command "node" -ErrorAction SilentlyContinue) {
 }
 
 if (Get-Command "py" -ErrorAction SilentlyContinue) {
-    & py -3.12 $corePy @Arguments
-    exit $LASTEXITCODE
+    & py -3.12 -c "" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        & py -3.12 $corePy @Arguments
+        exit $LASTEXITCODE
+    }
+    & py -3.11 -c "" 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        & py -3.11 $corePy @Arguments
+        exit $LASTEXITCODE
+    }
 }
 
 if (Get-Command "python" -ErrorAction SilentlyContinue) {

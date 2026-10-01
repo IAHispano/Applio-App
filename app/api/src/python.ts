@@ -43,9 +43,13 @@ export function refreshWindowsEnv(): void {
     const standardDirs = [
       path.join(localAppData, "Programs", "Python", "Python312"),
       path.join(localAppData, "Programs", "Python", "Python312", "Scripts"),
+      path.join(localAppData, "Programs", "Python", "Python311"),
+      path.join(localAppData, "Programs", "Python", "Python311", "Scripts"),
       path.join(localAppData, "Programs", "Python", "Launcher"),
       path.join(programFiles, "Python312"),
       path.join(programFiles, "Python312", "Scripts"),
+      path.join(programFiles, "Python311"),
+      path.join(programFiles, "Python311", "Scripts"),
     ];
     for (const dir of standardDirs) {
       if (fs.existsSync(dir) && !parts.some((p) => p.toLowerCase() === dir.toLowerCase())) {
@@ -83,7 +87,7 @@ export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: str
   const userProfile = process.env.USERPROFILE || "";
   const windir = process.env.WINDIR || process.env.SystemRoot || "C:\\Windows";
 
-  // 1. Well-known Python 3.12 install paths
+  // 1. Well-known Python 3.12 & 3.11 install paths
   const knownExePaths = [
     // Standard user-scope (default for winget / silent install)
     path.join(localAppData, "Programs", "Python", "Python312", "python.exe"),
@@ -91,18 +95,28 @@ export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: str
     path.join(localAppData, "Programs", "Python", "Python312-32", "python.exe"),
     path.join(localAppData, "Programs", "Python", "Python312-arm64", "python.exe"),
     path.join(localAppData, "Python", "pythoncore-3.12-64", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python311", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python311-64", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python311-32", "python.exe"),
+    path.join(localAppData, "Programs", "Python", "Python311-arm64", "python.exe"),
+    path.join(localAppData, "Python", "pythoncore-3.11-64", "python.exe"),
     // Standard machine-scope
     path.join(programFiles, "Python312", "python.exe"),
     path.join(programFilesX86, "Python312", "python.exe"),
     path.join(systemDrive, "Python312", "python.exe"),
+    path.join(programFiles, "Python311", "python.exe"),
+    path.join(programFilesX86, "Python311", "python.exe"),
+    path.join(systemDrive, "Python311", "python.exe"),
     // WindowsApps
     path.join(localAppData, "Microsoft", "WindowsApps", "python3.12.exe"),
+    path.join(localAppData, "Microsoft", "WindowsApps", "python3.11.exe"),
     path.join(localAppData, "Microsoft", "WindowsApps", "python.exe"),
     // Scoop / pyenv-win / Chocolatey
     path.join(userProfile, "scoop", "apps", "python", "current", "python.exe"),
     path.join(userProfile, "scoop", "shims", "python.exe"),
     path.join(userProfile, ".pyenv", "pyenv-win", "shims", "python.exe"),
     path.join(systemDrive, "tools", "python312", "python.exe"),
+    path.join(systemDrive, "tools", "python311", "python.exe"),
     path.join(process.env.ProgramData || "C:\\ProgramData", "chocolatey", "bin", "python.exe"),
   ];
 
@@ -110,7 +124,7 @@ export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: str
     if (p) addExe(p, "standard path");
   }
 
-  // 2. Query Windows Registry for Python 3.12
+  // 2. Query Windows Registry for Python 3.12 & 3.11
   try {
     const regKeys = [
       "HKCU\\Software\\Python\\PythonCore\\3.12\\InstallPath",
@@ -120,6 +134,13 @@ export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: str
       "HKCU\\Software\\Python\\PythonCore\\3.12-arm64\\InstallPath",
       "HKLM\\Software\\Python\\PythonCore\\3.12-arm64\\InstallPath",
       "HKLM\\SOFTWARE\\WOW6432Node\\Python\\PythonCore\\3.12\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore\\3.11\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.11\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore\\3.11-64\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.11-64\\InstallPath",
+      "HKCU\\Software\\Python\\PythonCore\\3.11-arm64\\InstallPath",
+      "HKLM\\Software\\Python\\PythonCore\\3.11-arm64\\InstallPath",
+      "HKLM\\SOFTWARE\\WOW6432Node\\Python\\PythonCore\\3.11\\InstallPath",
       "HKCU\\Software\\Python\\PythonCore",
       "HKLM\\Software\\Python\\PythonCore",
     ];
@@ -158,8 +179,10 @@ export function getWindowsPythonCandidates(): Array<{ cmd: string[]; source: str
   ];
   for (const pyExe of pyLaunchers) {
     if (pyExe === "py" || fs.existsSync(pyExe)) {
-      results.push({ cmd: [pyExe, "-V:3.12"], source: "py manager" });
-      results.push({ cmd: [pyExe, "-3.12"], source: "py launcher" });
+      results.push({ cmd: [pyExe, "-V:3.12"], source: "py manager (3.12)" });
+      results.push({ cmd: [pyExe, "-3.12"], source: "py launcher (3.12)" });
+      results.push({ cmd: [pyExe, "-V:3.11"], source: "py manager (3.11)" });
+      results.push({ cmd: [pyExe, "-3.11"], source: "py launcher (3.11)" });
     }
   }
 

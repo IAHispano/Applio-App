@@ -4,6 +4,7 @@ import path from "node:path";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
+  getCodeRoot,
   getRepoRoot,
   getWindowsPythonCandidates,
   killProcessesInVenv,
@@ -120,7 +121,9 @@ function parsePyVersion(out: string): string | null {
 function pySupported(version: string): boolean {
   const m = version.match(/(\d+)\.(\d+)/);
   if (!m) return false;
-  return Number(m[1]) === 3 && Number(m[2]) === 12;
+  const major = Number(m[1]);
+  const minor = Number(m[2]);
+  return major === 3 && (minor === 11 || minor === 12);
 }
 
 export async function findPython(): Promise<PythonInfo | null> {
@@ -162,14 +165,17 @@ export async function findPython(): Promise<PythonInfo | null> {
     for (const cand of getWindowsPythonCandidates()) {
       candidates.push(cand);
     }
-    candidates.push({ cmd: ["py", "-V:3.12"], source: "py manager" });
-    candidates.push({ cmd: ["py", "-3.12"], source: "py launcher" });
+    candidates.push({ cmd: ["py", "-V:3.12"], source: "py manager (3.12)" });
+    candidates.push({ cmd: ["py", "-3.12"], source: "py launcher (3.12)" });
+    candidates.push({ cmd: ["py", "-V:3.11"], source: "py manager (3.11)" });
+    candidates.push({ cmd: ["py", "-3.11"], source: "py launcher (3.11)" });
     candidates.push({ cmd: ["python"], source: "PATH" });
   } else {
     candidates.push({ cmd: [path.join(root, "env", "bin", "python")], source: "app env/" });
     candidates.push({ cmd: [path.join(root, ".venv", "bin", "python")], source: "app .venv" });
     candidates.push({ cmd: [path.join(root, "venv", "bin", "python")], source: "app venv" });
     candidates.push({ cmd: ["python3.12"], source: "PATH" });
+    candidates.push({ cmd: ["python3.11"], source: "PATH" });
     candidates.push({ cmd: ["python3"], source: "PATH" });
     candidates.push({ cmd: ["python"], source: "PATH" });
   }
@@ -376,7 +382,12 @@ export async function getStatus(force = false): Promise<SetupStatus> {
       checks: [
         { id: "node", label: `Node.js ${process.version}`, status: "ok", detail: "runtime OK" },
         { id: "web", label: "Web interface build", status: "ok", detail: "checks bypassed with --no-env" },
-        { id: "python", label: "Python 3.12", status: "ok", detail: "checks bypassed with --no-env" },
+        {
+          id: "python",
+          label: "Python (3.11 / 3.12)",
+          status: "ok",
+          detail: "checks bypassed with --no-env",
+        },
         {
           id: "engine",
           label: "Engine packages (torch, uvicorn, librosa)",
@@ -414,7 +425,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
   const py = await findPython();
   checks.push({
     id: "python",
-    label: "Python 3.12",
+    label: py ? `Python ${py.version}` : "Python (3.11 / 3.12)",
     status: py ? "ok" : "missing",
     detail: py ? `${py.version} (${py.source})` : "no suitable Python found",
   });
@@ -980,6 +991,19 @@ export function startInstall(): Job {
         ? ["--extra-index-url", `https://download.pytorch.org/whl/${torchCuda}`]
         : [];
       const reqFile = path.join(root, "requirements.txt");
+      const shippedReq = path.join(getCodeRoot(), "requirements.txt");
+      if (shippedReq !== reqFile && exists(shippedReq)) {
+        try {
+          if (
+            !exists(reqFile) ||
+            fs.readFileSync(shippedReq, "utf-8") !== fs.readFileSync(reqFile, "utf-8")
+          ) {
+            fs.copyFileSync(shippedReq, reqFile);
+          }
+        } catch {
+          /* non-fatal */
+        }
+      }
       if (hasUv) {
         appendLog(job, "Using uv (fast installer)…");
         await streamRun(job, "uv", [
