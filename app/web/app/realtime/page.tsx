@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Disc, Gauge, ListMusic, Play, Radio, Square, Wand2 } from "lucide-react";
+import { ChevronDown, Disc, Gauge, Layers, ListMusic, Play, Radio, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -143,6 +143,43 @@ export default function RealtimePage() {
   const [vad, setVad] = useState(true);
   const [inGain, setInGain] = useState(100);
   const [outGain, setOutGain] = useState(100);
+  // Post-process FX rack (parity with Gradio realtime tab: post_process + 10 pedalboard FX)
+  const [postProcess, setPostProcess] = useState(false);
+  const [reverb, setReverb] = useState(false);
+  const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
+  const [reverbDamping, setReverbDamping] = useState(0.5);
+  const [reverbWetGain, setReverbWetGain] = useState(0.5);
+  const [reverbDryGain, setReverbDryGain] = useState(0.5);
+  const [reverbWidth, setReverbWidth] = useState(0.5);
+  const [reverbFreezeMode, setReverbFreezeMode] = useState(0.5);
+  const [pitchShiftFx, setPitchShiftFx] = useState(false);
+  const [pitchShiftSemitones, setPitchShiftSemitones] = useState(0);
+  const [limiter, setLimiter] = useState(false);
+  const [limiterThreshold, setLimiterThreshold] = useState(-6);
+  const [limiterReleaseTime, setLimiterReleaseTime] = useState(0.01);
+  const [gainFx, setGainFx] = useState(false);
+  const [gainDb, setGainDb] = useState(0);
+  const [distortion, setDistortion] = useState(false);
+  const [distortionGain, setDistortionGain] = useState(25);
+  const [chorus, setChorus] = useState(false);
+  const [chorusRate, setChorusRate] = useState(1.0);
+  const [chorusDepth, setChorusDepth] = useState(0.25);
+  const [chorusCenterDelay, setChorusCenterDelay] = useState(7);
+  const [chorusFeedback, setChorusFeedback] = useState(0.0);
+  const [chorusMix, setChorusMix] = useState(0.5);
+  const [bitcrush, setBitcrush] = useState(false);
+  const [bitcrushBitDepth, setBitcrushBitDepth] = useState(8);
+  const [clipping, setClipping] = useState(false);
+  const [clippingThreshold, setClippingThreshold] = useState(-6);
+  const [compressor, setCompressor] = useState(false);
+  const [compressorThreshold, setCompressorThreshold] = useState(0);
+  const [compressorRatio, setCompressorRatio] = useState(1);
+  const [compressorAttack, setCompressorAttack] = useState(1.0);
+  const [compressorRelease, setCompressorRelease] = useState(100);
+  const [delayFx, setDelayFx] = useState(false);
+  const [delaySeconds, setDelaySeconds] = useState(0.5);
+  const [delayFeedback, setDelayFeedback] = useState(0.0);
+  const [delayMix, setDelayMix] = useState(0.5);
   const [streaming, setStreaming] = useState(false);
   const [latency, setLatency] = useState(0);
   const [volume, setVolume] = useState(-90);
@@ -334,8 +371,44 @@ export default function RealtimePage() {
             proposed_pitch_threshold: proposedPitchThreshold,
             clean_audio: cleanAudio,
             clean_strength: cleanStrength,
-            post_process: false,
-            kwargs: {},
+            post_process: postProcess,
+            kwargs: {
+              reverb,
+              pitch_shift: pitchShiftFx,
+              limiter,
+              gain: gainFx,
+              distortion,
+              chorus,
+              bitcrush,
+              clipping,
+              compressor,
+              delay: delayFx,
+              reverb_room_size: reverbRoomSize,
+              reverb_damping: reverbDamping,
+              reverb_wet_level: reverbWetGain,
+              reverb_dry_level: reverbDryGain,
+              reverb_width: reverbWidth,
+              reverb_freeze_mode: reverbFreezeMode,
+              pitch_shift_semitones: pitchShiftSemitones,
+              limiter_threshold: limiterThreshold,
+              limiter_release: limiterReleaseTime,
+              gain_db: gainDb,
+              distortion_gain: distortionGain,
+              chorus_rate: chorusRate,
+              chorus_depth: chorusDepth,
+              chorus_delay: chorusCenterDelay,
+              chorus_feedback: chorusFeedback,
+              chorus_mix: chorusMix,
+              bitcrush_bit_depth: bitcrushBitDepth,
+              clipping_threshold: clippingThreshold,
+              compressor_threshold: compressorThreshold,
+              compressor_ratio: compressorRatio,
+              compressor_attack: compressorAttack,
+              compressor_release: compressorRelease,
+              delay_seconds: delaySeconds,
+              delay_feedback: delayFeedback,
+              delay_mix: delayMix,
+            },
           }),
         );
         setStreaming(true);
@@ -865,6 +938,511 @@ export default function RealtimePage() {
             }}
             className="mt-3"
           />
+        </Disclosure>
+        <Disclosure
+          title={t("Post-Process")}
+          icon={<Layers size={15} />}
+          open={postProcess}
+          onToggle={(open) => {
+            setPostProcess(open);
+            if (streaming) changeConfig("post_process", open);
+          }}
+        >
+          {postProcess && (
+            <div className="space-y-4 pt-2">
+              {/* Reverb */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={reverb}
+                    onChange={(e) => {
+                      setReverb(e.target.checked);
+                      if (streaming) changeConfig("reverb", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Reverb")}</span>
+                </label>
+                {reverb && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <SliderField
+                      id="rt-reverb-room"
+                      label={t("Reverb Room Size")}
+                      value={reverbRoomSize}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbRoomSize(v);
+                        if (streaming) changeConfigDebounced("reverb_room_size", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-reverb-damping"
+                      label={t("Reverb Damping")}
+                      value={reverbDamping}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbDamping(v);
+                        if (streaming) changeConfigDebounced("reverb_damping", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-reverb-wet"
+                      label={t("Reverb Wet Gain")}
+                      value={reverbWetGain}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbWetGain(v);
+                        if (streaming) changeConfigDebounced("reverb_wet_level", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-reverb-dry"
+                      label={t("Reverb Dry Gain")}
+                      value={reverbDryGain}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbDryGain(v);
+                        if (streaming) changeConfigDebounced("reverb_dry_level", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-reverb-width"
+                      label={t("Reverb Width")}
+                      value={reverbWidth}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbWidth(v);
+                        if (streaming) changeConfigDebounced("reverb_width", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-reverb-freeze"
+                      label={t("Reverb Freeze Mode")}
+                      value={reverbFreezeMode}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setReverbFreezeMode(v);
+                        if (streaming) changeConfigDebounced("reverb_freeze_mode", v, true);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Pitch Shift */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={pitchShiftFx}
+                    onChange={(e) => {
+                      setPitchShiftFx(e.target.checked);
+                      if (streaming) changeConfig("pitch_shift", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Pitch Shift")}</span>
+                </label>
+                {pitchShiftFx && (
+                  <SliderField
+                    id="rt-fx-pitch-semi"
+                    label={t("Pitch Shift Semitones")}
+                    value={pitchShiftSemitones}
+                    min={-12}
+                    max={12}
+                    step={1}
+                    onChange={(v) => {
+                      setPitchShiftSemitones(v);
+                      if (streaming) changeConfigDebounced("pitch_shift_semitones", v, true);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Delay */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={delayFx}
+                    onChange={(e) => {
+                      setDelayFx(e.target.checked);
+                      if (streaming) changeConfig("delay", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Delay")}</span>
+                </label>
+                {delayFx && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <SliderField
+                      id="rt-fx-delay-s"
+                      label={t("Delay Seconds")}
+                      value={delaySeconds}
+                      min={0}
+                      max={5}
+                      step={0.05}
+                      unit="s"
+                      onChange={(v) => {
+                        setDelaySeconds(v);
+                        if (streaming) changeConfigDebounced("delay_seconds", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-delay-fb"
+                      label={t("Delay Feedback")}
+                      value={delayFeedback}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setDelayFeedback(v);
+                        if (streaming) changeConfigDebounced("delay_feedback", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-delay-mix"
+                      label={t("Delay Mix")}
+                      value={delayMix}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setDelayMix(v);
+                        if (streaming) changeConfigDebounced("delay_mix", v, true);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Limiter */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={limiter}
+                    onChange={(e) => {
+                      setLimiter(e.target.checked);
+                      if (streaming) changeConfig("limiter", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Limiter")}</span>
+                </label>
+                {limiter && (
+                  <div className="space-y-2">
+                    <SliderField
+                      id="rt-fx-lim-thr"
+                      label={t("Limiter Threshold dB")}
+                      value={limiterThreshold}
+                      min={-60}
+                      max={0}
+                      step={0.5}
+                      unit="dB"
+                      onChange={(v) => {
+                        setLimiterThreshold(v);
+                        if (streaming) changeConfigDebounced("limiter_threshold", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-lim-rel"
+                      label={t("Limiter Release Time")}
+                      value={limiterReleaseTime}
+                      min={0.01}
+                      max={1}
+                      step={0.01}
+                      unit="s"
+                      onChange={(v) => {
+                        setLimiterReleaseTime(v);
+                        if (streaming) changeConfigDebounced("limiter_release", v, true);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Gain */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={gainFx}
+                    onChange={(e) => {
+                      setGainFx(e.target.checked);
+                      if (streaming) changeConfig("gain", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Gain")}</span>
+                </label>
+                {gainFx && (
+                  <SliderField
+                    id="rt-fx-gain-db"
+                    label={t("Gain dB")}
+                    value={gainDb}
+                    min={-60}
+                    max={60}
+                    step={0.5}
+                    unit="dB"
+                    onChange={(v) => {
+                      setGainDb(v);
+                      if (streaming) changeConfigDebounced("gain_db", v, true);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Distortion */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={distortion}
+                    onChange={(e) => {
+                      setDistortion(e.target.checked);
+                      if (streaming) changeConfig("distortion", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Distortion")}</span>
+                </label>
+                {distortion && (
+                  <SliderField
+                    id="rt-fx-dist"
+                    label={t("Distortion Gain")}
+                    value={distortionGain}
+                    min={-60}
+                    max={60}
+                    step={1}
+                    unit="dB"
+                    onChange={(v) => {
+                      setDistortionGain(v);
+                      if (streaming) changeConfigDebounced("distortion_gain", v, true);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Chorus */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={chorus}
+                    onChange={(e) => {
+                      setChorus(e.target.checked);
+                      if (streaming) changeConfig("chorus", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Chorus")}</span>
+                </label>
+                {chorus && (
+                  <div className="space-y-2">
+                    <SliderField
+                      id="rt-fx-ch-rate"
+                      label={t("Chorus Rate Hz")}
+                      value={chorusRate}
+                      min={0}
+                      max={100}
+                      step={0.1}
+                      unit="Hz"
+                      onChange={(v) => {
+                        setChorusRate(v);
+                        if (streaming) changeConfigDebounced("chorus_rate", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-ch-depth"
+                      label={t("Chorus Depth")}
+                      value={chorusDepth}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setChorusDepth(v);
+                        if (streaming) changeConfigDebounced("chorus_depth", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-ch-delay"
+                      label={t("Chorus Center Delay ms")}
+                      value={chorusCenterDelay}
+                      min={7}
+                      max={8}
+                      step={0.1}
+                      unit="ms"
+                      onChange={(v) => {
+                        setChorusCenterDelay(v);
+                        if (streaming) changeConfigDebounced("chorus_delay", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-ch-fb"
+                      label={t("Chorus Feedback")}
+                      value={chorusFeedback}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setChorusFeedback(v);
+                        if (streaming) changeConfigDebounced("chorus_feedback", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-ch-mix"
+                      label={t("Chorus Mix")}
+                      value={chorusMix}
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      onChange={(v) => {
+                        setChorusMix(v);
+                        if (streaming) changeConfigDebounced("chorus_mix", v, true);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Compressor */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={compressor}
+                    onChange={(e) => {
+                      setCompressor(e.target.checked);
+                      if (streaming) changeConfig("compressor", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Compressor")}</span>
+                </label>
+                {compressor && (
+                  <div className="space-y-2">
+                    <SliderField
+                      id="rt-fx-comp-thr"
+                      label={t("Compressor Threshold dB")}
+                      value={compressorThreshold}
+                      min={-60}
+                      max={0}
+                      step={1}
+                      unit="dB"
+                      onChange={(v) => {
+                        setCompressorThreshold(v);
+                        if (streaming) changeConfigDebounced("compressor_threshold", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-comp-ratio"
+                      label={t("Compressor Ratio")}
+                      value={compressorRatio}
+                      min={1}
+                      max={20}
+                      step={0.5}
+                      formatValue={(v) => `${v}:1`}
+                      onChange={(v) => {
+                        setCompressorRatio(v);
+                        if (streaming) changeConfigDebounced("compressor_ratio", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-comp-atk"
+                      label={t("Compressor Attack ms")}
+                      value={compressorAttack}
+                      min={0}
+                      max={100}
+                      step={1}
+                      unit="ms"
+                      onChange={(v) => {
+                        setCompressorAttack(v);
+                        if (streaming) changeConfigDebounced("compressor_attack", v, true);
+                      }}
+                    />
+                    <SliderField
+                      id="rt-fx-comp-rel"
+                      label={t("Compressor Release ms")}
+                      value={compressorRelease}
+                      min={0.01}
+                      max={100}
+                      step={0.5}
+                      unit="ms"
+                      onChange={(v) => {
+                        setCompressorRelease(v);
+                        if (streaming) changeConfigDebounced("compressor_release", v, true);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Bitcrush */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={bitcrush}
+                    onChange={(e) => {
+                      setBitcrush(e.target.checked);
+                      if (streaming) changeConfig("bitcrush", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Bitcrush")}</span>
+                </label>
+                {bitcrush && (
+                  <SliderField
+                    id="rt-fx-bit"
+                    label={t("Bitcrush Bit Depth")}
+                    value={bitcrushBitDepth}
+                    min={1}
+                    max={32}
+                    step={1}
+                    onChange={(v) => {
+                      setBitcrushBitDepth(v);
+                      if (streaming) changeConfigDebounced("bitcrush_bit_depth", v, true);
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Clipping */}
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                  <input
+                    type="checkbox"
+                    checked={clipping}
+                    onChange={(e) => {
+                      setClipping(e.target.checked);
+                      if (streaming) changeConfig("clipping", e.target.checked, true);
+                    }}
+                  />
+                  <span>{t("Clipping")}</span>
+                </label>
+                {clipping && (
+                  <SliderField
+                    id="rt-fx-clip"
+                    label={t("Clipping Threshold")}
+                    value={clippingThreshold}
+                    min={-60}
+                    max={0}
+                    step={0.5}
+                    unit="dB"
+                    onChange={(v) => {
+                      setClippingThreshold(v);
+                      if (streaming) changeConfigDebounced("clipping_threshold", v, true);
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
         </Disclosure>
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
           <div className="flex items-center gap-3">

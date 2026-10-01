@@ -114,7 +114,7 @@ export default function InferenceForm() {
   const [delay, setDelay] = useState(false);
   const [delaySeconds, setDelaySeconds] = useState(0.5);
   const [delayFeedback, setDelayFeedback] = useState(0.0);
-  const [delayMix, setDelayMix] = useState(0.4);
+  const [delayMix, setDelayMix] = useState(0.5);
 
   const [compressor, setCompressor] = useState(false);
   const [compressorThreshold, setCompressorThreshold] = useState(0);
@@ -684,6 +684,22 @@ export default function InferenceForm() {
 
         {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+          {/* Pitch */}
+          <div>
+            <SliderField
+              id="infer-pitch"
+              label={t("Pitch")}
+              value={pitch}
+              min={-24}
+              max={24}
+              step={1}
+              unit="st"
+              formatValue={(v) => `${v}`}
+              onChange={setPitch}
+              description={t("Transpose pitch in semitones (-24 = lower, +24 = higher)")}
+            />
+          </div>
+
           {/* Search Feature Ratio */}
           <div>
             <SliderField
@@ -830,7 +846,7 @@ export default function InferenceForm() {
                     id="infer-clean-strength"
                     label={t("Clean Strength")}
                     value={cleanStrength}
-                    min={0.1}
+                    min={0}
                     max={1}
                     step={0.05}
                     onChange={setCleanStrength}
@@ -1131,7 +1147,7 @@ export default function InferenceForm() {
                           id="fx-chorus-rate"
                           label={t("Chorus Rate Hz")}
                           value={chorusRate}
-                          min={0.1}
+                          min={0}
                           max={100}
                           step={0.1}
                           unit="Hz"
@@ -1141,7 +1157,7 @@ export default function InferenceForm() {
                           id="fx-chorus-depth"
                           label={t("Chorus Depth")}
                           value={chorusDepth}
-                          min={0.05}
+                          min={0}
                           max={1}
                           step={0.05}
                           onChange={setChorusDepth}

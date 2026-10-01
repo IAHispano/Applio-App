@@ -22,7 +22,6 @@ export {
   PitchMethodSelect,
   REALTIME_F0_METHODS,
 } from "@/components/ui/PitchMethodSelect";
-export { default as RadioGroup, type RadioGroupProps, type RadioOption } from "@/components/ui/RadioGroup";
 export { default as SegmentedControl } from "@/components/ui/SegmentedControl";
 export { default as SliderField } from "@/components/ui/SliderField";
 export { default as StatTile, type StatTileProps } from "@/components/ui/StatTile";

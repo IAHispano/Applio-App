@@ -757,7 +757,7 @@ export default function BatchForm() {
                   id="batch-chorus-rate"
                   label={t("Chorus Rate Hz")}
                   value={chorusRate}
-                  min={0.1}
+                  min={0}
                   max={100}
                   step={0.1}
                   unit="Hz"
@@ -767,7 +767,7 @@ export default function BatchForm() {
                   id="batch-chorus-depth"
                   label={t("Chorus Depth")}
                   value={chorusDepth}
-                  min={0.05}
+                  min={0}
                   max={1}
                   step={0.05}
                   onChange={setChorusDepth}
