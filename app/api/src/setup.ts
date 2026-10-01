@@ -824,6 +824,80 @@ export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promi
   }
 }
 
+// Which PyTorch CUDA index to install from. Two independent facts decide:
+//  1. GPU architecture (compute capability): PyTorch only compiles kernels
+//     for certain archs per CUDA build. For our torch==2.11.0 pin, cu128
+//     wheels cover Turing (7.5)+ — Maxwell (5.x), Pascal (6.x) and Volta
+//     (7.0) were REMOVED from cu128 binaries, so those cards can ONLY run
+//     cu126 wheels (cu126 keeps them until torch 2.15). Kepler (3.x) and
+//     older have no CUDA 12 kernels at all.
+//  2. Driver ceiling: `nvidia-smi` "CUDA Version" is the newest runtime the
+//     driver supports; a driver stuck below 12.8 cannot load cu128 wheels.
+// Checking only the driver gives false positives (new driver + Pascal card
+// reports 12.8, but cu128 has no Pascal kernels), so the architecture wins.
+// Override with APPLIO_TORCH_CUDA=cu126|cu128|cpu (cpu = PyPI default).
+async function nvidiaComputeCaps(): Promise<number[] | null> {
+  try {
+    const q = await runCmd("nvidia-smi", ["--query-gpu=compute_cap", "--format=csv,noheader"], {
+      timeoutMs: 15000,
+    });
+    if (q.code !== 0) return null;
+    const caps = q.stdout
+      .split(/[\r\n]+/)
+      .map((l) => Number(l.trim()))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    return caps.length > 0 ? caps : null;
+  } catch {
+    return null;
+  }
+}
+
+async function nvidiaDriverCuda(): Promise<[number, number] | null> {
+  try {
+    const smi = await runCmd("nvidia-smi", [], { timeoutMs: 15000 });
+    const m = `${smi.stdout}\n${smi.stderr}`.match(/CUDA Version:\s*(\d+)\.(\d+)/i);
+    if (smi.code === 0 && m) return [Number(m[1]), Number(m[2])];
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveTorchCudaTag(job: Job): Promise<string | null> {
+  const over = (process.env.APPLIO_TORCH_CUDA || "").trim().toLowerCase();
+  if (/^cu\d+$/.test(over) || over === "cpu") {
+    appendLog(job, `Torch CUDA override: APPLIO_TORCH_CUDA=${over}`);
+    return over === "cpu" ? null : over;
+  }
+  if (process.platform === "darwin") return null;
+  const caps = await nvidiaComputeCaps();
+  if (!caps) {
+    appendLog(job, "No NVIDIA GPU detected via nvidia-smi — assuming cu128.");
+    return "cu128";
+  }
+  const oldest = Math.min(...caps);
+  appendLog(job, `NVIDIA GPU compute capability: ${caps.map((c) => c.toFixed(1)).join(", ")}`);
+  if (oldest < 5.0) {
+    appendLog(job, "GPU predates Maxwell — no CUDA 12 kernels exist. Default PyPI torch (GPU will be unavailable).");
+    return null;
+  }
+  if (oldest < 7.5) {
+    // Maxwell / Pascal / Volta: cu128 wheels ship no kernels for these
+    // archs, so cu126 is mandatory regardless of driver version.
+    appendLog(job, "Maxwell/Pascal/Volta card — cu128 has no kernels for it. Using cu126.");
+    return "cu126";
+  }
+  if (oldest >= 10.0) return "cu128"; // Blackwell needs cu128; its driver is new by necessity.
+  const driver = await nvidiaDriverCuda();
+  if (driver) {
+    appendLog(job, `NVIDIA driver CUDA ceiling: ${driver[0]}.${driver[1]}`);
+    if (driver[0] < 12 || (driver[0] === 12 && driver[1] < 8)) return "cu126";
+  } else {
+    appendLog(job, "nvidia-smi reported no CUDA version — assuming cu128.");
+  }
+  return "cu128";
+}
+
 export function startInstall(): Job {
   if (activeInstallId) {
     const existing = getJob(activeInstallId);
@@ -896,8 +970,15 @@ export function startInstall(): Job {
       //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
       // unsafe-best-match is required because the torch index also mirrors a
       // few PyPI packages at older versions.
-      const torchIndex =
-        process.platform === "darwin" ? [] : ["--extra-index-url", "https://download.pytorch.org/whl/cu128"];
+      const torchCuda = await resolveTorchCudaTag(job);
+      if (torchCuda)
+        appendLog(
+          job,
+          `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`,
+        );
+      const torchIndex = torchCuda
+        ? ["--extra-index-url", `https://download.pytorch.org/whl/${torchCuda}`]
+        : [];
       const reqFile = path.join(root, "requirements.txt");
       if (hasUv) {
         appendLog(job, "Using uv (fast installer)…");
