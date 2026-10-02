@@ -711,7 +711,9 @@ export default function InferenceForm() {
               step={0.05}
               formatValue={(v) => `${v}`}
               onChange={setIndexRate}
-              description={t("Blend of the index voice match (0 = model only, higher = closer timbre, more artifacts if the index is noisy)")}
+              description={t(
+                "Blend of the index voice match (0 = model only, higher = closer timbre, more artifacts if the index is noisy)",
+              )}
             />
           </div>
 
@@ -726,7 +728,9 @@ export default function InferenceForm() {
               step={0.05}
               formatValue={(v) => `${v}`}
               onChange={setVolumeEnvelope}
-              description={t("Match the output loudness to your audio (1 = identical dynamics, 0 = the model's own)")}
+              description={t(
+                "Match the output loudness to your audio (1 = identical dynamics, 0 = the model's own)",
+              )}
             />
           </div>
 
@@ -741,7 +745,9 @@ export default function InferenceForm() {
               step={0.01}
               formatValue={(v) => `${v}`}
               onChange={setProtect}
-              description={t("Shield breaths and unvoiced consonants from distortion (0.5 = full protection, lower weakens the voice match)")}
+              description={t(
+                "Shield breaths and unvoiced consonants from distortion (0.5 = full protection, lower weakens the voice match)",
+              )}
             />
           </div>
         </div>
