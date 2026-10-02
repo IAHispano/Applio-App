@@ -67,10 +67,19 @@ body {
   color: var(--text);
   font-family:
     var(--font-sans), "Syne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  user-select: none;
-  -webkit-user-select: none;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Text selects by default; only interactive chrome opts out. (Chromium and
+   WebKit treat user-select as inherited, so the opt-out must be explicit.) */
+nav,
+aside,
+button,
+summary,
+label {
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button,
@@ -209,9 +218,13 @@ summary {
 }
 
 .page-transition {
-  height: 100%;
+  /* flex-basis auto + no shrink: the wrapper must be able to grow past the
+     viewport so the scroll container measures the real content height.
+     flex: 1 1 0% with min-height:100% capped it at the viewport and clipped
+     whatever did not fit. */
   min-height: 100%;
-  flex: 1 1 0%;
+  flex: 1 0 auto;
+  height: auto;
   display: flex;
   flex-direction: column;
   animation: pageEnter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -285,6 +298,15 @@ summary {
   animation: borealisBar 2s linear infinite;
 }
 
+/* One visible keyboard focus indicator for every control (MDN
+   :focus-visible + WCAG 1.4.11: 2px ring at 3:1 minimum). It keys off
+   --accent so each theme keeps a visible ring; pointer focus stays
+   ringless through :focus-visible heuristics. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 a {
   color: var(--text);
   transition:
@@ -294,9 +316,6 @@ a {
 }
 a:active {
   opacity: 0.8;
-}
-a:focus-visible {
-  outline: none;
 }
 
 .layout {
@@ -404,14 +423,12 @@ select option {
 input[type="text"]:focus,
 input[type="number"]:focus,
 select:focus {
-  outline: none;
   border-color: var(--border);
   box-shadow: none;
 }
 input[type="text"]:focus-visible,
 input[type="number"]:focus-visible,
 select:focus-visible {
-  outline: none;
   box-shadow: none;
 }
 input[type="file"] {
@@ -443,9 +460,6 @@ input[type="file"]:hover::-webkit-file-upload-button {
   border-color: var(--focus-border);
   color: var(--button-text-hover);
 }
-input[type="file"]:focus-visible {
-  outline: none;
-}
 input[type="radio"] {
   appearance: none;
   -webkit-appearance: none;
@@ -469,9 +483,6 @@ input[type="radio"] {
 input[type="radio"]:hover {
   border-color: var(--checkbox-border-hover);
 }
-input[type="radio"]:focus-visible {
-  outline: none;
-}
 input[type="radio"]:checked {
   border-color: var(--checkbox-checked);
 }
@@ -489,12 +500,8 @@ input[type="range"] {
   height: 6px;
   border-radius: var(--radius-pill);
   background: var(--slider-track);
-  outline: none;
   cursor: pointer;
   transition: background-color 0.15s ease;
-}
-input[type="range"]:focus-visible {
-  outline: none;
 }
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -580,10 +587,6 @@ input[type="checkbox"]:hover {
   background: var(--button-bg);
 }
 
-input[type="checkbox"]:focus-visible {
-  outline: none;
-}
-
 input[type="checkbox"]:checked {
   background: var(--checkbox-checked);
   border-color: var(--checkbox-checked);
@@ -646,7 +649,6 @@ button {
     border-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
     color 120ms cubic-bezier(0.4, 0, 0.2, 1),
     filter 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  outline: none;
   line-height: 1.3;
   white-space: nowrap;
 }
@@ -657,9 +659,6 @@ button:hover {
 }
 button:active {
   filter: brightness(0.95);
-}
-button:focus-visible {
-  outline: none;
 }
 button:disabled {
   opacity: 0.45;
@@ -981,12 +980,6 @@ details {
 summary {
   cursor: pointer;
   font-weight: 600;
-}
-summary:focus {
-  outline: none;
-}
-summary:focus-visible {
-  outline: none;
 }
 audio {
   width: 100%;

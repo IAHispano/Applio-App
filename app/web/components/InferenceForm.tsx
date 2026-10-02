@@ -711,7 +711,7 @@ export default function InferenceForm() {
               step={0.05}
               formatValue={(v) => `${v}`}
               onChange={setIndexRate}
-              description={t("Weight of the index feature retrieval (0 = model only, 1 = max accent)")}
+              description={t("Blend of the index voice match (0 = model only, higher = closer timbre, more artifacts if the index is noisy)")}
             />
           </div>
 
@@ -726,7 +726,7 @@ export default function InferenceForm() {
               step={0.05}
               formatValue={(v) => `${v}`}
               onChange={setVolumeEnvelope}
-              description={t("Match input audio loudness dynamics (1.0 = full dynamic match)")}
+              description={t("Match the output loudness to your audio (1 = identical dynamics, 0 = the model's own)")}
             />
           </div>
 
@@ -741,7 +741,7 @@ export default function InferenceForm() {
               step={0.01}
               formatValue={(v) => `${v}`}
               onChange={setProtect}
-              description={t("Shields voiceless consonants and breath sounds from artifacts (0.5 = neutral)")}
+              description={t("Shield breaths and unvoiced consonants from distortion (0.5 = full protection, lower weakens the voice match)")}
             />
           </div>
         </div>

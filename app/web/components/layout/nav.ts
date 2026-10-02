@@ -60,7 +60,7 @@ export const NAV_SECTIONS: NavSection[] = [
       {
         icon: AudioWaveform,
         label: "Audio Separator",
-        to: "/uvr",
+        to: "/audio-separator",
         blurb: "Split vocals, instrumental and stems",
       },
     ],

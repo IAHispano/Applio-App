@@ -29,6 +29,7 @@ import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg, fileBasename } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { useJob } from "@/lib/useJob";
 
 interface SetupCheck {
   id: string;
@@ -113,6 +114,7 @@ export default function Home() {
   const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
+  const { job: prereqJob, isActive: prereqRunning } = useJob(jobId);
 
   const refresh = useCallback(async (force = false) => {
     try {
@@ -145,6 +147,12 @@ export default function Home() {
       setError(errMsg(e));
     }
   }
+
+  // Checks alone can't show the download, so re-run them once the job settles.
+  useEffect(() => {
+    if (prereqJob?.status === "done") refresh(true);
+    else if (prereqJob?.status === "error" && prereqJob.error) setError(prereqJob.error);
+  }, [prereqJob?.status, prereqJob?.error, refresh]);
 
   const passedChecks = status?.checks.filter((c) => c.status === "ok").length ?? 0;
   const totalChecks = status?.checks.length ?? 0;
@@ -236,26 +244,30 @@ export default function Home() {
       )}
 
       {/* Glanceable Metrics */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 px-1">
         <StatTile
+          className="!bg-transparent !border-0 !px-1"
           label={t("Voice Models")}
           value={`${modelCount}`}
           subtext={`${indexCount} ${t("indexes")}`}
           icon={<Database size={14} />}
         />
         <StatTile
+          className="!bg-transparent !border-0 !px-1"
           label={t("Audio Outputs")}
           value={`${audioCount}`}
           subtext={t("converted clips")}
           icon={<FileAudio size={14} />}
         />
         <StatTile
+          className="!bg-transparent !border-0 !px-1"
           label={t("Engine Checks")}
           value={`${passedChecks}/${totalChecks}`}
           subtext={passedChecks === totalChecks ? t("all systems go") : t("see diagnostics")}
           icon={<Activity size={14} />}
         />
         <StatTile
+          className="!bg-transparent !border-0 !px-1"
           label={t("App Version")}
           value={currentVersion || t("Unknown")}
           subtext={updateAvailable ? t("update available") : t("up to date")}
@@ -400,10 +412,15 @@ export default function Home() {
               size="xs"
               variant="ghost"
               onClick={prerequisites}
-              title={t("Download base models & checkpoints")}
+              disabled={prereqRunning}
+              title={t("Download base voice models and checkpoints (hubert, rmvpe, vocoders)")}
               icon={<Download size={13} />}
             >
-              {t("Prerequisites")}
+              {prereqRunning
+                ? t("Downloading…")
+                : prereqJob?.status === "done"
+                  ? t("Downloaded")
+                  : t("Prerequisites")}
             </Button>
             <Button
               size="xs"

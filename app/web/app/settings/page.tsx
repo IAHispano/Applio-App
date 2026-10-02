@@ -625,7 +625,7 @@ export default function SettingsPage() {
                     {opt.name}
                   </span>
                   {isSelected && (
-                    <span className="text-[9px] font-bold text-[var(--accent,#ffffff)] uppercase tracking-wider shrink-0">
+                    <span className="text-[10px] font-bold text-[var(--accent,#ffffff)] shrink-0">
                       {t("Active")}
                     </span>
                   )}
