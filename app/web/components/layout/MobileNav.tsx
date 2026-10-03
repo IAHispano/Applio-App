@@ -78,7 +78,7 @@ export function BottomNav() {
         aria-label={t("Menu")}
         aria-hidden={!expanded}
         inert={!expanded}
-        className={`lg:hidden absolute left-3 right-3 bottom-[6rem] z-40 rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl p-3 flex flex-col min-h-0 max-h-[55dvh] transition-all duration-200 ease-out ${
+        className={`lg:hidden absolute left-3 right-3 bottom-[6rem] z-40 rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl p-3 flex flex-col min-h-0 max-h-[min(78dvh,560px)] transition-all duration-200 ease-out ${
           expanded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"
         }`}
       >

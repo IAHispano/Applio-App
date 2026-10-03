@@ -7,6 +7,7 @@ import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
 import { I18nProvider } from "@/lib/i18n";
+import { SetupProvider } from "@/lib/setup";
 import { ThemeProvider } from "@/lib/theme";
 import Toaster from "@/lib/toast";
 
@@ -35,12 +36,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <I18nProvider>
           <ThemeProvider>
-            <SkipLink />
-            <AppShell>{children}</AppShell>
-            <TermsModal />
-            <AutoUpdateModal />
-            <Toaster />
-            <RoutePrewarm />
+            <SetupProvider>
+              <SkipLink />
+              <AppShell>{children}</AppShell>
+              <TermsModal />
+              <AutoUpdateModal />
+              <Toaster />
+              <RoutePrewarm />
+            </SetupProvider>
           </ThemeProvider>
         </I18nProvider>
       </body>

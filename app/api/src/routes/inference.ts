@@ -8,6 +8,7 @@ import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
 import { type InferenceParams, inferenceParamsSchema } from "@/schemas";
+import { assertEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
@@ -30,6 +31,12 @@ function toCliArgs(p: InferenceParams, inputPath: string, outputPath: string): s
 }
 
 router.post("/", upload.single("audio"), async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    if (req.file) fs.rmSync(req.file.path, { force: true });
+    return res.status(503).json({ error: errMsg(err) });
+  }
   try {
     const body = { ...(req.body as Record<string, unknown>) };
     const parsed = inferenceParamsSchema.safeParse(body);

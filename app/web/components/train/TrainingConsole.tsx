@@ -333,7 +333,7 @@ export default function TrainingConsole({
       )}
 
       {/* 2. Pipeline Phase Stepper */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
         {[
           { step: 1, title: t("Preprocessing"), desc: t("Slice & Normalize") },
           { step: 2, title: t("Feature Extraction"), desc: t("Pitch & Embeddings") },
@@ -442,7 +442,7 @@ export default function TrainingConsole({
             </div>
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button
               size="md"
               onClick={() =>
@@ -557,7 +557,7 @@ export default function TrainingConsole({
                       <span className="w-5 h-5 rounded-md bg-white text-black text-[10px] font-bold flex items-center justify-center shrink-0">
                         {ev.index}
                       </span>
-                      <span className="text-xs font-semibold text-white truncate">{ev.title}</span>
+                      <span className="text-xs font-semibold text-white truncate">{t(ev.title)}</span>
                       <span className="text-[10px] text-neutral-500 tabular-nums shrink-0">
                         {ev.index}/{ev.total}
                       </span>
@@ -570,7 +570,7 @@ export default function TrainingConsole({
                     <div key={ev.key} className="space-y-1 pl-[30px]">
                       <div className="flex items-center justify-between gap-2 text-[11px]">
                         <span className="text-neutral-300 font-medium truncate">
-                          {ev.phase || t("Working…")}
+                          {t(ev.phase) || t("Working…")}
                         </span>
                         <span className="text-neutral-400 tabular-nums shrink-0">{ev.percent}%</span>
                       </div>

@@ -8,6 +8,7 @@ import { setProgress } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
 import { booleanCoerce } from "@/schemas";
+import { requireEngineReady } from "@/setup";
 
 const router = Router();
 
@@ -126,7 +127,7 @@ const separateSchema = z.object({
 });
 
 // Separate stems (vocals / instrumental / more) as a tracked job.
-router.post("/separate", upload.single("audio"), (req: Request, res: Response) => {
+router.post("/separate", requireEngineReady, upload.single("audio"), (req: Request, res: Response) => {
   try {
     const inputAbs = inputFrom(req);
     const parsed = separateSchema.safeParse(req.body);

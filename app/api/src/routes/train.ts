@@ -10,6 +10,7 @@ import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
 import { booleanCoerce } from "@/schemas";
+import { assertEngineReady } from "@/setup";
 
 const router = Router();
 const AUDIO_EXTS = [
@@ -378,7 +379,12 @@ function trainProgressHandler(job: { id: string; progress?: number }, totalEpoch
   };
 }
 
-router.post("/preprocess", (req: Request, res: Response) => {
+router.post("/preprocess", async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   const parsed = z
     .object({
       modelName,
@@ -417,7 +423,12 @@ router.post("/preprocess", (req: Request, res: Response) => {
   return res.status(202).json({ jobId: job.id });
 });
 
-router.post("/extract", (req: Request, res: Response) => {
+router.post("/extract", async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   const parsed = z
     .object({
       modelName,
@@ -450,7 +461,12 @@ router.post("/extract", (req: Request, res: Response) => {
 });
 
 // shutdown_check is intentionally not exposed — the server must stay up.
-router.post("/train", (req: Request, res: Response) => {
+router.post("/train", async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   const parsed = z
     .object({
       modelName,
@@ -511,7 +527,12 @@ router.post("/train", (req: Request, res: Response) => {
   return res.status(202).json({ jobId: job.id });
 });
 
-router.post("/index", (req: Request, res: Response) => {
+router.post("/index", async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   const parsed = z
     .object({
       modelName,
@@ -531,7 +552,12 @@ router.post("/index", (req: Request, res: Response) => {
   return res.status(202).json({ jobId: job.id });
 });
 
-router.post("/pipeline", (req: Request, res: Response) => {
+router.post("/pipeline", async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   const parsed = z
     .object({
       modelName,

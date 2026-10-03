@@ -32,7 +32,7 @@ function CardHeaderInner({
   return (
     <div className={`${border ? "border-b border-white/10 pb-3.5" : ""} space-y-1 ${className}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-wrap sm:flex-nowrap">
           {step !== undefined && (
             <>
               <span className="sr-only">Step {step}: </span>
@@ -55,7 +55,7 @@ function CardHeaderInner({
             title
           )}
         </div>
-        {action && <div className="flex items-center gap-2 shrink-0">{action}</div>}
+        {action && <div className="flex items-center gap-2 flex-wrap sm:shrink-0">{action}</div>}
       </div>
       {description && <p className="text-xs text-neutral-400 m-0 leading-relaxed">{description}</p>}
     </div>

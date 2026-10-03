@@ -8,6 +8,7 @@ import { buildTtsInferArgs } from "@/lib/inferArgs";
 import { txtUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath, runPythonModule } from "@/python";
 import { type TtsParams, ttsSchema } from "@/schemas";
+import { assertEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
@@ -80,7 +81,13 @@ function toCliArgs(p: TtsParams, ttsFile: string, outTts: string, outRvc: string
   ];
 }
 
-router.post("/", upload.single("txt_file"), (req: Request, res: Response) => {
+router.post("/", upload.single("txt_file"), async (req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    if (req.file) fs.rmSync(req.file.path, { force: true });
+    return res.status(503).json({ error: errMsg(err) });
+  }
   try {
     const body = { ...(req.body as Record<string, unknown>) };
     let ttsFile = "";

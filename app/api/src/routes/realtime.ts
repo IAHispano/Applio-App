@@ -7,6 +7,7 @@ import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { errMsg } from "@/errors";
 import { getRepoRoot, spawnPython } from "@/python";
+import { assertEngineReady } from "@/setup";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);
@@ -84,6 +85,11 @@ function startRealtimeProcess(): ChildProcess {
 // Background prewarm of the realtime engine so it is instantly reachable
 router.post("/prewarm", async (_req: Request, res: Response) => {
   try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
+  try {
     if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
       return res.json({ ok: true, running: true, startedAt: rtStartedAt });
     }
@@ -97,6 +103,11 @@ router.post("/prewarm", async (_req: Request, res: Response) => {
 });
 
 router.post("/start", async (_req: Request, res: Response) => {
+  try {
+    await assertEngineReady();
+  } catch (err) {
+    return res.status(503).json({ error: errMsg(err) });
+  }
   try {
     if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
       return res.json({ ok: true, reused: true, startedAt: rtStartedAt });

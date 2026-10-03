@@ -326,6 +326,7 @@ export default function UvrPage() {
             disabled={busy || running || (!audioFile && !inputPath.trim()) || !model}
             loading={busy}
             icon={<Split size={16} />}
+            className="w-full sm:w-auto"
           >
             {running ? t("Separating…") : t("Separate Stems")}
           </Button>

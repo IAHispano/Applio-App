@@ -503,7 +503,7 @@ export default function TrainPage() {
               }
             />
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
               {pipelinePhases.map((p) => (
                 <div
                   key={p.n}
@@ -605,7 +605,7 @@ export default function TrainPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 pt-3 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/10">
               <ToggleField
                 id="auto-noise-reduction"
                 label={t("Noise Reduction")}
@@ -615,18 +615,18 @@ export default function TrainPage() {
               <button
                 type="button"
                 onClick={() => setTrainMode("manual")}
-                className="ml-auto bg-transparent border-0 p-0 text-xs text-neutral-400 hover:text-white cursor-pointer"
+                className="bg-transparent border-0 p-0 text-xs text-neutral-400 hover:text-white cursor-pointer text-left sm:text-right"
               >
                 {t("Need slicing, embedder, or checkpoint options? Open Manual →")}
               </button>
             </div>
 
-            <div className="row pt-3 border-t border-white/10">
-              <Button loading={busy} onClick={runPipeline} icon={<Zap size={16} />} disabled={busy}>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 border-t border-white/10">
+              <Button loading={busy} onClick={runPipeline} icon={<Zap size={16} />} disabled={busy} className="w-full sm:w-auto">
                 {busy ? t("Pipeline Running…") : t("Start Automatic Training")}
               </Button>
               {busy && (
-                <Button variant="danger" onClick={stop} icon={<StopCircle size={16} />}>
+                <Button variant="danger" onClick={stop} icon={<StopCircle size={16} />} className="w-full sm:w-auto">
                   {t("Stop Pipeline")}
                 </Button>
               )}

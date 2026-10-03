@@ -7,9 +7,11 @@ import { runPythonJson } from "@/cli";
 import { errMsg } from "@/errors";
 import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { requireEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
+router.use(requireEngineReady);
 
 const upload = multer({
   dest: getUploadsDir(),

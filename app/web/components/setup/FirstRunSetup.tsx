@@ -258,11 +258,13 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
               <span>
                 {job?.status === "done"
                   ? t("Installation Complete")
-                  : `Automated Setup in Progress (${progressPercent}%)`}
+                  : `${t("Automated Setup in Progress")} (${progressPercent}%)`}
               </span>
             </span>
             <span className="text-neutral-400">
-              {steps.filter((s) => s.status === "done").length} / {steps.length} Steps
+              {t("%s / %s Steps")
+                .replace("%s", String(steps.filter((s) => s.status === "done").length))
+                .replace("%s", String(steps.length))}
             </span>
           </div>
 
@@ -354,7 +356,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 
           {job?.status === "done" && (
             <Button onClick={onComplete} className="shadow-lg" iconAfter={<ArrowRight size={16} />}>
-              {countdown !== null ? `Entering Applio (${countdown}s)…` : t("Launch Applio")}
+              {countdown !== null
+                ? t("Entering Applio (%ss)…").replace("%s", String(countdown))
+                : t("Launch Applio")}
             </Button>
           )}
         </div>

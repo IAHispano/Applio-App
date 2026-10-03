@@ -923,6 +923,7 @@ export default function SettingsPage() {
             onClick={handleCleanStorage}
             disabled={cleaning || storageStats?.totalFiles === 0}
             icon={<Trash2 size={14} className="text-white" />}
+            className="w-full sm:w-auto"
           >
             {cleaning ? t("Cleaning…") : t("Clean Temporary Files")}
           </Button>
@@ -937,7 +938,7 @@ export default function SettingsPage() {
           description={t("Restarts the backend API service to apply system changes.")}
         />
 
-        <div className="pt-1 flex items-center justify-between gap-4">
+        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             {restartMsg && (
               <span className="text-xs text-neutral-300" role="status" aria-live="polite">
@@ -951,6 +952,7 @@ export default function SettingsPage() {
             variant="ghost"
             onClick={restartApi}
             icon={<Power size={14} className="text-white" />}
+            className="w-full sm:w-auto"
           >
             {t("Restart API")}
           </Button>

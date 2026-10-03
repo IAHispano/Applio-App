@@ -1,14 +1,17 @@
 "use client";
 
+import { AlertTriangle, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { NAV_SECTIONS } from "@/components/layout/nav";
 import { useI18n } from "@/lib/i18n";
+import { useSetup } from "@/lib/setup";
 import webPackage from "@/package.json";
 
 export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const { isReady, loading } = useSetup();
 
   return (
     <>
@@ -30,6 +33,27 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
       </div>
 
+      {/* Setup Incomplete Notice */}
+      {!isReady && !loading && (
+        <div className="mx-1 my-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
+          <div className="flex items-center gap-1.5 font-semibold text-amber-400">
+            <AlertTriangle size={13} className="shrink-0" />
+            <span>{t("Setup Required")}</span>
+          </div>
+          <p className="text-[11px] text-amber-200/80 mt-1 m-0">
+            {t("Core engine dependencies are incomplete.")}
+          </p>
+          <Link
+            href="/"
+            onClick={onNavigate}
+            className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-amber-300 hover:text-amber-200 transition-colors"
+          >
+            <span>{t("Complete Setup")}</span>
+            <ArrowRight size={11} />
+          </Link>
+        </div>
+      )}
+
       {/* Grouped Navigation */}
       <nav
         className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 scrollbar-thin"
@@ -46,6 +70,13 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.to;
+                const itemNeedsSetup =
+                  !isReady &&
+                  !loading &&
+                  item.to !== "/" &&
+                  item.to !== "/settings" &&
+                  item.to !== "/report";
+
                 return (
                   <li key={item.to}>
                     <Link
@@ -56,7 +87,9 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                       className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-none min-h-[44px] sm:min-h-0 ${
                         active
                           ? "bg-[var(--accent-soft)] text-[var(--accent)] font-medium shadow-xs"
-                          : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"
+                          : itemNeedsSetup
+                            ? "text-[var(--muted)] opacity-70 hover:opacity-100 hover:text-[var(--heading)] hover:bg-[var(--surface)]"
+                            : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"
                       }`}
                     >
                       {active && (
@@ -72,11 +105,15 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                         }`}
                       />
                       <span className="truncate">{t(item.label)}</span>
-                      {item.badge && (
+                      {item.badge ? (
                         <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--muted)] font-medium border border-[var(--border)]">
                           {t(item.badge)}
                         </span>
-                      )}
+                      ) : itemNeedsSetup ? (
+                        <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-medium border border-amber-500/20">
+                          {t("Setup")}
+                        </span>
+                      ) : null}
                     </Link>
                   </li>
                 );

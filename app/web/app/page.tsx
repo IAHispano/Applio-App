@@ -29,20 +29,8 @@ import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg, fileBasename } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { type SetupCheck, type SetupStatus, useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
-
-interface SetupCheck {
-  id: string;
-  label: string;
-  status: "ok" | "missing" | "warn";
-  detail: string;
-}
-
-interface SetupStatus {
-  ready: boolean;
-  checks: SetupCheck[];
-  checkedAt: string;
-}
 
 interface ModelsSummary {
   models: string[];
@@ -107,7 +95,7 @@ function ActionCard({
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const [status, setStatus] = useState<SetupStatus | null>(null);
+  const { status, refresh: refreshSetup } = useSetup();
   const [modelsData, setModelsData] = useState<ModelsSummary | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
@@ -118,13 +106,12 @@ export default function Home() {
 
   const refresh = useCallback(async (force = false) => {
     try {
-      const [setupRes, modelsRes, sysRes, verRes] = await Promise.all([
-        apiGet<SetupStatus>(`/api/setup/status${force ? "?refresh=1" : ""}`),
+      const [, modelsRes, sysRes, verRes] = await Promise.all([
+        refreshSetup(force),
         apiGet<ModelsSummary>("/api/models").catch(() => null),
         apiGet<SystemInfo>("/api/report/info").catch(() => null),
         apiGet<VersionInfo>("/api/settings/version-check", { force: true }).catch(() => null),
       ]);
-      setStatus(setupRes);
       if (modelsRes) setModelsData(modelsRes);
       if (sysRes) setSysInfo(sysRes);
       if (verRes) setVersionInfo(verRes);
@@ -132,7 +119,7 @@ export default function Home() {
     } catch (e) {
       setError(errMsg(e));
     }
-  }, []);
+  }, [refreshSetup]);
 
   useEffect(() => {
     refresh();

@@ -114,7 +114,7 @@ export default function ExtraPage() {
       </Card>
 
       {/* Grid: Analyzer & F0 Curve */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
         {/* Tool 1: Audio Analyzer */}
         <Card>
           <CardHeader

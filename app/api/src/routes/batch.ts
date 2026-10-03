@@ -7,9 +7,11 @@ import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunnin
 import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
 import { type BatchInferenceParams, batchInferenceSchema } from "@/schemas";
+import { requireEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
+router.use(requireEngineReady);
 
 function toCliArgs(p: BatchInferenceParams, inputFolder: string, outputFolder: string): string[] {
   return [

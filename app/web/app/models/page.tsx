@@ -401,7 +401,7 @@ export default function ModelsPage() {
               />
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4 items-stretch">
               {filteredModels.map((m) => {
                 const isSelected = selected.has(m.id);
                 return (

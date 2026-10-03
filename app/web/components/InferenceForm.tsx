@@ -433,9 +433,9 @@ export default function InferenceForm() {
       )}
 
       {/* Top Grid: Model & Audio Input */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
         {/* Voice Model Selector (5 cols, 4 on 2xl) */}
-        <div className="lg:col-span-5 2xl:col-span-4 space-y-4 h-full">
+        <div className="xl:col-span-5 2xl:col-span-4 space-y-4 h-full">
           <Card className="h-full flex flex-col">
             <CardHeader
               icon={<Music size={18} className="text-white" />}
@@ -490,7 +490,7 @@ export default function InferenceForm() {
 
                 {inspectError && !inspectLoading && <Alert variant="warning">{inspectError}</Alert>}
 
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5">
+                <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5 [&>div]:min-w-0">
                   <div>
                     <dt>{t("Weights")}</dt>
                     <dd className="text-white font-medium">
@@ -630,7 +630,7 @@ export default function InferenceForm() {
         </div>
 
         {/* Audio Input & Drag & Drop Zone (7 cols, 8 on 2xl) */}
-        <div className="lg:col-span-7 2xl:col-span-8 space-y-4 h-full">
+        <div className="xl:col-span-7 2xl:col-span-8 space-y-4 h-full">
           <Card className="h-full">
             <CardHeader
               icon={<AudioWaveform size={18} className="text-white" />}
@@ -753,7 +753,7 @@ export default function InferenceForm() {
         </div>
 
         {/* Algorithm, Embedder & Export Format Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/10">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/10">
           <PitchMethodSelect
             id="f0-method-select"
             label={t("Pitch Extraction Algorithm")}
@@ -807,7 +807,7 @@ export default function InferenceForm() {
         <div className="space-y-3 pt-2">
           {/* Advanced Pitch & Tuning Accordion */}
           <Disclosure title={t("Advanced Pitch & Audio Cleanup")} icon={<Activity size={15} />}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <ToggleField
                 id="infer-split-audio"
                 label={t("Split Audio")}
@@ -925,7 +925,7 @@ export default function InferenceForm() {
                     <span>{t("Reverb")}</span>
                   </label>
                   {reverb && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <SliderField
                         id="fx-reverb-room"
                         label={t("Reverb Room Size")}
@@ -1297,11 +1297,12 @@ export default function InferenceForm() {
       <Card>
         {/* Action Header: Convert button & Status */}
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <Button
               type="submit"
               disabled={isConverting || !pthPath || (!audioFile && !inputPath)}
               icon={<Wand2 size={16} />}
+              className="w-full sm:w-auto"
             >
               {isConverting ? t("Converting Audio…") : t("Convert Audio")}
             </Button>
@@ -1310,6 +1311,7 @@ export default function InferenceForm() {
               <Button
                 variant="danger"
                 onClick={() => stopJob(job.id).catch((e) => setSubmitError(errMsg(e)))}
+                className="w-full sm:w-auto"
               >
                 {t("Stop Conversion")}
               </Button>

@@ -183,15 +183,16 @@ export default function BlenderPanel() {
 
         {/* Action card */}
         <Card>
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2 text-xs text-neutral-400">
-              <Sparkles size={16} className="text-white" />
+              <Sparkles size={16} className="text-white shrink-0" />
               <span>{t("Interpolate weights between two checkpoint files.")}</span>
             </div>
             <Button
               type="submit"
               disabled={busy || !name.trim() || (!p1 && !f1) || (!p2 && !f2)}
               icon={<Layers size={16} />}
+              className="w-full sm:w-auto"
             >
               {busy ? t("Blending…") : t("Fuse Models")}
             </Button>

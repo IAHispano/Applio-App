@@ -7,9 +7,11 @@ import { errMsg } from "@/errors";
 import { appendLog, createJob, setDone, setError, setRunning } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath } from "@/python";
+import { requireEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
+router.use(requireEngineReady);
 
 const upload = audioUpload();
 

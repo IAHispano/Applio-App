@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
+import type { NextFunction, Request, Response } from "express";
+import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
@@ -657,6 +659,60 @@ async function ensureUv(job: Job): Promise<string | null> {
     if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) return c;
   }
   if (process.platform === "win32") {
+    appendLog(job, "Installing uv for Windows (fast package installer)…");
+    try {
+      await streamRun(job, "powershell", [
+        "-ExecutionPolicy",
+        "Bypass",
+        "-Command",
+        "irm https://astral.sh/uv/install.ps1 | iex",
+      ]);
+      const localApp = process.env.LOCALAPPDATA || "";
+      const userProf = process.env.USERPROFILE || "";
+      const freshCandidates = [
+        path.join(localApp, "uv", "uv.exe"),
+        path.join(userProf, ".cargo", "bin", "uv.exe"),
+        path.join(localApp, "Programs", "uv", "uv.exe"),
+        path.join(userProf, ".local", "bin", "uv.exe"),
+        "uv",
+      ];
+      for (const c of freshCandidates) {
+        if (path.isAbsolute(c) && !exists(c)) continue;
+        if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
+          if (path.isAbsolute(c)) {
+            const dir = path.dirname(c);
+            process.env.PATH = `${dir}${path.delimiter}${process.env.PATH || ""}`;
+          }
+          return c;
+        }
+      }
+    } catch (e) {
+      appendLog(job, `uv powershell install note: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    try {
+      appendLog(job, "Attempting uv install via winget…");
+      await streamRun(job, "winget", [
+        "install",
+        "-e",
+        "--id",
+        "astral-sh.uv",
+        "--scope",
+        "user",
+        "--silent",
+        "--accept-package-agreements",
+        "--accept-source-agreements",
+      ]);
+      for (const c of uvCandidates) {
+        if (path.isAbsolute(c) && !exists(c)) continue;
+        if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
+          return c;
+        }
+      }
+    } catch (wingetErr) {
+      appendLog(job, `uv winget note: ${wingetErr instanceof Error ? wingetErr.message : String(wingetErr)}`);
+    }
+
     return null;
   }
   appendLog(job, "Installing uv…");
@@ -1010,14 +1066,15 @@ export function startInstall(): Job {
       const pnpmShell = process.platform === "win32";
 
       let venvPy = venvPythonPath();
-      const hasUv = (await runCmd("uv", ["--version"], { timeoutMs: 15000 })).code === 0;
+      const uvBin = await ensureUv(job);
+      const hasUv = Boolean(uvBin);
       if (!exists(venvPy)) {
         if (process.platform === "win32") {
           killProcessesInVenv(path.join(root, ".venv"));
         }
         appendLog(job, "Creating app virtualenv (.venv)…");
-        if (hasUv) {
-          await streamRun(job, "uv", [
+        if (uvBin) {
+          await streamRun(job, uvBin, [
             "venv",
             path.join(root, ".venv"),
             "--python",
@@ -1051,6 +1108,10 @@ export function startInstall(): Job {
         }
       } else {
         appendLog(job, "App virtualenv already exists ✓");
+        const engineCheck = await checkEngineDeps([venvPy]);
+        if (!engineCheck.ok) {
+          appendLog(job, `Notice: Dependencies incomplete (${engineCheck.detail}). Repairing engine packages…`);
+        }
       }
       if (process.platform === "win32") {
         await ensureWindowsRealPython(path.join(root, ".venv"), job);
@@ -1060,7 +1121,9 @@ export function startInstall(): Job {
       }
 
       appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
-      await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
+      if (!uvBin) {
+        await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
+      }
       // NVIDIA GPU wheels live on the PyTorch index, not PyPI. Install the
       // whole requirements file against that index so torch/torchaudio resolve
       // to CUDA builds, e.g.:
@@ -1107,9 +1170,9 @@ export function startInstall(): Job {
         }
       }
 
-      if (hasUv) {
+      if (uvBin) {
         appendLog(job, "Using uv (fast installer)…");
-        await streamRun(job, "uv", [
+        await streamRun(job, uvBin, [
           "pip",
           "install",
           "--python",
@@ -1123,7 +1186,18 @@ export function startInstall(): Job {
         // Single requirements install so the GPU index applies to torch AND
         // torchaudio (a separate `pip install torch` first would be
         // overwritten by the CPU wheel from PyPI on the second call).
-        await streamRun(job, venvPy, ["-m", "pip", "install", "-r", effectiveReqFile, ...torchIndex]);
+        await streamRun(job, venvPy, [
+          "-m",
+          "pip",
+          "install",
+          "--timeout",
+          "120",
+          "--retries",
+          "5",
+          "-r",
+          effectiveReqFile,
+          ...torchIndex,
+        ]);
       }
 
       if (isLegacySetup) {
@@ -1310,3 +1384,27 @@ export function venvPythonPath(): string {
   }
   return path.join(root, ".venv", "bin", "python");
 }
+
+export async function assertEngineReady(): Promise<void> {
+  if (noEnv()) return;
+  const status = await getStatus(false);
+  if (!status.ready) {
+    const failed = status.checks
+      .filter((c) => c.status !== "ok")
+      .map((c) => `${c.label}: ${c.detail}`)
+      .join("; ");
+    throw new Error(
+      `Engine environment is not ready (${failed || "dependencies incomplete"}). Please complete Applio setup first.`,
+    );
+  }
+}
+
+export function requireEngineReady(req: Request, res: Response, next: NextFunction): void {
+  assertEngineReady()
+    .then(() => next())
+    .catch((err) => {
+      res.status(503).json({ error: errMsg(err) });
+    });
+}
+
+

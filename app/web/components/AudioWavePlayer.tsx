@@ -363,7 +363,7 @@ function AudioWavePlayerInner({
 
         {/* File-level Action Buttons (Replace, Remove) */}
         {(onReplace || onRemove) && (
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 flex-wrap sm:shrink-0">
             {onReplace && (
               <button
                 type="button"
@@ -568,7 +568,7 @@ function AudioWavePlayerInner({
         </div>
 
         {/* Right cluster: Volume, Download, Audio Tools Link */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 flex-wrap sm:shrink-0">
           {/* Volume Control */}
           <div
             className={`${pillContainer} inline-flex items-center gap-2 px-2.5 transition-all shrink-0 shadow-xs`}
@@ -599,7 +599,7 @@ function AudioWavePlayerInner({
               aria-valuemax={100}
               aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
               aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
-              className="w-20 h-1.5 bg-white/15 rounded-full accent-white cursor-pointer hover:bg-white/25 transition-colors"
+              className="w-14 sm:w-20 h-1.5 bg-white/15 rounded-full accent-white cursor-pointer hover:bg-white/25 transition-colors"
             />
           </div>
 
