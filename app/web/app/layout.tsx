@@ -3,6 +3,7 @@ import { Syne } from "next/font/google";
 import "@/app/globals.css";
 import AppShell from "@/components/layout/AppShell";
 import RoutePrewarm from "@/components/layout/RoutePrewarm";
+import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
 import { I18nProvider } from "@/lib/i18n";
@@ -34,13 +35,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <I18nProvider>
           <ThemeProvider>
-            {/* Accessibility: Skip to Main Content Link for keyboard and screen reader navigation */}
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-white focus:text-black focus:font-semibold focus:rounded-lg focus:shadow-xl focus:outline-2 focus:outline-white"
-            >
-              Skip to main content
-            </a>
+            <SkipLink />
             <AppShell>{children}</AppShell>
             <TermsModal />
             <AutoUpdateModal />

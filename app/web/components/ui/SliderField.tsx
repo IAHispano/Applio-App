@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { memo, useEffect, useId, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export interface SliderFieldProps {
   id?: string;
@@ -34,6 +35,7 @@ function SliderFieldInner({
   disabled = false,
   className = "",
 }: SliderFieldProps) {
+  const { t } = useI18n();
   const generatedId = useId();
   const id = customId || `slider-${generatedId}`;
   const descId = `${id}-desc`;
@@ -127,7 +129,7 @@ function SliderFieldInner({
             <input
               type="text"
               inputMode="decimal"
-              aria-label={`${label} numeric value`}
+              aria-label={t("{label} numeric value", { label })}
               aria-describedby={description ? descId : undefined}
               value={inputText}
               disabled={disabled}
@@ -153,7 +155,7 @@ function SliderFieldInner({
           type="button"
           onClick={handleDecrement}
           disabled={disabled || value <= min}
-          aria-label={`Decrease ${label}`}
+          aria-label={t("Decrease {label}", { label })}
           aria-controls={id}
           className="slider-step-btn"
           style={{
@@ -235,7 +237,7 @@ function SliderFieldInner({
           type="button"
           onClick={handleIncrement}
           disabled={disabled || value >= max}
-          aria-label={`Increase ${label}`}
+          aria-label={t("Increase {label}", { label })}
           aria-controls={id}
           className="slider-step-btn"
           style={{

@@ -98,7 +98,7 @@ export function BottomNav() {
 
       {/* Collapsed bar */}
       <nav
-        aria-label="Primary"
+        aria-label={t("Primary Navigation")}
         className="lg:hidden absolute bottom-2 left-3 right-3 z-50 rounded-2xl border border-[var(--border)] bg-[color-mix(in_srgb,var(--panel)_92%,transparent)] backdrop-blur-md shadow-2xl px-1.5 pt-1.5"
         style={{ paddingBottom: "calc(0.375rem + env(safe-area-inset-bottom))" }}
       >

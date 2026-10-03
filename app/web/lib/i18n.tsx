@@ -7,9 +7,20 @@ import { apiGet } from "@/lib/api";
 // (settings override, else OS locale) and serves its dictionary from
 // assets/i18n/languages/*.json. t(key) falls back to the key itself,
 // which is English by convention — exactly like i18n("...") in app.py.
-type TFn = (key: string) => string;
+export type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
-const I18nCtx = createContext<{ t: TFn; code: string }>({ t: (k) => k, code: "en_US" });
+function interpolate(text: string, vars?: Record<string, string | number>): string {
+  if (!vars) return text;
+  return text.replace(/\{(\w+)\}|\$\{(\w+)\}/g, (match, k1, k2) => {
+    const key = k1 || k2;
+    return key in vars ? String(vars[key]) : match;
+  });
+}
+
+const I18nCtx = createContext<{ t: TFn; code: string }>({
+  t: (k, vars) => interpolate(k, vars),
+  code: "en_US",
+});
 
 export function useI18n(): { t: TFn; code: string } {
   return useContext(I18nCtx);
@@ -42,6 +53,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("applio:language-changed", load);
     };
   }, []);
-  const t: TFn = (key) => dict[key] ?? key;
+  const t: TFn = (key, vars) => {
+    const raw = dict[key] ?? key;
+    return interpolate(raw, vars);
+  };
   return <I18nCtx.Provider value={{ t, code }}>{children}</I18nCtx.Provider>;
 }

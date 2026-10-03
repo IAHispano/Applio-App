@@ -12,6 +12,7 @@ import {
   CustomSelect,
   Disclosure,
   EmbedderSelect,
+  FileInput,
   FormField,
   PitchMethodSelect,
   SliderField,
@@ -247,11 +248,10 @@ export default function TtsForm() {
             </FormField>
 
             <FormField label={t("Or upload a .txt file")} htmlFor="tts-file-input">
-              <input
+              <FileInput
                 id="tts-file-input"
-                type="file"
                 accept=".txt"
-                onChange={(e) => setFile(e.target.files?.[0] || null)}
+                onFileSelect={setFile}
               />
             </FormField>
 

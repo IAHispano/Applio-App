@@ -19,7 +19,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           prefetch={true}
           onClick={onNavigate}
           className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
-          aria-label="Applio - Home"
+          aria-label={t("Applio - Home")}
         >
           <span className="text-lg font-semibold tracking-tight text-[var(--heading)] group-hover:opacity-80 transition-opacity">
             Applio
@@ -33,7 +33,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       {/* Grouped Navigation */}
       <nav
         className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1 scrollbar-thin"
-        aria-label="Main Navigation"
+        aria-label={t("Main Navigation")}
       >
         {NAV_SECTIONS.map((section, sIdx) => (
           <div key={section.title || `sec-${sIdx}`} className="space-y-1">
@@ -90,10 +90,11 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export default function Sidebar() {
+  const { t } = useI18n();
   return (
     <aside
       className="hidden lg:flex flex-col w-64 shrink-0 bg-[var(--panel)] backdrop-blur-md border border-[var(--border)] text-[var(--text)] p-3 ml-3 mr-0 my-4 rounded-2xl select-none min-h-0 transition-colors duration-200"
-      aria-label="Sidebar Navigation"
+      aria-label={t("Sidebar Navigation")}
     >
       <SidebarNavContent />
     </aside>

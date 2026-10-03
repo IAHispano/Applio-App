@@ -12,7 +12,7 @@ export function JobBadge({ status }: { status: Job["status"] }) {
     status === "done" ? "success" : status === "error" ? "danger" : status === "running" ? "info" : "neutral";
 
   return (
-    <Badge variant={variant} dot size="sm" aria-label={`Status: ${status}`}>
+    <Badge variant={variant} dot size="sm" aria-label={t("Status: {status}", { status })}>
       {status === "done"
         ? t("Completed")
         : status === "running"
@@ -46,6 +46,7 @@ export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (
 }
 
 export function JobProgress({ status, progress }: { status: Job["status"]; progress?: number | null }) {
+  const { t } = useI18n();
   if (status !== "queued" && status !== "running") return null;
   if (progress !== undefined && progress !== null) {
     const pct = Math.max(0, Math.min(100, Math.round(progress)));
@@ -54,7 +55,7 @@ export function JobProgress({ status, progress }: { status: Job["status"]; progr
         <div
           className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
           role="progressbar"
-          aria-label="Download progress"
+          aria-label={t("Download progress")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={pct}
@@ -69,7 +70,12 @@ export function JobProgress({ status, progress }: { status: Job["status"]; progr
     );
   }
   return (
-    <div className="loader" role="progressbar" aria-label="Execution in progress" style={{ marginTop: 8 }}>
+    <div
+      className="loader"
+      role="progressbar"
+      aria-label={t("Execution in progress")}
+      style={{ marginTop: 8 }}
+    >
       <div className="loaderBar" />
     </div>
   );

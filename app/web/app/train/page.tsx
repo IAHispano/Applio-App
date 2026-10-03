@@ -761,7 +761,7 @@ export default function TrainPage() {
             >
               {["none", "pre", "post"].map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {s === "none" ? t("None") : t(s)}
                 </option>
               ))}
             </CustomSelect>
@@ -779,7 +779,7 @@ export default function TrainPage() {
             >
               {["Skip", "Simple", "Automatic"].map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {t(s)}
                 </option>
               ))}
             </CustomSelect>
@@ -984,7 +984,7 @@ export default function TrainPage() {
             >
               {["Auto", "Faiss", "KMeans"].map((s) => (
                 <option key={s} value={s}>
-                  {s}
+                  {s === "Auto" ? t("Auto") : s}
                 </option>
               ))}
             </CustomSelect>

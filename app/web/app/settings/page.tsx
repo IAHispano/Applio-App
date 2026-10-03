@@ -225,7 +225,7 @@ export default function SettingsPage() {
         { maxAgeMs: 0 },
       );
       const mb = (res.result.freedBytes / (1024 * 1024)).toFixed(1);
-      setCleanMsg(`Freed ${mb} MB across ${res.result.deletedFiles} temporary files.`);
+      setCleanMsg(t("Freed {mb} MB across {count} temporary files.", { mb, count: res.result.deletedFiles }));
       await fetchStorage();
     } catch (e) {
       setError(errMsg(e));
@@ -622,7 +622,7 @@ export default function SettingsPage() {
                         : "font-medium text-neutral-300 group-hover:text-white"
                     }`}
                   >
-                    {opt.name}
+                    {t(opt.name)}
                   </span>
                   {isSelected && (
                     <span className="text-[10px] font-bold text-[var(--accent,#ffffff)] shrink-0">
@@ -630,7 +630,7 @@ export default function SettingsPage() {
                     </span>
                   )}
                 </div>
-                <span className="text-[11px] text-neutral-400 truncate mt-0.5 w-full">{opt.subtitle}</span>
+                <span className="text-[11px] text-neutral-400 truncate mt-0.5 w-full">{t(opt.subtitle)}</span>
               </button>
             );
           })}
@@ -644,7 +644,7 @@ export default function SettingsPage() {
               value={selectedFontId}
               onValueChange={handleSelectFont}
               className="w-64 max-w-full"
-              options={FONT_OPTIONS.map((o) => ({ value: o.id, label: o.label }))}
+              options={FONT_OPTIONS.map((o) => ({ value: o.id, label: o.id === "" ? t(o.label) : o.label }))}
             />
           </div>
           <p
@@ -673,13 +673,13 @@ export default function SettingsPage() {
             <input
               id="settings-model-author"
               type="text"
-              value={cfg.model_author || ""}
+              value={cfg.model_author === "None" ? "" : (cfg.model_author || "")}
               onChange={(e) => set(["model_author"], e.target.value || null)}
               onBlur={(e) => save({ model_author: e.target.value || null })}
               onKeyDown={(e) => {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
-              placeholder="Applio"
+              placeholder={t("None")}
             />
           </FormField>
           <FormField label={t("Precision")} htmlFor="settings-precision">
@@ -843,9 +843,7 @@ export default function SettingsPage() {
 
           {updaterState?.status === "not-available" && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-              {t("Applio is up to date (")}
-              {displayVersion(updaterState.version || cfg.version)}
-              {")"}
+              {t("Applio is up to date")} ({displayVersion(updaterState.version || cfg.version)})
             </p>
           )}
 
@@ -868,7 +866,18 @@ export default function SettingsPage() {
 
           {ver && (!updaterState || updaterState.status === "dev-mode") && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-              {ver.error || `${displayVersion(ver.latest)} — ${ver.status}`}
+              {ver.error ||
+                `${displayVersion(ver.latest)} — ${
+                  ver.status === "up-to-date" || ver.status === "up to date"
+                    ? t("Up to date")
+                    : ver.status === "behind"
+                      ? t("Update available")
+                      : ver.status === "ahead"
+                        ? t("Ahead of release")
+                        : ver.status
+                          ? t(ver.status)
+                          : ""
+                }`}
             </p>
           )}
 
@@ -899,7 +908,7 @@ export default function SettingsPage() {
             </p>
             <p className="text-xs text-neutral-400 m-0">
               {storageStats &&
-                `${(storageStats.uploadsBytes / (1024 * 1024)).toFixed(1)} MB uploads · ${(storageStats.outputsBytes / (1024 * 1024)).toFixed(1)} MB temporary outputs`}
+                `${(storageStats.uploadsBytes / (1024 * 1024)).toFixed(1)} MB ${t("uploads")} · ${(storageStats.outputsBytes / (1024 * 1024)).toFixed(1)} MB ${t("temporary outputs")}`}
             </p>
             {cleanMsg && (
               <span className="text-xs text-emerald-400 block pt-0.5" role="status" aria-live="polite">

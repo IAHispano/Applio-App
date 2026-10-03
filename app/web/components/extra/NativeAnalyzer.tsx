@@ -143,10 +143,10 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       zoomMultRef.current = mult;
       if (zoomBaseRef.current <= 0) zoomBaseRef.current = fitPxPerSec();
       ws.zoom(Math.max(1, zoomBaseRef.current * mult));
-      setZoomLabel(mult <= 1 ? "Fit" : `${Math.round(mult * 100)}%`);
+      setZoomLabel(mult <= 1 ? t("Fit") : `${Math.round(mult * 100)}%`);
       requestAnimationFrame(() => drawRuler());
     },
-    [fitPxPerSec, drawRuler],
+    [fitPxPerSec, drawRuler, t],
   );
 
   const zoomStep = useCallback(

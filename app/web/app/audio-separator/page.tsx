@@ -344,7 +344,10 @@ export default function UvrPage() {
           title={t("Separation Settings")}
           description={
             arch
-              ? t(`Quality / VRAM trade-offs specific to the ${arch} architecture. Defaults suit most songs.`)
+              ? t(
+                  "Quality / VRAM trade-offs specific to the {arch} architecture. Defaults suit most songs.",
+                  { arch },
+                )
               : t("Pick a model above to tune its separation settings.")
           }
           action={

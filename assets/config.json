@@ -10,8 +10,8 @@
   "plugins": [],
   "discord_presence": true,
   "lang": {
-    "override": false,
-    "selected_lang": "en_US"
+    "override": true,
+    "selected_lang": "es_ES"
   },
   "version": "0.0.4",
   "model_author": "None",

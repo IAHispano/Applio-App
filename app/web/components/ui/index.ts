@@ -11,6 +11,7 @@ export { CardHeader, type CardHeaderProps, type CardProps, default as Card } fro
 export { default as CustomSelect } from "@/components/ui/CustomSelect";
 export { type DisclosureProps, default as Disclosure } from "@/components/ui/Disclosure";
 export { default as EmptyState, type EmptyStateProps } from "@/components/ui/EmptyState";
+export { default as FileInput, type FileInputProps } from "@/components/ui/FileInput";
 export { default as FormField, type FormFieldProps } from "@/components/ui/FormField";
 export { default as IconButton, type IconButtonProps } from "@/components/ui/IconButton";
 export { default as Modal } from "@/components/ui/Modal";

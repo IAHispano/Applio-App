@@ -2,6 +2,7 @@
 
 import { AlertCircle, CheckCircle2, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "@/lib/i18n";
 
 // Minimal gr.Info/gr.Warning/gr.Error parity: transient stacked toasts.
 // Success/info call sites dispatch applio:toast; form errors stay inline.
@@ -20,6 +21,7 @@ export function toast(text: string, kind: ToastKind = "info"): void {
 }
 
 export default function Toaster() {
+  const { t: translate } = useI18n();
   const [items, setItems] = useState<Toast[]>([]);
 
   useEffect(() => {
@@ -41,7 +43,7 @@ export default function Toaster() {
 
   return (
     <section
-      aria-label="Notifications"
+      aria-label={translate("Notifications")}
       className="fixed left-4 right-4 sm:left-auto sm:right-4 bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-4 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full"
     >
       {items.map((t) => {
@@ -68,7 +70,7 @@ export default function Toaster() {
             <button
               type="button"
               onClick={() => dismiss(t.id)}
-              aria-label="Dismiss notification"
+              aria-label={translate("Dismiss notification")}
               className="shrink-0 -mr-1 -mt-1 p-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
             >
               <X size={13} aria-hidden="true" />

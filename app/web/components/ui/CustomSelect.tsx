@@ -3,6 +3,7 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useI18n } from "@/lib/i18n";
 
 export interface CustomSelectOption {
   value: string;
@@ -56,14 +57,17 @@ export default function CustomSelect({
   onChange,
   onValueChange,
   onOpen,
-  placeholder = "Select…",
+  placeholder: customPlaceholder,
   disabled = false,
   searchable: explicitSearchable,
-  searchPlaceholder = "Search options…",
+  searchPlaceholder: customSearchPlaceholder,
   className = "",
   size = "md",
   children,
 }: CustomSelectProps) {
+  const { t } = useI18n();
+  const placeholder = customPlaceholder ?? t("Select…");
+  const searchPlaceholder = customSearchPlaceholder ?? t("Search options…");
   const generatedId = useId();
   const id = propId || generatedId;
 
@@ -74,11 +78,14 @@ export default function CustomSelect({
     if (propOptions && propOptions.length > 0) {
       for (const item of propOptions) {
         if (typeof item === "string" || typeof item === "number") {
-          list.push({ value: String(item), label: String(item) });
+          const s = String(item);
+          list.push({ value: s, label: s.toLowerCase() === "none" ? t("None") : s });
         } else if (item && typeof item === "object") {
+          const rawLbl = item.label ?? String(item.value);
+          const lbl = String(rawLbl).toLowerCase() === "none" ? t("None") : rawLbl;
           list.push({
             value: String(item.value),
-            label: item.label ?? String(item.value),
+            label: lbl,
             description: item.description,
             badge: item.badge,
             disabled: item.disabled,
@@ -97,13 +104,14 @@ export default function CustomSelect({
             disabled?: boolean;
           };
           const val = props.value !== undefined ? String(props.value) : "";
-          const lbl =
+          const rawLbl =
             typeof props.children === "string" || typeof props.children === "number"
               ? String(props.children)
               : val;
+          const lbl = String(rawLbl).toLowerCase() === "none" ? t("None") : (rawLbl || val);
           list.push({
             value: val,
-            label: lbl || val,
+            label: lbl,
             disabled: props.disabled,
           });
         }
@@ -111,7 +119,7 @@ export default function CustomSelect({
     }
 
     return list;
-  }, [propOptions, children]);
+  }, [propOptions, children, t]);
 
   // Internal state for uncontrolled or fallback
   const [internalValue, setInternalValue] = useState<string>(() => {
@@ -183,9 +191,9 @@ export default function CustomSelect({
   }
 
   const displayLabel = selectedOption
-    ? selectedOption.label
+    ? (String(selectedOption.label).toLowerCase() === "none" ? t("None") : selectedOption.label)
     : selectedValue
-      ? String(selectedValue)
+      ? (String(selectedValue).toLowerCase() === "none" ? t("None") : String(selectedValue))
       : placeholder;
 
   // Floating menu position calculation
@@ -411,7 +419,9 @@ export default function CustomSelect({
               }}
             >
               {filteredOptions.length === 0 ? (
-                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">No matching options</div>
+                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">
+                  {t("No matching options")}
+                </div>
               ) : groupedMode ? (
                 <>
                   {(() => {

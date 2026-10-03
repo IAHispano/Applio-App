@@ -3,6 +3,7 @@
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import type React from "react";
 import { memo } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export type AlertVariant = "error" | "warning" | "info" | "success";
 
@@ -52,6 +53,7 @@ const variantStyles: Record<
 };
 
 function AlertInner({ variant = "error", title, children, icon, onDismiss, className = "" }: AlertProps) {
+  const { t } = useI18n();
   const styles = variantStyles[variant];
 
   return (
@@ -70,7 +72,7 @@ function AlertInner({ variant = "error", title, children, icon, onDismiss, class
           type="button"
           onClick={onDismiss}
           className="text-neutral-400 hover:text-white shrink-0 p-0.5 rounded transition-colors -mr-1 -mt-0.5"
-          aria-label="Dismiss alert"
+          aria-label={t("Dismiss alert")}
         >
           <X size={14} />
         </button>

@@ -3,7 +3,7 @@
 import { Database, Download, Link2, Upload } from "lucide-react";
 import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
-import { Alert, Button, Card, CardHeader, ToggleField } from "@/components/ui";
+import { Alert, Button, Card, CardHeader, FileInput, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { apiGet, apiSend, errMsg, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -120,11 +120,10 @@ export default function DownloadPanel() {
           <label htmlFor="dl-file-input" className="sr-only">
             {t("Upload model file")}
           </label>
-          <input
+          <FileInput
             id="dl-file-input"
-            type="file"
             accept=".pth,.index,.onnx"
-            onChange={(e) => setDropFile(e.target.files?.[0] || null)}
+            onFileSelect={setDropFile}
             className="flex-1"
           />
           <Button

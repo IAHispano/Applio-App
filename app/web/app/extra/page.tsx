@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
-import { Button, Card, CardHeader, CustomSelect } from "@/components/ui";
+import { Button, Card, CardHeader, CustomSelect, FileInput } from "@/components/ui";
 import { errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
@@ -224,17 +224,15 @@ function UploadBox({
             style={{ maxWidth: 200 }}
           />
         ))}
-        <input
-          type="file"
-          aria-label={label}
+        <FileInput
+          ariaLabel={label}
           multiple={multiple}
-          onChange={(e) => setPicked(e.target.files)}
+          onChange={setPicked}
         />
         {extra && (
-          <input
-            type="file"
-            aria-label={`${label} (${t("extra config")})`}
-            onChange={(e) => setPicked2(e.target.files)}
+          <FileInput
+            ariaLabel={`${label} (${t("extra config")})`}
+            onChange={setPicked2}
           />
         )}
         <Button variant="ghost" onClick={send}>

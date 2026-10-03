@@ -3,7 +3,7 @@
 import { Layers, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
-import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, FileInput } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SliderField from "@/components/ui/SliderField";
 import { errMsg, fetchModels, postForm } from "@/lib/api";
@@ -136,11 +136,10 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 1 file")}
               </label>
-              <input
+              <FileInput
                 id="blend-model1-file"
-                type="file"
                 accept=".pth,.onnx"
-                onChange={(e) => setF1(e.target.files?.[0] || null)}
+                onFileSelect={setF1}
               />
             </div>
 
@@ -173,11 +172,10 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 2 file")}
               </label>
-              <input
+              <FileInput
                 id="blend-model2-file"
-                type="file"
                 accept=".pth,.onnx"
-                onChange={(e) => setF2(e.target.files?.[0] || null)}
+                onFileSelect={setF2}
               />
             </div>
           </div>

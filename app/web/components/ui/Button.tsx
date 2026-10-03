@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { forwardRef, memo } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export type ButtonVariant = "primary" | "ghost" | "danger";
 export type ButtonSize = "xs" | "sm" | "md" | "lg";
@@ -66,6 +67,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     },
     ref,
   ) => {
+    const { t } = useI18n();
     const isDisabled = disabled || loading;
     const base =
       "flex items-center justify-center cursor-pointer select-none transition-colors shrink-0 whitespace-nowrap no-underline max-w-full";
@@ -88,7 +90,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
               className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin shrink-0"
               aria-hidden="true"
             />
-            <span className="sr-only">Loading...</span>
+            <span className="sr-only">{t("Loading...")}</span>
           </>
         ) : icon ? (
           <span className="shrink-0 flex items-center" aria-hidden="true">

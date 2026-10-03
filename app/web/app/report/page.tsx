@@ -65,7 +65,7 @@ export default function ReportPage() {
             dataUrl,
           });
           setClip(r.file);
-          setMsg(`Clip saved → ${r.file}. Attach it to your GitHub issue.`);
+          setMsg(t("Clip saved → {file}. Attach it to your GitHub issue.", { file: r.file }));
         } catch (e) {
           setMsg(errMsg(e));
         }
@@ -180,8 +180,8 @@ export default function ReportPage() {
             <StatTile label={t("Engine Runtimes")} value={`Node ${info.node}`} subtext={info.python} />
             <StatTile
               label={t("Compute Resources")}
-              value={`${info.cpus} CPU cores`}
-              subtext={`${info.totalMemGB} GB RAM`}
+              value={t("{count} CPU cores", { count: info.cpus })}
+              subtext={t("{count} GB RAM", { count: info.totalMemGB })}
             />
           </div>
         ) : (
