@@ -1110,7 +1110,10 @@ export function startInstall(): Job {
         appendLog(job, "App virtualenv already exists ✓");
         const engineCheck = await checkEngineDeps([venvPy]);
         if (!engineCheck.ok) {
-          appendLog(job, `Notice: Dependencies incomplete (${engineCheck.detail}). Repairing engine packages…`);
+          appendLog(
+            job,
+            `Notice: Dependencies incomplete (${engineCheck.detail}). Repairing engine packages…`,
+          );
         }
       }
       if (process.platform === "win32") {
@@ -1406,5 +1409,3 @@ export function requireEngineReady(req: Request, res: Response, next: NextFuncti
       res.status(503).json({ error: errMsg(err) });
     });
 }
-
-

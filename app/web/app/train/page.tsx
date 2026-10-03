@@ -622,11 +622,22 @@ export default function TrainPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 border-t border-white/10">
-              <Button loading={busy} onClick={runPipeline} icon={<Zap size={16} />} disabled={busy} className="w-full sm:w-auto">
+              <Button
+                loading={busy}
+                onClick={runPipeline}
+                icon={<Zap size={16} />}
+                disabled={busy}
+                className="w-full sm:w-auto"
+              >
                 {busy ? t("Pipeline Running…") : t("Start Automatic Training")}
               </Button>
               {busy && (
-                <Button variant="danger" onClick={stop} icon={<StopCircle size={16} />} className="w-full sm:w-auto">
+                <Button
+                  variant="danger"
+                  onClick={stop}
+                  icon={<StopCircle size={16} />}
+                  className="w-full sm:w-auto"
+                >
                   {t("Stop Pipeline")}
                 </Button>
               )}

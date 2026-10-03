@@ -104,22 +104,25 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const { job: prereqJob, isActive: prereqRunning } = useJob(jobId);
 
-  const refresh = useCallback(async (force = false) => {
-    try {
-      const [, modelsRes, sysRes, verRes] = await Promise.all([
-        refreshSetup(force),
-        apiGet<ModelsSummary>("/api/models").catch(() => null),
-        apiGet<SystemInfo>("/api/report/info").catch(() => null),
-        apiGet<VersionInfo>("/api/settings/version-check", { force: true }).catch(() => null),
-      ]);
-      if (modelsRes) setModelsData(modelsRes);
-      if (sysRes) setSysInfo(sysRes);
-      if (verRes) setVersionInfo(verRes);
-      setError("");
-    } catch (e) {
-      setError(errMsg(e));
-    }
-  }, [refreshSetup]);
+  const refresh = useCallback(
+    async (force = false) => {
+      try {
+        const [, modelsRes, sysRes, verRes] = await Promise.all([
+          refreshSetup(force),
+          apiGet<ModelsSummary>("/api/models").catch(() => null),
+          apiGet<SystemInfo>("/api/report/info").catch(() => null),
+          apiGet<VersionInfo>("/api/settings/version-check", { force: true }).catch(() => null),
+        ]);
+        if (modelsRes) setModelsData(modelsRes);
+        if (sysRes) setSysInfo(sysRes);
+        if (verRes) setVersionInfo(verRes);
+        setError("");
+      } catch (e) {
+        setError(errMsg(e));
+      }
+    },
+    [refreshSetup],
+  );
 
   useEffect(() => {
     refresh();

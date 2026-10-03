@@ -25,9 +25,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4 outline-none flex flex-col"
         >
-          <PageTransition>
-            {showBarrier ? <SetupBarrier /> : children}
-          </PageTransition>
+          <PageTransition>{showBarrier ? <SetupBarrier /> : children}</PageTransition>
         </main>
         <BottomNav />
       </div>
