@@ -136,11 +136,7 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 1 file")}
               </label>
-              <FileInput
-                id="blend-model1-file"
-                accept=".pth,.onnx"
-                onFileSelect={setF1}
-              />
+              <FileInput id="blend-model1-file" accept=".pth,.onnx" onFileSelect={setF1} />
             </div>
 
             <div className="space-y-2">
@@ -172,11 +168,7 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 2 file")}
               </label>
-              <FileInput
-                id="blend-model2-file"
-                accept=".pth,.onnx"
-                onFileSelect={setF2}
-              />
+              <FileInput id="blend-model2-file" accept=".pth,.onnx" onFileSelect={setF2} />
             </div>
           </div>
         </Card>

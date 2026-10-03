@@ -248,11 +248,7 @@ export default function TtsForm() {
             </FormField>
 
             <FormField label={t("Or upload a .txt file")} htmlFor="tts-file-input">
-              <FileInput
-                id="tts-file-input"
-                accept=".txt"
-                onFileSelect={setFile}
-              />
+              <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
             </FormField>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">

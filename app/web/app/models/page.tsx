@@ -635,54 +635,63 @@ export default function ModelsPage() {
           </div>
         )}
 
-        {inspectMeta && (() => {
-          const formatMeta = (val?: string | null, fallback = t("None")) => {
-            if (!val || val === "None" || val === "none") return fallback;
-            return val;
-          };
-          return (
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Model Name")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.model_name)}</span>
+        {inspectMeta &&
+          (() => {
+            const formatMeta = (val?: string | null, fallback = t("None")) => {
+              if (!val || val === "None" || val === "none") return fallback;
+              return val;
+            };
+            return (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Model Name")}</span>
+                  <span className="font-medium text-white">{formatMeta(inspectMeta.model_name)}</span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Author")}</span>
+                  <span className="font-medium text-white">
+                    {formatMeta(inspectMeta.author, t("Anonymous"))}
+                  </span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Epochs")}</span>
+                  <span className="font-medium text-white">{formatMeta(inspectMeta.epochs)}</span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Training Steps")}</span>
+                  <span className="font-medium text-white">{formatMeta(inspectMeta.step)}</span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Sampling Rate")}</span>
+                  <span className="font-medium text-white">{formatMeta(inspectMeta.sr)}</span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Pitch Guidance (F0)")}</span>
+                  <span className="font-medium text-white">
+                    {inspectMeta.f0 === "1" ? t("Yes") : formatMeta(inspectMeta.f0)}
+                  </span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Vocoder")}</span>
+                  <span className="font-medium text-white">
+                    {formatMeta(inspectMeta.vocoder, "HiFi-GAN")}
+                  </span>
+                </div>
+                <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Embedder Model")}</span>
+                  <span className="font-medium text-white">
+                    {formatMeta(inspectMeta.embedder_model, "contentvec")}
+                  </span>
+                </div>
+                <div className="col-span-2 bg-black/30 p-2.5 rounded-lg border border-white/5">
+                  <span className="text-neutral-400 text-xs block">{t("Creation Date")}</span>
+                  <span className="font-medium text-white">
+                    {formatMeta(inspectMeta.creation_date, t("Unknown"))}
+                  </span>
+                </div>
               </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Author")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.author, t("Anonymous"))}</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Epochs")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.epochs)}</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Training Steps")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.step)}</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Sampling Rate")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.sr)}</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Pitch Guidance (F0)")}</span>
-                <span className="font-medium text-white">
-                  {inspectMeta.f0 === "1" ? t("Yes") : formatMeta(inspectMeta.f0)}
-                </span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Vocoder")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.vocoder, "HiFi-GAN")}</span>
-              </div>
-              <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Embedder Model")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.embedder_model, "contentvec")}</span>
-              </div>
-              <div className="col-span-2 bg-black/30 p-2.5 rounded-lg border border-white/5">
-                <span className="text-neutral-400 text-xs block">{t("Creation Date")}</span>
-                <span className="font-medium text-white">{formatMeta(inspectMeta.creation_date, t("Unknown"))}</span>
-              </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
 
         <div className="flex justify-end gap-2 pt-2 border-t border-white/10 mt-4">
           <Button variant="ghost" onClick={() => setInspectModal(null)}>

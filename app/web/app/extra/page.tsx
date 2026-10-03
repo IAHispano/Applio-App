@@ -224,17 +224,8 @@ function UploadBox({
             style={{ maxWidth: 200 }}
           />
         ))}
-        <FileInput
-          ariaLabel={label}
-          multiple={multiple}
-          onChange={setPicked}
-        />
-        {extra && (
-          <FileInput
-            ariaLabel={`${label} (${t("extra config")})`}
-            onChange={setPicked2}
-          />
-        )}
+        <FileInput ariaLabel={label} multiple={multiple} onChange={setPicked} />
+        {extra && <FileInput ariaLabel={`${label} (${t("extra config")})`} onChange={setPicked2} />}
         <Button variant="ghost" onClick={send}>
           {t("Upload")}
         </Button>

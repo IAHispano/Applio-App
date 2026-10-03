@@ -108,7 +108,7 @@ export default function CustomSelect({
             typeof props.children === "string" || typeof props.children === "number"
               ? String(props.children)
               : val;
-          const lbl = String(rawLbl).toLowerCase() === "none" ? t("None") : (rawLbl || val);
+          const lbl = String(rawLbl).toLowerCase() === "none" ? t("None") : rawLbl || val;
           list.push({
             value: val,
             label: lbl,
@@ -191,9 +191,13 @@ export default function CustomSelect({
   }
 
   const displayLabel = selectedOption
-    ? (String(selectedOption.label).toLowerCase() === "none" ? t("None") : selectedOption.label)
+    ? String(selectedOption.label).toLowerCase() === "none"
+      ? t("None")
+      : selectedOption.label
     : selectedValue
-      ? (String(selectedValue).toLowerCase() === "none" ? t("None") : String(selectedValue))
+      ? String(selectedValue).toLowerCase() === "none"
+        ? t("None")
+        : String(selectedValue)
       : placeholder;
 
   // Floating menu position calculation

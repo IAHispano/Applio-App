@@ -673,7 +673,7 @@ export default function SettingsPage() {
             <input
               id="settings-model-author"
               type="text"
-              value={cfg.model_author === "None" ? "" : (cfg.model_author || "")}
+              value={cfg.model_author === "None" ? "" : cfg.model_author || ""}
               onChange={(e) => set(["model_author"], e.target.value || null)}
               onBlur={(e) => save({ model_author: e.target.value || null })}
               onKeyDown={(e) => {
