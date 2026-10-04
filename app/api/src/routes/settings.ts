@@ -6,75 +6,17 @@ import { z } from "zod";
 import { cleanStorage, getStorageStats } from "@/cleaner";
 import { deepMerge, loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
+import {
+  detectSystemLocale,
+  getAvailableLanguages,
+  LANGUAGE_DISPLAY_NAMES,
+  loadLanguageDictionary,
+  resolveSupportedLanguage,
+} from "@/i18n";
 import { getAppVersion, getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
+import { getStatus } from "@/setup";
 
 const router = Router();
-
-// Native names of the locales shipped in assets/i18n/languages, ported from
-// the Gradio settings (tabs/settings/sections/lang.py LANGUAGE_DISPLAY_NAMES)
-// so the dropdown shows something friendlier than the raw code.
-const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
-  af_AF: "Afrikaans",
-  am_AM: "አማርኛ",
-  ar_AR: "العربية",
-  az_AZ: "Azərbaycan",
-  ba_BA: "Башҡортса",
-  be_BE: "Беларуская",
-  bn_BN: "বাংলা",
-  bs_BS: "Bosanski",
-  ca_CA: "Català",
-  ceb_CEB: "Cebuano",
-  cs_CS: "Čeština",
-  de_DE: "Deutsch",
-  el_EL: "Ελληνικά",
-  en_US: "English",
-  es_ES: "Español",
-  eu_EU: "Euskara",
-  fa_FA: "فارسی",
-  fj_FJ: "Na Vosa Vakaviti",
-  fr_FR: "Français",
-  ga_GA: "Gaeilge",
-  gu_GU: "ગુજરાતી",
-  he_HE: "עברית",
-  hi_IN: "हिन्दी",
-  hr_HR: "Hrvatski",
-  ht_HT: "Kreyòl Ayisyen",
-  hu_HU: "Magyar",
-  id_ID: "Bahasa Indonesia",
-  it_IT: "Italiano",
-  ja_JA: "日本語",
-  jv_JV: "Basa Jawa",
-  ko_KO: "한국어",
-  lt_LT: "Lietuvių",
-  lv_LV: "Latviešu",
-  mg_MG: "Malagasy",
-  ml_IN: "മലയാളം",
-  mr_MR: "मराठी",
-  ms_MS: "Bahasa Melayu",
-  mt_MT: "Malti",
-  nl_NL: "Nederlands",
-  otq_OTQ: "Hñähñu",
-  pa_PA: "ਪੰਜਾਬੀ",
-  pl_PL: "Polski",
-  pt_BR: "Português (Brasil)",
-  pt_PT: "Português (Portugal)",
-  ro_RO: "Română",
-  ru_RU: "Русский",
-  sk_SK: "Slovenčina",
-  sm_SM: "Gagana Sāmoa",
-  sr_RS: "Српски",
-  sw_SW: "Kiswahili",
-  ta_IN: "தமிழ்",
-  te_TE: "తెలుగు",
-  th_TH: "ไทย",
-  to_TO: "Lea faka-Tonga",
-  tr_TR: "Türkçe",
-  uk_UK: "Українська",
-  ur_UR: "اردو",
-  vi_VI: "Tiếng Việt",
-  wu_WU: "吴语",
-  zh_CN: "简体中文",
-};
 
 const settingsSchema = z.object({
   model_index_filter: z.boolean().optional(),
@@ -117,58 +59,57 @@ router.put("/", (req: Request, res: Response) => {
 
 router.get("/languages", (_req: Request, res: Response) => {
   try {
-    const dir = path.join(getRepoRoot(), "assets", "i18n", "languages");
-    const codes = fs.existsSync(dir)
-      ? fs
-          .readdirSync(dir)
-          .filter((f) => f.endsWith(".json"))
-          .map((f) => f.replace(/\.json$/, ""))
-      : ["en_US"];
-    const sorted = codes.sort();
+    const sorted = getAvailableLanguages();
+    const cfg = loadConfig() as { lang?: { override?: boolean; selected_lang?: string } };
+    const detected = resolveSupportedLanguage(detectSystemLocale());
     res.json({
       languages: sorted,
       named: sorted.map((code) => ({ code, name: LANGUAGE_DISPLAY_NAMES[code] || code })),
-      selected: loadConfig().lang,
+      selected: cfg.lang || { override: false, selected_lang: detected },
+      detected,
     });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
   }
 });
 
-// Resolved UI language + its translation dictionary (Gradio I18nAuto parity:
-// explicit override wins, otherwise the OS locale, otherwise English which is
-// the source language so an empty dict falls back to the key itself).
-router.get("/language", (_req: Request, res: Response) => {
+// Resolved UI language + its translation dictionary.
+// If before first setup (or override is false), the host OS language is automatically
+// established if available in the app (falling back to English if not available).
+// If the user explicitly configured an override after setup, that choice is respected.
+router.get("/language", async (req: Request, res: Response) => {
   try {
     const cfg = loadConfig() as { lang?: { override?: boolean; selected_lang?: string } };
+    const setupStatus = await getStatus(false).catch(() => null);
+    const isBeforeFirstSetup = !setupStatus?.ready;
+
     let code = "en_US";
-    if (cfg.lang?.override && cfg.lang.selected_lang) {
-      code = cfg.lang.selected_lang;
+
+    if (isBeforeFirstSetup || !cfg.lang?.override) {
+      const clientLang = (req.query.clientLang as string) || undefined;
+      const acceptLanguage = (req.headers["accept-language"] as string) || undefined;
+      const systemLocale = detectSystemLocale();
+      code = resolveSupportedLanguage([clientLang, acceptLanguage, systemLocale]);
+
+      if (cfg.lang?.selected_lang !== code || (isBeforeFirstSetup && cfg.lang?.override)) {
+        const nextCfg = {
+          ...cfg,
+          lang: {
+            override: false,
+            selected_lang: code,
+          },
+        };
+        try {
+          saveConfig(nextCfg);
+        } catch {
+          /* non-fatal */
+        }
+      }
     } else {
-      try {
-        code = new Intl.DateTimeFormat().resolvedOptions().locale.replace("-", "_");
-      } catch {
-        code = "en_US";
-      }
+      code = resolveSupportedLanguage(cfg.lang.selected_lang);
     }
-    const dir = path.join(getRepoRoot(), "assets", "i18n", "languages");
-    let file = path.join(dir, `${code}.json`);
-    if (!fs.existsSync(file)) {
-      const prefix = code.split("_")[0];
-      const alt = fs.existsSync(dir)
-        ? fs.readdirSync(dir).find((f) => f.startsWith(`${prefix}_`))
-        : undefined;
-      if (alt) {
-        code = alt.replace(/\.json$/, "");
-        file = path.join(dir, alt);
-      } else {
-        code = "en_US";
-        file = path.join(dir, "en_US.json");
-      }
-    }
-    const dict = fs.existsSync(file)
-      ? (JSON.parse(fs.readFileSync(file, "utf-8")) as Record<string, string>)
-      : {};
+
+    const { dict } = loadLanguageDictionary(code);
     res.json({ code, dict });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });

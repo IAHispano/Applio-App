@@ -63,13 +63,13 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             .then((status) => {
               if (!active) return;
               if (status.ready) setCountdown(2);
-              else setError("Setup finished, but some required checks are incomplete.");
+              else setError(t("Setup finished, but some required checks are incomplete."));
             })
             .catch(() => {
               if (active) setCountdown(2);
             });
         } else if (nextJob.status === "error") {
-          setError(nextJob.error || "Setup failed. Please check the console log below.");
+          setError(nextJob.error || t("Setup failed. Please check the console log below."));
         }
       },
       1000,
@@ -79,7 +79,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       active = false;
       stop();
     };
-  }, [jobId]);
+  }, [jobId, t]);
 
   // Auto-scroll logs when drawer is open
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes

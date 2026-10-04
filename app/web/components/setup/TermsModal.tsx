@@ -31,7 +31,7 @@ export function hasAcceptedTerms(): boolean {
 }
 
 export default function TermsModal() {
-  const { t } = useI18n();
+  const { t, loaded } = useI18n();
   const [open, setOpen] = useState(false);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -39,11 +39,11 @@ export default function TermsModal() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Only show if terms haven't been accepted yet
-    if (!hasAcceptedTerms()) {
+    // Only show if terms haven't been accepted yet and language has loaded
+    if (!hasAcceptedTerms() && loaded) {
       setOpen(true);
     }
-  }, []);
+  }, [loaded]);
 
   const handleScroll = () => {
     const el = scrollRef.current;

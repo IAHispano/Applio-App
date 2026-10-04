@@ -1,7 +1,8 @@
 "use client";
 
 import { Upload, X } from "lucide-react";
-import React, { useRef, useState } from "react";
+import type React from "react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 

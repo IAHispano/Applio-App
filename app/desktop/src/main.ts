@@ -10,6 +10,12 @@ import { autoUpdater, type UpdateInfo } from "electron-updater";
 // (~/.config/Applio on Linux) instead of the npm package name.
 app.setName("Applio");
 
+try {
+  process.env.APPLIO_LOCALE ??= app.getLocale();
+} catch {
+  /* non-fatal */
+}
+
 // PyTorch on Apple Silicon needs MPS fallback + uncapped memory pressure
 // handling, otherwise inference crashes on unsupported ops. Set early so
 // every child process (API, engine, setup) inherits it. ??= respects
@@ -365,6 +371,7 @@ function startProdBackends(): void {
     APPLIO_ROOT: data,
     APPLIO_CODE_ROOT: code,
     APPLIO_CONFIG_DIR: process.env.APPLIO_CONFIG_DIR || app.getPath("userData"),
+    APPLIO_LOCALE: process.env.APPLIO_LOCALE || app.getLocale(),
     ...(isDev ? {} : { PACKAGED: "1" }),
     ...(noEnv() ? { APPLIO_NO_ENV: "1" } : {}),
     PORT: WEB_PORT,

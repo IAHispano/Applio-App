@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { detectSystemLocale, resolveSupportedLanguage } from "@/i18n";
 import { getCodeRoot, getRepoRoot } from "@/python";
 
 export type JsonObject = Record<string, unknown>;
@@ -71,13 +72,32 @@ function writeConfig(cfg: JsonObject, createOnly = false): void {
 export function loadConfig(): JsonObject {
   // Packaged assets in the data directory can be older than the installed code.
   const defaults = readObject(path.join(getCodeRoot(), "assets", "config_template.json"));
+  let systemLang = "en_US";
+  try {
+    systemLang = resolveSupportedLanguage(detectSystemLocale());
+  } catch {
+    /* fallback to en_US */
+  }
+
+  if (defaults.lang && typeof defaults.lang === "object") {
+    (defaults.lang as Record<string, unknown>).selected_lang = systemLang;
+  }
+
   const file = getConfigPath();
   if (!fs.existsSync(file)) {
     const legacy = path.join(getRepoRoot(), "assets", "config.json");
-    writeConfig(fs.existsSync(legacy) ? readObject(legacy) : {}, true);
+    const initial = fs.existsSync(legacy)
+      ? readObject(legacy)
+      : { lang: { override: false, selected_lang: systemLang } };
+    writeConfig(initial, true);
   }
   const { version: _version, ...preferences } = readObject(file);
-  return deepMerge(defaults, preferences);
+  const merged = deepMerge(defaults, preferences);
+  const langPref = merged.lang as { override?: boolean; selected_lang?: string } | undefined;
+  if (langPref && !langPref.override) {
+    langPref.selected_lang = systemLang;
+  }
+  return merged;
 }
 
 export function saveConfig(cfg: JsonObject): void {
