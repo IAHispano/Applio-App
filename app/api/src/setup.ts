@@ -735,7 +735,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
       killProcessesInVenv(venvDir);
       appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
       try {
-        await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
+        await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear", "--force"]);
         const venvPy = path.join(venvDir, "Scripts", "python.exe");
         if (exists(venvPy)) return [venvPy];
       } catch (uvErr) {
@@ -827,7 +827,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
     if (uvBin) {
       const venvDir = path.join(getRepoRoot(), ".venv");
       appendLog(job, "Creating app virtualenv with uv (downloads Python 3.12 if needed)…");
-      await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
+      await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear", "--force"]);
       const venvPy = path.join(venvDir, "bin", "python");
       if (exists(venvPy)) return [venvPy];
       appendLog(job, "uv venv did not produce a Python, falling back to Homebrew…");
@@ -849,7 +849,7 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   if (uvBin) {
     const venvDir = path.join(getRepoRoot(), ".venv");
     appendLog(job, "Creating app virtualenv with uv…");
-    await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear"]);
+    await streamRun(job, uvBin, ["venv", venvDir, "--python", "3.12", "--seed", "--clear", "--force"]);
     const venvPy = path.join(venvDir, "bin", "python");
     if (exists(venvPy)) return [venvPy];
   }
@@ -1081,6 +1081,7 @@ export function startInstall(): Job {
             "3.12",
             "--seed",
             "--clear",
+            "--force",
           ]);
         } else {
           // stdlib `venv` inherits the base interpreter version, and
