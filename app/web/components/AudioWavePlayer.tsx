@@ -146,6 +146,11 @@ function AudioWavePlayerInner({
         setIsReady(true);
         setDuration(dur);
         setError(null);
+        // The waveform canvas duplicates the slider's value: hide it so
+        // screen readers only meet the labelled slider above.
+        containerRef.current?.querySelectorAll("canvas").forEach((c) => {
+          c.setAttribute("aria-hidden", "true");
+        });
         if (ws) {
           ws.setVolume(isMutedRef.current ? 0 : volumeRef.current);
           ws.setPlaybackRate(playbackRateRef.current);
@@ -595,9 +600,6 @@ function AudioWavePlayerInner({
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               aria-label={t("Volume")}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round((isMuted ? 0 : volume) * 100)}
               aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
               className="w-14 sm:w-20 h-1.5 bg-white/15 rounded-full accent-white cursor-pointer hover:bg-white/25 transition-colors"
             />

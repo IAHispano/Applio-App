@@ -13,6 +13,8 @@ export interface ModelDropdownProps {
   onUnload?: () => void;
   indexes?: string[];
   disabled?: boolean;
+  /** DOM id for the trigger, so an external <label htmlFor> can name it. */
+  id?: string;
 }
 
 function modelDisplayName(path: string): string {
@@ -45,6 +47,7 @@ export default function ModelDropdown({
   onUnload,
   indexes = [],
   disabled = false,
+  id,
 }: ModelDropdownProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -60,6 +63,20 @@ export default function ModelDropdown({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Same external-label wiring as CustomSelect: a <label htmlFor> names the
+  // trigger together with its own content ("Voice Model jenny PTH").
+  useEffect(() => {
+    const btn = triggerRef.current;
+    if (!btn || !id || typeof document === "undefined") return;
+    const label = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+    if (label) {
+      if (!label.id) label.id = `${id}-label`;
+      btn.setAttribute("aria-labelledby", `${label.id} ${id}`);
+    } else {
+      btn.removeAttribute("aria-labelledby");
+    }
+  }, [id]);
 
   useEffect(() => {
     if (open) {
@@ -242,8 +259,9 @@ export default function ModelDropdown({
                 <button
                   type="button"
                   onClick={() => setSearch("")}
-                  className="p-1 rounded transition-colors hover:text-white"
-                  style={{ color: "var(--muted)" }}
+                  aria-label={t("Clear search")}
+                  className="p-1.5 -m-0.5 rounded transition-colors hover:text-white"
+                  style={{ color: "var(--muted)", minWidth: 24, minHeight: 24 }}
                 >
                   <X size={12} />
                 </button>
@@ -357,6 +375,7 @@ export default function ModelDropdown({
       <button
         ref={triggerRef}
         type="button"
+        id={id}
         disabled={disabled}
         onClick={() => setOpen(!open)}
         onKeyDown={(e) => {

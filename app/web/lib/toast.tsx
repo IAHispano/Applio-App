@@ -71,7 +71,8 @@ export default function Toaster() {
               type="button"
               onClick={() => dismiss(t.id)}
               aria-label={translate("Dismiss notification")}
-              className="shrink-0 -mr-1 -mt-1 p-1 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+              className="shrink-0 -mr-1 -mt-1 p-1.5 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors"
+              style={{ minWidth: 24, minHeight: 24 }}
             >
               <X size={13} aria-hidden="true" />
             </button>

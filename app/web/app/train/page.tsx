@@ -518,7 +518,7 @@ export default function TrainPage() {
               ))}
             </div>
 
-            <p className="text-xs text-neutral-400 m-0 pt-1">{t("Dataset & Audio")}</p>
+            <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Dataset & Audio")}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="sm:col-span-2 lg:col-span-1">
                 <label htmlFor="auto-dataset-path">{t("Dataset Path")}</label>
@@ -729,7 +729,7 @@ export default function TrainPage() {
             {isCpu ? t("CPU") : `${t("GPU")} ${gpuCount}`}
           </Badge>
         </div>
-        <p className="text-xs text-neutral-400 m-0">{t("Source")}</p>
+        <h3 className="text-xs text-neutral-400 m-0">{t("Source")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
           <div className="sm:col-span-2">
             <label htmlFor="modal-prep-dataset-path">{t("Dataset Path")}</label>
@@ -778,7 +778,7 @@ export default function TrainPage() {
             </CustomSelect>
           </div>
         </div>
-        <p className="text-xs text-neutral-400 m-0 pt-1">{t("Slicing")}</p>
+        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Slicing")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
           <div>
             <label htmlFor="modal-prep-cut-method">{t("Audio cutting")}</label>
@@ -820,7 +820,7 @@ export default function TrainPage() {
             />
           </div>
         </div>
-        <p className="text-xs text-neutral-400 m-0 pt-1">{t("Cleanup")}</p>
+        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Cleanup")}</h3>
         <div className="space-y-1">
           <ToggleField
             id="modal-prep-noise-reduction"
@@ -968,7 +968,7 @@ export default function TrainPage() {
           </Badge>
           <Badge variant="outline">{vocoder}</Badge>
         </div>
-        <p className="text-xs text-neutral-400 m-0">{t("Architecture")}</p>
+        <h3 className="text-xs text-neutral-400 m-0">{t("Architecture")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
           <div>
             <label htmlFor="modal-train-vocoder">{t("Vocoder")}</label>
@@ -1035,7 +1035,7 @@ export default function TrainPage() {
           </div>
         </div>
 
-        <p className="text-xs text-neutral-400 m-0 pt-1">{t("Checkpoints & performance")}</p>
+        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Checkpoints & performance")}</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 rounded-xl border border-white/10 bg-black/20 p-3 [&>*]:min-w-0">
           <ToggleField
             id="modal-train-pretrained"

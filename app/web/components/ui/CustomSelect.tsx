@@ -70,6 +70,7 @@ export default function CustomSelect({
   const searchPlaceholder = customSearchPlaceholder ?? t("Search options…");
   const generatedId = useId();
   const id = propId || generatedId;
+  const menuId = `${id}-menu`;
 
   // Supports propOptions and <option> children.
   const parsedOptions = useMemo<CustomSelectOption[]>(() => {
@@ -135,6 +136,7 @@ export default function CustomSelect({
   const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const activeOptionId = highlightedIndex >= 0 ? `${id}-opt-${highlightedIndex}` : undefined;
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -289,6 +291,24 @@ export default function CustomSelect({
     };
   }, [open, updatePosition, handleClose]);
 
+  // An explicit aria-label would override an external <label htmlFor>
+  // (verified in Chromium: the visible label drops out of the accessible
+  // name). Instead wire the trigger to that label plus its own value, so a
+  // screen reader hears e.g. "Input Device Default, button, collapsed".
+  // Without an external label the button content alone names it, as before.
+  useEffect(() => {
+    const btn = triggerRef.current;
+    if (!btn || typeof document === "undefined") return;
+    const label = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+    const valueEl = document.getElementById(`${id}-val`);
+    if (label && valueEl) {
+      if (!label.id) label.id = `${id}-label`;
+      btn.setAttribute("aria-labelledby", `${label.id} ${id}-val`);
+    } else {
+      btn.removeAttribute("aria-labelledby");
+    }
+  }, [id]);
+
   // Focus search input when opened
   useEffect(() => {
     if (open && isSearchable) {
@@ -350,14 +370,17 @@ export default function CustomSelect({
         disabled={disabled}
         onClick={() => (open ? handleClose() : handleOpen())}
         onKeyDown={handleKeyDown}
+        role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={selectedOption ? selectedOption.label : placeholder}
+        aria-controls={open ? menuId : undefined}
+        aria-activedescendant={open ? activeOptionId : undefined}
         className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
           open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
       >
         <span
+          id={`${id}-val`}
           className={`truncate flex-1 ${
             selectedOption || selectedValue ? "text-[var(--text)] font-bold" : "text-neutral-500"
           }`}
@@ -387,6 +410,7 @@ export default function CustomSelect({
         createPortal(
           <div
             ref={menuRef}
+            id={menuId}
             role="listbox"
             aria-label={placeholder}
             style={{
@@ -406,6 +430,9 @@ export default function CustomSelect({
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  aria-controls={menuId}
+                  aria-activedescendant={activeOptionId}
                   placeholder={searchPlaceholder}
                   className="w-full bg-transparent border-0 text-xs text-white placeholder-neutral-600 focus:outline-hidden p-0"
                 />
@@ -441,14 +468,18 @@ export default function CustomSelect({
                       return (
                         <div key={`${opt.value}-${idx}`}>
                           {header && (
-                            <div className="sticky top-0 z-10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold tracking-wider text-neutral-500 uppercase select-none">
+                            <div className="sticky top-0 z-10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold tracking-wider text-neutral-400 uppercase select-none">
                               {header}
                             </div>
                           )}
                           <button
                             type="button"
                             role="option"
+                            id={`${id}-opt-${idx}`}
+                            tabIndex={-1}
                             aria-selected={isSelected}
+                            aria-setsize={filteredOptions.length}
+                            aria-posinset={idx + 1}
                             disabled={opt.disabled}
                             onClick={() => !opt.disabled && handleSelect(opt.value)}
                             onMouseEnter={() => setHighlightedIndex(idx)}
@@ -477,7 +508,7 @@ export default function CustomSelect({
                   })()}
                   {remainingRows > 0 && (
                     <div className="py-2 px-3.5 text-center text-[11px] text-neutral-500 border-t border-white/5">
-                      +{remainingRows} more — scroll for more
+                      {t("+{remaining} more — scroll for more", { remaining: remainingRows })}
                     </div>
                   )}
                 </>
@@ -490,6 +521,8 @@ export default function CustomSelect({
                       key={`${opt.value}-${opt.label}`}
                       type="button"
                       role="option"
+                      id={`${id}-opt-${idx}`}
+                      tabIndex={-1}
                       aria-selected={isSelected}
                       disabled={opt.disabled}
                       onClick={() => !opt.disabled && handleSelect(opt.value)}

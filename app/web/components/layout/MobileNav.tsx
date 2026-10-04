@@ -3,7 +3,7 @@
 import { ChevronDown, Database, House, LayoutGrid, Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SidebarNavContent } from "@/components/layout/Sidebar";
 import { IconButton } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
@@ -19,6 +19,13 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
+  const sheetRef = useRef<HTMLDivElement | null>(null);
+  const moreRef = useRef<HTMLButtonElement | null>(null);
+
+  const close = useCallback(() => {
+    setExpanded(false);
+    moreRef.current?.focus();
+  }, []);
 
   // Collapse the sheet on every route change.
   // biome-ignore lint/correctness/useExhaustiveDependencies: pathname signals route change
@@ -26,14 +33,34 @@ export function BottomNav() {
     setExpanded(false);
   }, [pathname]);
 
+  // Sheet behaves as a modal dialog: move focus in on open, trap Tab
+  // inside, close on Escape and return focus to the More button.
   useEffect(() => {
     if (!expanded) return;
+    sheetRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
+      if (e.key === "Escape") {
+        close();
+        return;
+      }
+      if (e.key !== "Tab" || !sheetRef.current) return;
+      const focusables = sheetRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      );
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [expanded]);
+  }, [expanded, close]);
 
   const renderTab = (tab: (typeof PRIMARY_TABS)[number]) => {
     const Icon = tab.icon;
@@ -63,7 +90,7 @@ export function BottomNav() {
       {/* Backdrop */}
       <button
         type="button"
-        onClick={() => setExpanded(false)}
+        onClick={close}
         aria-label={t("Close menu")}
         tabIndex={expanded ? 0 : -1}
         className={`lg:hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-[2px] cursor-default transition-opacity duration-200 border-transparent rounded-none p-0 hover:bg-black/60 active:bg-black/60 ${
@@ -74,7 +101,10 @@ export function BottomNav() {
       {/* Expandable sheet with the full navigation */}
       <div
         id="mobile-menu-sheet"
+        ref={sheetRef}
+        tabIndex={-1}
         role="dialog"
+        aria-modal="true"
         aria-label={t("Menu")}
         aria-hidden={!expanded}
         inert={!expanded}
@@ -86,7 +116,7 @@ export function BottomNav() {
           <IconButton
             icon={<ChevronDown size={20} aria-hidden="true" />}
             label={t("Close menu")}
-            onClick={() => setExpanded(false)}
+            onClick={close}
             tabIndex={expanded ? 0 : -1}
             className="!h-10 !w-10 !min-w-10 !min-h-10 !max-w-10 !max-h-10 !rounded-xl border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
           />
@@ -108,6 +138,7 @@ export function BottomNav() {
           <li className="min-w-0">
             <button
               type="button"
+              ref={moreRef}
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
               aria-controls="mobile-menu-sheet"

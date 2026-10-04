@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import { useId } from "react";
 import { fileBasename } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import CustomSelect from "./CustomSelect";
@@ -48,11 +49,17 @@ export default function VoiceModelField({
   onIndexChange,
 }: VoiceModelFieldProps) {
   const { t } = useI18n();
+  const dropdownId = `voice-model-${useId()}`;
 
   return (
     <div className="space-y-2">
-      {label && <span className="block text-xs font-medium text-neutral-300">{label}</span>}
+      {label && (
+        <label htmlFor={dropdownId} className="block text-xs font-medium text-neutral-300">
+          {label}
+        </label>
+      )}
       <ModelDropdown
+        id={dropdownId}
         models={models}
         selectedModel={selectedModel}
         indexes={indexes}

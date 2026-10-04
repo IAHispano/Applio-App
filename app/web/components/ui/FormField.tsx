@@ -50,7 +50,7 @@ function FormFieldInner({
       )}
       <div>{children}</div>
       {description && !error && (
-        <p id={descId} className="text-[11px] text-neutral-500 m-0 leading-relaxed">
+        <p id={descId} className="text-[11px] text-neutral-400 m-0 leading-relaxed">
           {description}
         </p>
       )}

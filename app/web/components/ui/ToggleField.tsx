@@ -56,7 +56,7 @@ function ToggleFieldInner({
         {badge && <span className="ml-1">{badge}</span>}
       </label>
       {description && (
-        <p id={descId} className="text-[11px] text-neutral-500 m-0 pl-6 leading-relaxed">
+        <p id={descId} className="text-[11px] text-neutral-400 m-0 pl-6 leading-relaxed">
           {description}
         </p>
       )}
