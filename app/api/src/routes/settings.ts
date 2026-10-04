@@ -4,6 +4,7 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { cleanStorage, getStorageStats } from "@/cleaner";
+import { deepMerge, loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
 import { getAppVersion, getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
 
@@ -74,38 +75,6 @@ const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
   wu_WU: "吴语",
   zh_CN: "简体中文",
 };
-
-type JsonObject = Record<string, unknown>;
-
-function configPath(): string {
-  return path.join(getRepoRoot(), "assets", "config.json");
-}
-function templatePath(): string {
-  return path.join(getRepoRoot(), "assets", "config_template.json");
-}
-
-function loadConfig(): JsonObject {
-  const tpl = JSON.parse(fs.readFileSync(templatePath(), "utf-8")) as JsonObject;
-  if (!fs.existsSync(configPath())) {
-    fs.writeFileSync(configPath(), JSON.stringify(tpl, null, 2));
-    return tpl;
-  }
-  const cfg = JSON.parse(fs.readFileSync(configPath(), "utf-8")) as JsonObject;
-  return deepMerge(structuredClone(tpl), cfg);
-}
-function deepMerge(base: JsonObject, over: JsonObject): JsonObject {
-  for (const k of Object.keys(over)) {
-    const bv = base[k];
-    const ov = over[k];
-    if (ov && typeof ov === "object" && !Array.isArray(ov) && bv && typeof bv === "object") {
-      deepMerge(bv as JsonObject, ov as JsonObject);
-    } else base[k] = ov;
-  }
-  return base;
-}
-function saveConfig(cfg: JsonObject) {
-  fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2));
-}
 
 const settingsSchema = z.object({
   model_index_filter: z.boolean().optional(),

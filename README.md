@@ -93,6 +93,18 @@ pnpm desktop:dev  # full Electron shell instead of just the browser UI
 
 First run: open the app, press **Install / Repair** on the setup screen (creates `.venv`, installs torch + requirements, builds the UI).
 
+### User settings
+
+Preferences are stored separately from the app installation:
+
+- Windows: `%APPDATA%\Applio\config.json`
+- macOS: `~/Library/Application Support/Applio/config.json`
+- Linux: `$XDG_CONFIG_HOME/Applio/config.json` (defaults to `~/.config/Applio/config.json`)
+
+Desktop, web/API, and Python commands use the same settings. For a separate profile or a persistent cloud/container volume, set `APPLIO_CONFIG_DIR` to your preferred directory before launching Applio.
+
+`assets/config_template.json` contains shipped defaults. Missing settings are filled from the current template. On first use, existing `assets/config.json` preferences are migrated if the per-user file does not exist; an existing per-user file is never replaced by migration. Only the template belongs in Git or release packages. Settings writes replace the file atomically, and invalid JSON is preserved rather than silently reset.
+
 ### Scripts
 
 | Command | What it does |
@@ -103,7 +115,8 @@ First run: open the app, press **Install / Repair** on the setup screen (creates
 | `pnpm build` | Production build of API + web |
 | `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `app/desktop/dist-installers/`) |
 | `pnpm typecheck` | TypeScript checks across all packages |
-| `pnpm test` | Smoke test suite |
+| `pnpm test` | Settings regression tests and API build |
+| `python -m unittest discover -s tests` | Python settings regression tests |
 | `pnpm format` | Format/lint-fix `app` + `tests` with Biome |
 
 ### CLI Mode

@@ -238,7 +238,7 @@ export function getCodeRoot(): string {
 // Single source of truth for the installed app version. Tries the code root
 // first (packaged app), then the repo/data root (dev), then the bundled
 // sub-packages, then config_template.json (kept in sync by sync-version.mjs).
-// Never reads the mutable assets/config.json "version" field — user values
+// Never reads the mutable user config.json "version" field — user values
 // override the template merge there so it goes stale and must not drive
 // update comparisons.
 export function getAppVersion(): string {

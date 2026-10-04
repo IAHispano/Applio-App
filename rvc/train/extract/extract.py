@@ -45,7 +45,7 @@ class FeatureInput:
             # Training labels must be the TRUE pitch, never fold-mode values
             # (fold is an inference-side trick for models trained on stock
             # octave-folded labels). Only relevant when the corrector is
-            # enabled in assets/config.json.
+            # enabled in the per-user config.json.
             high_register = load_high_register_settings()
             high_register["mode"] = "true_pitch"
             self.model = RMVPE(

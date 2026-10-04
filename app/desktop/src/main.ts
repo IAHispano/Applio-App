@@ -364,6 +364,7 @@ function startProdBackends(): void {
     API_PORT,
     APPLIO_ROOT: data,
     APPLIO_CODE_ROOT: code,
+    APPLIO_CONFIG_DIR: process.env.APPLIO_CONFIG_DIR || app.getPath("userData"),
     ...(isDev ? {} : { PACKAGED: "1" }),
     ...(noEnv() ? { APPLIO_NO_ENV: "1" } : {}),
     PORT: WEB_PORT,

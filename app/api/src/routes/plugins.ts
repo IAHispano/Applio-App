@@ -4,6 +4,7 @@ import { type Request, type Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { startCliJob } from "@/cli";
+import { loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
 import { getRepoRoot, getUploadsDir } from "@/python";
 
@@ -33,21 +34,18 @@ function allPluginDirs(): string[] {
   if (fs.existsSync(legacyDir())) dirs.push(legacyDir());
   return dirs;
 }
-function configPath(): string {
-  return path.join(getRepoRoot(), "assets", "config.json");
-}
 function enabledPlugins(): string[] {
   try {
-    const cfg = JSON.parse(fs.readFileSync(configPath(), "utf-8"));
+    const cfg = loadConfig();
     return Array.isArray(cfg.plugins) ? cfg.plugins : [];
   } catch {
     return [];
   }
 }
 function saveEnabled(list: string[]) {
-  const cfg = fs.existsSync(configPath()) ? JSON.parse(fs.readFileSync(configPath(), "utf-8")) : {};
+  const cfg = loadConfig();
   cfg.plugins = list;
-  fs.writeFileSync(configPath(), JSON.stringify(cfg, null, 2));
+  saveConfig(cfg);
 }
 
 router.get("/", (_req: Request, res: Response) => {

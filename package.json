@@ -17,7 +17,7 @@
     "build": "pnpm --filter @applio/api build && pnpm --filter @applio/web build",
     "start": "node app/api/dist/index.js & node app/web/.next/standalone/server.js",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm --filter @applio/api build",
+    "test": "pnpm --filter @applio/api test && pnpm --filter @applio/api build",
     "format": "biome check --write app",
     "format:check": "biome check app",
     "desktop:dev": "concurrently -k -s first \"pnpm dev:api\" \"pnpm dev:web\" \"pnpm --filter @applio/desktop dev\"",

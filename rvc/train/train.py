@@ -41,6 +41,7 @@ from rvc.train.utils import (
 # Zluda hijack
 import rvc.lib.zluda
 from rvc.lib.algorithm import commons
+from rvc.lib.user_config import load_config
 from rvc.train.process.extract_model import extract_model
 
 # Parse command line arguments
@@ -79,23 +80,17 @@ if vocoder == "RefineGAN":
 current_dir = os.getcwd()
 
 try:
-    with open(
-        os.path.join(current_dir, "assets", "config.json"),
-        "r",
-        encoding="utf-8",
-    ) as f:
-        config = json.load(f)
-        precision = config["precision"]
-        if (
-            precision == "bf16"
-            and torch.cuda.is_available()
-            and torch.cuda.is_bf16_supported()
-        ):
-            train_dtype = torch.bfloat16
-        elif precision == "fp16" and torch.cuda.is_available():
-            train_dtype = torch.float16
-        else:
-            train_dtype = torch.float32
+    precision = load_config()["precision"]
+    if (
+        precision == "bf16"
+        and torch.cuda.is_available()
+        and torch.cuda.is_bf16_supported()
+    ):
+        train_dtype = torch.bfloat16
+    elif precision == "fp16" and torch.cuda.is_available():
+        train_dtype = torch.float16
+    else:
+        train_dtype = torch.float32
 except (FileNotFoundError, json.JSONDecodeError, KeyError):
     train_dtype = torch.float32
 

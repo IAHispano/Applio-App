@@ -6,8 +6,9 @@ from rvc.lib.predictors.RMVPE import RMVPE0Predictor
 from rvc.lib.predictors.Swift import SwiftPredictor
 import numpy as np
 import librosa
+from rvc.lib.user_config import load_config
 
-# Defaults for the "rmvpe_high_register" section of assets/config.json
+# Defaults for the "rmvpe_high_register" section of the per-user config.json
 # (edited from the Settings tab; see assets/config_template.json).
 HIGH_REGISTER_DEFAULTS = {"enabled": False, "mode": "true_pitch", "f0_ceil": 1250.0}
 
@@ -17,8 +18,7 @@ def load_high_register_settings():
     # (corrector disabled), so RMVPE keeps stock behaviour outside the UI.
     settings = dict(HIGH_REGISTER_DEFAULTS)
     try:
-        with open(os.path.join("assets", "config.json"), "r", encoding="utf-8") as f:
-            section = json.load(f).get("rmvpe_high_register")
+        section = load_config().get("rmvpe_high_register")
         if isinstance(section, dict):
             settings.update(section)
     except (FileNotFoundError, json.JSONDecodeError):
@@ -39,7 +39,7 @@ class RMVPE:
         self.sample_rate = sample_rate
         self.hop_size = hop_size
         # high_register: settings for the high-register corrector (keys:
-        # enabled, mode, f0_ceil). None reads them from assets/config.json;
+        # enabled, mode, f0_ceil). None reads them from the per-user config;
         # callers pass a dict to override (extraction pins the mode, realtime
         # disables it).
         if high_register is None:

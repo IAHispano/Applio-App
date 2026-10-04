@@ -3,6 +3,7 @@
     "file": ""
   },
   "plugins": [],
+  "model_index_filter": false,
   "discord_presence": true,
   "lang": {
     "override": false,

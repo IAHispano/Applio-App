@@ -20,6 +20,8 @@ assets/audios
 assets/datasets
 assets/uvr-models
 
+assets/config.json
+
 logs
 rvc/models
 env

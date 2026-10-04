@@ -1,10 +1,9 @@
 import type { ChildProcess } from "node:child_process";
-import fs from "node:fs";
 import type http from "node:http";
 import net from "node:net";
-import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
+import { loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
 import { getRepoRoot, spawnPython } from "@/python";
 import { assertEngineReady } from "@/setup";
@@ -153,14 +152,9 @@ router.post("/record", async (req: Request, res: Response) => {
   }
 });
 
-function cfgPath(): string {
-  return path.join(getRepoRoot(), "assets", "config.json");
-}
 router.get("/config", (_req: Request, res: Response) => {
   try {
-    const cfg = (fs.existsSync(cfgPath()) ? JSON.parse(fs.readFileSync(cfgPath(), "utf-8")) : {}) as {
-      realtime?: unknown;
-    };
+    const cfg = loadConfig();
     res.json({ realtime: cfg.realtime || {} });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
@@ -168,11 +162,11 @@ router.get("/config", (_req: Request, res: Response) => {
 });
 router.put("/config", (req: Request, res: Response) => {
   try {
-    const cfg = (fs.existsSync(cfgPath()) ? JSON.parse(fs.readFileSync(cfgPath(), "utf-8")) : {}) as {
+    const cfg = loadConfig() as {
       realtime?: Record<string, unknown>;
     };
     cfg.realtime = { ...(cfg.realtime || {}), ...((req.body || {}) as Record<string, unknown>) };
-    fs.writeFileSync(cfgPath(), JSON.stringify(cfg, null, 2));
+    saveConfig(cfg);
     res.json({ ok: true, realtime: cfg.realtime });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
