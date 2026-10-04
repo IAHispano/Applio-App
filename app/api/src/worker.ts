@@ -1,7 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
-import { v4 as uuidv4 } from "uuid";
 import { getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 import type { BatchInferenceParams, InferenceParams, TtsParams } from "@/schemas";
 
@@ -441,7 +441,7 @@ export class InferenceWorkerManager {
     return new Promise<Record<string, unknown>>((resolve, reject) => {
       this.queue.push({
         command: "inspect_model",
-        id: uuidv4(),
+        id: randomUUID(),
         pthPath,
         onLog: () => {},
         resolve,

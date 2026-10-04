@@ -6,8 +6,8 @@ import CustomSelect from "./CustomSelect";
 /** Pitch extraction algorithms (mirrors the backend F0_METHODS validation). */
 export const F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"];
 
-/** Subset supported by the realtime streaming engine. */
-export const REALTIME_F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"];
+/** Same set as F0_METHODS today; kept as an alias so realtime can narrow it later. */
+export const REALTIME_F0_METHODS: string[] = F0_METHODS;
 
 /** Speaker embedding models (mirrors the backend EMBEDDER_MODELS validation). */
 export const EMBEDDER_MODELS = [

@@ -1,7 +1,7 @@
 "use client";
 
 import { Activity, Check, Cpu, HardDrive, Palette, Power, RefreshCw, Sliders, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
   Badge,
@@ -14,7 +14,6 @@ import {
   ToggleField,
 } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
-import { GOOGLE_FONT_FAMILIES } from "@/lib/google-fonts";
 import { useI18n } from "@/lib/i18n";
 import { applyTheme, fontCss, type ThemeFile } from "@/lib/theme";
 
@@ -26,7 +25,7 @@ interface FontOption {
 
 // Interface font override: layers over any theme's body/display slots
 // server-side (see /api/settings/theme), so it survives theme switches.
-const FONT_OPTIONS: FontOption[] = [
+const BASE_FONT_OPTIONS: FontOption[] = [
   { id: "", label: "Theme default", families: [] },
   {
     id: "system",
@@ -39,12 +38,6 @@ const FONT_OPTIONS: FontOption[] = [
     label: "Georgia (serif)",
     families: ["Georgia", "Times New Roman", "serif"],
   },
-  // Full Google Fonts catalog (searchable dropdown) — loaded on demand.
-  ...GOOGLE_FONT_FAMILIES.map((name) => ({
-    id: `google:${name}`,
-    label: name,
-    families: [`google:${name}`, "system-ui", "sans-serif"],
-  })),
 ];
 
 interface ThemePreset {
@@ -374,6 +367,29 @@ export default function SettingsPage() {
     }
   }
 
+  // Full Google Fonts catalog (~1900 entries): split out of the initial
+  // bundle via dynamic import; the dropdown fills in once loaded.
+  const [catalogFonts, setCatalogFonts] = useState<FontOption[]>([]);
+  useEffect(() => {
+    let live = true;
+    import("@/lib/google-fonts")
+      .then((m) => {
+        if (!live) return;
+        setCatalogFonts(
+          m.GOOGLE_FONT_FAMILIES.map((name: string) => ({
+            id: `google:${name}`,
+            label: name,
+            families: [`google:${name}`, "system-ui", "sans-serif"],
+          })),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
+  const fontOptions = useMemo(() => [...BASE_FONT_OPTIONS, ...catalogFonts], [catalogFonts]);
+
   if (!cfg)
     return (
       <div className="w-full max-w-[1920px] mx-auto space-y-6">
@@ -445,14 +461,14 @@ export default function SettingsPage() {
   const selectedThemeFile = (cfg.theme as { file?: string } | undefined)?.file || "";
   const selectedFontFamilies = (() => {
     const stored = (cfg.theme as { font?: unknown } | undefined)?.font;
-    const match = FONT_OPTIONS.find((o) => JSON.stringify(o.families) === JSON.stringify(stored));
+    const match = fontOptions.find((o) => JSON.stringify(o.families) === JSON.stringify(stored));
     return match ? match.families : [];
   })();
   const selectedFontId =
-    FONT_OPTIONS.find((o) => JSON.stringify(o.families) === JSON.stringify(selectedFontFamilies))?.id ?? "";
+    fontOptions.find((o) => JSON.stringify(o.families) === JSON.stringify(selectedFontFamilies))?.id ?? "";
 
   const handleSelectFont = async (id: string) => {
-    const families = FONT_OPTIONS.find((o) => o.id === id)?.families ?? [];
+    const families = fontOptions.find((o) => o.id === id)?.families ?? [];
     try {
       await save({ theme: { file: selectedThemeFile, font: families } });
       window.dispatchEvent(new Event("applio:theme-changed"));
@@ -644,7 +660,7 @@ export default function SettingsPage() {
               value={selectedFontId}
               onValueChange={handleSelectFont}
               className="w-64 max-w-full"
-              options={FONT_OPTIONS.map((o) => ({ value: o.id, label: o.id === "" ? t(o.label) : o.label }))}
+              options={fontOptions.map((o) => ({ value: o.id, label: o.id === "" ? t(o.label) : o.label }))}
             />
           </div>
           <p

@@ -3,13 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import type { Job } from "@/jobs";
 import { appendLog } from "@/jobs";
-
-function getRepoRoot(): string {
-  if (process.env.APPLIO_ROOT && fs.existsSync(process.env.APPLIO_ROOT)) {
-    return path.resolve(process.env.APPLIO_ROOT);
-  }
-  return path.resolve(__dirname, "..", "..", "..");
-}
+import { getRepoRoot } from "./python";
 
 export interface GpuHardwareInfo {
   isAmd: boolean;

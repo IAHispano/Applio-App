@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { randomUUID } from "node:crypto";
 
 export type JobStatus = "queued" | "running" | "done" | "error";
 export type JobType = "inference" | "batch-inference" | "train" | "tts" | "download" | "other";
@@ -24,7 +24,7 @@ const MAX_JOBS = 200;
 export function createJob(type: JobType, params?: Record<string, unknown>): Job {
   const now = new Date().toISOString();
   const job: Job = {
-    id: uuidv4(),
+    id: randomUUID(),
     type,
     status: "queued",
     createdAt: now,
