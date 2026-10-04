@@ -78,11 +78,11 @@ export default function ModelDropdown({
     }
   }, [id]);
 
-  useEffect(() => {
-    if (open) {
-      onRefresh?.();
-    }
-  }, [open, onRefresh]);
+  // Opening is a user action; a new callback from the parent must not refetch.
+  const openMenu = () => {
+    setOpen(true);
+    onRefresh?.();
+  };
 
   // Position the floating menu against the trigger button. Rendered in a
   // portal so ancestor cards (backdrop-filter creates a stacking context)
@@ -377,11 +377,14 @@ export default function ModelDropdown({
         type="button"
         id={id}
         disabled={disabled}
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (open) setOpen(false);
+          else openMenu();
+        }}
         onKeyDown={(e) => {
           if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
             e.preventDefault();
-            setOpen(true);
+            openMenu();
           }
         }}
         aria-haspopup="listbox"

@@ -128,12 +128,16 @@ function AudioDropzoneInner({
     }
   }, [onRefreshAudios]);
 
-  // Whenever the samples tab is opened or picker is opened, reload audios from disk
-  useEffect(() => {
-    if (tab === "samples" || showSourcePicker) {
-      void refreshSampleAudios();
-    }
-  }, [tab, showSourcePicker, refreshSampleAudios]);
+  // Refresh on user actions, not callback changes after the parent rerenders.
+  const selectTab = (nextTab: DropzoneTab) => {
+    if (nextTab === "samples" && tab !== "samples") void refreshSampleAudios();
+    setTab(nextTab);
+  };
+
+  const toggleSourcePicker = () => {
+    if (!showSourcePicker) void refreshSampleAudios();
+    setShowSourcePicker(!showSourcePicker);
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
@@ -366,7 +370,7 @@ function AudioDropzoneInner({
               {audioFile && <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>}
               <button
                 type="button"
-                onClick={() => setShowSourcePicker((prev) => !prev)}
+                onClick={toggleSourcePicker}
                 className="text-xs text-white/80 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <span>{showSourcePicker ? t("Hide selector") : t("Change source")}</span>
@@ -401,7 +405,7 @@ function AudioDropzoneInner({
                   id="picker-tab-upload"
                   aria-selected={tab === "upload"}
                   aria-controls="picker-panel-upload"
-                  onClick={() => setTab("upload")}
+                  onClick={() => selectTab("upload")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "upload"
                       ? "bg-white/10 text-white font-medium"
@@ -420,7 +424,7 @@ function AudioDropzoneInner({
                   id="picker-tab-samples"
                   aria-selected={tab === "samples"}
                   aria-controls="picker-panel-samples"
-                  onClick={() => setTab("samples")}
+                  onClick={() => selectTab("samples")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "samples"
                       ? "bg-white/10 text-white font-medium"
@@ -439,7 +443,7 @@ function AudioDropzoneInner({
                   id="picker-tab-mic"
                   aria-selected={tab === "mic"}
                   aria-controls="picker-panel-mic"
-                  onClick={() => setTab("mic")}
+                  onClick={() => selectTab("mic")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                   }`}
@@ -457,7 +461,7 @@ function AudioDropzoneInner({
                     id="picker-tab-youtube"
                     aria-selected={tab === "youtube"}
                     aria-controls="picker-panel-youtube"
-                    onClick={() => setTab("youtube")}
+                    onClick={() => selectTab("youtube")}
                     className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                       tab === "youtube"
                         ? "bg-white/10 text-white font-medium"
@@ -599,7 +603,7 @@ function AudioDropzoneInner({
                 id="empty-tab-upload"
                 aria-selected={tab === "upload"}
                 aria-controls="empty-panel-upload"
-                onClick={() => setTab("upload")}
+                onClick={() => selectTab("upload")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "upload"
                     ? "bg-white/10 text-white font-medium"
@@ -618,7 +622,7 @@ function AudioDropzoneInner({
                 id="empty-tab-samples"
                 aria-selected={tab === "samples"}
                 aria-controls="empty-panel-samples"
-                onClick={() => setTab("samples")}
+                onClick={() => selectTab("samples")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "samples"
                     ? "bg-white/10 text-white font-medium"
@@ -637,7 +641,7 @@ function AudioDropzoneInner({
                 id="empty-tab-mic"
                 aria-selected={tab === "mic"}
                 aria-controls="empty-panel-mic"
-                onClick={() => setTab("mic")}
+                onClick={() => selectTab("mic")}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                   tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
                 }`}
@@ -655,7 +659,7 @@ function AudioDropzoneInner({
                   id="empty-tab-youtube"
                   aria-selected={tab === "youtube"}
                   aria-controls="empty-panel-youtube"
-                  onClick={() => setTab("youtube")}
+                  onClick={() => selectTab("youtube")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
                     tab === "youtube"
                       ? "bg-white/10 text-white font-medium"
