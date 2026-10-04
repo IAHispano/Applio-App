@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Syne } from "next/font/google";
 import "@/app/globals.css";
 import AppShell from "@/components/layout/AppShell";
-import RoutePrewarm from "@/components/layout/RoutePrewarm";
 import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
@@ -42,7 +41,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <TermsModal />
               <AutoUpdateModal />
               <Toaster />
-              <RoutePrewarm />
             </SetupProvider>
           </ThemeProvider>
         </I18nProvider>

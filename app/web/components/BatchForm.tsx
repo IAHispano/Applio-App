@@ -24,10 +24,10 @@ import {
 } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SliderField from "@/components/ui/SliderField";
-import { errMsg, fetchJob, fetchModels, type Job, pollJob, stopJob, submitJob } from "@/lib/api";
+import { errMsg, fetchModels, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
-import { usePersistentJobId } from "@/lib/useJob";
+import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
 const F0 = ["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"];
@@ -99,26 +99,8 @@ export default function BatchForm() {
   const [delayMix, setDelayMix] = useState(0.5);
   const [sid, setSid] = useState(0);
   const [jobId, setJobId] = usePersistentJobId("batch");
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState("");
+  const { job, error, setError } = useJob(jobId);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      return;
-    }
-    let stop = () => {};
-    fetchJob(jobId)
-      .then(({ job: j }) => {
-        setJob(j);
-        if (j.status !== "done" && j.status !== "error") {
-          stop = pollJob(jobId, setJob);
-        }
-      })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
-  }, [jobId]);
 
   const speakers = useSpeakers(pthPath);
 

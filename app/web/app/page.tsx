@@ -20,16 +20,16 @@ import {
   Wand2,
   XCircle,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useState } from "react";
-import JobPanel from "@/components/JobPanel";
+import { JobPanelContent } from "@/components/JobPanel";
+import Link from "@/components/layout/IntentLink";
 import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg, fileBasename } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { type SetupCheck, type SetupStatus, useSetup } from "@/lib/setup";
+import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
 
 interface ModelsSummary {
@@ -102,7 +102,8 @@ export default function Home() {
   const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
-  const { job: prereqJob, isActive: prereqRunning } = useJob(jobId);
+  const activity = useJob(jobId);
+  const { job: prereqJob, isActive: prereqRunning } = activity;
 
   const refresh = useCallback(
     async (force = false) => {
@@ -472,7 +473,7 @@ export default function Home() {
 
         {jobId && (
           <div className="px-4 pb-4">
-            <JobPanel jobId={jobId} embedded />
+            <JobPanelContent jobId={jobId} activity={activity} embedded />
           </div>
         )}
       </section>

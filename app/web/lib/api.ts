@@ -50,10 +50,12 @@ interface ApiErrorBody {
 }
 
 interface CacheEntry {
-  data: unknown;
+  data?: unknown;
   timestamp: number;
+  pending?: Promise<unknown>;
 }
 const apiCache = new Map<string, CacheEntry>();
+const MAX_CACHE_ENTRIES = 200;
 
 export function clearApiCache(pathPrefix?: string) {
   if (!pathPrefix) {
@@ -76,46 +78,74 @@ function invalidateFor(path: string) {
   }
 }
 
-export async function apiGet<T>(path: string, options?: { ttlMs?: number; force?: boolean }): Promise<T> {
-  const isJob = path.includes("/jobs");
-  const ttl = options?.ttlMs ?? (isJob ? 0 : 30000);
-  const now = Date.now();
-
-  if (!options?.force && ttl > 0 && apiCache.has(path)) {
-    const entry = apiCache.get(path);
-    if (entry && now - entry.timestamp < ttl) {
-      return entry.data as T;
-    }
-  }
-
-  const r = await fetch(path, { cache: "no-store" });
-  const body = (await r.json().catch(() => ({}))) as ApiErrorBody;
-  if (!r.ok) throw new Error(body.error || `GET ${path} failed (${r.status})`);
-
-  if (ttl > 0) {
-    apiCache.set(path, { data: body, timestamp: now });
-  }
+async function request<T>(path: string, init: RequestInit): Promise<T> {
+  const response = await fetch(path, init);
+  const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
+  if (!response.ok)
+    throw new Error(body.error || `${init.method || "GET"} ${path} failed (${response.status})`);
   return body as T;
 }
 
-export async function apiSend<T>(path: string, method: string, body?: unknown): Promise<T> {
+export async function apiGet<T>(
+  path: string,
+  options?: { ttlMs?: number; force?: boolean; signal?: AbortSignal },
+): Promise<T> {
+  const ttl = options?.ttlMs ?? (path.includes("/jobs") ? 0 : 30000);
+  const init: RequestInit = { cache: "no-store", signal: options?.signal };
+  // Live status and individually cancellable requests must remain independent.
+  if (ttl <= 0 || options?.signal) return request<T>(path, init);
+
+  const cached = apiCache.get(path);
+  if (!options?.force && cached && "data" in cached && Date.now() - cached.timestamp < ttl) {
+    return cached.data as T;
+  }
+  if (cached?.pending) return cached.pending as Promise<T>;
+
+  const entry: CacheEntry = { timestamp: 0 };
+  apiCache.delete(path);
+  apiCache.set(path, entry);
+  if (apiCache.size > MAX_CACHE_ENTRIES) {
+    const oldest = apiCache.keys().next().value;
+    if (oldest !== undefined) apiCache.delete(oldest);
+  }
+  entry.pending = request<T>(path, init).then(
+    (data) => {
+      // An invalidated or replaced request may finish, but cannot restore stale data.
+      if (apiCache.get(path) === entry) {
+        entry.data = data;
+        entry.timestamp = Date.now();
+        entry.pending = undefined;
+      }
+      return data;
+    },
+    (error) => {
+      if (apiCache.get(path) === entry) apiCache.delete(path);
+      throw error;
+    },
+  );
+  return entry.pending as Promise<T>;
+}
+
+async function send<T>(path: string, init: RequestInit): Promise<T> {
   invalidateFor(path);
-  const r = await fetch(path, {
+  try {
+    return await request<T>(path, init);
+  } finally {
+    // Also discard reads started while the write was still in progress.
+    invalidateFor(path);
+  }
+}
+
+export function apiSend<T>(path: string, method: string, body?: unknown): Promise<T> {
+  return send(path, {
     method,
     headers: { "content-type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const data = (await r.json().catch(() => ({}))) as ApiErrorBody;
-  if (!r.ok) throw new Error(data.error || `${method} ${path} failed (${r.status})`);
-  return data as T;
 }
 
-export async function postForm<T>(path: string, fd: FormData): Promise<T> {
-  invalidateFor(path);
-  const r = await fetch(path, { method: "POST", body: fd });
-  const data = (await r.json().catch(() => ({}))) as ApiErrorBody;
-  if (!r.ok) throw new Error(data.error || `POST ${path} failed (${r.status})`);
-  return data as T;
+export function postForm<T>(path: string, fd: FormData): Promise<T> {
+  return send(path, { method: "POST", body: fd });
 }
 
 export async function fetchModels(force = false): Promise<ModelLists> {
@@ -131,43 +161,98 @@ export async function submitInference(fd: FormData): Promise<{ jobId: string }> 
   return postForm("/api/inference", fd);
 }
 
-export async function fetchJob(id: string): Promise<{ job: Job }> {
-  return apiGet(`/api/jobs/${id}`);
+export async function fetchJob(id: string, signal?: AbortSignal): Promise<{ job: Job }> {
+  return apiGet(`/api/jobs/${encodeURIComponent(id)}`, { signal });
 }
 
 export async function stopJob(id: string): Promise<void> {
   await apiSend(`/api/jobs/${id}/stop`, "POST");
 }
 
-export function pollJob(id: string, onUpdate: (job: Job) => void): () => void {
-  let stopped = false;
-  let timer: ReturnType<typeof setInterval>;
+export function pollJob(id: string, onUpdate: (job: Job) => void, intervalMs = 500): () => void {
+  const controller = new AbortController();
+  const deadline = Date.now() + 12 * 60 * 60 * 1000;
+  let timer: ReturnType<typeof setTimeout>;
+  const stop = () => {
+    controller.abort();
+    clearTimeout(timer);
+  };
   const tick = async () => {
     try {
-      const { job } = await fetchJob(id);
+      const { job } = await fetchJob(id, controller.signal);
+      if (controller.signal.aborted) return;
       onUpdate(job);
-      if (job.status === "done" || job.status === "error") {
-        clearInterval(timer);
-      }
+      if (isJobFinished(job)) stop();
     } catch {
       /* keep polling through transient proxy restarts */
     }
+    // Schedule after the response so slow requests never accumulate.
+    if (Date.now() >= deadline) stop();
+    if (!controller.signal.aborted) timer = setTimeout(tick, intervalMs);
   };
-  timer = setInterval(() => {
-    if (!stopped) void tick();
-  }, 500);
   void tick();
-  const timeout = setTimeout(
-    () => {
-      stopped = true;
-      clearInterval(timer);
-    },
-    12 * 60 * 60 * 1000,
-  );
+  return stop;
+}
+
+function isJobFinished(job: Job): boolean {
+  return job.status === "done" || job.status === "error";
+}
+
+// One transport at a time: stream while healthy, poll if absent or stalled.
+export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (error: unknown) => void) {
+  const controller = new AbortController();
+  let source: EventSource | null = null;
+  let timer: ReturnType<typeof setTimeout>;
+  let stopPolling: (() => void) | undefined;
+  const closeStream = () => {
+    clearTimeout(timer);
+    source?.close();
+    source = null;
+  };
+  const fallback = (intervalMs = 500) => {
+    closeStream();
+    if (!controller.signal.aborted && !stopPolling) stopPolling = pollJob(id, onUpdate, intervalMs);
+  };
+  fetchJob(id, controller.signal)
+    .then(({ job }) => {
+      if (controller.signal.aborted) return;
+      onUpdate(job);
+      if (isJobFinished(job)) return;
+      const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+      try {
+        source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events`);
+        source.onmessage = (event) => {
+          if (controller.signal.aborted || !source) return;
+          try {
+            const { job: update } = JSON.parse(event.data) as { job: Job };
+            if (!update || update.id !== id) return;
+            onUpdate(update);
+            if (isJobFinished(update)) {
+              closeStream();
+              return;
+            }
+            clearTimeout(timer);
+            // Quiet jobs need only the same five-second check as the watchdog.
+            timer = setTimeout(() => fallback(5000), 5000);
+          } catch {
+            /* malformed chunks do not postpone the fallback */
+          }
+        };
+        source.onerror = () => {
+          if (source) fallback();
+        };
+        timer = setTimeout(fallback, 4000);
+      } catch {
+        fallback();
+      }
+    })
+    .catch((error) => {
+      if (!controller.signal.aborted) onError(error);
+    });
   return () => {
-    stopped = true;
-    clearInterval(timer);
-    clearTimeout(timeout);
+    controller.abort();
+    closeStream();
+    stopPolling?.();
   };
 }
 

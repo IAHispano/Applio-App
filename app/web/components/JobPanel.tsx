@@ -16,9 +16,21 @@ export interface JobPanelProps {
 }
 
 // Polls a job, shows status, and renders its output file cleanly without CLI clutter.
-export default function JobPanel({ jobId, compact, showLogs = false, embedded = false }: JobPanelProps) {
+export default function JobPanel(props: JobPanelProps) {
+  const activity = useJob(props.jobId);
+  return <JobPanelContent {...props} activity={activity} />;
+}
+
+// Parents that already watch the job can reuse their state without a second stream.
+export function JobPanelContent({
+  jobId,
+  compact,
+  showLogs = false,
+  embedded = false,
+  activity,
+}: JobPanelProps & { activity: ReturnType<typeof useJob> }) {
   const { t } = useI18n();
-  const { job, error, setError, cleanedLogs } = useJob(jobId);
+  const { job, error, setError, cleanedLogs } = activity;
 
   if (!jobId) return null;
   if (error) {

@@ -19,22 +19,10 @@ import {
   ToggleField,
   VoiceModelField,
 } from "@/components/ui";
-import {
-  apiGet,
-  apiSend,
-  errMsg,
-  fetchJob,
-  fetchModels,
-  fileBasename,
-  type Job,
-  outputUrl,
-  pollJob,
-  postForm,
-  stopJob,
-} from "@/lib/api";
+import { apiGet, apiSend, errMsg, fetchModels, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
-import { usePersistentJobId } from "@/lib/useJob";
+import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
 interface Voice {
@@ -73,26 +61,8 @@ export default function TtsForm() {
   const [cleanStrength, setCleanStrength] = useState(0.5);
   const [sid, setSid] = useState(0);
   const [jobId, setJobId] = usePersistentJobId("tts");
-  const [job, setJob] = useState<Job | null>(null);
-  const [error, setError] = useState("");
+  const { job, error, setError } = useJob(jobId);
   const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    if (!jobId) {
-      setJob(null);
-      return;
-    }
-    let stop = () => {};
-    fetchJob(jobId)
-      .then(({ job: j }) => {
-        setJob(j);
-        if (j.status !== "done" && j.status !== "error") {
-          stop = pollJob(jobId, setJob);
-        }
-      })
-      .catch((e) => setError(errMsg(e)));
-    return () => stop();
-  }, [jobId]);
 
   const speakers = useSpeakers(pthPath);
 
@@ -100,14 +70,14 @@ export default function TtsForm() {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
 
-  function handleModelSelect(selected: string, idxList = indexes) {
+  const handleModelSelect = useCallback((selected: string, idxList: string[]) => {
     setPthPath(selected);
     setIndexPath(matchIndex(selected, idxList));
     setSid(0);
     if (selected) {
       void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
     }
-  }
+  }, []);
 
   function handleUnloadModel() {
     setPthPath("");
@@ -125,7 +95,7 @@ export default function TtsForm() {
         })
         .catch(() => {});
     },
-    [pthPath],
+    [pthPath, handleModelSelect],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
@@ -316,7 +286,7 @@ export default function TtsForm() {
               indexes={indexes}
               indexPath={indexPath}
               indexSelectId="tts-index-file"
-              onSelect={handleModelSelect}
+              onSelect={(selected) => handleModelSelect(selected, indexes)}
               onUnload={handleUnloadModel}
               onRefresh={loadModels}
               onIndexChange={setIndexPath}

@@ -1,9 +1,9 @@
 "use client";
 
 import { ChevronDown, Database, House, LayoutGrid, Mic, Sparkles } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "@/components/layout/IntentLink";
 import { SidebarNavContent } from "@/components/layout/Sidebar";
 import { IconButton } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
@@ -69,7 +69,6 @@ export function BottomNav() {
       <li key={tab.to} className="min-w-0">
         <Link
           href={tab.to}
-          prefetch={true}
           aria-current={active ? "page" : undefined}
           className={`relative flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 min-h-[52px] text-[10px] font-medium leading-none transition-colors focus-visible:outline-none ${
             active ? "text-[var(--accent)] bg-[var(--accent-soft)]" : "text-[var(--muted)]"

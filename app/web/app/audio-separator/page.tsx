@@ -3,7 +3,7 @@
 import { Download, FileAudio, FlaskConical, Music4, RefreshCw, Split, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
-import JobPanel from "@/components/JobPanel";
+import { JobPanelContent } from "@/components/JobPanel";
 import PageHeader from "@/components/layout/PageHeader";
 import type { GpuDevice } from "@/components/train/GpuSelect";
 import {
@@ -80,7 +80,8 @@ export default function UvrPage() {
   const [jobId, setJobId] = usePersistentJobId("uvr");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const { job } = useJob(jobId);
+  const activity = useJob(jobId);
+  const { job } = activity;
 
   const loadModels = useCallback(async () => {
     setModelsLoading(true);
@@ -647,7 +648,7 @@ export default function UvrPage() {
             {t("Stems appear here after separation.")}
           </p>
         )}
-        <JobPanel jobId={jobId} embedded />
+        <JobPanelContent jobId={jobId} activity={activity} embedded />
       </Card>
     </div>
   );

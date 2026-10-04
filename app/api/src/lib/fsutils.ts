@@ -15,3 +15,18 @@ export function walkDir(dir: string, exts: string[], out: string[] = []): string
   }
   return out;
 }
+
+// Model lists and the library share one traversal and the same exclusions.
+export function scanModels(dir: string): { models: string[]; indexes: string[] } {
+  const models: string[] = [];
+  const indexes: string[] = [];
+  for (const file of walkDir(dir, [".pth", ".onnx", ".index"])) {
+    const name = path.basename(file);
+    if (path.extname(name).toLowerCase() === ".index") {
+      if (!name.includes("trained")) indexes.push(file);
+    } else if (!name.startsWith("G_") && !name.startsWith("D_")) {
+      models.push(file);
+    }
+  }
+  return { models, indexes };
+}

@@ -4,34 +4,21 @@ import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { runPythonJson } from "@/cli";
 import { errMsg } from "@/errors";
-import { repoRel, walkDir } from "@/lib/fsutils";
+import { repoRel, scanModels, walkDir } from "@/lib/fsutils";
 import { getRepoRoot, resolveUserPath } from "@/python";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
-
-function walk(dir: string, exts: string[], out: string[] = []): string[] {
-  return walkDir(dir, exts, out);
-}
-
-function toRepoRelative(abs: string): string {
-  return repoRel(abs);
-}
 
 router.get("/", (_req: Request, res: Response) => {
   const root = getRepoRoot();
   const logsDir = path.join(root, "logs");
   const audiosDir = path.join(root, "assets", "audios");
 
-  const models = walk(logsDir, [".pth", ".onnx"])
-    .filter((f) => !path.basename(f).startsWith("G_") && !path.basename(f).startsWith("D_"))
-    .map(toRepoRelative)
-    .sort();
-  const indexes = walk(logsDir, [".index"])
-    .filter((f) => !path.basename(f).includes("trained"))
-    .map(toRepoRelative)
-    .sort();
-  const audios = walk(audiosDir, [
+  const files = scanModels(logsDir);
+  const models = files.models.map(repoRel).sort();
+  const indexes = files.indexes.map(repoRel).sort();
+  const audios = walkDir(audiosDir, [
     ".wav",
     ".mp3",
     ".flac",
@@ -46,7 +33,7 @@ router.get("/", (_req: Request, res: Response) => {
     ".webm",
     ".ac3",
   ])
-    .map(toRepoRelative)
+    .map(repoRel)
     .sort();
 
   res.json({ models, indexes, audios, root });
@@ -71,15 +58,12 @@ router.get("/library", (_req: Request, res: Response) => {
       return res.json({ models: [] });
     }
 
-    const allPths = walk(logsDir, [".pth", ".onnx"]).filter(
-      (f) => !path.basename(f).startsWith("G_") && !path.basename(f).startsWith("D_"),
-    );
-    const allIndexes = walk(logsDir, [".index"]).filter((f) => !path.basename(f).includes("trained"));
+    const { models: allPths, indexes: allIndexes } = scanModels(logsDir);
 
     const result: ModelDetail[] = [];
 
     for (const pth of allPths) {
-      const pthRel = toRepoRelative(pth);
+      const pthRel = repoRel(pth);
       const stat = fs.statSync(pth);
       const stem = path.basename(pth).replace(/\.(pth|onnx)$/i, "");
       const folder = path.relative(logsDir, path.dirname(pth)).replace(/\\/g, "/");
@@ -98,7 +82,7 @@ router.get("/library", (_req: Request, res: Response) => {
       let idxRel: string | null = null;
       if (matchedIdx && fs.existsSync(matchedIdx)) {
         idxSize = fs.statSync(matchedIdx).size;
-        idxRel = toRepoRelative(matchedIdx);
+        idxRel = repoRel(matchedIdx);
       }
 
       result.push({

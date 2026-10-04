@@ -1,8 +1,8 @@
 "use client";
 
 import { AlertTriangle, ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS } from "@/components/layout/nav";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
@@ -19,7 +19,6 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 pt-2 pb-3 mb-1 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <Link
           href="/"
-          prefetch={true}
           onClick={onNavigate}
           className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
           aria-label={t("Applio - Home")}
@@ -77,7 +76,6 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                   <li key={item.to}>
                     <Link
                       href={item.to}
-                      prefetch={true}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
                       className={`flex items-center gap-3 px-3 py-2.5 sm:py-2 rounded-xl text-sm transition-all duration-150 relative focus-visible:outline-none min-h-[44px] sm:min-h-0 ${

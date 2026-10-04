@@ -11,21 +11,9 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Badge, Button, Card } from "@/components/ui";
-import { apiGet, apiSend, errMsg, fetchJob, type Job } from "@/lib/api";
+import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-
-interface SetupCheck {
-  id: string;
-  label: string;
-  status: "ok" | "missing" | "warn";
-  detail: string;
-}
-
-interface SetupStatus {
-  ready: boolean;
-  checks: SetupCheck[];
-  checkedAt: string;
-}
+import type { SetupStatus } from "@/lib/setup";
 
 interface FirstRunSetupProps {
   onComplete: () => void;
@@ -65,36 +53,31 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     if (!jobId) return;
     let active = true;
 
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetchJob(jobId);
-        if (!active) return;
-        setJob(res.job);
-
-        if (res.job.status === "done") {
-          clearInterval(timer);
-          // Verify final status
-          apiGet<SetupStatus>("/api/setup/status?refresh=1")
-            .then((s) => {
-              if (s.ready) {
-                setCountdown(2);
-              } else {
-                setError("Setup finished, but some required checks are incomplete.");
-              }
+    const stop = pollJob(
+      jobId,
+      (nextJob) => {
+        setJob(nextJob);
+        if (nextJob.status === "done") {
+          // Verify final status before starting the launch countdown.
+          apiGet<SetupStatus>("/api/setup/status?refresh=1", { force: true })
+            .then((status) => {
+              if (!active) return;
+              if (status.ready) setCountdown(2);
+              else setError("Setup finished, but some required checks are incomplete.");
             })
-            .catch(() => setCountdown(2));
-        } else if (res.job.status === "error") {
-          clearInterval(timer);
-          setError(res.job.error || "Setup failed. Please check the console log below.");
+            .catch(() => {
+              if (active) setCountdown(2);
+            });
+        } else if (nextJob.status === "error") {
+          setError(nextJob.error || "Setup failed. Please check the console log below.");
         }
-      } catch {
-        /* retry next tick */
-      }
-    }, 1000);
+      },
+      1000,
+    );
 
     return () => {
       active = false;
-      clearInterval(timer);
+      stop();
     };
   }, [jobId]);
 
