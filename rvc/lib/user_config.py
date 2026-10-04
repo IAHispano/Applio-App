@@ -22,7 +22,8 @@ def config_path():
         directory = Path.home() / "Library" / "Application Support" / "Applio"
     else:
         directory = (
-            Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config") / "Applio"
+            Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+            / "Applio"
         )
     return directory / "config.json"
 

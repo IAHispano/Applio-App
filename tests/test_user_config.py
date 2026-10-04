@@ -69,8 +69,9 @@ class UserConfigTests(unittest.TestCase):
         self.assertEqual(config_path().read_text(), "{broken")
 
     def test_paths_match_platform_policy(self):
-        with patch.dict(os.environ, {}, clear=True), patch(
-            "pathlib.Path.home", return_value=self.root
+        with (
+            patch.dict(os.environ, {}, clear=True),
+            patch("pathlib.Path.home", return_value=self.root),
         ):
             for platform, relative in [
                 ("win32", "AppData/Roaming/Applio/config.json"),
