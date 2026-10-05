@@ -642,6 +642,18 @@ async function streamRun(
   });
 }
 
+// uv venv --force only exists in recent uv: refresh any pre-existing uv so
+// the flag never hits an old binary. Best-effort and bounded: managed
+// installs or offline machines keep the old binary and the setup logs it.
+async function refreshUv(uvBin: string, job: Job): Promise<void> {
+  const r = await runCmd(uvBin, ["self", "update"], { timeoutMs: 120000 });
+  const tail = `${r.stdout}\n${r.stderr}`.trim().split("\n").pop() || "";
+  appendLog(
+    job,
+    r.code === 0 ? `uv refreshed (${tail.slice(0, 200)})` : `Note: uv self update failed (${tail.slice(0, 200)}); continuing.`,
+  );
+}
+
 async function ensureUv(job: Job): Promise<string | null> {
   const uvCandidates = ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")];
   if (process.platform === "win32") {
@@ -656,7 +668,10 @@ async function ensureUv(job: Job): Promise<string | null> {
   }
   for (const c of uvCandidates) {
     if (path.isAbsolute(c) && !exists(c)) continue;
-    if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) return c;
+    if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
+      await refreshUv(c, job);
+      return c;
+    }
   }
   if (process.platform === "win32") {
     appendLog(job, "Installing uv for Windows (fast package installer)…");
