@@ -43,6 +43,11 @@
   nsExec::Exec 'powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Command "Get-CimInstance Win32_Process | Where-Object { ($$_.ExecutablePath -like ''*\Applio\*'') -and ($$_.ProcessId -ne $$PID) } | ForEach-Object { Stop-Process -Id $$_.ProcessId -Force }"'
   Sleep 400
 
+  ; On update (${isUpdated}) the OLD uninstaller runs first: never wipe user
+  ; data or the install dir then, or every auto-update deletes models in logs/.
+  ; See https://www.electron.build/docs/nsis/ ("Uninstaller lifecycle").
+  ${ifNot} ${isUpdated}
+
   ; 2. Wipe Roaming AppData (User Data, .venv with PyTorch/CUDA, logs, models, caches, window-state)
   SetShellVarContext current
   RMDir /r "$APPDATA\Applio"
@@ -119,6 +124,8 @@
   ${andIf} $INSTDIR != "$PROGRAMFILES64"
     RMDir /r "$INSTDIR"
   ${endif}
+
+  ${endIf}
 
   ; 9. Refresh Windows shell notification & icon caches
   System::Call 'shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)'
