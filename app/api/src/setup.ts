@@ -650,7 +650,9 @@ async function refreshUv(uvBin: string, job: Job): Promise<void> {
   const tail = `${r.stdout}\n${r.stderr}`.trim().split("\n").pop() || "";
   appendLog(
     job,
-    r.code === 0 ? `uv refreshed (${tail.slice(0, 200)})` : `Note: uv self update failed (${tail.slice(0, 200)}); continuing.`,
+    r.code === 0
+      ? `uv refreshed (${tail.slice(0, 200)})`
+      : `Note: uv self update failed (${tail.slice(0, 200)}); continuing.`,
   );
 }
 
