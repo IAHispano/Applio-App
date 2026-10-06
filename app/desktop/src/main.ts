@@ -46,10 +46,10 @@ if (process.platform === "darwin") {
   process.env.PATH = parts.join(path.delimiter);
 }
 
-// AMD GPU on Windows: ensure AMD HIP SDK bin directory is in PATH and
-// ZLUDA environment variables are set so child processes (API, engine) inherit them.
+// AMD GPU on Windows: ensure .venv\Scripts and AMD HIP SDK / ROCm bin directories
+// are in PATH so child processes (API, engine) resolve ROCm DLLs properly.
 if (process.platform === "win32") {
-  setupWindowsAmdHipEnv();
+  setupWindowsAmdRocmEnv();
 }
 
 const isDev: boolean = !app.isPackaged;
@@ -61,13 +61,40 @@ function noEnv(): boolean {
   return process.argv.includes("--no-env") || process.env.APPLIO_NO_ENV === "1";
 }
 
-function setupWindowsAmdHipEnv(): void {
-  const candidates: string[] = [];
+function setupWindowsAmdRocmEnv(): void {
+  const currentPath = process.env.PATH || "";
+  const parts = currentPath.split(path.delimiter).filter(Boolean);
+
+  // Add virtualenv Scripts and torch lib directories to PATH
+  const candidatesVenv: string[] = [];
+  if (process.env.APPLIO_ROOT) {
+    candidatesVenv.push(path.join(process.env.APPLIO_ROOT, ".venv"));
+  }
+  try {
+    const dataDir = path.join(app.getPath("appData"), "Applio", "data");
+    candidatesVenv.push(path.join(dataDir, ".venv"));
+  } catch {
+    /* app not ready yet */
+  }
+  candidatesVenv.push(path.resolve(__dirname, "..", "..", "..", ".venv"));
+
+  for (const venv of candidatesVenv) {
+    const sDir = path.join(venv, "Scripts");
+    if (fs.existsSync(sDir) && !parts.some((p) => p.toLowerCase() === sDir.toLowerCase())) {
+      parts.unshift(sDir);
+    }
+    const tDir = path.join(venv, "Lib", "site-packages", "torch", "lib");
+    if (fs.existsSync(tDir) && !parts.some((p) => p.toLowerCase() === tDir.toLowerCase())) {
+      parts.unshift(tDir);
+    }
+  }
+
+  const candidatesRocm: string[] = [];
   if (process.env.HIP_PATH && fs.existsSync(process.env.HIP_PATH)) {
-    candidates.push(process.env.HIP_PATH);
+    candidatesRocm.push(process.env.HIP_PATH);
   }
   if (process.env.ROCM_PATH && fs.existsSync(process.env.ROCM_PATH)) {
-    candidates.push(process.env.ROCM_PATH);
+    candidatesRocm.push(process.env.ROCM_PATH);
   }
   const baseDir = "C:\\Program Files\\AMD\\ROCm";
   if (fs.existsSync(baseDir)) {
@@ -77,32 +104,33 @@ function setupWindowsAmdHipEnv(): void {
         .filter((e) => e.isDirectory())
         .map((e) => e.name)
         .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
-      for (const v of versions) candidates.push(path.join(baseDir, v));
+      for (const v of versions) candidatesRocm.push(path.join(baseDir, v));
     } catch {
       /* ignore */
     }
   }
-  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.4");
-  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.2");
-  candidates.push("C:\\Program Files\\AMD\\ROCm\\6.1");
-  candidates.push("C:\\Program Files\\AMD\\ROCm\\5.7");
+  candidatesRocm.push("C:\\Program Files\\AMD\\ROCm\\6.4");
+  candidatesRocm.push("C:\\Program Files\\AMD\\ROCm\\6.2");
+  candidatesRocm.push("C:\\Program Files\\AMD\\ROCm\\6.1");
+  candidatesRocm.push("C:\\Program Files\\AMD\\ROCm\\5.7");
 
-  for (const cand of candidates) {
+  for (const cand of candidatesRocm) {
     if (!fs.existsSync(cand)) continue;
     const binDir = path.join(cand, "bin");
     if (fs.existsSync(binDir)) {
-      const currentPath = process.env.PATH || "";
-      const parts = currentPath.split(path.delimiter).filter(Boolean);
       if (!parts.some((p) => p.toLowerCase() === binDir.toLowerCase())) {
-        process.env.PATH = `${binDir}${path.delimiter}${currentPath}`;
+        parts.unshift(binDir);
       }
       process.env.HIP_PATH ??= cand;
       process.env.HIP_VISIBLE_DEVICES ??= "0";
-      process.env.ZLUDA_COMGR_LOG_LEVEL ??= "1";
       process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
+      process.env.MIOPEN_FIND_MODE ??= "2";
       break;
     }
   }
+
+  delete process.env.ZLUDA_COMGR_LOG_LEVEL;
+  process.env.PATH = parts.join(path.delimiter);
 }
 
 let apiProc: ChildProcess | null = null;

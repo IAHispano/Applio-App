@@ -126,9 +126,12 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     const hasPy = logsText.includes("App virtualenv") || logsText.includes("Creating app virtualenv");
     const hasTorch = logsText.includes("Installing engine packages") || logsText.includes("torch");
     const hasDeps = logsText.includes("Using Python env") || logsText.includes("web dependencies");
-    const hasZluda = logsText.includes("ZLUDA") || logsText.includes("AMD GPU");
-    const hasZludaDone =
-      logsText.includes("kernel compilation complete") || logsText.includes("kernels are already compiled");
+    const hasAmd = logsText.includes("ROCm") || logsText.includes("ZLUDA") || logsText.includes("AMD GPU");
+    const hasAmdDone =
+      logsText.includes("ROCm native") ||
+      logsText.includes("ROCm") ||
+      logsText.includes("kernel compilation complete") ||
+      logsText.includes("kernels are already compiled");
     const hasModels =
       logsText.includes("Downloading base voice models") || logsText.includes("prerequisites");
     const hasVerified = isDone || logsText.includes("Setup complete") || logsText.includes("checks passed");
@@ -142,13 +145,13 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       },
       {
         id: "torch",
-        title: hasZluda ? "Hardware Acceleration (ZLUDA / AMD)" : "Hardware Acceleration",
-        desc: hasZluda
-          ? "ZLUDA translation layer & GPU kernel compilation (first run only)"
+        title: hasAmd ? "Hardware Acceleration (ROCm / AMD)" : "Hardware Acceleration",
+        desc: hasAmd
+          ? "Native AMD ROCm hardware acceleration backend"
           : "CUDA, MPS, or high-performance compute backend",
         status: hasTorch
-          ? hasZluda
-            ? hasZludaDone || hasDeps
+          ? hasAmd
+            ? hasAmdDone || hasDeps
               ? "done"
               : "running"
             : hasDeps

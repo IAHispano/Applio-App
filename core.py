@@ -6,6 +6,31 @@ import sys
 
 if sys.platform == "darwin":
     os.environ.setdefault("OMP_NUM_THREADS", "1")
+elif sys.platform == "win32":
+    # Ensure virtualenv Scripts and torch DLL directories are accessible
+    # for dynamic loading of ROCm and runtime libraries
+    scripts_dir = os.path.dirname(sys.executable)
+    if os.path.isdir(scripts_dir):
+        if hasattr(os, "add_dll_directory"):
+            try:
+                os.add_dll_directory(scripts_dir)
+            except Exception:
+                pass
+        curr_path = os.environ.get("PATH", "")
+        if scripts_dir.lower() not in curr_path.lower():
+            os.environ["PATH"] = f"{scripts_dir};{curr_path}"
+
+    venv_base = os.path.dirname(scripts_dir)
+    torch_lib = os.path.join(venv_base, "Lib", "site-packages", "torch", "lib")
+    if os.path.isdir(torch_lib):
+        if hasattr(os, "add_dll_directory"):
+            try:
+                os.add_dll_directory(torch_lib)
+            except Exception:
+                pass
+        curr_path = os.environ.get("PATH", "")
+        if torch_lib.lower() not in curr_path.lower():
+            os.environ["PATH"] = f"{torch_lib};{curr_path}"
 from functools import lru_cache
 from datetime import datetime, timedelta
 

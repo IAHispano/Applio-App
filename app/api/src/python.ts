@@ -209,8 +209,8 @@ if (process.platform === "darwin") {
 } else if (process.platform === "win32") {
   refreshWindowsEnv();
   try {
-    const { applyAmdZludaEnv } = require("@/zluda");
-    applyAmdZludaEnv();
+    const { applyAmdRocmEnv } = require("@/rocm");
+    applyAmdRocmEnv();
   } catch {
     /* ignore during early bootstrap */
   }
@@ -506,13 +506,12 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     env.OMP_NUM_THREADS ??= "1";
   } else if (process.platform === "win32") {
     try {
-      const { applyAmdZludaEnv } = require("@/zluda");
-      applyAmdZludaEnv();
+      const { applyAmdRocmEnv } = require("@/rocm");
+      applyAmdRocmEnv();
     } catch {
       /* ignore */
     }
     if (process.env.HIP_VISIBLE_DEVICES) env.HIP_VISIBLE_DEVICES = process.env.HIP_VISIBLE_DEVICES;
-    if (process.env.ZLUDA_COMGR_LOG_LEVEL) env.ZLUDA_COMGR_LOG_LEVEL = process.env.ZLUDA_COMGR_LOG_LEVEL;
     if (process.env.DISABLE_ADDMM_CUDA_LT) env.DISABLE_ADDMM_CUDA_LT = process.env.DISABLE_ADDMM_CUDA_LT;
   }
   return env;
@@ -541,8 +540,7 @@ export interface SpawnResult {
 }
 
 /**
- * Spawns a Python child process, automatically using the ZLUDA launcher
- * wrapper on Windows when an AMD GPU and ZLUDA are detected.
+ * Spawns a Python child process.
  */
 export function spawnPython(
   args: string[],
@@ -554,21 +552,9 @@ export function spawnPython(
 ): ChildProcess {
   const cwd = opts.cwd || getRepoRoot();
   const py = getPythonBin();
-  let zluda: { exe: string } | null = null;
-  if (process.platform === "win32") {
-    try {
-      const { getZludaLauncher } = require("@/zluda");
-      zluda = getZludaLauncher();
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const cmd = zluda ? zluda.exe : py;
-  const finalArgs = zluda ? ["--", py, ...args] : args;
   const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
 
-  return spawn(cmd, finalArgs, {
+  return spawn(py, args, {
     cwd,
     detached: opts.detached ?? false,
     env: opts.env || pythonEnv({ PATH: pathEnv }),

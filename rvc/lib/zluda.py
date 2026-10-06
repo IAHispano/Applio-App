@@ -1,4 +1,7 @@
+import os
 import torch
+
+os.environ.setdefault("MIOPEN_FIND_MODE", "2")
 
 if torch.cuda.is_available() and torch.cuda.get_device_name().endswith("[ZLUDA]"):
 
@@ -85,7 +88,11 @@ if torch.cuda.is_available() and torch.cuda.get_device_name().endswith("[ZLUDA]"
 # the ROCm build rather than of the vendor, so it is measured once here at startup and the native
 # kernel keeps ties. Patching F.conv1d rather than the models means every dilated conv is covered,
 # including ones outside the ResBlocks.
-if torch.cuda.is_available() and "AMD" in torch.cuda.get_device_name():
+if torch.cuda.is_available() and (
+    "AMD" in torch.cuda.get_device_name().upper()
+    or "RADEON" in torch.cuda.get_device_name().upper()
+    or getattr(torch.version, "hip", None) is not None
+):
     import time
 
     _conv1d = torch.nn.functional.conv1d

@@ -305,11 +305,16 @@ async function checkEngineDeps(py: string[]): Promise<{ ok: boolean; detail: str
     "    legacy_gpu = False",
     "    kernel_broken = False",
     "    gpu_info = ''",
-    "    if cuda_avail:",
+    "    is_hip = hasattr(torch.version, 'hip') and torch.version.hip is not None",
+    "    if cuda_avail and not is_hip:",
     "        try:",
     "            cnt = torch.cuda.device_count()",
     "            for i in range(cnt):",
     "                name = torch.cuda.get_device_name(i)",
+    "                if 'AMD' in name.upper() or 'RADEON' in name.upper():",
+    "                    gpu_info = f'{name} (ROCm)'",
+    "                    torch.zeros(1, device=f'cuda:{i}')",
+    "                    continue",
     "                cap = torch.cuda.get_device_capability(i)",
     "                cc = cap[0] + cap[1] / 10.0",
     "                gpu_info = f'{name} (sm_{cap[0]}.{cap[1]})'",
@@ -320,6 +325,14 @@ async function checkEngineDeps(py: string[]): Promise<{ ok: boolean; detail: str
     "            err = str(e)",
     "            if 'no kernel image' in err or 'CUDA error' in err or legacy_gpu:",
     "                kernel_broken = True",
+    "    elif cuda_avail and is_hip:",
+    "        try:",
+    "            name = torch.cuda.get_device_name(0) if torch.cuda.device_count() > 0 else 'AMD GPU'",
+    "            gpu_info = f'{name} (ROCm {torch.version.hip})'",
+    "            torch.zeros(1, device='cuda:0')",
+    "        except Exception as e:",
+    "            err = str(e)",
+    "            gpu_info = f'AMD ROCm GPU note: {err}'",
     "    print(f'OK|{ver}|{cuda_avail}|{legacy_gpu}|{kernel_broken}|{gpu_info}')",
     "except Exception as e:",
     "    print(f'ERR|{e}', file=sys.stderr)",
@@ -523,40 +536,29 @@ export async function getStatus(force = false): Promise<SetupStatus> {
 
   if (process.platform === "win32") {
     try {
-      const { findHipSdk, getGpuHardware, isZludaPatched } = await import("@/zluda");
+      const { getGpuHardware, getAmdGfxTarget, isRocmInstalled } = await import("@/rocm");
       const gpu = getGpuHardware();
-      if (gpu.isAmd) {
-        const hip = findHipSdk();
+      if (gpu.isAmd || process.env.APPLIO_ROCM_GFX) {
         const root = getRepoRoot();
-        const torchLibDir = py
-          ? path.join(path.dirname(py.cmd[0]), "..", "Lib", "site-packages", "torch", "lib")
-          : path.join(root, ".venv", "Lib", "site-packages", "torch", "lib");
-        const patched = isZludaPatched(torchLibDir);
+        const targetVenv = py ? path.resolve(path.dirname(py.cmd[0]), "..") : path.join(root, ".venv");
+        const torchLibDir = path.join(targetVenv, "Lib", "site-packages", "torch", "lib");
+        const rocmInstalled = isRocmInstalled(torchLibDir, targetVenv);
+        const gfx = getAmdGfxTarget();
+        const gpuName = gpu.gpus[0] || "AMD GPU";
 
-        if (!hip) {
+        if (rocmInstalled) {
           checks.push({
-            id: "zluda",
-            label: "AMD GPU (HIP SDK)",
-            status: "warn",
-            detail: `${gpu.gpus.join(", ") || "AMD GPU"} detected, but AMD HIP SDK is missing. Install HIP SDK (5.7, 6.1, 6.2, or 6.4) from AMD to enable GPU acceleration.`,
-          });
-        } else if (!patched) {
-          checks.push({
-            id: "zluda",
-            label: "AMD GPU Acceleration (ZLUDA)",
-            status: "warn",
-            detail: `HIP SDK ${hip.version} found — ZLUDA will be automatically configured during Install/Repair.`,
+            id: "rocm",
+            label: "AMD GPU Acceleration (ROCm)",
+            status: "ok",
+            detail: `${gpuName} via native ROCm (${gfx}) ✓`,
           });
         } else {
-          const { isZludaCompiled } = await import("@/zluda");
-          const compiled = isZludaCompiled(torchLibDir);
           checks.push({
-            id: "zluda",
-            label: "AMD GPU Acceleration (ZLUDA)",
-            status: compiled ? "ok" : "warn",
-            detail: compiled
-              ? `${gpu.gpus[0] || "AMD GPU"} via ZLUDA (HIP SDK ${hip.version}, kernels precompiled) ✓`
-              : `ZLUDA ready (HIP ${hip.version}) — Initial GPU kernel compilation pending (will compile during Install/Repair).`,
+            id: "rocm",
+            label: "AMD GPU Acceleration (ROCm)",
+            status: "warn",
+            detail: `${gpuName} detected (${gfx}) — native ROCm PyTorch will be automatically installed during Install/Repair.`,
           });
         }
       }
@@ -578,7 +580,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
   }
 
   const ready = checks.every(
-    (c) => c.status === "ok" || c.id === "ffmpeg" || c.id === "models" || c.id === "zluda",
+    (c) => c.status === "ok" || c.id === "ffmpeg" || c.id === "models" || c.id === "zluda" || c.id === "rocm",
   );
   const status: SetupStatus = {
     ready,
@@ -1151,10 +1153,15 @@ export function startInstall(): Job {
       //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
       // unsafe-best-match is required because the torch index also mirrors a
       // few PyPI packages at older versions.
-      const gpus = await getNvidiaGpus();
+      const { getGpuHardware, installAmdRocm, cleanupZluda } = await import("@/rocm");
+      const gpuHardware = getGpuHardware();
+      const isAmdGpu =
+        process.platform === "win32" && (gpuHardware.isAmd || Boolean(process.env.APPLIO_ROCM_GFX));
+
+      const gpus = !isAmdGpu ? await getNvidiaGpus() : null;
       const hasLegacyGpu = gpus ? isLegacyNvidiaGpu(gpus) : false;
-      const torchCuda = await resolveTorchCudaTag(job);
-      const isLegacySetup = hasLegacyGpu || torchCuda === "cu126";
+      const torchCuda = !isAmdGpu ? await resolveTorchCudaTag(job) : null;
+      const isLegacySetup = !isAmdGpu && (hasLegacyGpu || torchCuda === "cu126");
 
       if (torchCuda)
         appendLog(job, `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`);
@@ -1177,7 +1184,29 @@ export function startInstall(): Job {
       }
 
       let effectiveReqFile = reqFile;
-      if (isLegacySetup && exists(reqFile)) {
+      if (isAmdGpu && exists(reqFile)) {
+        try {
+          await cleanupZluda(root, path.join(root, ".venv"), job);
+          let reqContent = fs.readFileSync(reqFile, "utf-8");
+          reqContent = reqContent
+            .split(/\r?\n/)
+            .filter((line) => {
+              const l = line.trim();
+              if (/^torch==/i.test(l)) return false;
+              if (/^torchaudio==/i.test(l)) return false;
+              if (/^torchvision/i.test(l)) return false;
+              if (/^nvidia-/i.test(l)) return false;
+              if (/^onnxruntime-gpu/i.test(l)) return false;
+              return true;
+            })
+            .join("\n");
+          const rocmReqFile = path.join(root, "requirements-rocm.txt");
+          fs.writeFileSync(rocmReqFile, reqContent, "utf-8");
+          effectiveReqFile = rocmReqFile;
+        } catch (e) {
+          appendLog(job, `Note: Could not prepare ROCm requirements file (${e}).`);
+        }
+      } else if (isLegacySetup && exists(reqFile)) {
         try {
           let reqContent = fs.readFileSync(reqFile, "utf-8");
           reqContent = reqContent.replace(/torch==\d+\.\d+\.\d+/g, "torch==2.7.1");
@@ -1221,7 +1250,9 @@ export function startInstall(): Job {
         ]);
       }
 
-      if (isLegacySetup) {
+      if (isAmdGpu) {
+        await installAmdRocm(venvPy, job);
+      } else if (isLegacySetup) {
         appendLog(
           job,
           "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…",
@@ -1243,33 +1274,6 @@ export function startInstall(): Job {
       process.env.PYTHON_BIN = venvPy;
       appendLog(job, `Using Python env: ${venvPy}`);
 
-      if (process.platform === "win32") {
-        try {
-          const { getGpuHardware, findHipSdk, installAndPatchZluda } = await import("@/zluda");
-          const gpu = getGpuHardware();
-          const hip = findHipSdk();
-
-          if (gpu.isAmd) {
-            appendLog(job, `Detected AMD GPU: ${gpu.gpus.join(", ") || "AMD Radeon"}`);
-            if (hip) {
-              appendLog(job, `Detected AMD HIP SDK at ${hip.path} (v${hip.version})`);
-              try {
-                await installAndPatchZluda(path.join(root, ".venv"), job);
-              } catch (zludaErr) {
-                appendLog(job, `[!] Warning: Failed to configure ZLUDA: ${zludaErr}`);
-              }
-            } else {
-              appendLog(
-                job,
-                "[!] AMD GPU detected, but AMD HIP SDK was not found. To enable GPU acceleration with ZLUDA, install AMD HIP SDK (v5.7, 6.1, 6.2, or 6.4) and run Install/Repair again.",
-              );
-            }
-          }
-        } catch (e) {
-          appendLog(job, `Note: ZLUDA detection step: ${e}`);
-        }
-      }
-
       appendLog(job, "Downloading base voice models and prerequisites (hubert, rmvpe)…");
       try {
         await streamRun(job, venvPy, [
@@ -1279,22 +1283,6 @@ export function startInstall(): Job {
         ]);
       } catch (e) {
         appendLog(job, `Note: Prerequisites download step: ${e}`);
-      }
-
-      // If AMD GPU and ZLUDA are active, perform the initial GPU kernel pre-compilation
-      // during setup so the user never experiences the 15-20 min freeze later during conversion.
-      if (process.platform === "win32") {
-        try {
-          const { getGpuHardware, findHipSdk, isZludaPatched, compileZludaKernels } = await import("@/zluda");
-          const gpu = getGpuHardware();
-          const hip = findHipSdk();
-          const torchLibDir = path.join(root, ".venv", "Lib", "site-packages", "torch", "lib");
-          if (gpu.isAmd && hip && isZludaPatched(torchLibDir)) {
-            await compileZludaKernels(venvPy, job);
-          }
-        } catch (e) {
-          appendLog(job, `Note: ZLUDA kernel pre-compilation step: ${e}`);
-        }
       }
 
       if (exists(path.join(root, "app", "api", "package.json"))) {

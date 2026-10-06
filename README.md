@@ -67,16 +67,13 @@ Run Applio online for free using cloud GPUs without installing anything locally:
 > ```
 > On Apple Silicon the app runs via PyTorch MPS with CPU fallback enabled automatically.
 
-### AMD GPU Support (Windows - ZLUDA)
+### AMD GPU Support (Windows - ROCm)
 
-Applio supports AMD GPUs on Windows out-of-the-box via [ZLUDA](https://github.com/lshqqytiger/ZLUDA) and AMD ROCm / HIP SDK:
+Applio supports AMD GPUs on Windows out-of-the-box via native **AMD ROCm PyTorch**:
 
-1. **Install AMD HIP SDK**: Download and install AMD HIP SDK (v5.7, 6.1, 6.2, or 6.4) for your GPU.
-2. **Launch Applio**: Open Applio. On first launch, the desktop setup screen automatically detects your AMD GPU and installed HIP SDK.
-3. **Automatic Configuration**: Press **Install / Repair** — Applio automatically downloads the matching ZLUDA release, patches PyTorch libraries, and configures environment variables seamlessly.
-
-> [!NOTE]
-> **Initial Compilation**: The first time you run voice conversion or training with ZLUDA, it will compile GPU kernel code, which can take 15–20 minutes. The application may appear busy during this time. Please be patient and allow the compilation to finish.
+1. **Launch Applio**: Open Applio. On first launch, setup automatically detects your AMD GPU architecture (e.g. RX 7000/6000 series, RDNA 3, RDNA 2, etc.).
+2. **Automatic Configuration**: Press **Install / Repair** — Applio automatically downloads and installs native ROCm-accelerated PyTorch (`torch[device-<target>]`), torchaudio, and torchvision directly from AMD's official repository (`https://stable.repo.amd.com/rocm/whl-next/`).
+3. **Seamless Execution**: Runs natively without translation layers or lengthy pre-compilation delays.
 
 
 ### Developers (any OS)
