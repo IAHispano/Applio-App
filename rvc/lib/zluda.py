@@ -2,6 +2,40 @@ import os
 import torch
 
 os.environ.setdefault("MIOPEN_FIND_MODE", "2")
+os.environ.setdefault("MIOPEN_DEBUG_DISABLE_FIND_DB", "1")
+os.environ.setdefault("MIOPEN_LOG_LEVEL", "0")
+os.environ.setdefault("MIOPEN_ENABLE_LOGGING", "0")
+os.environ.setdefault("DISABLE_ADDMM_CUDA_LT", "1")
+os.environ.setdefault("AMD_COMGR_CACHE", "0")
+
+
+def is_amd_device() -> bool:
+    if not torch.cuda.is_available():
+        return False
+    if getattr(torch.version, "hip", None) is not None:
+        return True
+    try:
+        dev_name = torch.cuda.get_device_name().upper()
+        if "AMD" in dev_name or "RADEON" in dev_name or dev_name.endswith("[ZLUDA]"):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+if is_amd_device():
+    # Disabling MIOpen (cuDNN) forces PyTorch to use its native ATen precompiled
+    # C++/HIP kernels for BatchNorm and Convolutions, completely avoiding
+    # MIOpen JIT compilation failures (e.g. fatal error: 'type_traits' file not found
+    # in hiprtc during MIOpenBatchNormFwdInferSpatial) on Windows and unstable MIOpen solvers.
+    torch.backends.cudnn.enabled = False
+    torch.backends.cudnn.benchmark = False
+    try:
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_math_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+    except Exception:
+        pass
 
 if torch.cuda.is_available() and torch.cuda.get_device_name().endswith("[ZLUDA]"):
 
@@ -72,12 +106,6 @@ if torch.cuda.is_available() and torch.cuda.get_device_name().endswith("[ZLUDA]"
     # hijacks
     torch.stft = z_stft
     torch.jit.script = z_jit
-    # disabling unsupported cudnn
-    torch.backends.cudnn.enabled = False
-    torch.backends.cuda.enable_flash_sdp(False)
-    torch.backends.cuda.enable_math_sdp(True)
-    torch.backends.cuda.enable_mem_efficient_sdp(False)
-
 
 # MIOpen has no usable dilated 1D convolution kernel on some AMD architectures. On gfx1100 the
 # identical FLOPs run ~30x slower dilated than undilated, and the HiFi-GAN / NSF ResBlocks are built
@@ -88,11 +116,7 @@ if torch.cuda.is_available() and torch.cuda.get_device_name().endswith("[ZLUDA]"
 # the ROCm build rather than of the vendor, so it is measured once here at startup and the native
 # kernel keeps ties. Patching F.conv1d rather than the models means every dilated conv is covered,
 # including ones outside the ResBlocks.
-if torch.cuda.is_available() and (
-    "AMD" in torch.cuda.get_device_name().upper()
-    or "RADEON" in torch.cuda.get_device_name().upper()
-    or getattr(torch.version, "hip", None) is not None
-):
+if is_amd_device():
     import time
 
     _conv1d = torch.nn.functional.conv1d

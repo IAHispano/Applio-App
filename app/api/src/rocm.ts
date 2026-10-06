@@ -231,6 +231,11 @@ export function applyAmdRocmEnv(venvDir?: string): boolean {
     process.env.HIP_VISIBLE_DEVICES ??= "0";
     process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
     process.env.MIOPEN_FIND_MODE ??= "2";
+    process.env.MIOPEN_DEBUG_DISABLE_FIND_DB ??= "1";
+    process.env.MIOPEN_LOG_LEVEL ??= "0";
+    process.env.MIOPEN_ENABLE_LOGGING ??= "0";
+    process.env.AMD_COMGR_CACHE ??= "0";
+    process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL ??= "0";
 
     const gfx = getAmdGfxTarget();
     if (gfx && !process.env.HSA_OVERRIDE_GFX_VERSION) {

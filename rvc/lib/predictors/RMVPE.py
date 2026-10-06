@@ -435,6 +435,19 @@ class RMVPE0Predictor:
         self.model = model
         self.resample_kernel = {}
         self.device = device
+        if (
+            torch.cuda.is_available()
+            and self.device is not None
+            and str(self.device).startswith("cuda")
+            and (
+                getattr(torch.version, "hip", None) is not None
+                or "AMD" in torch.cuda.get_device_name(self.device).upper()
+                or "RADEON" in torch.cuda.get_device_name(self.device).upper()
+                or torch.cuda.get_device_name(self.device).endswith("[ZLUDA]")
+            )
+        ):
+            torch.backends.cudnn.enabled = False
+            torch.backends.cudnn.benchmark = False
         self.mel_extractor = MelSpectrogram(
             N_MELS, 16000, 1024, 160, None, 30, 8000
         ).to(device)

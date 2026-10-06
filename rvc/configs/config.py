@@ -62,6 +62,20 @@ class Config:
         self.gpu_mem = torch.cuda.get_device_properties(i_device).total_memory // (
             1024**3
         )
+        if (
+            getattr(torch.version, "hip", None) is not None
+            or "AMD" in self.gpu_name.upper()
+            or "RADEON" in self.gpu_name.upper()
+            or self.gpu_name.endswith("[ZLUDA]")
+        ):
+            torch.backends.cudnn.enabled = False
+            torch.backends.cudnn.benchmark = False
+            try:
+                torch.backends.cuda.enable_flash_sdp(False)
+                torch.backends.cuda.enable_math_sdp(True)
+                torch.backends.cuda.enable_mem_efficient_sdp(False)
+            except Exception:
+                pass
         try:
             from rvc.lib.tools.gpu_checker import check_torch_compatibility
 

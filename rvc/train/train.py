@@ -111,15 +111,37 @@ except FileNotFoundError:
 
 config.data.training_files = os.path.join(experiment_dir, "filelist.txt")
 
-torch.backends.cudnn.deterministic = False
-torch.backends.cudnn.benchmark = True
-# TF32 settings, should improve performance in some cases
-try:
-    torch.set_float32_matmul_precision("high")
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
-except Exception as e:
-    print(f"Torch tf32: {e}")
+is_amd = (
+    getattr(torch.version, "hip", None) is not None
+    or (
+        torch.cuda.is_available()
+        and (
+            "AMD" in torch.cuda.get_device_name().upper()
+            or "RADEON" in torch.cuda.get_device_name().upper()
+            or torch.cuda.get_device_name().endswith("[ZLUDA]")
+        )
+    )
+)
+
+if is_amd:
+    torch.backends.cudnn.enabled = False
+    torch.backends.cudnn.benchmark = False
+    try:
+        torch.backends.cuda.enable_flash_sdp(False)
+        torch.backends.cuda.enable_math_sdp(True)
+        torch.backends.cuda.enable_mem_efficient_sdp(False)
+    except Exception:
+        pass
+else:
+    torch.backends.cudnn.deterministic = False
+    torch.backends.cudnn.benchmark = True
+    # TF32 settings, should improve performance in some cases
+    try:
+        torch.set_float32_matmul_precision("high")
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+    except Exception as e:
+        print(f"Torch tf32: {e}")
 
 global_step = 0
 last_loss_gen_all = 0
@@ -238,6 +260,12 @@ def main():
         for i in range(n_gpus):
             children[i].join()
 
+        failed_children = [c for c in children if c.exitcode and c.exitcode != 0]
+        if failed_children:
+            exit_code = failed_children[0].exitcode or 1
+            print(f"Error: Training worker process failed with exit code {exit_code}.", flush=True)
+            sys.exit(exit_code)
+
     if cleanup:
         print("Removing files from the prior training attempt...")
 
@@ -326,6 +354,14 @@ def run(
 
     if torch.cuda.is_available():
         torch.cuda.set_device(device_id)
+        if (
+            getattr(torch.version, "hip", None) is not None
+            or "AMD" in torch.cuda.get_device_name(device_id).upper()
+            or "RADEON" in torch.cuda.get_device_name(device_id).upper()
+            or torch.cuda.get_device_name(device_id).endswith("[ZLUDA]")
+        ):
+            torch.backends.cudnn.enabled = False
+            torch.backends.cudnn.benchmark = False
 
     # Create datasets and dataloaders
     from data_utils import (

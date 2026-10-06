@@ -31,6 +31,13 @@ elif sys.platform == "win32":
         curr_path = os.environ.get("PATH", "")
         if torch_lib.lower() not in curr_path.lower():
             os.environ["PATH"] = f"{torch_lib};{curr_path}"
+
+    os.environ.setdefault("MIOPEN_FIND_MODE", "2")
+    os.environ.setdefault("MIOPEN_DEBUG_DISABLE_FIND_DB", "1")
+    os.environ.setdefault("MIOPEN_LOG_LEVEL", "0")
+    os.environ.setdefault("MIOPEN_ENABLE_LOGGING", "0")
+    os.environ.setdefault("DISABLE_ADDMM_CUDA_LT", "1")
+    os.environ.setdefault("AMD_COMGR_CACHE", "0")
 from functools import lru_cache
 from datetime import datetime, timedelta
 

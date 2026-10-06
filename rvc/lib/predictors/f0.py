@@ -45,6 +45,18 @@ class RMVPE:
         if high_register is None:
             high_register = load_high_register_settings()
         self.high_register = {**HIGH_REGISTER_DEFAULTS, **high_register}
+        if (
+            torch.cuda.is_available()
+            and str(self.device).startswith("cuda")
+            and (
+                getattr(torch.version, "hip", None) is not None
+                or "AMD" in torch.cuda.get_device_name(self.device).upper()
+                or "RADEON" in torch.cuda.get_device_name(self.device).upper()
+                or torch.cuda.get_device_name(self.device).endswith("[ZLUDA]")
+            )
+        ):
+            torch.backends.cudnn.enabled = False
+            torch.backends.cudnn.benchmark = False
         self.model = RMVPE0Predictor(
             os.path.join("rvc", "models", "predictors", model_name),
             device=self.device,

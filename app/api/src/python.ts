@@ -498,6 +498,14 @@ export function getPythonGuiBin(): string {
 // the UI consoles would look dead (then burst). Unbuffered keeps every
 // spawned tool's logs live.
 export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  if (process.platform === "win32") {
+    try {
+      const { applyAmdRocmEnv } = require("@/rocm");
+      applyAmdRocmEnv();
+    } catch {
+      /* ignore */
+    }
+  }
   const env: NodeJS.ProcessEnv = { ...process.env, PYTHONIOENCODING: "utf-8", ...extra };
   env.PYTHONUNBUFFERED ??= "1";
   if (process.platform === "darwin") {
@@ -505,14 +513,19 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
     env.OMP_NUM_THREADS ??= "1";
   } else if (process.platform === "win32") {
-    try {
-      const { applyAmdRocmEnv } = require("@/rocm");
-      applyAmdRocmEnv();
-    } catch {
-      /* ignore */
-    }
     if (process.env.HIP_VISIBLE_DEVICES) env.HIP_VISIBLE_DEVICES = process.env.HIP_VISIBLE_DEVICES;
     if (process.env.DISABLE_ADDMM_CUDA_LT) env.DISABLE_ADDMM_CUDA_LT = process.env.DISABLE_ADDMM_CUDA_LT;
+    if (process.env.HSA_OVERRIDE_GFX_VERSION)
+      env.HSA_OVERRIDE_GFX_VERSION = process.env.HSA_OVERRIDE_GFX_VERSION;
+    if (process.env.MIOPEN_FIND_MODE) env.MIOPEN_FIND_MODE = process.env.MIOPEN_FIND_MODE;
+    if (process.env.MIOPEN_DEBUG_DISABLE_FIND_DB)
+      env.MIOPEN_DEBUG_DISABLE_FIND_DB = process.env.MIOPEN_DEBUG_DISABLE_FIND_DB;
+    if (process.env.MIOPEN_LOG_LEVEL) env.MIOPEN_LOG_LEVEL = process.env.MIOPEN_LOG_LEVEL;
+    if (process.env.MIOPEN_ENABLE_LOGGING) env.MIOPEN_ENABLE_LOGGING = process.env.MIOPEN_ENABLE_LOGGING;
+    if (process.env.AMD_COMGR_CACHE) env.AMD_COMGR_CACHE = process.env.AMD_COMGR_CACHE;
+    if (process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL) {
+      env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL = process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL;
+    }
   }
   return env;
 }
