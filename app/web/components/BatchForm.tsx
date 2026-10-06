@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { JobError } from "@/components/JobStatus";
 import {
   Alert,
   Badge,
@@ -958,10 +959,20 @@ export default function BatchForm() {
           </div>
         )}
 
-        {(error || (job && job.status === "error")) && (
+        {error && (
           <Alert variant="error" className="animate-in fade-in duration-200">
-            {error || job?.error || t("Batch conversion failed.")}
+            {error}
           </Alert>
+        )}
+
+        {job && job.status === "error" && !error && (
+          <JobError
+            message={job.error || t("Batch conversion failed.")}
+            details={job.errorDetails}
+            logs={job.logs}
+            jobId={job.id}
+            className="animate-in fade-in duration-200"
+          />
         )}
 
         {job && job.status === "done" && (

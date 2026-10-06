@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { errMsg } from "@/errors";
+import { errDetails, errMsg, explainExitCode } from "@/errors";
 import { appendLog, createJob, getJob, type Job, type JobType, setDone, setError, setRunning } from "@/jobs";
 import { repoRel as sharedRepoRel } from "@/lib/fsutils";
 import { runPythonModule } from "@/python";
@@ -138,7 +138,12 @@ export function startCliJob(
       });
       trackPid(job.id, undefined);
       if (r.code !== 0) {
-        throw new Error(r.stderr.slice(-3000) || `Process exited with code ${r.code}`);
+        const explanation = explainExitCode(r.code);
+        const outputTail = (r.stderr || r.stdout || job.logs.slice(-15).join("\n")).trim();
+        const header = explanation
+          ? `Process exited with code ${r.code}: ${explanation}`
+          : `Process exited with code ${r.code}`;
+        throw new Error(outputTail ? `${header}\n\n${outputTail}` : header);
       }
       const lastLine = lastStdoutLine(r.stdout);
       if (opts.expectSuccess) {
@@ -154,9 +159,14 @@ export function startCliJob(
       setDone(job, resultObj, outputRel);
     } catch (err) {
       trackPid(job.id, undefined);
-      appendLog(job, `ERROR: ${errMsg(err)}`);
+      const message = errMsg(err);
+      const details = errDetails(err);
+      appendLog(job, `ERROR: ${message}`);
+      if (details && details !== message) {
+        appendLog(job, `DETAILS: ${details}`);
+      }
       const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, errMsg(err) || "CLI job failed");
+      if (j && j.status === "running") setError(j, message || "CLI job failed", details);
     }
   })();
   return job;
@@ -194,8 +204,14 @@ export async function runJobStep(
   });
   trackPid(job.id, undefined);
   const successLineMatch = !expected || lastStdoutLine(r.stdout) === expected || r.stdout.includes(expected);
-  if ((r.code !== 0 && r.code !== 2333333) || !successLineMatch)
-    throw new Error(`${step} failed (code ${r.code}): ${(r.stderr || r.stdout).slice(-1000)}`);
+  if ((r.code !== 0 && r.code !== 2333333) || !successLineMatch) {
+    const explanation = explainExitCode(r.code);
+    const outputTail = (r.stderr || r.stdout || job.logs.slice(-15).join("\n")).trim();
+    const header = explanation
+      ? `${step} failed (exit code ${r.code}): ${explanation}`
+      : `${step} failed (exit code ${r.code})`;
+    throw new Error(outputTail ? `${header}\n\n${outputTail}` : header);
+  }
 }
 
 // Runs `python -c <code>` where code prints one `APPLIO_JSON:{...}` line.
@@ -205,7 +221,14 @@ export async function runPythonJson<T = unknown>(code: string, onData?: (line: s
       if (stream === "stderr") onData?.(`[stderr] ${chunk.trim().slice(0, 500)}`);
     },
   });
-  if (r.code !== 0) throw new Error(r.stderr.slice(-3000) || "Python failed");
+  if (r.code !== 0) {
+    const explanation = explainExitCode(r.code);
+    const outputTail = (r.stderr || r.stdout).trim();
+    const header = explanation
+      ? `Python failed (exit code ${r.code}): ${explanation}`
+      : `Python failed (exit code ${r.code})`;
+    throw new Error(outputTail ? `${header}\n\n${outputTail}` : header);
+  }
   const m = r.stdout.match(/APPLIO_JSON:([^\r\n]+)/);
   if (!m) throw new Error(`Python did not return JSON: ${r.stdout.slice(-500)}`);
   return JSON.parse(m[1]) as T;

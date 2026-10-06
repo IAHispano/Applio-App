@@ -3,6 +3,7 @@
 import { FileText, Music, RotateCcw, Sliders, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
+import { JobError } from "@/components/JobStatus";
 import {
   Alert,
   Badge,
@@ -529,8 +530,15 @@ export default function TtsForm() {
             </div>
           )}
 
-          {(error || (job && job.status === "error")) && (
-            <Alert variant="error">{error || job?.error || t("Speech conversion failed.")}</Alert>
+          {error && <Alert variant="error">{error}</Alert>}
+
+          {job && job.status === "error" && !error && (
+            <JobError
+              message={job.error || t("Speech conversion failed.")}
+              details={job.errorDetails}
+              logs={job.logs}
+              jobId={job.id}
+            />
           )}
 
           {/* Synthesized Output Waveform Player */}

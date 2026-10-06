@@ -14,6 +14,7 @@ export interface Job {
   logs: string[];
   result?: Record<string, unknown>;
   error?: string;
+  errorDetails?: string;
   outputFile?: string; // repo-relative path served under /outputs
   progress?: number; // 0-100 determinate progress (unset = indeterminate)
 }
@@ -76,9 +77,14 @@ export function setDone(job: Job, result?: Record<string, unknown>, outputFile?:
   notify(job);
 }
 
-export function setError(job: Job, error: string) {
+export function setError(job: Job, error: string, errorDetails?: string) {
   job.status = "error";
   job.error = error;
+  if (errorDetails) {
+    job.errorDetails = errorDetails;
+  } else if (job.logs.length > 0) {
+    job.errorDetails = job.logs.slice(-30).join("\n");
+  }
   job.finishedAt = new Date().toISOString();
   job.updatedAt = job.finishedAt;
   notify(job);

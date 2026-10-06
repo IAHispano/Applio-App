@@ -261,12 +261,27 @@ export function isRocmInstalled(torchLibDir?: string, venvDir?: string): boolean
   const marker2 = path.join(targetVenv, ".rocm-installed");
   if (fs.existsSync(marker1) || fs.existsSync(marker2)) return true;
 
-  // Check if HIP dlls exist in torch/lib
+  // Check if HIP / ROCm dlls exist in torch/lib
   if (
     fs.existsSync(path.join(targetLib, "amdhip64.dll")) ||
-    fs.existsSync(path.join(targetLib, "torch_hip.dll"))
+    fs.existsSync(path.join(targetLib, "torch_hip.dll")) ||
+    fs.existsSync(path.join(targetLib, "c10_hip.dll")) ||
+    fs.existsSync(path.join(targetLib, "rocblas.dll"))
   ) {
     return true;
+  }
+
+  // Check torch/version.py for hip attribute
+  const versionPy = path.join(targetVenv, "Lib", "site-packages", "torch", "version.py");
+  if (fs.existsSync(versionPy)) {
+    try {
+      const content = fs.readFileSync(versionPy, "utf-8");
+      if (content.includes("hip =") && !content.includes("hip = None")) {
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   // Check if site-packages contains amd_torch or rocm packages

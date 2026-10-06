@@ -1,7 +1,8 @@
 "use client";
 
-import { AlertCircle, Download, FileText, LineChart, Loader2, RefreshCw, StopCircle } from "lucide-react";
+import { Download, FileText, LineChart, Loader2, RefreshCw, StopCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { JobError } from "@/components/JobStatus";
 import { Button, IconButton, SegmentedControl, StatTile } from "@/components/ui";
 import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -195,17 +196,18 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
 
         {/* Error State */}
         {!isRunning && (localError || jobError || (job?.status === "error" && job.error)) && (
-          <div
-            role="alert"
-            className="flex flex-col items-center justify-center text-red-400 text-xs p-6 text-center max-w-md"
-          >
-            <AlertCircle size={26} className="mb-2 text-red-400 shrink-0" />
-            <span className="leading-relaxed">
-              {localError || jobError || job?.error || t("Failed to extract pitch curve.")}
-            </span>
-            <Button variant="ghost" size="xs" onClick={handleManualRefresh} className="mt-3">
-              {t("Retry Extraction")}
-            </Button>
+          <div className="w-full max-w-md p-4 space-y-3">
+            <JobError
+              message={localError || jobError || job?.error || t("Failed to extract pitch curve.")}
+              details={job?.errorDetails}
+              logs={job?.logs}
+              jobId={job?.id}
+            />
+            <div className="flex justify-center">
+              <Button variant="ghost" size="xs" onClick={handleManualRefresh}>
+                {t("Retry Extraction")}
+              </Button>
+            </div>
           </div>
         )}
 

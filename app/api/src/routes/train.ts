@@ -6,7 +6,7 @@ import { type Request, type Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "@/cli";
-import { errMsg } from "@/errors";
+import { errDetails, errMsg } from "@/errors";
 import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
 import { booleanCoerce } from "@/schemas";
@@ -519,9 +519,14 @@ router.post("/train", async (req: Request, res: Response) => {
       setDone(job, { message: `Model ${p.modelName} trained successfully.` });
     } catch (err) {
       trackPid(job.id, undefined);
-      appendLog(job, `ERROR: ${errMsg(err)}`);
+      const message = errMsg(err);
+      const details = errDetails(err);
+      appendLog(job, `ERROR: ${message}`);
+      if (details && details !== message) {
+        appendLog(job, `DETAILS: ${details}`);
+      }
       const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, errMsg(err) || "Training failed");
+      if (j && j.status === "running") setError(j, message || "Training failed", details);
     }
   })();
   return res.status(202).json({ jobId: job.id });
@@ -670,9 +675,14 @@ router.post("/pipeline", async (req: Request, res: Response) => {
       setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
     } catch (err) {
       trackPid(job.id, undefined);
-      appendLog(job, `ERROR: ${errMsg(err)}`);
+      const message = errMsg(err);
+      const details = errDetails(err);
+      appendLog(job, `ERROR: ${message}`);
+      if (details && details !== message) {
+        appendLog(job, `DETAILS: ${details}`);
+      }
       const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, errMsg(err) || "Pipeline failed");
+      if (j && j.status === "running") setError(j, message || "Pipeline failed", details);
     }
   })();
   return res.status(202).json({ jobId: job.id });

@@ -122,12 +122,14 @@ function setupWindowsAmdRocmEnv(): void {
         parts.unshift(binDir);
       }
       process.env.HIP_PATH ??= cand;
-      process.env.HIP_VISIBLE_DEVICES ??= "0";
-      process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
-      process.env.MIOPEN_FIND_MODE ??= "2";
       break;
     }
   }
+
+  // ROCm PyTorch wheels are standalone and do NOT require an external AMD HIP SDK installation.
+  process.env.HIP_VISIBLE_DEVICES ??= "0";
+  process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
+  process.env.MIOPEN_FIND_MODE ??= "2";
 
   delete process.env.ZLUDA_COMGR_LOG_LEVEL;
   process.env.PATH = parts.join(path.delimiter);

@@ -86,7 +86,14 @@ export function JobPanelContent({
         )}
       </div>
 
-      {job.status === "error" && <JobError message={job.error} />}
+      {job.status === "error" && (
+        <JobError
+          message={job.error}
+          details={job.errorDetails}
+          logs={cleanedLogs.length > 0 ? cleanedLogs : job.logs}
+          jobId={job.id}
+        />
+      )}
 
       <JobProgress status={job.status} progress={job.progress} />
 
@@ -141,8 +148,11 @@ export function JobPanelContent({
         </div>
       ))}
 
-      {showLogs && !compact && cleanedLogs.length > 0 && (
-        <details className="pt-2 text-xs text-neutral-400 group border-t border-white/5">
+      {(showLogs || job.status === "error") && !compact && cleanedLogs.length > 0 && (
+        <details
+          className="pt-2 text-xs text-neutral-400 group border-t border-white/5"
+          open={job.status === "error"}
+        >
           <summary className="cursor-pointer hover:text-white transition-colors py-1 flex items-center gap-1.5 select-none font-medium">
             <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
             <span>{t("Activity Details")}</span>

@@ -20,6 +20,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { JobError } from "@/components/JobStatus";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import { errMsg, stopJob } from "@/lib/api";
@@ -330,6 +331,15 @@ export default function TrainingConsole({
         <Alert variant="error" onDismiss={() => setError("")}>
           {error}
         </Alert>
+      )}
+
+      {job?.status === "error" && !error && (
+        <JobError
+          message={job.error || t("Training failed.")}
+          details={job.errorDetails}
+          logs={cleanedLogs}
+          jobId={job.id}
+        />
       )}
 
       {/* 2. Pipeline Phase Stepper */}

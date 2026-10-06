@@ -1,7 +1,19 @@
 // Typed client for the Express gateway (same-origin /api via Next.js rewrites).
 
 export function errMsg(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
+  if (err instanceof Error) {
+    const details = (err as unknown as { details?: string }).details;
+    if (details && !err.message.includes(details)) {
+      return `${err.message}\n${details}`;
+    }
+    return err.message;
+  }
+  if (typeof err === "object" && err !== null) {
+    const obj = err as Record<string, unknown>;
+    if (typeof obj.error === "string") return obj.error;
+    if (typeof obj.message === "string") return obj.message;
+  }
+  return String(err);
 }
 
 export function cleanVersion(v?: string | null): string {
@@ -41,12 +53,14 @@ export interface Job {
   logs: string[];
   result?: Record<string, unknown>;
   error?: string;
+  errorDetails?: string;
   outputFile?: string;
   progress?: number;
 }
 
 interface ApiErrorBody {
   error?: string;
+  details?: string;
 }
 
 interface CacheEntry {
@@ -81,8 +95,14 @@ function invalidateFor(path: string) {
 async function request<T>(path: string, init: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
-  if (!response.ok)
-    throw new Error(body.error || `${init.method || "GET"} ${path} failed (${response.status})`);
+  if (!response.ok) {
+    const errorMsg = body.error || `${init.method || "GET"} ${path} failed (${response.status})`;
+    const err = new Error(errorMsg);
+    if (body.details) {
+      (err as unknown as { details: string }).details = body.details;
+    }
+    throw err;
+  }
   return body as T;
 }
 

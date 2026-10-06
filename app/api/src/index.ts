@@ -5,7 +5,7 @@ import cors from "cors";
 import express from "express";
 import { startStorageCleaner } from "@/cleaner";
 import { killJobTree } from "@/cli";
-import { errMsg } from "@/errors";
+import { apiError, errMsg } from "@/errors";
 import { getJob, setError } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
@@ -131,7 +131,7 @@ app.get("/api/diagnostics", async (_req, res) => {
       repoRoot: getRepoRoot(),
     });
   } catch (e) {
-    res.status(500).json({ error: errMsg(e) });
+    res.status(500).json(apiError(e));
   }
 });
 
@@ -165,6 +165,14 @@ app.post("/api/jobs/:id/stop", (req, res) => {
     return res.json({ ok: true });
   }
   return res.status(404).json({ error: "Job has no running process (may have finished starting)." });
+});
+
+// Catch-all Express error handler to return rich JSON diagnostics to frontend
+app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const payload = apiError(err);
+  // eslint-disable-next-line no-console
+  console.error("[applio-api] Route error:", payload.error, payload.details || "");
+  res.status(500).json(payload);
 });
 
 if (process.platform === "win32") {

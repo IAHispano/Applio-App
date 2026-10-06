@@ -42,6 +42,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         setJobId(id);
       } catch (err) {
         setError(errMsg(err));
+        setShowLogs(true);
       }
     }
 
@@ -70,6 +71,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             });
         } else if (nextJob.status === "error") {
           setError(nextJob.error || t("Setup failed. Please check the console log below."));
+          setShowLogs(true);
         }
       },
       1000,
@@ -111,6 +113,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       setJobId(id);
     } catch (err) {
       setError(errMsg(err));
+      setShowLogs(true);
     }
   }
 
@@ -129,9 +132,8 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     const hasAmd = logsText.includes("ROCm") || logsText.includes("ZLUDA") || logsText.includes("AMD GPU");
     const hasAmdDone =
       logsText.includes("ROCm native") ||
-      logsText.includes("ROCm") ||
-      logsText.includes("kernel compilation complete") ||
-      logsText.includes("kernels are already compiled");
+      logsText.includes("acceleration is ready") ||
+      logsText.includes("GPU device active");
     const hasModels =
       logsText.includes("Downloading base voice models") || logsText.includes("prerequisites");
     const hasVerified = isDone || logsText.includes("Setup complete") || logsText.includes("checks passed");
@@ -316,12 +318,33 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="error" title={t("Setup Encountered an Issue")}>
+          <Alert
+            variant="error"
+            title={t("Setup Encountered an Issue")}
+            details={
+              job?.errorDetails ||
+              (job?.logs && job.logs.length > 0 ? job.logs.slice(-50).join("\n") : undefined)
+            }
+            copyText={[
+              "Applio Setup Error:",
+              error,
+              job?.id ? `Job ID: ${job.id}` : null,
+              job?.errorDetails
+                ? `\nError Details:\n${job.errorDetails}`
+                : job?.logs && job.logs.length > 0
+                  ? `\nRecent Console Logs:\n${job.logs.slice(-60).join("\n")}`
+                  : null,
+            ]
+              .filter(Boolean)
+              .join("\n")}
+          >
             <div className="space-y-2">
               <p className="m-0 leading-relaxed text-xs">{error}</p>
-              <Button size="xs" onClick={retry} icon={<RefreshCw size={13} />}>
-                {t("Retry Automated Setup")}
-              </Button>
+              <div className="flex items-center gap-2 pt-1">
+                <Button size="xs" onClick={retry} icon={<RefreshCw size={13} />}>
+                  {t("Retry Automated Setup")}
+                </Button>
+              </div>
             </div>
           </Alert>
         )}

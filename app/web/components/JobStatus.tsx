@@ -24,10 +24,46 @@ export function JobBadge({ status }: { status: Job["status"] }) {
   );
 }
 
-export function JobError({ message }: { message?: string }) {
+export interface JobErrorProps {
+  message?: string;
+  details?: string;
+  logs?: string[];
+  jobId?: string;
+  className?: string;
+  onDismiss?: () => void;
+}
+
+export function JobError({ message, details, logs, jobId, className, onDismiss }: JobErrorProps) {
   const { t } = useI18n();
-  if (!message) return null;
-  return <Alert variant="error">{message || t("Operation failed.")}</Alert>;
+  if (!message && !details && (!logs || logs.length === 0)) return null;
+
+  const errorTitle = message || t("Operation failed.");
+
+  let diagnosticText = details;
+  if (!diagnosticText && logs && logs.length > 0) {
+    diagnosticText = logs.slice(-50).join("\n");
+  }
+
+  const fullCopyText = [
+    jobId ? `Job ID: ${jobId}` : null,
+    `Error: ${errorTitle}`,
+    diagnosticText ? `\nLogs / Details:\n${diagnosticText}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return (
+    <Alert
+      variant="error"
+      title={t("Operation Failed")}
+      details={diagnosticText}
+      copyText={fullCopyText}
+      className={className}
+      onDismiss={onDismiss}
+    >
+      <p className="m-0 leading-relaxed break-words">{errorTitle}</p>
+    </Alert>
+  );
 }
 
 export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (msg: string) => void }) {

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type React from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
+import { JobError } from "@/components/JobStatus";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
 import {
   Alert,
@@ -218,6 +219,7 @@ export default function InferenceForm() {
   }, [speakers, sid]);
 
   // Load models, indexes and sample audios
+  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model load uses latest state
   const loadAvailableModels = useCallback(
     (force = true) => {
       fetchModels(force)
@@ -1364,7 +1366,12 @@ export default function InferenceForm() {
         {submitError && <Alert variant="error">{submitError}</Alert>}
 
         {job && job.status === "error" && (
-          <Alert variant="error">{job.error || t("Inference job failed.")}</Alert>
+          <JobError
+            message={job.error || t("Inference job failed.")}
+            details={job.errorDetails}
+            logs={job.logs}
+            jobId={job.id}
+          />
         )}
 
         {/* Converted Audio WavePlayer Result with A/B Track Switching */}

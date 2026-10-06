@@ -1,4 +1,5 @@
 import { type Request, type Response, Router } from "express";
+import { apiError } from "@/errors";
 import { findPython, getStatus, startInstall, startPrerequisites } from "@/setup";
 
 const router = Router();
@@ -7,8 +8,7 @@ router.get("/status", async (req: Request, res: Response) => {
   try {
     res.json(await getStatus(req.query.refresh === "1"));
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: message });
+    res.status(500).json(apiError(err));
   }
 });
 
@@ -17,8 +17,7 @@ router.post("/install", (_req: Request, res: Response) => {
     const job = startInstall();
     res.status(202).json({ jobId: job.id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: message });
+    res.status(500).json(apiError(err));
   }
 });
 
@@ -27,8 +26,7 @@ router.post("/prerequisites", async (_req: Request, res: Response) => {
     const py = await findPython();
     res.status(202).json({ jobId: startPrerequisites(py ? py.cmd : null).id });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: message });
+    res.status(500).json(apiError(err));
   }
 });
 

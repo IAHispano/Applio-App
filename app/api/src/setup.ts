@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
-import { errMsg } from "@/errors";
+import { errDetails, errMsg } from "@/errors";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
@@ -557,8 +557,8 @@ export async function getStatus(force = false): Promise<SetupStatus> {
           checks.push({
             id: "rocm",
             label: "AMD GPU Acceleration (ROCm)",
-            status: "warn",
-            detail: `${gpuName} detected (${gfx}) — native ROCm PyTorch will be automatically installed during Install/Repair.`,
+            status: "ok",
+            detail: `${gpuName} detected (${gfx}) — Standalone ROCm PyTorch will be installed automatically (no HIP SDK required).`,
           });
         }
       }
@@ -626,20 +626,35 @@ async function streamRun(
       shell: opts.shell || false,
       env: { ...process.env, PATH: pathEnv, PYTHONIOENCODING: "utf-8", UV_HTTP_TIMEOUT: "300" },
     });
+    const recentOutput: string[] = [];
     child.stdout?.on("data", (d: Buffer) => {
       for (const line of d.toString().split("\n")) {
-        if (line.trim()) appendLog(job, line.trim().slice(0, 500));
+        const trimmed = line.trim();
+        if (trimmed) {
+          appendLog(job, trimmed.slice(0, 500));
+          recentOutput.push(trimmed);
+          if (recentOutput.length > 25) recentOutput.shift();
+        }
       }
     });
     child.stderr?.on("data", (d: Buffer) => {
       for (const line of d.toString().split("\n")) {
-        if (line.trim()) appendLog(job, line.trim().slice(0, 500));
+        const trimmed = line.trim();
+        if (trimmed) {
+          appendLog(job, trimmed.slice(0, 500));
+          recentOutput.push(trimmed);
+          if (recentOutput.length > 25) recentOutput.shift();
+        }
       }
     });
     child.on("error", (e) => reject(new Error(`Failed to start ${cmd}: ${e.message}`)));
     child.on("close", (code) => {
       if (code === 0) resolve();
-      else reject(new Error(`${cmd} exited with code ${code}`));
+      else {
+        const tail = recentOutput.slice(-8).join("\n").trim();
+        const msg = tail ? `${cmd} failed (exit code ${code}):\n${tail}` : `${cmd} exited with code ${code}`;
+        reject(new Error(msg));
+      }
     });
   });
 }
@@ -1340,9 +1355,13 @@ export function startInstall(): Job {
       if (!final.ready) throw new Error("Setup finished but some required checks still fail — see above.");
       setDone(job, { message: "Setup complete — Applio is ready.", ready: true });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errMsg(err);
+      const details = errDetails(err);
       appendLog(job, `ERROR: ${message}`);
-      setError(job, message);
+      if (details && details !== message) {
+        appendLog(job, `DETAILS: ${details}`);
+      }
+      setError(job, message, details);
     } finally {
       activeInstallId = null;
     }
@@ -1375,9 +1394,13 @@ export function startPrerequisites(py: string[] | null): Job {
       ]);
       setDone(job, { message: "Engine models downloaded." });
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = errMsg(err);
+      const details = errDetails(err);
       appendLog(job, `ERROR: ${message}`);
-      setError(job, message);
+      if (details && details !== message) {
+        appendLog(job, `DETAILS: ${details}`);
+      }
+      setError(job, message, details);
     }
   })();
   return job;
