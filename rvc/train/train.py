@@ -111,15 +111,12 @@ except FileNotFoundError:
 
 config.data.training_files = os.path.join(experiment_dir, "filelist.txt")
 
-is_amd = (
-    getattr(torch.version, "hip", None) is not None
-    or (
-        torch.cuda.is_available()
-        and (
-            "AMD" in torch.cuda.get_device_name().upper()
-            or "RADEON" in torch.cuda.get_device_name().upper()
-            or torch.cuda.get_device_name().endswith("[ZLUDA]")
-        )
+is_amd = getattr(torch.version, "hip", None) is not None or (
+    torch.cuda.is_available()
+    and (
+        "AMD" in torch.cuda.get_device_name().upper()
+        or "RADEON" in torch.cuda.get_device_name().upper()
+        or torch.cuda.get_device_name().endswith("[ZLUDA]")
     )
 )
 
@@ -263,7 +260,10 @@ def main():
         failed_children = [c for c in children if c.exitcode and c.exitcode != 0]
         if failed_children:
             exit_code = failed_children[0].exitcode or 1
-            print(f"Error: Training worker process failed with exit code {exit_code}.", flush=True)
+            print(
+                f"Error: Training worker process failed with exit code {exit_code}.",
+                flush=True,
+            )
             sys.exit(exit_code)
 
     if cleanup:

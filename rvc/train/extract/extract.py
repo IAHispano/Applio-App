@@ -174,7 +174,9 @@ def run_pitch_extraction(files, devices, f0_method, threads):
             try:
                 task.result()
             except Exception as task_err:
-                print(f"[!] Warning: Pitch extraction task encountered error: {task_err}")
+                print(
+                    f"[!] Warning: Pitch extraction task encountered error: {task_err}"
+                )
 
     successful_count = sum(
         1 for f in files if os.path.exists(f[1]) and os.path.exists(f[2])
@@ -262,7 +264,9 @@ def run_embedding_extraction(
             try:
                 task.result()
             except Exception as task_err:
-                print(f"[!] Warning: Embedding extraction task encountered error: {task_err}")
+                print(
+                    f"[!] Warning: Embedding extraction task encountered error: {task_err}"
+                )
 
     print(f"Embedding extraction completed in {time.time() - start_time:.2f} seconds.")
 
