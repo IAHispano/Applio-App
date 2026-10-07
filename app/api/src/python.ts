@@ -526,6 +526,8 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     if (process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL) {
       env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL = process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL;
     }
+    if (process.env.INCLUDE) env.INCLUDE = process.env.INCLUDE;
+    if (process.env.LIB) env.LIB = process.env.LIB;
   }
   return env;
 }

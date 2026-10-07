@@ -38,6 +38,7 @@ elif sys.platform == "win32":
     os.environ.setdefault("MIOPEN_ENABLE_LOGGING", "0")
     os.environ.setdefault("DISABLE_ADDMM_CUDA_LT", "1")
     os.environ.setdefault("AMD_COMGR_CACHE", "0")
+    os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "0")
 from functools import lru_cache
 from datetime import datetime, timedelta
 

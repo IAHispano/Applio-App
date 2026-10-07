@@ -126,10 +126,76 @@ function setupWindowsAmdRocmEnv(): void {
     }
   }
 
+  // Check MSVC toolchain if installed on system (for MIOpen / hiprtc runtime JIT compilation)
+  try {
+    const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+    const vswhere = path.join(pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe");
+    if (fs.existsSync(vswhere)) {
+      const { execSync } = require("node:child_process");
+      const vsPath = execSync(
+        `"${vswhere}" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`,
+        { encoding: "utf-8", windowsHide: true, timeout: 5000 },
+      ).trim();
+      if (vsPath && fs.existsSync(vsPath)) {
+        const msvcBase = path.join(vsPath, "VC", "Tools", "MSVC");
+        if (fs.existsSync(msvcBase)) {
+          const versions = fs
+            .readdirSync(msvcBase, { withFileTypes: true })
+            .filter((d: fs.Dirent) => d.isDirectory())
+            .map((d: fs.Dirent) => d.name)
+            .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
+          if (versions.length > 0) {
+            const latestVer = versions[0];
+            const binDir = path.join(msvcBase, latestVer, "bin", "Hostx64", "x64");
+            const msvcInc = path.join(msvcBase, latestVer, "include");
+            if (fs.existsSync(binDir) && !parts.some((p) => p.toLowerCase() === binDir.toLowerCase())) {
+              parts.push(binDir);
+            }
+            if (fs.existsSync(msvcInc)) {
+              const currentInc = process.env.INCLUDE || "";
+              const incParts = currentInc.split(path.delimiter).filter(Boolean);
+              if (!incParts.some((p) => p.toLowerCase() === msvcInc.toLowerCase())) {
+                incParts.push(msvcInc);
+              }
+              const sdkIncBase = path.join(pf86, "Windows Kits", "10", "Include");
+              if (fs.existsSync(sdkIncBase)) {
+                try {
+                  const sdkVersions = fs
+                    .readdirSync(sdkIncBase, { withFileTypes: true })
+                    .filter((d: fs.Dirent) => d.isDirectory())
+                    .map((d: fs.Dirent) => d.name)
+                    .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
+                  if (sdkVersions.length > 0) {
+                    for (const sub of ["ucrt", "shared", "um"]) {
+                      const p = path.join(sdkIncBase, sdkVersions[0], sub);
+                      if (fs.existsSync(p) && !incParts.some((ip) => ip.toLowerCase() === p.toLowerCase())) {
+                        incParts.push(p);
+                      }
+                    }
+                  }
+                } catch {
+                  /* ignore */
+                }
+              }
+              process.env.INCLUDE = incParts.join(path.delimiter);
+            }
+          }
+        }
+      }
+    }
+  } catch {
+    /* ignore */
+  }
+
   // ROCm PyTorch wheels are standalone and do NOT require an external AMD HIP SDK installation.
   process.env.HIP_VISIBLE_DEVICES ??= "0";
   process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
   process.env.MIOPEN_FIND_MODE ??= "2";
+  process.env.MIOPEN_DEBUG_DISABLE_FIND_DB ??= "1";
+  process.env.MIOPEN_LOG_LEVEL ??= "0";
+  process.env.MIOPEN_ENABLE_LOGGING ??= "0";
+  process.env.AMD_COMGR_CACHE ??= "0";
+  process.env.TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL ??= "0";
 
   delete process.env.ZLUDA_COMGR_LOG_LEVEL;
   process.env.PATH = parts.join(path.delimiter);

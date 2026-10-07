@@ -536,7 +536,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
 
   if (process.platform === "win32") {
     try {
-      const { getGpuHardware, getAmdGfxTarget, isRocmInstalled } = await import("@/rocm");
+      const { getGpuHardware, getAmdGfxTarget, isRocmInstalled, findMsvcToolchain } = await import("@/rocm");
       const gpu = getGpuHardware();
       if (gpu.isAmd || process.env.APPLIO_ROCM_GFX) {
         const root = getRepoRoot();
@@ -559,6 +559,24 @@ export async function getStatus(force = false): Promise<SetupStatus> {
             label: "AMD GPU Acceleration (ROCm)",
             status: "ok",
             detail: `${gpuName} detected (${gfx}) — Standalone ROCm PyTorch will be installed automatically (no HIP SDK required).`,
+          });
+        }
+
+        const msvc = findMsvcToolchain();
+        if (msvc) {
+          checks.push({
+            id: "msvc_tools",
+            label: "Visual Studio C++ Build Tools (MSVC)",
+            status: "ok",
+            detail: "Installed and configured for MIOpen runtime kernel compilation ✓",
+          });
+        } else {
+          checks.push({
+            id: "msvc_tools",
+            label: "Visual Studio C++ Build Tools",
+            status: "warn",
+            detail:
+              "Recommended for AMD ROCm MIOpen on Windows (avoids miopenStatusUnknownError). Install 'Desktop development with C++' via Visual Studio Installer or: winget install Microsoft.VisualStudio.2022.BuildTools --override \"--passive --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended\"",
           });
         }
       }

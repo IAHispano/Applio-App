@@ -1,4 +1,5 @@
 import os
+import sys
 import torch
 
 os.environ.setdefault("MIOPEN_FIND_MODE", "2")
@@ -7,6 +8,87 @@ os.environ.setdefault("MIOPEN_LOG_LEVEL", "0")
 os.environ.setdefault("MIOPEN_ENABLE_LOGGING", "0")
 os.environ.setdefault("DISABLE_ADDMM_CUDA_LT", "1")
 os.environ.setdefault("AMD_COMGR_CACHE", "0")
+os.environ.setdefault("TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL", "0")
+
+
+def setup_windows_msvc_env():
+    """
+    Configures MSVC and Windows SDK include and bin paths so hiprtc and MIOpen
+    can find standard C++ headers (e.g. type_traits, ucrt) during runtime kernel JIT compilation.
+    """
+    if sys.platform != "win32":
+        return
+    import subprocess
+
+    pf86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+    vswhere = os.path.join(pf86, r"Microsoft Visual Studio\Installer\vswhere.exe")
+    if not os.path.exists(vswhere):
+        return
+
+    try:
+        flags = 0x08000000 if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+        vs_path = subprocess.check_output(
+            [
+                vswhere,
+                "-latest",
+                "-products",
+                "*",
+                "-requires",
+                "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+                "-property",
+                "installationPath",
+            ],
+            text=True,
+            timeout=5,
+            creationflags=flags,
+        ).strip()
+    except Exception:
+        return
+
+    if not vs_path or not os.path.isdir(vs_path):
+        return
+
+    # Add MSVC bin and include
+    msvc_dir = os.path.join(vs_path, "VC", "Tools", "MSVC")
+    if os.path.isdir(msvc_dir):
+        versions = sorted(os.listdir(msvc_dir), reverse=True)
+        for v in versions:
+            ver_path = os.path.join(msvc_dir, v)
+            bin_dir = os.path.join(ver_path, "bin", "Hostx64", "x64")
+            inc_dir = os.path.join(ver_path, "include")
+            if (
+                os.path.isdir(bin_dir)
+                and bin_dir.lower() not in os.environ.get("PATH", "").lower()
+            ):
+                os.environ["PATH"] = bin_dir + os.pathsep + os.environ.get("PATH", "")
+            if os.path.isdir(inc_dir):
+                current_inc = os.environ.get("INCLUDE", "")
+                if inc_dir.lower() not in current_inc.lower():
+                    os.environ["INCLUDE"] = (
+                        (inc_dir + os.pathsep + current_inc) if current_inc else inc_dir
+                    )
+            break
+
+    # Add Windows SDK include (ucrt, shared, um)
+    sdk_inc_base = os.path.join(pf86, r"Windows Kits\10\Include")
+    if os.path.isdir(sdk_inc_base):
+        try:
+            sdk_versions = sorted(os.listdir(sdk_inc_base), reverse=True)
+            for v in sdk_versions:
+                sdk_v_path = os.path.join(sdk_inc_base, v)
+                for sub in ("ucrt", "shared", "um"):
+                    sub_path = os.path.join(sdk_v_path, sub)
+                    if os.path.isdir(sub_path):
+                        current_inc = os.environ.get("INCLUDE", "")
+                        if sub_path.lower() not in current_inc.lower():
+                            os.environ["INCLUDE"] = (
+                                (sub_path + os.pathsep + current_inc)
+                                if current_inc
+                                else sub_path
+                            )
+                break
+        except Exception:
+            pass
 
 
 def is_amd_device() -> bool:
@@ -24,6 +106,8 @@ def is_amd_device() -> bool:
 
 
 if is_amd_device():
+    # Setup MSVC paths if present on Windows to prevent hiprtc compilation errors
+    setup_windows_msvc_env()
     # Disabling MIOpen (cuDNN) forces PyTorch to use its native ATen precompiled
     # C++/HIP kernels for BatchNorm and Convolutions, completely avoiding
     # MIOpen JIT compilation failures (e.g. fatal error: 'type_traits' file not found

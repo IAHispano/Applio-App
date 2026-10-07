@@ -136,6 +136,101 @@ export function findHipSdk(force = false): HipSdkInfo | null {
   return null;
 }
 
+export interface MsvcToolchainInfo {
+  vsPath: string;
+  binDir: string;
+  includeDirs: string[];
+}
+
+let cachedMsvcToolchain: MsvcToolchainInfo | null | undefined;
+
+/**
+ * Detect installed Microsoft Visual C++ Build Tools (MSVC) on Windows.
+ * Required by MIOpen / hiprtc for runtime kernel JIT compilation (e.g. batch_norm) on AMD GPUs.
+ */
+export function findMsvcToolchain(force = false): MsvcToolchainInfo | null {
+  if (!force && cachedMsvcToolchain !== undefined) return cachedMsvcToolchain;
+  if (process.platform !== "win32") {
+    cachedMsvcToolchain = null;
+    return null;
+  }
+
+  const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const vswhere = path.join(pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe");
+  if (!fs.existsSync(vswhere)) {
+    cachedMsvcToolchain = null;
+    return null;
+  }
+
+  try {
+    const vsPath = execSync(
+      `"${vswhere}" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`,
+      { encoding: "utf-8", windowsHide: true, timeout: 5000 },
+    ).trim();
+
+    if (!vsPath || !fs.existsSync(vsPath)) {
+      cachedMsvcToolchain = null;
+      return null;
+    }
+
+    const msvcBase = path.join(vsPath, "VC", "Tools", "MSVC");
+    if (!fs.existsSync(msvcBase)) {
+      cachedMsvcToolchain = null;
+      return null;
+    }
+
+    const versions = fs
+      .readdirSync(msvcBase, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => d.name)
+      .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+
+    if (versions.length === 0) {
+      cachedMsvcToolchain = null;
+      return null;
+    }
+
+    const latestVer = versions[0];
+    const binDir = path.join(msvcBase, latestVer, "bin", "Hostx64", "x64");
+    const msvcInc = path.join(msvcBase, latestVer, "include");
+
+    const includeDirs: string[] = [];
+    if (fs.existsSync(msvcInc)) includeDirs.push(msvcInc);
+
+    const sdkIncBase = path.join(pf86, "Windows Kits", "10", "Include");
+    if (fs.existsSync(sdkIncBase)) {
+      try {
+        const sdkVersions = fs
+          .readdirSync(sdkIncBase, { withFileTypes: true })
+          .filter((d) => d.isDirectory())
+          .map((d) => d.name)
+          .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
+
+        if (sdkVersions.length > 0) {
+          const latestSdk = sdkVersions[0];
+          for (const sub of ["ucrt", "shared", "um"]) {
+            const p = path.join(sdkIncBase, latestSdk, sub);
+            if (fs.existsSync(p)) includeDirs.push(p);
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const info: MsvcToolchainInfo = {
+      vsPath,
+      binDir,
+      includeDirs,
+    };
+    cachedMsvcToolchain = info;
+    return info;
+  } catch {
+    cachedMsvcToolchain = null;
+    return null;
+  }
+}
+
 /**
  * Maps AMD GPU name or environment to ROCm gfx target architecture for AMD wheels.
  * Supported targets in AMD index (https://stable.repo.amd.com/rocm/whl-next/):
@@ -222,6 +317,24 @@ export function applyAmdRocmEnv(venvDir?: string): boolean {
   if (hip && !parts.some((p) => p.toLowerCase() === hip.binDir.toLowerCase())) {
     parts.unshift(hip.binDir);
     process.env.HIP_PATH ??= hip.path;
+  }
+
+  // Check MSVC toolchain if installed on system (for MIOpen / hiprtc runtime JIT compilation)
+  const msvc = findMsvcToolchain();
+  if (msvc) {
+    if (fs.existsSync(msvc.binDir) && !parts.some((p) => p.toLowerCase() === msvc.binDir.toLowerCase())) {
+      parts.push(msvc.binDir);
+    }
+    if (msvc.includeDirs.length > 0) {
+      const currentInc = process.env.INCLUDE || "";
+      const incParts = currentInc.split(path.delimiter).filter(Boolean);
+      for (const inc of msvc.includeDirs) {
+        if (!incParts.some((p) => p.toLowerCase() === inc.toLowerCase())) {
+          incParts.push(inc);
+        }
+      }
+      process.env.INCLUDE = incParts.join(path.delimiter);
+    }
   }
 
   process.env.PATH = parts.join(path.delimiter);
@@ -469,7 +582,8 @@ export async function installAmdRocm(venvPy: string, job?: Job): Promise<void> {
   // 2. Install native ROCm PyTorch packages
   const uvBin = findUvBin();
   const torchPkg = `torch[device-${gfxTarget}]`;
-  log(`Installing ${torchPkg}, torchaudio, and torchvision from AMD ROCm index…`);
+  const torchvisionPkg = `torchvision[device-${gfxTarget}]`;
+  log(`Installing ${torchPkg}, ${torchvisionPkg}, and torchaudio from AMD ROCm index…`);
 
   let installed = false;
   if (uvBin) {
@@ -485,35 +599,78 @@ export async function installAmdRocm(venvPy: string, job?: Job): Promise<void> {
           "--index-url",
           indexUrl,
           torchPkg,
+          torchvisionPkg,
           "torchaudio",
-          "torchvision",
         ],
         root,
         job,
       );
       installed = true;
     } catch (uvErr) {
-      log(`uv install failed (${uvErr}); falling back to pip…`);
+      log(`uv install with ${torchvisionPkg} failed (${uvErr}); trying without torchvision device tag…`);
+      try {
+        await spawnCommand(
+          uvBin,
+          [
+            "pip",
+            "install",
+            "--python",
+            venvPy,
+            "--index-url",
+            indexUrl,
+            torchPkg,
+            "torchvision",
+            "torchaudio",
+          ],
+          root,
+          job,
+        );
+        installed = true;
+      } catch (uvFallbackErr) {
+        log(`uv fallback failed (${uvFallbackErr}); falling back to pip…`);
+      }
     }
   }
 
   if (!installed) {
-    await spawnCommand(
-      venvPy,
-      [
-        "-m",
-        "pip",
-        "install",
-        "--no-cache-dir",
-        "--index-url",
-        indexUrl,
-        torchPkg,
-        "torchaudio",
-        "torchvision",
-      ],
-      root,
-      job,
-    );
+    try {
+      await spawnCommand(
+        venvPy,
+        [
+          "-m",
+          "pip",
+          "install",
+          "--no-cache-dir",
+          "--index-url",
+          indexUrl,
+          torchPkg,
+          torchvisionPkg,
+          "torchaudio",
+        ],
+        root,
+        job,
+      );
+    } catch (pipErr) {
+      log(
+        `pip install with ${torchvisionPkg} failed (${pipErr}); trying fallback without torchvision device tag…`,
+      );
+      await spawnCommand(
+        venvPy,
+        [
+          "-m",
+          "pip",
+          "install",
+          "--no-cache-dir",
+          "--index-url",
+          indexUrl,
+          torchPkg,
+          "torchvision",
+          "torchaudio",
+        ],
+        root,
+        job,
+      );
+    }
   }
 
   // 3. Mark ROCm as installed
