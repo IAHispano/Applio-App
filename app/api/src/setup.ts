@@ -557,7 +557,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
           checks.push({
             id: "rocm",
             label: "AMD GPU Acceleration (ROCm)",
-            status: "ok",
+            status: "warn",
             detail: `${gpuName} detected (${gfx}) — Standalone ROCm PyTorch will be installed automatically (no HIP SDK required).`,
           });
         }

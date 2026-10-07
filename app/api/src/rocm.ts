@@ -236,6 +236,7 @@ export function findMsvcToolchain(force = false): MsvcToolchainInfo | null {
  * Supported targets in AMD index (https://stable.repo.amd.com/rocm/whl-next/):
  * gfx1010, gfx1011, gfx1012, gfx1030, gfx1031, gfx1032, gfx1034, gfx1035, gfx1036,
  * gfx1100, gfx1101, gfx1102, gfx1103, gfx1150, gfx1200, gfx1201, gfx908, gfx90a, gfx942
+ * (index also ships gfx1033, gfx1151, gfx1152, gfx1153, gfx1250, gfx950)
  */
 export function getAmdGfxTarget(customGpuName?: string): string {
   // 1. Check explicit override environment variables
@@ -261,21 +262,23 @@ export function getAmdGfxTarget(customGpuName?: string): string {
 
   // RDNA 3
   if (/7900|w7900/i.test(gpuStr)) return "gfx1100";
+  if (/7700s|7600s|7600m/i.test(gpuStr)) return "gfx1102"; // Navi 33 laptop
   if (/7800|7700|w7800|w7700/i.test(gpuStr)) return "gfx1101";
   if (/7600|w7600|w7500/i.test(gpuStr)) return "gfx1102";
   if (/780m|760m|740m|phoenix|hawk\s*point/i.test(gpuStr)) return "gfx1103";
 
   // RDNA 2
+  if (/6800m|6800s/i.test(gpuStr)) return "gfx1031"; // Navi 22 laptop
   if (/6950|6900|6800|w6800/i.test(gpuStr)) return "gfx1030";
   if (/6750|6700/i.test(gpuStr)) return "gfx1031";
   if (/6650|6600/i.test(gpuStr)) return "gfx1032";
   if (/6500|6400/i.test(gpuStr)) return "gfx1034";
+  if (/6550|6300/i.test(gpuStr)) return "gfx1034"; // Navi 24 mobile
   if (/680m|660m|rembrandt/i.test(gpuStr)) return "gfx1035";
   if (/610m|mendocino/i.test(gpuStr)) return "gfx1036";
 
   // RDNA 1
   if (/5700|5600/i.test(gpuStr)) return "gfx1010";
-  if (/w5500|5500m/i.test(gpuStr)) return "gfx1011";
   if (/5500|5300/i.test(gpuStr)) return "gfx1012";
 
   // CDNA
@@ -285,6 +288,18 @@ export function getAmdGfxTarget(customGpuName?: string): string {
 
   // Default desktop target for RDNA 3
   return "gfx1100";
+}
+
+/**
+ * gfx target (e.g. gfx1100) -> HSA version triplet (11.0.0). Returns null
+ * when unknown (e.g. gfx90a): never set a malformed override.
+ */
+export function gfxToHsaVersion(gfx: string): string | null {
+  const full = gfx.match(/^gfx(\d{2})(\d)(\d)$/);
+  if (full) return `${full[1]}.${full[2]}.${full[3]}`;
+  const short = gfx.match(/^gfx(\d)(\d)(\d)$/);
+  if (short) return `${short[1]}.${short[2]}.${short[3]}`;
+  return null;
 }
 
 /**
@@ -352,10 +367,8 @@ export function applyAmdRocmEnv(venvDir?: string): boolean {
 
     const gfx = getAmdGfxTarget();
     if (gfx && !process.env.HSA_OVERRIDE_GFX_VERSION) {
-      const m = gfx.match(/gfx(\d)(\d)(\d|\w)/);
-      if (m) {
-        process.env.HSA_OVERRIDE_GFX_VERSION ??= `${m[1]}.${m[2]}.${m[3]}`;
-      }
+      const ver = gfxToHsaVersion(gfx);
+      if (ver) process.env.HSA_OVERRIDE_GFX_VERSION = ver;
     }
 
     // Clean up ZLUDA env variables if left behind
