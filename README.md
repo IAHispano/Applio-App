@@ -71,9 +71,33 @@ Run Applio online for free using cloud GPUs without installing anything locally:
 
 Applio supports AMD GPUs on Windows out-of-the-box via native **AMD ROCm PyTorch**:
 
-1. **Launch Applio**: Open Applio. On first launch, setup automatically detects your AMD GPU architecture (e.g. RX 7000/6000 series, RDNA 3, RDNA 2, etc.).
+1. **Launch Applio**: Open Applio. On first launch, setup automatically detects your AMD GPU architecture.
 2. **Automatic Configuration**: Press **Install / Repair** — Applio automatically downloads and installs native ROCm-accelerated PyTorch (`torch[device-<target>]`), torchaudio, and torchvision directly from AMD's official repository (`https://stable.repo.amd.com/rocm/whl-next/`).
 3. **Seamless Execution**: Runs natively without translation layers or lengthy pre-compilation delays.
+
+#### Supported AMD GPUs & Architectures
+
+| GPU Model / Family | GFX Target | Wheel Package | Architecture |
+| --- | --- | --- | --- |
+| AMD Radeon RX 9070 / XT | `gfx1201` | `torch[device-gfx1201]` | RDNA 4 (Navi 48) |
+| AMD Radeon RX 9060 / XT | `gfx1200` | `torch[device-gfx1200]` | RDNA 4 (Navi 44) |
+| AMD Radeon 820M iGPU | `gfx1153` | `torch[device-gfx1153]` | RDNA 3.5 (Krackan) |
+| AMD Ryzen AI 7 350 | `gfx1152` | `torch[device-gfx1152]` | RDNA 3.5 (Krackan Point) |
+| AMD Ryzen AI Max+ PRO 395 | `gfx1151` | `torch[device-gfx1151]` | RDNA 3.5 (Strix Halo) |
+| AMD Ryzen AI 9 HX 375 | `gfx1150` | `torch[device-gfx1150]` | RDNA 3.5 (Strix Point) |
+| AMD Ryzen 7 7840U / Phoenix | `gfx1103` | `torch[device-gfx1103]` | RDNA 3 (Phoenix / Hawk Point) |
+| AMD Radeon RX 7600 | `gfx1102` | `torch[device-gfx1102]` | RDNA 3 (Navi 33) |
+| AMD Radeon RX 7800 / 7700 XT | `gfx1101` | `torch[device-gfx1101]` | RDNA 3 (Navi 32) |
+| AMD Radeon RX 7900 XTX / XT | `gfx1100` | `torch[device-gfx1100]` | RDNA 3 (Navi 31) |
+| AMD Radeon RX 6900 / 6800 XT | `gfx1030` | `torch[device-gfx1030]` | RDNA 2 (Navi 21) |
+| AMD Radeon RX 6750 / 6700 XT | `gfx1031` | `torch[device-gfx1031]` | RDNA 2 (Navi 22) |
+| AMD Radeon RX 6600 XT | `gfx1032` | `torch[device-gfx1032]` | RDNA 2 (Navi 23) |
+| AMD Radeon RX 6500 XT | `gfx1034` | `torch[device-gfx1034]` | RDNA 2 (Navi 24) |
+| AMD Radeon 680M iGPU | `gfx1035` | `torch[device-gfx1035]` | RDNA 2 (Rembrandt) |
+| AMD Raphael iGPU | `gfx1036` | `torch[device-gfx1036]` | RDNA 2 (Raphael / Mendocino) |
+| AMD Radeon RX 5700 / XT | `gfx1010` | `torch[device-gfx1010]` | RDNA 1 (Navi 10) |
+
+
 
 
 ### Developers (any OS)

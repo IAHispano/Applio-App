@@ -231,55 +231,217 @@ export function findMsvcToolchain(force = false): MsvcToolchainInfo | null {
   }
 }
 
+export interface AmdGpuArch {
+  name: string;
+  gfx: string;
+  devicePackage: string;
+  architecture: string;
+  hsaVersion: string;
+}
+
+/**
+ * Known AMD GPU architectures supported by ROCm wheels (e.g. from https://stable.repo.amd.com/rocm/whl-next/).
+ */
+export const AMD_GPU_ARCH_LIST: readonly AmdGpuArch[] = [
+  {
+    name: "AMD Radeon RX 9070 / XT",
+    gfx: "gfx1201",
+    devicePackage: "device-gfx1201",
+    architecture: "RDNA 4 (Navi 48)",
+    hsaVersion: "12.0.1",
+  },
+  {
+    name: "AMD Radeon RX 9060 / XT",
+    gfx: "gfx1200",
+    devicePackage: "device-gfx1200",
+    architecture: "RDNA 4 (Navi 44)",
+    hsaVersion: "12.0.0",
+  },
+  {
+    name: "AMD Radeon 820M iGPU",
+    gfx: "gfx1153",
+    devicePackage: "device-gfx1153",
+    architecture: "RDNA 3.5 (Krackan / Radeon 820M)",
+    hsaVersion: "11.5.3",
+  },
+  {
+    name: "AMD Ryzen AI 7 350",
+    gfx: "gfx1152",
+    devicePackage: "device-gfx1152",
+    architecture: "RDNA 3.5 (Krackan Point)",
+    hsaVersion: "11.5.2",
+  },
+  {
+    name: "AMD Ryzen AI Max+ PRO 395",
+    gfx: "gfx1151",
+    devicePackage: "device-gfx1151",
+    architecture: "RDNA 3.5 (Strix Halo)",
+    hsaVersion: "11.5.1",
+  },
+  {
+    name: "AMD Ryzen AI 9 HX 375",
+    gfx: "gfx1150",
+    devicePackage: "device-gfx1150",
+    architecture: "RDNA 3.5 (Strix Point)",
+    hsaVersion: "11.5.0",
+  },
+  {
+    name: "AMD Ryzen 7 7840U",
+    gfx: "gfx1103",
+    devicePackage: "device-gfx1103",
+    architecture: "RDNA 3 (Phoenix / Hawk Point)",
+    hsaVersion: "11.0.3",
+  },
+  {
+    name: "AMD Radeon RX 7600",
+    gfx: "gfx1102",
+    devicePackage: "device-gfx1102",
+    architecture: "RDNA 3 (Navi 33)",
+    hsaVersion: "11.0.2",
+  },
+  {
+    name: "AMD Radeon RX 7800/7700 XT",
+    gfx: "gfx1101",
+    devicePackage: "device-gfx1101",
+    architecture: "RDNA 3 (Navi 32)",
+    hsaVersion: "11.0.1",
+  },
+  {
+    name: "AMD Radeon RX 7900 XTX/XT",
+    gfx: "gfx1100",
+    devicePackage: "device-gfx1100",
+    architecture: "RDNA 3 (Navi 31)",
+    hsaVersion: "11.0.0",
+  },
+  {
+    name: "AMD Radeon RX 6900/6800 XT",
+    gfx: "gfx1030",
+    devicePackage: "device-gfx1030",
+    architecture: "RDNA 2 (Navi 21)",
+    hsaVersion: "10.3.0",
+  },
+  {
+    name: "AMD Radeon RX 6750/6700 XT",
+    gfx: "gfx1031",
+    devicePackage: "device-gfx1031",
+    architecture: "RDNA 2 (Navi 22)",
+    hsaVersion: "10.3.1",
+  },
+  {
+    name: "AMD Radeon RX 6600 XT",
+    gfx: "gfx1032",
+    devicePackage: "device-gfx1032",
+    architecture: "RDNA 2 (Navi 23)",
+    hsaVersion: "10.3.2",
+  },
+  {
+    name: "AMD Radeon RX 6500 XT",
+    gfx: "gfx1034",
+    devicePackage: "device-gfx1034",
+    architecture: "RDNA 2 (Navi 24)",
+    hsaVersion: "10.3.4",
+  },
+  {
+    name: "AMD Radeon 680M iGPU",
+    gfx: "gfx1035",
+    devicePackage: "device-gfx1035",
+    architecture: "RDNA 2 (Rembrandt)",
+    hsaVersion: "10.3.5",
+  },
+  {
+    name: "AMD Raphael iGPU",
+    gfx: "gfx1036",
+    devicePackage: "device-gfx1036",
+    architecture: "RDNA 2 (Raphael / Mendocino)",
+    hsaVersion: "10.3.6",
+  },
+  {
+    name: "AMD Radeon RX 5700 / XT",
+    gfx: "gfx1010",
+    devicePackage: "device-gfx1010",
+    architecture: "RDNA 1 (Navi 10)",
+    hsaVersion: "10.1.0",
+  },
+];
+
 /**
  * Maps AMD GPU name or environment to ROCm gfx target architecture for AMD wheels.
  * Supported targets in AMD index (https://stable.repo.amd.com/rocm/whl-next/):
  * gfx1010, gfx1011, gfx1012, gfx1030, gfx1031, gfx1032, gfx1034, gfx1035, gfx1036,
- * gfx1100, gfx1101, gfx1102, gfx1103, gfx1150, gfx1200, gfx1201, gfx908, gfx90a, gfx942
- * (index also ships gfx1033, gfx1151, gfx1152, gfx1153, gfx1250, gfx950)
+ * gfx1100, gfx1101, gfx1102, gfx1103, gfx1150, gfx1151, gfx1152, gfx1153, gfx1200, gfx1201,
+ * gfx908, gfx90a, gfx942
  */
 export function getAmdGfxTarget(customGpuName?: string): string {
   // 1. Check explicit override environment variables
   if (process.env.APPLIO_ROCM_GFX) {
-    const raw = process.env.APPLIO_ROCM_GFX.trim().toLowerCase();
+    const raw = process.env.APPLIO_ROCM_GFX.trim()
+      .toLowerCase()
+      .replace(/^device-/, "");
     return raw.startsWith("gfx") ? raw : `gfx${raw}`;
   }
   if (process.env.HSA_OVERRIDE_GFX_VERSION) {
-    const raw = process.env.HSA_OVERRIDE_GFX_VERSION.trim().toLowerCase().replace(/\./g, "");
+    const raw = process.env.HSA_OVERRIDE_GFX_VERSION.trim()
+      .toLowerCase()
+      .replace(/\./g, "")
+      .replace(/^device-/, "");
     return raw.startsWith("gfx") ? raw : `gfx${raw}`;
   }
 
-  // 2. Detect from detected GPU marketing name
+  // 2. Detect from detected GPU marketing name or custom input
   const gpus = customGpuName ? [customGpuName] : getGpuHardware().gpus;
   const gpuStr = gpus.join(" ").toLowerCase();
 
-  // RDNA 4
-  if (/9070/i.test(gpuStr)) return "gfx1200";
-  if (/9060/i.test(gpuStr)) return "gfx1201";
+  // 2a. Direct gfx or device-gfx string match
+  const directMatch = gpuStr.match(/\b(?:device-)?(gfx\d{3,4}[a-z]?)\b/i);
+  if (directMatch) {
+    return directMatch[1].toLowerCase();
+  }
 
-  // RDNA 3.5 (Strix Point)
-  if (/890m|880m|strix/i.test(gpuStr)) return "gfx1150";
+  // RDNA 4
+  if (/9070|navi\s*48/i.test(gpuStr)) return "gfx1201";
+  if (/9060|navi\s*44/i.test(gpuStr)) return "gfx1200";
+
+  // RDNA 3.5
+  if (/820m/i.test(gpuStr)) return "gfx1153";
+  if (
+    /ai\s*(?:pro\s*)?7\b|ai\s*7\s*350|krackan|kraken|860m|840m/i.test(gpuStr) ||
+    (/\b350\b/i.test(gpuStr) && /ai|ryzen|radeon/i.test(gpuStr))
+  ) {
+    return "gfx1152";
+  }
+  if (
+    /strix\s*halo|ai\s*max|8060s|8050s/i.test(gpuStr) ||
+    (/\b(395|390|385)\b/i.test(gpuStr) && /ai|ryzen|max/i.test(gpuStr))
+  ) {
+    return "gfx1151";
+  }
+  if (
+    /890m|880m|strix\s*point|strix|ai\s*(?:pro\s*)?9\b/i.test(gpuStr) ||
+    (/\b(375|370|365)\b/i.test(gpuStr) && /ai|ryzen|hx/i.test(gpuStr))
+  ) {
+    return "gfx1150";
+  }
 
   // RDNA 3
   if (/7900|w7900/i.test(gpuStr)) return "gfx1100";
-  if (/7700s|7600s|7600m/i.test(gpuStr)) return "gfx1102"; // Navi 33 laptop
   if (/7800|7700|w7800|w7700/i.test(gpuStr)) return "gfx1101";
-  if (/7600|w7600|w7500/i.test(gpuStr)) return "gfx1102";
-  if (/780m|760m|740m|phoenix|hawk\s*point/i.test(gpuStr)) return "gfx1103";
+  if (/7700s|7600s|7600m|7600|w7600|w7500/i.test(gpuStr)) return "gfx1102"; // Navi 33
+  if (/780m|760m|740m|phoenix|hawk\s*point|7840|7940|8840|8845|8640|8645|7640|7540|7440/i.test(gpuStr)) {
+    return "gfx1103";
+  }
 
   // RDNA 2
   if (/6800m|6800s/i.test(gpuStr)) return "gfx1031"; // Navi 22 laptop
   if (/6950|6900|6800|w6800/i.test(gpuStr)) return "gfx1030";
-  if (/6750|6700/i.test(gpuStr)) return "gfx1031";
-  if (/6650|6600/i.test(gpuStr)) return "gfx1032";
-  if (/6500|6400/i.test(gpuStr)) return "gfx1034";
-  if (/6550|6300/i.test(gpuStr)) return "gfx1034"; // Navi 24 mobile
+  if (/6750|6700|w6700/i.test(gpuStr)) return "gfx1031";
+  if (/6650|6600|w6600/i.test(gpuStr)) return "gfx1032";
+  if (/6550|6500|6400|6300|w6400|w6300/i.test(gpuStr)) return "gfx1034"; // Navi 24
   if (/680m|660m|rembrandt/i.test(gpuStr)) return "gfx1035";
-  if (/610m|mendocino/i.test(gpuStr)) return "gfx1036";
+  if (/610m|mendocino|raphael|granite\s*ridge/i.test(gpuStr)) return "gfx1036";
 
   // RDNA 1
-  if (/5700|5600/i.test(gpuStr)) return "gfx1010";
-  if (/5500|5300/i.test(gpuStr)) return "gfx1012";
+  if (/5700|5600|navi\s*10/i.test(gpuStr)) return "gfx1010";
+  if (/5500|5300|navi\s*14/i.test(gpuStr)) return "gfx1012";
 
   // CDNA
   if (/mi300/i.test(gpuStr)) return "gfx942";
@@ -288,6 +450,14 @@ export function getAmdGfxTarget(customGpuName?: string): string {
 
   // Default desktop target for RDNA 3
   return "gfx1100";
+}
+
+/**
+ * Retrieve GPU architecture details for a detected or specified AMD GPU.
+ */
+export function getAmdGpuArchInfo(customGpuName?: string): AmdGpuArch | undefined {
+  const gfx = getAmdGfxTarget(customGpuName);
+  return AMD_GPU_ARCH_LIST.find((item) => item.gfx === gfx);
 }
 
 /**
