@@ -1,19 +1,12 @@
 "use client";
 
-import {
-  Activity,
-  ArrowRight,
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Badge, Button, Card } from "@/components/ui";
+import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
 import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import type { SetupStatus } from "@/lib/setup";
+import { toast } from "@/lib/toast";
 
 interface FirstRunSetupProps {
   onComplete: () => void;
@@ -24,7 +17,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
-  const [showLogs, setShowLogs] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
   const autoStartedRef = useRef(false);
@@ -42,7 +35,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         setJobId(id);
       } catch (err) {
         setError(errMsg(err));
-        setShowLogs(true);
       }
     }
 
@@ -71,7 +63,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             });
         } else if (nextJob.status === "error") {
           setError(nextJob.error || t("Setup failed. Please check the console log below."));
-          setShowLogs(true);
         }
       },
       1000,
@@ -83,13 +74,35 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     };
   }, [jobId, t]);
 
-  // Auto-scroll logs when drawer is open
+  // Cleaned and filtered logs list
+  const processedLogs = useMemo(() => {
+    if (!job?.logs?.length) return [];
+    return job.logs
+      .map((log) => log.replace(/^\[(stdout|stderr)\]\s*/i, "").trim())
+      .filter((log) => log.length > 0);
+  }, [job?.logs]);
+
+  // Auto-scroll logs as new output arrives
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes
   useEffect(() => {
-    if (showLogs) {
-      logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [job?.logs.length, showLogs]);
+    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [processedLogs.length]);
+
+  // Copy logs handler
+  const handleCopyLogs = useCallback(() => {
+    if (!processedLogs.length) return;
+    const text = processedLogs.join("\n");
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true);
+        toast(t("Console logs copied to clipboard"));
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        toast(t("Failed to copy logs to clipboard"), "error");
+      });
+  }, [processedLogs, t]);
 
   // Countdown to launch Applio
   useEffect(() => {
@@ -113,7 +126,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       setJobId(id);
     } catch (err) {
       setError(errMsg(err));
-      setShowLogs(true);
     }
   }
 
@@ -204,7 +216,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   }, [job?.status, steps]);
 
   return (
-    <div className="min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
+    <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="w-full space-y-6">
         {/* Brand Header */}
         <div className="text-center space-y-3">
@@ -235,7 +247,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         </div>
 
         {/* Progress Bar Card */}
-        <Card as="section" className="space-y-4">
+        <Card as="section" className="w-full space-y-4">
           <div className="flex items-center justify-between text-xs text-neutral-300">
             <span className="font-medium flex items-center gap-2">
               {job?.status === "done" ? (
@@ -349,61 +361,185 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           </Alert>
         )}
 
-        {/* Action Controls */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() => setShowLogs(!showLogs)}
-            aria-expanded={showLogs}
-            aria-controls="setup-console-logs"
-            icon={<Activity size={14} className="text-white" />}
-            iconAfter={showLogs ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          >
-            {showLogs ? t("Hide Activity Details") : t("View Activity Details")}
-          </Button>
+        {/* Activity Details / Live Console Logs (Shown by default) */}
+        <Card as="section" className="w-full space-y-3">
+          <CardHeader
+            icon={<Terminal size={15} className="text-white" />}
+            title={
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">{t("Activity Details")}</span>
+                {job?.status === "running" && (
+                  <Badge variant="neutral" dot size="sm">
+                    {t("Live")}
+                  </Badge>
+                )}
+                {job?.status === "done" && (
+                  <Badge variant="neutral" size="sm">
+                    {t("Complete")}
+                  </Badge>
+                )}
+                {job?.status === "error" && (
+                  <Badge variant="danger" size="sm">
+                    {t("Error")}
+                  </Badge>
+                )}
+              </div>
+            }
+            action={
+              <div className="flex items-center gap-2">
+                {processedLogs.length > 0 && (
+                  <span className="text-[11px] text-neutral-400 tabular-nums">
+                    {processedLogs.length} {processedLogs.length === 1 ? t("line") : t("lines")}
+                  </span>
+                )}
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={handleCopyLogs}
+                  disabled={!processedLogs.length}
+                  title={t("Copy logs to clipboard")}
+                  icon={copied ? <Check size={12} className="text-white" /> : <Copy size={12} />}
+                >
+                  {copied ? t("Copied") : t("Copy")}
+                </Button>
+              </div>
+            }
+          />
 
-          {job?.status === "done" && (
-            <Button onClick={onComplete} className="shadow-lg" iconAfter={<ArrowRight size={16} />}>
-              {countdown !== null
-                ? t("Entering Applio (%ss)…").replace("%s", String(countdown))
-                : t("Launch Applio")}
-            </Button>
-          )}
-        </div>
-
-        {/* Live Terminal Log Drawer */}
-        {showLogs && (
           <div
             id="setup-console-logs"
             role="log"
             aria-live="polite"
             aria-label={t("Live console output")}
-            className="rounded-xl border border-white/10 bg-black/70 p-4 text-xs text-neutral-300 max-h-64 overflow-y-auto space-y-1 shadow-inner"
+            className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-mono select-text scrollbar-thin"
           >
-            {job?.logs.length ? (
-              job.logs
-                .map((log) =>
-                  log
-                    .replace(/^\$ python.*$/i, "")
-                    .replace(/^\[(stdout|stderr)\]\s*/i, "")
-                    .trim(),
-                )
-                .filter((log) => log.length > 0)
-                .map((log, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: append-only activity logs
-                  <p key={`log-${i}`} className="m-0 leading-relaxed text-[11px] break-all">
-                    <span className="text-neutral-500 mr-2">•</span>
-                    {log}
-                  </p>
-                ))
+            {processedLogs.length ? (
+              processedLogs.map((entry, idx) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: append-only activity logs
+                <div key={`log-${idx}`} className="flex items-start gap-2 leading-relaxed">
+                  <span className="text-neutral-600 text-[10px] select-none shrink-0 w-6 text-right tabular-nums pt-0.5">
+                    {idx + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">{renderLogLine(entry)}</div>
+                </div>
+              ))
             ) : (
-              <p className="text-neutral-500 m-0 italic">{t("Initializing setup stream…")}</p>
+              <div className="h-full w-full flex items-center gap-2 justify-center text-neutral-500 text-xs italic">
+                <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
+                <span>{t("Initializing setup stream…")}</span>
+              </div>
             )}
             <div ref={logsEndRef} />
           </div>
+        </Card>
+
+        {/* Launch Button when Done */}
+        {job?.status === "done" && (
+          <div className="flex justify-end pt-1 animate-in fade-in duration-300">
+            <Button
+              size="md"
+              onClick={onComplete}
+              className="w-full sm:w-auto shadow-xl px-6"
+              iconAfter={<ArrowRight size={16} />}
+            >
+              {countdown !== null
+                ? t("Entering Applio (%ss)…").replace("%s", String(countdown))
+                : t("Launch Applio")}
+            </Button>
+          </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function renderLogLine(text: string) {
+  // Separator lines
+  if (/^={5,}|^-{5,}/.test(text)) {
+    return <div className="my-1.5 border-t border-white/10" />;
+  }
+
+  // Shell command line ($ cmd ...)
+  if (text.startsWith("$ ")) {
+    return (
+      <div className="flex items-start gap-1.5 text-neutral-200 font-medium py-0.5">
+        <span className="text-neutral-500 font-bold select-none shrink-0">$</span>
+        <span className="text-neutral-100 break-all">{text.slice(2)}</span>
+      </div>
+    );
+  }
+
+  // Success lines
+  if (
+    text.startsWith("✓") ||
+    text.startsWith("✔") ||
+    text.includes("acceleration is ready") ||
+    text.includes("all systems go") ||
+    text.includes("passed ✓") ||
+    text.includes("ready ✓") ||
+    text.includes("installed ✓") ||
+    text.startsWith("Successfully installed")
+  ) {
+    return (
+      <div className="flex items-start gap-1.5 text-emerald-400 py-0.5 font-medium">
+        <span className="text-emerald-400 font-bold select-none shrink-0">✓</span>
+        <span className="text-neutral-200 break-all">{text.replace(/^[✓✔]\s*/, "")}</span>
+      </div>
+    );
+  }
+
+  // Error lines
+  if (
+    text.startsWith("✗") ||
+    text.startsWith("Error:") ||
+    text.startsWith("[ERR]") ||
+    text.toLowerCase().includes("traceback (most recent call last)")
+  ) {
+    return (
+      <div className="flex items-start gap-1.5 text-red-400 py-0.5 font-medium">
+        <span className="text-red-400 font-bold select-none shrink-0">✗</span>
+        <span className="text-red-300 break-all">{text.replace(/^(✗|\[ERR\])\s*/, "")}</span>
+      </div>
+    );
+  }
+
+  // Warning lines
+  if (
+    text.startsWith("!") ||
+    text.startsWith("[!]") ||
+    text.startsWith("Warning:") ||
+    text.startsWith("WARNING:")
+  ) {
+    return (
+      <div className="flex items-start gap-1.5 text-amber-400 py-0.5">
+        <span className="text-amber-400 font-bold select-none shrink-0">!</span>
+        <span className="text-amber-200/90 break-all">{text.replace(/^(\[!\]|!)\s*/, "")}</span>
+      </div>
+    );
+  }
+
+  // Progress/Downloading/Installing action lines
+  if (
+    text.startsWith("Installing") ||
+    text.startsWith("Downloading") ||
+    text.startsWith("Configuring") ||
+    text.startsWith("Building") ||
+    text.startsWith("Verifying") ||
+    text.startsWith("Target architecture:")
+  ) {
+    return (
+      <div className="flex items-start gap-1.5 text-white font-medium py-0.5">
+        <span className="text-neutral-500 select-none shrink-0">›</span>
+        <span className="text-neutral-100 break-all">{text}</span>
+      </div>
+    );
+  }
+
+  // Standard output lines
+  return (
+    <div className="flex items-start gap-1.5 text-neutral-400 py-0.5">
+      <span className="text-neutral-600 select-none shrink-0">•</span>
+      <span className="text-neutral-300 break-all">{text}</span>
     </div>
   );
 }

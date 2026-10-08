@@ -102,8 +102,18 @@ export default function Home() {
   const [showDetails, setShowDetails] = useState(false);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [forceSetup, setForceSetup] = useState(false);
   const activity = useJob(jobId);
   const { job: prereqJob, isActive: prereqRunning } = activity;
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("setup") === "1" || params.get("setup") === "true") {
+        setForceSetup(true);
+      }
+    }
+  }, []);
 
   const refresh = useCallback(
     async (force = false) => {
@@ -181,8 +191,15 @@ export default function Home() {
     );
   }
 
-  if (!status.ready) {
-    return <FirstRunSetup onComplete={() => refresh(true)} />;
+  if (!status.ready || forceSetup) {
+    return (
+      <FirstRunSetup
+        onComplete={() => {
+          setForceSetup(false);
+          refresh(true);
+        }}
+      />
+    );
   }
 
   return (
