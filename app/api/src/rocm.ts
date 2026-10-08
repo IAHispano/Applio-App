@@ -9,6 +9,7 @@ export interface GpuHardwareInfo {
   isAmd: boolean;
   isNvidia: boolean;
   gpus: string[];
+  pnpIds: string[];
 }
 
 export interface HipSdkInfo {
@@ -32,6 +33,7 @@ export function getGpuHardware(force = false): GpuHardwareInfo {
     isAmd: false,
     isNvidia: false,
     gpus: [],
+    pnpIds: [],
   };
 
   if (process.platform === "win32") {
@@ -47,6 +49,18 @@ export function getGpuHardware(force = false): GpuHardwareInfo {
       result.gpus = lines;
       result.isAmd = lines.some((name) => /amd|radeon/i.test(name));
       result.isNvidia = lines.some((name) => /nvidia|geforce|rtx|gtx|quadro/i.test(name));
+      try {
+        const pnpOut = execSync(
+          'powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-CimInstance Win32_VideoController).PNPDeviceID"',
+          { timeout: 8000, encoding: "utf-8", windowsHide: true },
+        );
+        result.pnpIds = pnpOut
+          .split("\n")
+          .map((l) => l.trim())
+          .filter(Boolean);
+      } catch {
+        /* PNPDeviceID unavailable: name matching still applies */
+      }
     } catch {
       // Fallback: check environment
       if (process.env.HIP_PATH || process.env.ROCM_PATH || process.env.APPLIO_ROCM_GFX) {
@@ -261,7 +275,7 @@ export const AMD_GPU_ARCH_LIST: readonly AmdGpuArch[] = [
     name: "AMD Radeon 820M iGPU",
     gfx: "gfx1153",
     devicePackage: "device-gfx1153",
-    architecture: "RDNA 3.5 (Krackan / Radeon 820M)",
+    architecture: "RDNA 3.5 (Krackan Point 2 / Radeon 820M)",
     hsaVersion: "11.5.3",
   },
   {
@@ -366,7 +380,7 @@ export const AMD_GPU_ARCH_LIST: readonly AmdGpuArch[] = [
 
 /**
  * Maps AMD GPU name or environment to ROCm gfx target architecture for AMD wheels.
- * Supported targets in AMD index (https://stable.repo.amd.com/rocm/whl-next/):
+ * Supported targets in AMD index:
  * gfx1010, gfx1011, gfx1012, gfx1030, gfx1031, gfx1032, gfx1034, gfx1035, gfx1036,
  * gfx1100, gfx1101, gfx1102, gfx1103, gfx1150, gfx1151, gfx1152, gfx1153, gfx1200, gfx1201,
  * gfx908, gfx90a, gfx942
@@ -387,8 +401,9 @@ export function getAmdGfxTarget(customGpuName?: string): string {
     return raw.startsWith("gfx") ? raw : `gfx${raw}`;
   }
 
-  // 2. Detect from detected GPU marketing name or custom input
-  const gpus = customGpuName ? [customGpuName] : getGpuHardware().gpus;
+  // 2. Detect from detected GPU marketing name
+  const hw = getGpuHardware();
+  const gpus = customGpuName ? [customGpuName] : hw.gpus;
   const gpuStr = gpus.join(" ").toLowerCase();
 
   // 2a. Direct gfx or device-gfx string match
@@ -398,55 +413,74 @@ export function getAmdGfxTarget(customGpuName?: string): string {
   }
 
   // RDNA 4
-  if (/9070|navi\s*48/i.test(gpuStr)) return "gfx1201";
-  if (/9060|navi\s*44/i.test(gpuStr)) return "gfx1200";
+  if (/9070|r9700|r9600/i.test(gpuStr)) return "gfx1201";
+  if (/9060|9050/i.test(gpuStr)) return "gfx1200";
 
-  // RDNA 3.5
+  // RDNA 3.5 (Halo first: it also matches /strix/)
+  if (/8065s|8060s|8050s|8040s|strix\s*halo|ai\s*max/i.test(gpuStr)) return "gfx1151";
+  if (/890m|880m/i.test(gpuStr)) return "gfx1150";
+  if (/860m|840m/i.test(gpuStr)) return "gfx1152";
   if (/820m/i.test(gpuStr)) return "gfx1153";
-  if (
-    /ai\s*(?:pro\s*)?7\b|ai\s*7\s*350|krackan|kraken|860m|840m/i.test(gpuStr) ||
-    (/\b350\b/i.test(gpuStr) && /ai|ryzen|radeon/i.test(gpuStr))
-  ) {
-    return "gfx1152";
-  }
-  if (
-    /strix\s*halo|ai\s*max|8060s|8050s/i.test(gpuStr) ||
-    (/\b(395|390|385)\b/i.test(gpuStr) && /ai|ryzen|max/i.test(gpuStr))
-  ) {
-    return "gfx1151";
-  }
-  if (
-    /890m|880m|strix\s*point|strix|ai\s*(?:pro\s*)?9\b/i.test(gpuStr) ||
-    (/\b(375|370|365)\b/i.test(gpuStr) && /ai|ryzen|hx/i.test(gpuStr))
-  ) {
-    return "gfx1150";
-  }
+  if (/strix/i.test(gpuStr)) return "gfx1150";
+  if (/krackan/i.test(gpuStr)) return "gfx1152";
+
+  // Ryzen AI CPU names: every SKU in each AI family shares its gfx target
+  // (AI 9 -> 1150, AI 7 -> 1152, AI 5 -> 1152 except 330 -> 1153), so matching
+  // by family is exact. The Ryzen/AI context is required: bare numbers like
+  // 350 also match unrelated cards such as Radeon RX 350.
+  if (/ryzen\s+ai\s+9\b/i.test(gpuStr)) return "gfx1150";
+  if (/ryzen\s+ai\s+7\b/i.test(gpuStr)) return "gfx1152";
+  if (/ryzen\s+ai\s+5\s+330/i.test(gpuStr)) return "gfx1153";
+  if (/ryzen\s+ai\s+5\b/i.test(gpuStr)) return "gfx1152";
+  if (/ryzen\s+7\s+7840/i.test(gpuStr)) return "gfx1103";
 
   // RDNA 3
-  if (/7900|w7900/i.test(gpuStr)) return "gfx1100";
-  if (/7800|7700|w7800|w7700/i.test(gpuStr)) return "gfx1101";
-  if (/7700s|7600s|7600m|7600|w7600|w7500/i.test(gpuStr)) return "gfx1102"; // Navi 33
-  if (/780m|760m|740m|phoenix|hawk\s*point|7840|7940|8840|8845|8640|8645|7640|7540|7440/i.test(gpuStr)) {
-    return "gfx1103";
-  }
+  if (/7900|w7900|w7800/i.test(gpuStr)) return "gfx1100";
+  if (/7700s|7600s|7600m/i.test(gpuStr)) return "gfx1102";
+  if (/7800|7700|w7700|v710/i.test(gpuStr)) return "gfx1101";
+  if (/7600|7650|w7600|w7500/i.test(gpuStr)) return "gfx1102";
+  if (/780m|760m|740m|phoenix|hawk\s*point/i.test(gpuStr)) return "gfx1103";
 
   // RDNA 2
-  if (/6800m|6800s/i.test(gpuStr)) return "gfx1031"; // Navi 22 laptop
+  if (/6800m/i.test(gpuStr)) return "gfx1031";
+  if (/6800s|6700s/i.test(gpuStr)) return "gfx1032";
   if (/6950|6900|6800|w6800/i.test(gpuStr)) return "gfx1030";
-  if (/6750|6700|w6700/i.test(gpuStr)) return "gfx1031";
-  if (/6650|6600|w6600/i.test(gpuStr)) return "gfx1032";
-  if (/6550|6500|6400|6300|w6400|w6300/i.test(gpuStr)) return "gfx1034"; // Navi 24
+  if (/6750|6700|6850/i.test(gpuStr)) return "gfx1031";
+  if (/6650|6600/i.test(gpuStr)) return "gfx1032";
+  if (/6500|6400/i.test(gpuStr)) return "gfx1034";
+  if (/6550|6450|6300/i.test(gpuStr)) return "gfx1034";
   if (/680m|660m|rembrandt/i.test(gpuStr)) return "gfx1035";
   if (/610m|mendocino|raphael|granite\s*ridge/i.test(gpuStr)) return "gfx1036";
 
   // RDNA 1
-  if (/5700|5600|navi\s*10/i.test(gpuStr)) return "gfx1010";
-  if (/5500|5300|navi\s*14/i.test(gpuStr)) return "gfx1012";
+  if (/pro\s*5600m/i.test(gpuStr)) return "gfx1011";
+  if (/5700|5600/i.test(gpuStr)) return "gfx1010";
+  if (/5500|5300/i.test(gpuStr)) return "gfx1012";
 
   // CDNA
-  if (/mi300/i.test(gpuStr)) return "gfx942";
+  if (/mi300|mi325/i.test(gpuStr)) return "gfx942";
   if (/mi250|mi210|mi200/i.test(gpuStr)) return "gfx90a";
   if (/mi100/i.test(gpuStr)) return "gfx908";
+
+  // 3. Fallback: generic names ("AMD Radeon Graphics") carry no model token.
+  // PCI device IDs are unambiguous: Strix 150E, Krackan 1114, Phoenix 15BF,
+  // Hawk 1900, Rembrandt 1681, Mendocino 1506, Raphael 164E, Granite Ridge 13C0.
+  if (!customGpuName) {
+    const pciGfx: Record<string, string> = {
+      "150e": "gfx1150",
+      "1114": "gfx1152",
+      "15bf": "gfx1103",
+      "1900": "gfx1103",
+      "1681": "gfx1035",
+      "1506": "gfx1036",
+      "164e": "gfx1036",
+      "13c0": "gfx1036",
+    };
+    for (const id of hw.pnpIds) {
+      const dev = /DEV_([0-9A-Fa-f]{4})/.exec(id)?.[1]?.toLowerCase();
+      if (dev && pciGfx[dev]) return pciGfx[dev];
+    }
+  }
 
   // Default desktop target for RDNA 3
   return "gfx1100";
