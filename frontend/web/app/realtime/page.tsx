@@ -1,6 +1,17 @@
 "use client";
 
-import { ChevronDown, Disc, Gauge, Layers, ListMusic, Play, Radio, Square, Wand2 } from "lucide-react";
+import {
+  Activity,
+  Disc,
+  Gauge,
+  Headphones,
+  Layers,
+  ListMusic,
+  Play,
+  RefreshCw,
+  Square,
+  Wand2,
+} from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -9,9 +20,12 @@ import {
   Card,
   CardHeader,
   Disclosure,
+  EMBEDDER_MODELS,
   EmbedderSelect,
+  IconButton,
   PitchMethodSelect,
   REALTIME_F0_METHODS,
+  StatTile,
   ToggleField,
   VoiceModelField,
 } from "@/components/ui";
@@ -89,6 +103,9 @@ export default function RealtimePage() {
   const [vad, setVad] = useState(true);
   const [inGain, setInGain] = useState(100);
   const [outGain, setOutGain] = useState(100);
+  const [monitorSelf, setMonitorSelf] = useState(false);
+  const [monitorVolume, setMonitorVolume] = useState(100);
+  const [outLevel, setOutLevel] = useState(0);
   // Post-process FX rack (parity with Gradio realtime tab: post_process + 10 pedalboard FX)
   const [postProcess, setPostProcess] = useState(false);
   const [reverb, setReverb] = useState(false);
@@ -146,8 +163,6 @@ export default function RealtimePage() {
 
   const speakers = useSpeakers(model);
 
-  const engineRunning = !!engine?.running;
-
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
@@ -160,6 +175,68 @@ export default function RealtimePage() {
     els: HTMLAudioElement[];
   } | null>(null);
   const streamEpochRef = useRef(0);
+  const outGainNodeRef = useRef<GainNode | null>(null);
+  const monitorGainNodeRef = useRef<GainNode | null>(null);
+  const outAnalyserRef = useRef<AnalyserNode | null>(null);
+  const micMeterTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const monitorElRef = useRef<HTMLAudioElement | null>(null);
+
+  // Keep local output/monitor gains in sync without reconnecting.
+  useEffect(() => {
+    if (outGainNodeRef.current) {
+      outGainNodeRef.current.gain.setTargetAtTime(
+        outGain / 100,
+        outGainNodeRef.current.context.currentTime,
+        0.02,
+      );
+    }
+  }, [outGain]);
+
+  useEffect(() => {
+    if (monitorGainNodeRef.current) {
+      const target = monitorSelf ? monitorVolume / 100 : 0;
+      monitorGainNodeRef.current.gain.setTargetAtTime(
+        target,
+        monitorGainNodeRef.current.context.currentTime,
+        0.02,
+      );
+    }
+    // (Re)trigger local playback within the user's gesture.
+    if (monitorSelf) monitorElRef.current?.play().catch(() => {});
+  }, [monitorSelf, monitorVolume]);
+
+  useEffect(() => {
+    return () => {
+      if (micMeterTimerRef.current) clearInterval(micMeterTimerRef.current);
+    };
+  }, []);
+
+  function startOutMeter() {
+    if (micMeterTimerRef.current) clearInterval(micMeterTimerRef.current);
+    const analyser = outAnalyserRef.current;
+    if (!analyser) return;
+    const buf = new Uint8Array(analyser.fftSize);
+    micMeterTimerRef.current = setInterval(() => {
+      try {
+        analyser.getByteTimeDomainData(buf);
+        let peak = 0;
+        for (let i = 0; i < buf.length; i++) {
+          const v = Math.abs(buf[i] - 128) / 128;
+          if (v > peak) peak = v;
+        }
+        setOutLevel(Math.round(Math.min(1, peak * 1.4) * 100));
+      } catch {
+        /* ignore */
+      }
+    }, 120);
+  }
+
+  function stopOutMeter() {
+    if (micMeterTimerRef.current) clearInterval(micMeterTimerRef.current);
+    micMeterTimerRef.current = null;
+    outAnalyserRef.current = null;
+    setOutLevel(0);
+  }
 
   const refreshEngine = useCallback(async () => {
     try {
@@ -175,22 +252,145 @@ export default function RealtimePage() {
       .then((m) => {
         setModels(m.models);
         setIndexes(m.indexes);
-        if (m.models.length > 0) handleModelSelect(m.models[0], m.indexes);
+        // Keep the current voice on manual refresh; otherwise prefer last
+        // session's model when it still exists.
+        const saved = savedModelRef.current;
+        const keep =
+          model && m.models.includes(model)
+            ? model
+            : saved && m.models.includes(saved)
+              ? saved
+              : (m.models[0] ?? "");
+        if (!keep) return;
+        let idx: string;
+        if (keep === model) {
+          idx = m.indexes.includes(index) ? index : matchIndex(keep, m.indexes);
+        } else {
+          const savedIdx = savedIndexRef.current;
+          idx =
+            keep === saved && savedIdx && m.indexes.includes(savedIdx)
+              ? savedIdx
+              : matchIndex(keep, m.indexes);
+        }
+        setModel(keep);
+        setIndex(idx);
+        if (keep !== model) setSid(0);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        settingsLoadedRef.current = true;
+      });
   }
 
   const configDebounceRef = useRef<Record<string, NodeJS.Timeout>>({});
 
+  // ---- Persisted settings (server config.json "realtime" section) ----
+  const settingsLoadedRef = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savedModelRef = useRef("");
+  const savedIndexRef = useRef("");
+  const settingsRef = useRef<Record<string, unknown>>({});
+
+  function applyRealtimeSettings(rt: Record<string, unknown>) {
+    const num = (v: unknown, min: number, max: number, fb: number) =>
+      typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fb;
+    const bool = (v: unknown, fb: boolean) => (typeof v === "boolean" ? v : fb);
+    const str = (v: unknown, fb = "") => (typeof v === "string" ? v : fb);
+    if (typeof rt.model_file === "string" && rt.model_file) savedModelRef.current = rt.model_file;
+    if (typeof rt.index_file === "string" && rt.index_file) savedIndexRef.current = rt.index_file;
+    setInDev(str(rt.input_device));
+    setOutDev(str(rt.output_device));
+    setPitch(num(rt.pitch, -24, 24, 0));
+    setIndexRate(num(rt.index_rate, 0, 1, 0));
+    setProtect(num(rt.protect, 0, 0.5, 0.5));
+    setVolumeEnvelope(num(rt.volume_envelope, 0, 1, 1));
+    setSid(Math.max(0, Math.round(num(rt.sid, 0, 63, 0))));
+    if (typeof rt.f0_method === "string" && REALTIME_F0_METHODS.includes(rt.f0_method))
+      setF0Method(rt.f0_method);
+    if (typeof rt.embedder_model === "string" && EMBEDDER_MODELS.includes(rt.embedder_model))
+      setEmbedder(rt.embedder_model);
+    setEmbedderCustom(str(rt.embedder_model_custom));
+    setAutotune(bool(rt.autotune, false));
+    setAutotuneStrength(num(rt.autotune_strength, 0, 1, 1));
+    setProposedPitch(bool(rt.proposed_pitch, false));
+    setProposedPitchThreshold(num(rt.proposed_pitch_threshold, 50, 1200, 155));
+    setCleanAudio(bool(rt.clean_audio, false));
+    setCleanStrength(num(rt.clean_strength, 0, 1, 0.5));
+    setChunkMs(num(rt.chunk_ms, 20, 1000, 30));
+    setAutoChunk(bool(rt.auto_chunk, true));
+    setCrossfade(num(rt.cross_fade_overlap_size, 0.05, 0.2, 0.05));
+    setExtraSize(num(rt.extra_convert_size, 0.1, 5, 2.5));
+    setSilent(num(rt.silent_threshold, -90, -60, -60));
+    setVad(bool(rt.vad_enabled, true));
+    setInGain(num(rt.input_audio_gain, 0, 200, 100));
+    setOutGain(num(rt.output_audio_gain, 0, 200, 100));
+    setMonitorSelf(bool(rt.monitor_enabled, false));
+    setMonitorVolume(num(rt.monitor_volume, 0, 200, 100));
+    setPostProcess(bool(rt.post_process, false));
+    setReverb(bool(rt.reverb, false));
+    setReverbRoomSize(num(rt.reverb_room_size, 0, 1, 0.5));
+    setReverbDamping(num(rt.reverb_damping, 0, 1, 0.5));
+    setReverbWetGain(num(rt.reverb_wet_level, 0, 1, 0.5));
+    setReverbDryGain(num(rt.reverb_dry_level, 0, 1, 0.5));
+    setReverbWidth(num(rt.reverb_width, 0, 1, 0.5));
+    setReverbFreezeMode(num(rt.reverb_freeze_mode, 0, 1, 0.5));
+    setPitchShiftFx(bool(rt.pitch_shift, false));
+    setPitchShiftSemitones(num(rt.pitch_shift_semitones, -12, 12, 0));
+    setLimiter(bool(rt.limiter, false));
+    setLimiterThreshold(num(rt.limiter_threshold, -60, 0, -6));
+    setLimiterReleaseTime(num(rt.limiter_release, 0.01, 1, 0.01));
+    setGainFx(bool(rt.gain, false));
+    setGainDb(num(rt.gain_db, -60, 60, 0));
+    setDistortion(bool(rt.distortion, false));
+    setDistortionGain(num(rt.distortion_gain, -60, 60, 25));
+    setChorus(bool(rt.chorus, false));
+    setChorusRate(num(rt.chorus_rate, 0, 100, 1.0));
+    setChorusDepth(num(rt.chorus_depth, 0, 1, 0.25));
+    setChorusCenterDelay(num(rt.chorus_delay, 7, 8, 7));
+    setChorusFeedback(num(rt.chorus_feedback, 0, 1, 0.0));
+    setChorusMix(num(rt.chorus_mix, 0, 1, 0.5));
+    setBitcrush(bool(rt.bitcrush, false));
+    setBitcrushBitDepth(Math.round(num(rt.bitcrush_bit_depth, 1, 32, 8)));
+    setClipping(bool(rt.clipping, false));
+    setClippingThreshold(num(rt.clipping_threshold, -60, 0, -6));
+    setCompressor(bool(rt.compressor, false));
+    setCompressorThreshold(num(rt.compressor_threshold, -60, 0, 0));
+    setCompressorRatio(num(rt.compressor_ratio, 1, 20, 1));
+    setCompressorAttack(num(rt.compressor_attack, 0, 100, 1.0));
+    setCompressorRelease(num(rt.compressor_release, 0.01, 100, 100));
+    setDelayFx(bool(rt.delay, false));
+    setDelaySeconds(num(rt.delay_seconds, 0, 5, 0.5));
+    setDelayFeedback(num(rt.delay_feedback, 0, 1, 0.0));
+    setDelayMix(num(rt.delay_mix, 0, 1, 0.5));
+    setRecPath(str(rt.record_audio_path, "assets/audios/record_audio.wav"));
+    if (
+      typeof rt.export_format === "string" &&
+      ["WAV", "MP3", "FLAC", "OGG", "M4A"].includes(rt.export_format)
+    )
+      setRecFormat(rt.export_format);
+  }
+
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch and unmount cleanup
   useEffect(() => {
     refreshEngine();
-    loadModels();
+    // Restore last session's settings before picking defaults.
+    void apiGet<{ realtime?: Record<string, unknown> }>("/api/realtime/config", { ttlMs: 0 })
+      .then((cfg) => {
+        if (cfg?.realtime) applyRealtimeSettings(cfg.realtime);
+      })
+      .catch(() => {})
+      .finally(() => loadModels());
     void apiSend("/api/realtime/prewarm", "POST").catch(() => {});
+    void enumDevices();
     const t = setInterval(refreshEngine, 5000);
     return () => {
       clearInterval(t);
       stopStream(true);
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+        void apiSend("/api/realtime/config", "PUT", settingsRef.current).catch(() => {});
+      }
       for (const timer of Object.values(configDebounceRef.current)) clearTimeout(timer);
     };
   }, []);
@@ -207,36 +407,37 @@ export default function RealtimePage() {
     setSid(0);
   }
 
-  async function startEngine() {
-    setMsg(t("Starting real-time audio service…"));
-    try {
-      await apiSend("/api/realtime/start", "POST");
-      setMsg(t("Real-time audio service running"));
-      refreshEngine();
-    } catch (e) {
-      setMsg(errMsg(e));
-    }
-  }
-
-  async function stopEngine() {
-    await apiSend("/api/realtime/stop", "POST").catch(() => {});
-    refreshEngine();
+  // Windows exposes each physical device up to 3 times ("Default - X",
+  // "Communications - X", "X"). Collapse those to one entry per device.
+  function dedupeDevices(devs: Array<{ id: string; label: string }>) {
+    const seen = new Set<string>();
+    return devs.filter((d) => {
+      const base = d.label.replace(/^(Default|Communications)\s*-\s*/i, "").trim() || d.label;
+      if (seen.has(base)) return false;
+      seen.add(base);
+      return true;
+    });
   }
 
   async function enumDevices() {
     try {
       await navigator.mediaDevices.getUserMedia({ audio: true });
       const devs = await navigator.mediaDevices.enumerateDevices();
-      setInputs(
+      const ins = dedupeDevices(
         devs
           .filter((d) => d.kind === "audioinput")
           .map((d, i) => ({ id: d.deviceId, label: d.label || `Input ${i + 1}` })),
       );
-      setOutputs(
+      const outs = dedupeDevices(
         devs
           .filter((d) => d.kind === "audiooutput")
           .map((d, i) => ({ id: d.deviceId, label: d.label || `Output ${i + 1}` })),
       );
+      setInputs(ins);
+      setOutputs(outs);
+      // Drop selections (e.g. restored from last session) that no longer exist.
+      setInDev((cur) => (cur && !ins.some((d) => d.id === cur) ? "" : cur));
+      setOutDev((cur) => (cur && !outs.some((d) => d.id === cur) ? "" : cur));
     } catch {
       setMsg(t("Microphone permission denied — device list unavailable."));
     }
@@ -245,16 +446,26 @@ export default function RealtimePage() {
   async function startStream() {
     if (connecting || sessRef.current) return;
     setMsg("");
-    if (!engine?.running) {
-      setMsg(t("Start the engine first."));
-      return;
-    }
     if (!model) {
       setMsg(t("Select a voice model."));
       return;
     }
     setConnecting(true);
     ++streamEpochRef.current;
+    // Start the backend engine on demand so there is no separate step.
+    if (!engine?.running) {
+      setMsg(t("Starting real-time audio service…"));
+      try {
+        await apiSend("/api/realtime/start", "POST");
+        const st = await apiGet<RtStatus>("/api/realtime/status", { ttlMs: 0 });
+        setEngine(st);
+        if (!st.running) throw new Error(t("Real-time audio service did not start."));
+      } catch (e) {
+        setConnecting(false);
+        setMsg(errMsg(e));
+        return;
+      }
+    }
     let openingStream: MediaStream | undefined;
     let openingContext: AudioContext | undefined;
     try {
@@ -292,6 +503,27 @@ export default function RealtimePage() {
       gain.gain.value = outGain / 100;
       playNode.connect(gain);
       const outputElements = await connectRealtimeOutput(ctx, gain, outDev);
+      // Local monitor: converted output -> monitor gain -> default playback
+      // device, independent of the selected output device (e.g. a virtual
+      // cable feeding a voice call). Keep muted until enabled to avoid feedback.
+      const monitorGain = ctx.createGain();
+      monitorGain.gain.value = monitorSelf ? monitorVolume / 100 : 0;
+      const monitorDest = ctx.createMediaStreamDestination();
+      playNode.connect(monitorGain);
+      monitorGain.connect(monitorDest);
+      const monitorEl = new Audio();
+      monitorEl.srcObject = monitorDest.stream;
+      monitorEl.play().catch(() => {
+        /* retried on user gesture via the monitor toggle/volume effect */
+      });
+      monitorElRef.current = monitorEl;
+      const outAnalyser = ctx.createAnalyser();
+      outAnalyser.fftSize = 512;
+      playNode.connect(outAnalyser);
+      outGainNodeRef.current = gain;
+      monitorGainNodeRef.current = monitorGain;
+      outAnalyserRef.current = outAnalyser;
+      startOutMeter();
 
       const ws = new WebSocket(apiWs("/api/realtime/ws-audio"));
       ws.binaryType = "arraybuffer";
@@ -334,7 +566,13 @@ export default function RealtimePage() {
           underrunMs: (stats.underrunFrames / ctx.sampleRate) * 1000,
         });
       };
-      sessRef.current = { ws, ctx, stream, nodes: [src, inNode, playNode, gain], els: outputElements };
+      sessRef.current = {
+        ws,
+        ctx,
+        stream,
+        nodes: [src, inNode, playNode, gain, monitorGain, monitorDest, outAnalyser],
+        els: outputElements,
+      };
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
@@ -469,9 +707,57 @@ export default function RealtimePage() {
   const reconnectRef = useRef(startStream);
   reconnectRef.current = startStream;
 
+  // Latest controls for tray-driven start/stop (Electron) and autostart.
+  const controlRef = useRef({ start: () => {}, stop: (_silent?: boolean) => {} });
+  controlRef.current = {
+    start: () => void startStream(),
+    stop: (silent = false) => stopStream(silent),
+  };
+  const trayAutoStartedRef = useRef(false);
+
+  // Tray commands from the desktop shell (no-op in the browser).
+  useEffect(() => {
+    const bridge = (
+      window as unknown as {
+        applio?: { onRealtimeCommand?: (cb: (action: "start" | "stop") => void) => () => void };
+      }
+    ).applio;
+    const off = bridge?.onRealtimeCommand?.((action) => {
+      if (action === "stop") controlRef.current.stop(false);
+      else controlRef.current.start();
+    });
+    return () => off?.();
+  }, []);
+
+  // Tray "Start Realtime" navigates here with #autostart when the tab is not
+  // mounted yet: begin streaming once settings and the voice are ready.
+  useEffect(() => {
+    if (trayAutoStartedRef.current) return;
+    if (typeof window === "undefined" || window.location.hash !== "#autostart") return;
+    if (!settingsLoadedRef.current || !model) return;
+    trayAutoStartedRef.current = true;
+    window.history.replaceState(null, "", window.location.pathname);
+    controlRef.current.start();
+  });
+
   function stopStream(silentStop = false) {
     ++streamEpochRef.current;
     setConnecting(false);
+    stopOutMeter();
+    outGainNodeRef.current = null;
+    monitorGainNodeRef.current = null;
+    const mel = monitorElRef.current;
+    monitorElRef.current = null;
+    try {
+      mel?.pause();
+    } catch {
+      /* noop */
+    }
+    try {
+      if (mel) mel.srcObject = null;
+    } catch {
+      /* noop */
+    }
     const s = sessRef.current;
     sessRef.current = null;
     try {
@@ -506,6 +792,12 @@ export default function RealtimePage() {
       /* noop */
     }
     setStreaming(false);
+    // The backend also stops the engine when the audio socket closes, but
+    // stop it explicitly so no dead service lingers (including a prewarmed
+    // engine when leaving the page without ever streaming).
+    void apiSend("/api/realtime/stop", "POST")
+      .catch(() => {})
+      .finally(() => refreshEngine());
     if (!silentStop) setMsg(t("Stopped."));
   }
 
@@ -539,8 +831,8 @@ export default function RealtimePage() {
 
   async function toggleRecord() {
     setMsg("");
-    if (!engine?.running) {
-      setMsg(t("Start the engine first."));
+    if (!streaming) {
+      setMsg(t("Start streaming first."));
       return;
     }
     try {
@@ -559,6 +851,95 @@ export default function RealtimePage() {
       setMsg(errMsg(e));
     }
   }
+
+  // Snapshot of every persistable setting. Serialized so the debounced
+  // save effect below has a single stable dependency.
+  const settingsSnapshot: Record<string, unknown> = {
+    model_file: model,
+    index_file: index,
+    input_device: inDev,
+    output_device: outDev,
+    pitch,
+    index_rate: indexRate,
+    protect,
+    volume_envelope: volumeEnvelope,
+    sid,
+    f0_method: f0Method,
+    embedder_model: embedder,
+    embedder_model_custom: embedderCustom,
+    autotune,
+    autotune_strength: autotuneStrength,
+    proposed_pitch: proposedPitch,
+    proposed_pitch_threshold: proposedPitchThreshold,
+    clean_audio: cleanAudio,
+    clean_strength: cleanStrength,
+    chunk_ms: chunkMs,
+    auto_chunk: autoChunk,
+    cross_fade_overlap_size: crossfade,
+    extra_convert_size: extraSize,
+    silent_threshold: silent,
+    vad_enabled: vad,
+    input_audio_gain: inGain,
+    output_audio_gain: outGain,
+    monitor_enabled: monitorSelf,
+    monitor_volume: monitorVolume,
+    post_process: postProcess,
+    reverb,
+    reverb_room_size: reverbRoomSize,
+    reverb_damping: reverbDamping,
+    reverb_wet_level: reverbWetGain,
+    reverb_dry_level: reverbDryGain,
+    reverb_width: reverbWidth,
+    reverb_freeze_mode: reverbFreezeMode,
+    pitch_shift: pitchShiftFx,
+    pitch_shift_semitones: pitchShiftSemitones,
+    limiter,
+    limiter_threshold: limiterThreshold,
+    limiter_release: limiterReleaseTime,
+    gain: gainFx,
+    gain_db: gainDb,
+    distortion,
+    distortion_gain: distortionGain,
+    chorus,
+    chorus_rate: chorusRate,
+    chorus_depth: chorusDepth,
+    chorus_delay: chorusCenterDelay,
+    chorus_feedback: chorusFeedback,
+    chorus_mix: chorusMix,
+    bitcrush,
+    bitcrush_bit_depth: bitcrushBitDepth,
+    clipping,
+    clipping_threshold: clippingThreshold,
+    compressor,
+    compressor_threshold: compressorThreshold,
+    compressor_ratio: compressorRatio,
+    compressor_attack: compressorAttack,
+    compressor_release: compressorRelease,
+    delay: delayFx,
+    delay_seconds: delaySeconds,
+    delay_feedback: delayFeedback,
+    delay_mix: delayMix,
+    record_audio_path: recPath,
+    export_format: recFormat,
+  };
+  settingsRef.current = settingsSnapshot;
+  const settingsKey = JSON.stringify(settingsSnapshot);
+
+  useEffect(() => {
+    if (!settingsLoadedRef.current) return;
+    // No cleanup clear here: the mount effect flushes any pending save on
+    // unmount, and a stray fire-and-forget PUT after unmount is harmless.
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveTimerRef.current = null;
+      try {
+        const body = JSON.parse(settingsKey) as Record<string, unknown>;
+        void apiSend("/api/realtime/config", "PUT", body).catch(() => {});
+      } catch {
+        /* noop */
+      }
+    }, 800);
+  }, [settingsKey]);
 
   return (
     <div className="w-full max-w-[1920px] mx-auto space-y-6">
@@ -582,43 +963,6 @@ export default function RealtimePage() {
 
       <Stage
         step={1}
-        title={t("Engine")}
-        description={t("Start the real-time audio service on the backend.")}
-        icon={<Radio size={18} className="text-white" />}
-      >
-        <div className="flex items-center gap-3 flex-wrap">
-          {!engineRunning ? (
-            <Button onClick={startEngine} icon={<Play size={16} />}>
-              {t("Start Service")}
-            </Button>
-          ) : (
-            <Button variant="ghost" onClick={stopEngine} icon={<Square size={16} className="text-white" />}>
-              {t("Stop Service")}
-            </Button>
-          )}
-          <span className="text-xs text-neutral-400" role="status">
-            {engineRunning ? t("Service running") : t("Service stopped")}
-          </span>
-        </div>
-        {engine && engine.logs.length > 0 && (
-          <details className="mt-2 text-xs text-neutral-400 group">
-            <summary className="cursor-pointer hover:text-white transition-colors py-1 flex items-center gap-1 select-none">
-              <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
-              <span>{t("Activity Details")}</span>
-            </summary>
-            <pre
-              className="log mt-1 max-h-40 overflow-y-auto text-[11px] p-2 rounded-lg bg-black/40 border border-white/5 font-sans"
-              role="log"
-              aria-live="polite"
-            >
-              {engine.logs.slice(-10).join("\n")}
-            </pre>
-          </details>
-        )}
-      </Stage>
-
-      <Stage
-        step={2}
         title={t("Voice & Devices")}
         description={t("Pick the target voice model and your input/output devices.")}
         icon={<ListMusic size={18} className="text-white" />}
@@ -646,7 +990,7 @@ export default function RealtimePage() {
               onChange={(e) => setInDev(e.target.value)}
               className="w-full mt-1"
             >
-              <option value="">{t("Default")}</option>
+              <option value="">{t("System default input")}</option>
               {inputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -662,7 +1006,7 @@ export default function RealtimePage() {
               onChange={(e) => setOutDev(e.target.value)}
               className="w-full mt-1"
             >
-              <option value="">{t("Default")}</option>
+              <option value="">{t("System default output")}</option>
               {outputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -670,16 +1014,18 @@ export default function RealtimePage() {
               ))}
             </CustomSelect>
           </div>
-          <div className="flex items-end">
-            <Button variant="ghost" onClick={enumDevices} icon={<ListMusic size={14} />}>
-              {t("List Audio Devices")}
-            </Button>
+          <div className="flex items-end pb-1">
+            <IconButton
+              label={t("Refresh audio devices")}
+              icon={<RefreshCw size={14} />}
+              onClick={() => void enumDevices()}
+            />
           </div>
         </div>
       </Stage>
 
       <Stage
-        step={3}
+        step={2}
         title={t("Tune & Go Live")}
         description={t("Shape the voice, then start streaming from your microphone.")}
         icon={<Play size={18} className="text-white" />}
@@ -945,7 +1291,10 @@ export default function RealtimePage() {
                 max={200}
                 step={1}
                 unit="%"
-                onChange={setInGain}
+                onChange={(v) => {
+                  setInGain(v);
+                  if (streaming) changeConfigDebounced("input_audio_gain", v);
+                }}
               />
             </div>
             <div>
@@ -971,6 +1320,50 @@ export default function RealtimePage() {
             }}
             className="mt-3"
           />
+        </Disclosure>
+        <Disclosure title={t("Monitor")} icon={<Headphones size={15} />}>
+          <ToggleField
+            id="rt-monitor-enabled"
+            label={t("Hear myself")}
+            description={t(
+              "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
+            )}
+            checked={monitorSelf}
+            onChange={setMonitorSelf}
+          />
+          {monitorSelf && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+              <SliderField
+                id="rt-monitor-volume"
+                label={t("Monitor volume")}
+                value={monitorVolume}
+                min={0}
+                max={200}
+                step={1}
+                unit="%"
+                onChange={setMonitorVolume}
+                description={t("Local playback volume. Does not change the streamed output.")}
+              />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
+                  <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
+                    {streaming || connecting ? `${outLevel}%` : "—"}
+                  </span>
+                </div>
+                <meter
+                  className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
+                  min={0}
+                  max={100}
+                  value={streaming || connecting ? outLevel : 0}
+                  aria-label={t("Output level")}
+                />
+                <p className="text-[11px] text-neutral-400 m-0 leading-tight">
+                  {t("Use headphones to avoid feedback when monitoring.")}
+                </p>
+              </div>
+            </div>
+          )}
         </Disclosure>
         <Disclosure
           title={t("Post-Process")}
@@ -1477,8 +1870,8 @@ export default function RealtimePage() {
             </div>
           )}
         </Disclosure>
-        <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
-          <div className="flex items-center gap-3">
+        <div className="space-y-4 pt-3 border-t border-white/5">
+          <div className="flex items-center gap-3 flex-wrap">
             {!streaming ? (
               <Button onClick={startStream} disabled={connecting} icon={<Play size={16} />}>
                 {connecting ? t("Preparing…") : t("Start Streaming")}
@@ -1492,32 +1885,76 @@ export default function RealtimePage() {
                 {t("Stop Streaming")}
               </Button>
             )}
-          </div>
-          {streaming && (
-            <>
-              <span className="text-xs text-neutral-400 tabular-nums" role="status" aria-live="polite">
-                {t("Processing")} {latency.toFixed(0)}ms · {t("Round trip")} {roundTrip.toFixed(0)}ms · volume{" "}
-                {volume.toFixed(0)}dB
+            <Badge variant={streaming ? "success" : "neutral"} dot>
+              {streaming ? t("live") : connecting ? t("connecting…") : t("idle")}
+            </Badge>
+            {msg && (
+              <span className="text-xs text-neutral-400" role="status">
+                {msg}
               </span>
-              <details className="text-xs text-[var(--muted)]">
-                <summary className="cursor-pointer">{t("Audio diagnostics")}</summary>
-                <p className="my-2">
-                  {t("Estimated audio delay")}: {diagnostics.estimatedMs.toFixed(0)}ms · {t("Playback queue")}
-                  : {diagnostics.playbackQueuedMs.toFixed(0)}ms · {t("Waiting blocks")}:{" "}
-                  {diagnostics.queuedBlocks}
-                </p>
-                <p className="my-2">
-                  {t("Dropped input blocks")}: {diagnostics.droppedBlocks} · {t("Dropped playback")}:{" "}
-                  {diagnostics.playbackDroppedMs.toFixed(0)}ms · {t("Playback underruns")}:{" "}
-                  {diagnostics.underrunMs.toFixed(0)}ms
-                </p>
-                <p className="my-2">
-                  {t(
-                    "Estimated delay includes capture, transport and reported output buffering. Device latency can differ.",
-                  )}
-                </p>
-              </details>
-            </>
+            )}
+          </div>
+
+          {streaming && (
+            <div
+              className="rounded-xl bg-black/30 border border-white/5 p-3 space-y-3"
+              role="status"
+              aria-live="polite"
+              aria-label={t("Live status")}
+            >
+              <div className="flex items-center justify-between gap-3 flex-wrap">
+                <div className="flex items-center gap-2">
+                  <Activity size={15} className="text-white shrink-0" aria-hidden="true" />
+                  <p className="text-xs font-medium text-white m-0">{t("Live status")}</p>
+                </div>
+                <Badge
+                  variant={
+                    diagnostics.droppedBlocks > 10 || diagnostics.underrunMs > 500
+                      ? "danger"
+                      : diagnostics.playbackQueuedMs > 300 || diagnostics.underrunMs > 50
+                        ? "warning"
+                        : "success"
+                  }
+                  dot
+                >
+                  {diagnostics.droppedBlocks > 10 || diagnostics.underrunMs > 500
+                    ? t("unstable")
+                    : diagnostics.playbackQueuedMs > 300 || diagnostics.underrunMs > 50
+                      ? t("buffering")
+                      : t("healthy")}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
+                <StatTile label={t("Processing")} value={`${latency.toFixed(0)} ms`} />
+                <StatTile label={t("Round trip")} value={`${roundTrip.toFixed(0)} ms`} />
+                <StatTile
+                  label={t("Voice level")}
+                  value={volume > 0 ? `${(20 * Math.log10(volume)).toFixed(1)} dB` : "−∞ dB"}
+                />
+                <StatTile label={t("Estimated delay")} value={`${diagnostics.estimatedMs.toFixed(0)} ms`} />
+                <StatTile
+                  label={t("Playback queue")}
+                  value={`${diagnostics.playbackQueuedMs.toFixed(0)} ms`}
+                />
+                <StatTile label={t("Waiting blocks")} value={String(diagnostics.queuedBlocks)} />
+                <StatTile label={t("Dropped input")} value={String(diagnostics.droppedBlocks)} />
+                <StatTile
+                  label={t("Dropped playback")}
+                  value={`${diagnostics.playbackDroppedMs.toFixed(0)} ms`}
+                />
+                <StatTile label={t("Underruns")} value={`${diagnostics.underrunMs.toFixed(0)} ms`} />
+                <StatTile
+                  label={t("Chunk")}
+                  value={`${chunkMs} ms`}
+                  subtext={autoChunk ? t("auto") : undefined}
+                />
+              </div>
+              <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
+                {t(
+                  "Delay combines capture, transport and output buffering. If underruns or dropped blocks grow, raise the chunk size or close heavy apps.",
+                )}
+              </p>
+            </div>
           )}
         </div>
       </Stage>

@@ -3,7 +3,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, nativeImage, shell } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, session, shell, Tray } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 import { waitFor } from "./startup";
@@ -12,6 +12,10 @@ import { waitFor } from "./startup";
 // (~/.config/Applio on Linux) instead of the npm package name.
 app.setName("Applio");
 if (process.platform === "win32") app.setAppUserModelId("Applio");
+
+// Realtime can stream from a hidden/minimized window (tray start): audio
+// playback and capture must not require a visible page or click gesture.
+app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
 
 try {
   process.env.APPLIO_LOCALE ??= app.getLocale();
@@ -1192,6 +1196,233 @@ function primeStartupData(): void {
       .catch(() => {});
 }
 
+// ---- System tray: Open Applio, Start/Stop Realtime, Quit ----
+let tray: Tray | null = null;
+let isQuitting = false;
+let realtimeRunning = false;
+let realtimeStreaming = false;
+let trayRefreshTimer: NodeJS.Timeout | null = null;
+
+function focusMainWindow(): void {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+    return;
+  }
+  void createWindow();
+}
+
+async function openRealtimePage(): Promise<void> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    await createWindow();
+  }
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.show();
+  mainWindow.focus();
+  const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
+  try {
+    if (!mainWindow.webContents.getURL().includes("/realtime")) {
+      await mainWindow.loadURL(`${base}realtime`);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+interface RealtimeTrayState {
+  engine: boolean;
+  streaming: boolean;
+}
+
+async function fetchRealtimeState(): Promise<RealtimeTrayState | null> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${API_PORT}/api/realtime/status`, {
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      running?: unknown;
+      scheduling?: { realtime?: unknown };
+    };
+    return {
+      engine: body.running === true,
+      streaming: body.scheduling?.realtime === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildTrayMenu(): void {
+  if (!tray || tray.isDestroyed()) return;
+  const menu = Menu.buildFromTemplate([
+    { label: "Open Applio", click: () => focusMainWindow() },
+    { label: "Open Realtime", click: () => void openRealtimePage() },
+    { type: "separator" },
+    {
+      label: "Start Realtime",
+      enabled: !realtimeStreaming,
+      click: () => void setRealtimeFromTray("start"),
+    },
+    {
+      label: "Stop Realtime",
+      enabled: realtimeStreaming || realtimeRunning,
+      click: () => void setRealtimeFromTray("stop"),
+    },
+    { type: "separator" },
+    {
+      label: "Quit Applio",
+      click: () => {
+        isQuitting = true;
+        app.quit();
+      },
+    },
+  ]);
+  tray.setContextMenu(menu);
+  try {
+    tray.setToolTip(
+      realtimeStreaming ? "Applio · Realtime ON" : realtimeRunning ? "Applio · Engine ready" : "Applio",
+    );
+  } catch {
+    /* ignore */
+  }
+}
+
+async function refreshTrayState(): Promise<void> {
+  const st = await fetchRealtimeState();
+  if (st !== null) {
+    realtimeRunning = st.engine;
+    realtimeStreaming = st.streaming;
+  }
+  buildTrayMenu();
+}
+
+// One-click realtime for gamers: drive the stream from the (possibly hidden)
+// main window so no window juggling is needed. Returns true once audio flows.
+async function setRealtimeFromTray(action: "start" | "stop"): Promise<void> {
+  try {
+    tray?.setToolTip(`Applio · ${action === "start" ? "Starting" : "Stopping"} realtime…`);
+  } catch {
+    /* ignore */
+  }
+  try {
+    if (action === "start") {
+      if (!(await ensureRealtimePage())) throw new Error("Could not open the Realtime tab");
+      sendRealtimeCommand("start");
+      // Starting boots the engine (up to ~30s) before audio flows.
+      const deadline = Date.now() + 75000;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const st = await fetchRealtimeState();
+        if (st?.streaming) break;
+        if (Date.now() > deadline) throw new Error("Audio did not start — open the Realtime tab to see why");
+      }
+    } else {
+      sendRealtimeCommand("stop");
+      // Belt and braces: also stop the engine directly in case the tab
+      // is not on the realtime page (its own stop does the same).
+      await fetch(`http://127.0.0.1:${API_PORT}/api/realtime/stop`, {
+        method: "POST",
+        signal: AbortSignal.timeout(15000),
+      }).catch(() => {});
+      const deadline = Date.now() + 20000;
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1000));
+        const st = await fetchRealtimeState();
+        if (st === null || (!st.streaming && !st.engine)) break;
+        if (Date.now() > deadline) throw new Error("Realtime did not stop in time");
+      }
+    }
+    if (Notification.isSupported()) {
+      new Notification({
+        title: "Applio",
+        body: action === "start" ? "Realtime ON — speak, your voice is live." : "Realtime OFF.",
+      }).show();
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[tray] realtime ${action} failed:`, message);
+    if (Notification.isSupported()) {
+      new Notification({ title: "Applio", body: `Could not ${action} realtime: ${message}` }).show();
+    }
+  } finally {
+    await refreshTrayState();
+  }
+}
+
+function sendRealtimeCommand(action: "start" | "stop"): void {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("realtime:command", action);
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+// Make sure the main window sits on the realtime tab (hidden is fine — the
+// stream runs from the page). Falls back to a full load with an autostart
+// hash that the page consumes on mount.
+async function ensureRealtimePage(): Promise<boolean> {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    await createWindow();
+  }
+  if (!mainWindow || mainWindow.isDestroyed()) return false;
+  try {
+    if (!mainWindow.webContents.getURL().includes("/realtime")) {
+      const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
+      await mainWindow.loadURL(`${base}realtime#autostart`);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function createTray(): void {
+  if (tray && !tray.isDestroyed()) return;
+  const iconPath = appIconPath();
+  if (!iconPath) {
+    console.warn("[tray] no app icon found, skipping tray");
+    return;
+  }
+  try {
+    let icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) {
+      console.warn("[tray] could not load tray icon");
+      return;
+    }
+    if (process.platform === "win32") {
+      icon = icon.resize({ width: 16, height: 16 });
+    }
+    tray = new Tray(icon);
+    tray.setToolTip("Applio");
+    tray.on("click", () => focusMainWindow());
+    buildTrayMenu();
+    void refreshTrayState();
+    trayRefreshTimer = setInterval(() => void refreshTrayState(), 5000);
+    trayRefreshTimer.unref?.();
+  } catch (err) {
+    console.warn("[tray] failed to create tray:", err);
+    tray = null;
+  }
+}
+
+function destroyTray(): void {
+  if (trayRefreshTimer) {
+    clearInterval(trayRefreshTimer);
+    trayRefreshTimer = null;
+  }
+  try {
+    tray?.destroy();
+  } catch {
+    /* ignore */
+  }
+  tray = null;
+}
+
 async function createWindow(): Promise<void> {
   const startupStarted = performance.now();
   showSplash();
@@ -1315,6 +1546,8 @@ async function createWindow(): Promise<void> {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
+      // Realtime keeps streaming while minimized/hidden to the tray.
+      backgroundThrottling: false,
     },
   });
 
@@ -1394,8 +1627,14 @@ async function createWindow(): Promise<void> {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
-  mainWindow.on("close", () => {
+  mainWindow.on("close", (event) => {
     saveWindowState();
+    // Keep running in the tray (realtime keeps working); Quit from the
+    // tray menu for a full exit.
+    if (!isQuitting) {
+      event.preventDefault();
+      mainWindow?.hide();
+    }
   });
 
   // Check for updates on startup
@@ -1558,6 +1797,29 @@ if (!gotLock) {
   }
   app.whenReady().then(() => {
     initAutoUpdater();
+    // Explicit mic grant for our local UI so background (tray-driven)
+    // streaming is never stuck on a permission prompt.
+    try {
+      session.defaultSession.setPermissionRequestHandler(
+        (webContents, permission, callback, details) => {
+          try {
+            if (permission === "media") {
+              const url = details.requestingUrl || webContents.getURL();
+              if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) {
+                callback(true);
+                return;
+              }
+            }
+          } catch {
+            /* fall through to deny */
+          }
+          callback(false);
+        },
+      );
+    } catch {
+      /* non-fatal */
+    }
+    createTray();
     return createWindow();
   });
 }
@@ -1573,6 +1835,8 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
+  isQuitting = true;
+  destroyTray();
   apiProc?.kill();
   webProc?.kill();
 });

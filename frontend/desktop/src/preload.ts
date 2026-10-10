@@ -37,6 +37,7 @@ export interface ApplioBridge {
   restartAfterSetup: (jobId: string) => Promise<void>;
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
   onJobOpen: (listener: (href: string) => void) => () => void;
+  onRealtimeCommand: (listener: (action: "start" | "stop") => void) => () => void;
 }
 
 declare global {
@@ -56,6 +57,11 @@ contextBridge.exposeInMainWorld("applio", {
     const handler = (_event: unknown, href: string) => listener(href);
     ipcRenderer.on("job:open", handler);
     return () => ipcRenderer.removeListener("job:open", handler);
+  },
+  onRealtimeCommand: (listener: (action: "start" | "stop") => void) => {
+    const handler = (_event: unknown, action: "start" | "stop") => listener(action);
+    ipcRenderer.on("realtime:command", handler);
+    return () => ipcRenderer.removeListener("realtime:command", handler);
   },
   controls: {
     minimize: () => ipcRenderer.send("window:minimize"),
