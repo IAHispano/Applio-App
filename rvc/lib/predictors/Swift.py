@@ -188,6 +188,56 @@ class SwiftPredictor:
         timestamps = np.arange(len(pitch)) * FRAME_PERIOD
         return timestamps, pitch, confidence
 
+    @staticmethod
+    def _repair_subharmonics(pitch, confidence, frame_period=0.016):
+        pitch = np.asarray(pitch, dtype=np.float64)
+        confidence = np.asarray(confidence, dtype=np.float64)
+        corrected = pitch.copy()
+        repaired = np.zeros(len(pitch), dtype=bool)
+        i = 1
+        while i < len(pitch) - 1:
+            if not np.isfinite(pitch[i - 1 : i + 1]).all() or np.any(
+                pitch[i - 1 : i + 1] <= 0
+            ):
+                i += 1
+                continue
+            if confidence[i - 1] < 0.5 or not 0.3 <= confidence[i] < 0.95:
+                i += 1
+                continue
+            ratio = pitch[i - 1] / pitch[i]
+            factor = min((2, 3), key=lambda value: abs(np.log2(ratio / value)))
+            if abs(1200 * np.log2(ratio / factor)) > 100:
+                i += 1
+                continue
+            j = i
+            while j < len(pitch) and (j - i) * frame_period < 1.0:
+                if (
+                    not np.isfinite(pitch[j])
+                    or pitch[j] <= 0
+                    or not 0.3 <= confidence[j] < 0.95
+                ):
+                    break
+                previous = pitch[i - 1] if j == i else pitch[j - 1] * factor
+                if abs(1200 * np.log2(pitch[j] * factor / previous)) > 100:
+                    break
+                j += 1
+            if (
+                j > i
+                and j < len(pitch)
+                and np.isfinite(pitch[j])
+                and pitch[j] > 0
+                and confidence[j] >= 0.5
+            ):
+                return_error = abs(1200 * np.log2(pitch[j] / (pitch[j - 1] * factor)))
+                anchor_error = abs(1200 * np.log2(pitch[j] / pitch[i - 1]))
+                if return_error <= 100 and anchor_error <= 150:
+                    corrected[i:j] *= factor
+                    repaired[i:j] = True
+                    i = j + 1
+                    continue
+            i += 1
+        return corrected, repaired
+
     def infer_from_audio(
         self,
         audio,
@@ -223,6 +273,10 @@ class SwiftPredictor:
 
         target_timestamps = np.arange(p_len) * (hop_size / sample_rate)
         threshold = float(thred) if thred is not None else 0.5
+        corrected, repaired = self._repair_subharmonics(pitch, confidence, FRAME_PERIOD)
+        repaired &= (corrected >= f0_min) & (corrected <= f0_max)
+        pitch = np.where(repaired, corrected, pitch)
+        confidence = np.where(repaired, np.maximum(confidence, threshold), confidence)
 
         conf_interp = np.interp(
             target_timestamps,
@@ -231,15 +285,15 @@ class SwiftPredictor:
             left=0.0,
             right=0.0,
         )
-        voiced = confidence >= threshold
+        voiced = (confidence >= threshold) & np.isfinite(pitch) & (pitch > 0)
 
         if np.any(voiced):
-            pitch_interp = np.interp(
-                target_timestamps,
-                timestamps[voiced],
-                pitch[voiced],
-                left=pitch[voiced][0],
-                right=pitch[voiced][-1],
+            pitch_interp = np.exp2(
+                np.interp(
+                    target_timestamps,
+                    timestamps[voiced],
+                    np.log2(pitch[voiced]),
+                )
             )
             pitch_interp[conf_interp < threshold] = 0.0
         else:

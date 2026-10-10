@@ -609,7 +609,8 @@ def create_pipeline(
     #     .replace("trained", "added")
 
     index = IndexWrapper(
-        index_path.strip()
+        (index_path or "")
+        .strip()
         .strip('"')
         .strip("\n")
         .strip('"')

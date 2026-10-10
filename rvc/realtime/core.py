@@ -408,7 +408,8 @@ class Realtime:
         return audio_out, vol, False
 
     def __del__(self):
-        del self.pipeline
+        if hasattr(self, "pipeline"):
+            del self.pipeline
 
 
 class VoiceChanger:

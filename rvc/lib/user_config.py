@@ -10,6 +10,9 @@ import tempfile
 
 def config_path():
     """Match app/api/src/config.ts, including headless/portable overrides."""
+    file_override = os.environ.get("APPLIO_CONFIG_FILE")
+    if file_override:
+        return Path(file_override).resolve()
     override = os.environ.get("APPLIO_CONFIG_DIR")
     if override:
         directory = Path(override).resolve()

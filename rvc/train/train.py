@@ -131,7 +131,7 @@ if is_amd:
         pass
 else:
     torch.backends.cudnn.deterministic = False
-    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.benchmark = os.name == "nt"
     # TF32 settings, should improve performance in some cases
     try:
         torch.set_float32_matmul_precision("high")
