@@ -34,6 +34,7 @@ export interface ApplioBridge {
   controls: WindowControls;
   updater: UpdaterBridge;
   chooseFolder: (defaultPath?: string) => Promise<string | null>;
+  restartAfterSetup: (jobId: string) => Promise<void>;
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
   onJobOpen: (listener: (href: string) => void) => () => void;
 }
@@ -48,6 +49,7 @@ contextBridge.exposeInMainWorld("applio", {
   platform: process.platform,
   versions: process.versions,
   chooseFolder: (defaultPath?: string) => ipcRenderer.invoke("dialog:choose-folder", defaultPath),
+  restartAfterSetup: (jobId: string) => ipcRenderer.invoke("setup:restart", jobId),
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) =>
     ipcRenderer.invoke("job:notify", value),
   onJobOpen: (listener: (href: string) => void) => {

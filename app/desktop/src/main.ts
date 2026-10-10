@@ -5,6 +5,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, nativeImage, shell } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
+import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
@@ -1417,6 +1418,38 @@ async function createWindow(): Promise<void> {
 }
 
 // Window control handlers
+let setupRestartPending = false;
+ipcMain.handle("setup:restart", async (event, jobId: unknown) => {
+  if (
+    !BrowserWindow.fromWebContents(event.sender) ||
+    typeof jobId !== "string" ||
+    !jobId ||
+    jobId.length > 100
+  ) {
+    throw new Error("Invalid setup restart request.");
+  }
+  if (setupRestartPending) return;
+  setupRestartPending = true;
+  try {
+    const response = await fetch(`http://127.0.0.1:${API_PORT}/api/jobs/${encodeURIComponent(jobId)}`, {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok || !isCompletedSetup((await response.json()).job)) {
+      throw new Error("Setup must finish successfully before restarting.");
+    }
+    await refreshSetupPath();
+    app.relaunch();
+    // Let the IPC reply reach the setup screen before shutting down its backends.
+    setTimeout(() => {
+      stopBackends();
+      app.quit();
+    }, 250);
+  } catch (error) {
+    setupRestartPending = false;
+    throw error;
+  }
+});
+
 const notifiedJobs = new Set<string>();
 ipcMain.handle("job:notify", (event, value: unknown) => {
   const win = BrowserWindow.fromWebContents(event.sender);

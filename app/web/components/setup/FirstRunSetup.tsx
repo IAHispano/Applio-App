@@ -12,6 +12,10 @@ interface FirstRunSetupProps {
   onComplete: () => void;
 }
 
+function setupBridge() {
+  return (window as unknown as { applio?: { restartAfterSetup?: (jobId: string) => Promise<void> } }).applio;
+}
+
 export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const { t } = useI18n();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -19,6 +23,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
+  const [desktop, setDesktop] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const completionStarted = useRef(false);
 
   const autoStartedRef = useRef(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
@@ -27,6 +34,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   useEffect(() => {
     if (autoStartedRef.current) return;
     autoStartedRef.current = true;
+    setDesktop(typeof setupBridge()?.restartAfterSetup === "function");
 
     async function start() {
       setError("");
@@ -51,6 +59,12 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       (nextJob) => {
         setJob(nextJob);
         if (nextJob.status === "done") {
+          // The installer verifies readiness before completing. Restart desktop
+          // before doing another check with its inherited, pre-install environment.
+          if (setupBridge()?.restartAfterSetup) {
+            setCountdown(2);
+            return;
+          }
           // Verify final status before starting the launch countdown.
           apiGet<SetupStatus>("/api/setup/status?refresh=1", { force: true })
             .then((status) => {
@@ -104,22 +118,44 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       });
   }, [processedLogs, t]);
 
-  // Countdown to launch Applio
+  const finishSetup = useCallback(async () => {
+    if (!jobId || job?.status !== "done" || completionStarted.current) return;
+    completionStarted.current = true;
+    setCountdown(null);
+    const restart = setupBridge()?.restartAfterSetup;
+    if (!restart) {
+      onComplete();
+      return;
+    }
+    setRestarting(true);
+    setError("");
+    try {
+      await restart(jobId);
+    } catch (err) {
+      completionStarted.current = false;
+      setRestarting(false);
+      setError(errMsg(err));
+    }
+  }, [jobId, job?.status, onComplete]);
+
+  // Countdown to restart desktop or launch the browser UI.
   useEffect(() => {
     if (countdown === null) return;
     if (countdown <= 0) {
-      onComplete();
+      void finishSetup();
       return;
     }
     const t = setTimeout(() => setCountdown(countdown - 1), 1000);
     return () => clearTimeout(t);
-  }, [countdown, onComplete]);
+  }, [countdown, finishSetup]);
 
   // Retry setup
   async function retry() {
     setError("");
     setJob(null);
     setCountdown(null);
+    completionStarted.current = false;
+    setRestarting(false);
     latched.current = {};
     try {
       const { jobId: id } = await apiSend<{ jobId: string }>("/api/setup/install", "POST");
@@ -438,13 +474,19 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           <div className="flex justify-end pt-1 animate-in fade-in duration-300">
             <Button
               size="md"
-              onClick={onComplete}
+              onClick={() => void finishSetup()}
+              disabled={restarting || (!desktop && countdown === null && !!error)}
               className="w-full sm:w-auto shadow-xl px-6"
               iconAfter={<ArrowRight size={16} />}
             >
-              {countdown !== null
-                ? t("Entering Applio (%ss)…").replace("%s", String(countdown))
-                : t("Launch Applio")}
+              {restarting
+                ? t("Restarting Applio…")
+                : countdown !== null
+                  ? t(desktop ? "Restarting Applio (%ss)…" : "Entering Applio (%ss)…").replace(
+                      "%s",
+                      String(countdown),
+                    )
+                  : t(desktop ? "Restart Applio" : "Launch Applio")}
             </Button>
           </div>
         )}
