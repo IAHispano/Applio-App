@@ -130,7 +130,7 @@ pnpm desktop:dev  # full Electron shell instead of just the browser UI
 
 First run: open the app, press **Install / Repair** on the setup screen (creates `.venv`, installs torch + requirements, builds the UI).
 
-RVC comes directly from the pinned Applio submodule. See [backend development](docs/backend-sync.md) for updating it; UVR stays in this app.
+RVC comes directly from the pinned Applio submodule. UVR stays in this app.
 
 ### User settings
 
