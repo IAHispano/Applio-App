@@ -56,13 +56,13 @@ jobs:
       # Python formatting runs BEFORE pnpm install so node_modules
       # doesn't even exist yet when black/autoflake scan the tree.
       - name: Run autoflake (Python)
-        run: autoflake --in-place --recursive --exclude=node_modules,.venv,venv,dist,build,.git,__pycache__,.next .
+        run: autoflake --in-place --recursive --exclude=backend,node_modules,.venv,venv,dist,build,.git,__pycache__,.next .
 
       - name: Run Black (Python)
         # NOTE: use --extend-exclude, NOT --exclude. --exclude would
         # override black's defaults (which skip node_modules, .venv,
         # dist, build, ...) and cause third-party code to be reformatted.
-        run: black . --extend-exclude=".*\.ipynb$"
+        run: black . --extend-exclude="backend/|.*\.ipynb$"
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile

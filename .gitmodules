@@ -1,0 +1,4 @@
+[submodule "backend/applio"]
+	path = backend/applio
+	url = https://github.com/IAHispano/Applio.git
+	branch = main

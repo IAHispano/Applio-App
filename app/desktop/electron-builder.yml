@@ -28,10 +28,14 @@ files:
       - ffprobe.exe
       - ffmpeg
       - ffprobe
-  - from: ../../rvc
-    to: rvc
+  - from: ../../backend/applio
+    to: backend/applio
     filter:
-      - "**/*"
+      - core.py
+      - requirements-engine.txt
+      - LICENSE
+      - "rvc/**/*"
+      - assets/config_template.json
       - "!**/__pycache__"
       - "!**/*.pyc"
       - "!**/.venv/**"

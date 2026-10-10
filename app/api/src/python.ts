@@ -305,6 +305,43 @@ export function getCodeRoot(): string {
   return getRepoRoot();
 }
 
+export function getBackendRoot(): string {
+  const root = path.resolve(process.env.APPLIO_BACKEND_ROOT || path.join(getCodeRoot(), "backend", "applio"));
+  if (!fs.existsSync(path.join(root, "rvc", "configs", "config.py"))) {
+    throw new Error("Applio backend missing. Run: git submodule update --init --recursive");
+  }
+  return root;
+}
+
+export function resolvePythonArgs(args: string[]): string[] {
+  if (!args.length) return args;
+  const script = args[0].replace(/\\/g, "/");
+  if (script.startsWith("rvc/") && script.endsWith(".py")) {
+    return [path.join(getBackendRoot(), script), ...args.slice(1)];
+  }
+  if ((script.startsWith("uvr/") || script.startsWith("tools/")) && script.endsWith(".py")) {
+    return [path.join(getCodeRoot(), script), ...args.slice(1)];
+  }
+  return args;
+}
+
+// Flatten relative -r includes before generating GPU-specific setup requirements.
+export function readPythonRequirements(file: string, ancestors = new Set<string>()): string {
+  const resolved = path.resolve(file);
+  if (ancestors.has(resolved)) throw new Error(`Circular requirements include: ${resolved}`);
+  const next = new Set(ancestors).add(resolved);
+  return fs
+    .readFileSync(resolved, "utf-8")
+    .split(/\r?\n/)
+    .map((line) => {
+      const include = line.trim().match(/^(?:-r\s*|--requirement(?:\s+|=))(.+)$/);
+      return include
+        ? readPythonRequirements(path.resolve(path.dirname(resolved), include[1].trim()), next)
+        : line;
+    })
+    .join("\n");
+}
+
 // Single source of truth for the installed app version. Tries the code root
 // first (packaged app), then the repo/data root (dev), then the bundled
 // sub-packages, then config_template.json (kept in sync by sync-version.mjs).
@@ -577,6 +614,11 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     }
   }
   const env: NodeJS.ProcessEnv = { ...process.env, PYTHONIOENCODING: "utf-8", ...extra };
+  const backend = getBackendRoot();
+  env.APPLIO_BACKEND_ROOT = backend;
+  env.APPLIO_ROOT = getRepoRoot();
+  env.APPLIO_CODE_ROOT = getCodeRoot();
+  env.PYTHONPATH = [backend, getCodeRoot(), env.PYTHONPATH].filter(Boolean).join(path.delimiter);
   env.APPLIO_LOGS_DIR = getLogsDir();
   env.PYTHONUNBUFFERED ??= "1";
   if (process.platform === "darwin") {
@@ -640,7 +682,7 @@ export function spawnPython(
   const py = getPythonBin();
   const pathEnv = `${cwd}${path.delimiter}${process.env.PATH || ""}`;
 
-  return spawn(py, args, {
+  return spawn(py, resolvePythonArgs(args), {
     cwd,
     detached: opts.detached ?? false,
     env: opts.env || pythonEnv({ PATH: pathEnv }),

@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
-import { getPythonBin, getRepoRoot, pythonEnv } from "@/python";
+import { getBackendRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 import type { BatchInferenceParams, InferenceParams, TtsParams } from "@/schemas";
 
 export interface SingleInferRequest {
@@ -136,7 +136,7 @@ export class InferenceWorkerManager {
   public start() {
     if (this.child && !this.child.killed) return;
     const repoRoot = getRepoRoot();
-    const workerScript = path.join(repoRoot, "rvc", "infer", "worker.py");
+    const workerScript = path.join(getBackendRoot(), "rvc", "infer", "worker.py");
     const pyBin = getPythonBin();
     const pathEnv = `${repoRoot}${path.delimiter}${process.env.PATH || ""}`;
 

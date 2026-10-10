@@ -15,6 +15,7 @@
 *.png
 *.safetensors
 *.log
+.cache
 
 assets/audios
 assets/datasets

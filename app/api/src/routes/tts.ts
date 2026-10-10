@@ -6,7 +6,14 @@ import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { buildTtsInferArgs } from "@/lib/inferArgs";
 import { txtUpload } from "@/lib/upload";
-import { getOutputsDir, getRepoRoot, getUploadsDir, resolveUserPath, runPythonModule } from "@/python";
+import {
+  getBackendRoot,
+  getOutputsDir,
+  getRepoRoot,
+  getUploadsDir,
+  resolveUserPath,
+  runPythonModule,
+} from "@/python";
 import { type TtsParams, ttsSchema } from "@/schemas";
 import { assertEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
@@ -41,7 +48,7 @@ router.get("/voices", (_req: Request, res: Response) => {
 const voicesCache: { mtimeMs: number; voices: TtsVoice[] } = { mtimeMs: 0, voices: [] };
 
 function loadVoicesCached(): TtsVoice[] {
-  const file = path.join(getRepoRoot(), "rvc", "lib", "tools", "tts_voices.json");
+  const file = path.join(getBackendRoot(), "rvc", "lib", "tools", "tts_voices.json");
   const stat = fs.statSync(file);
   if (voicesCache.voices.length > 0 && voicesCache.mtimeMs === stat.mtimeMs) {
     return voicesCache.voices;

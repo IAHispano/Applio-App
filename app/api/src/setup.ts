@@ -7,12 +7,15 @@ import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning }
 import { missingDefaultPretraineds } from "@/pretraineds";
 import {
   ensureWindowsRealPythonSync,
+  getBackendRoot,
   getCodeRoot,
   getLogsDir,
   getRepoRoot,
   getWindowsPythonCandidates,
   killProcessesInVenv,
   noEnv,
+  pythonEnv,
+  readPythonRequirements,
   refreshWindowsEnv,
   resolveBasePythonFromCfg,
 } from "@/python";
@@ -654,7 +657,7 @@ async function streamRun(
       cwd: root,
       windowsHide: true,
       shell: opts.shell || false,
-      env: { ...process.env, PATH: pathEnv, PYTHONIOENCODING: "utf-8", UV_HTTP_TIMEOUT: "300" },
+      env: pythonEnv({ PATH: pathEnv, UV_HTTP_TIMEOUT: "300" }),
     });
     const recentOutput: string[] = [];
     child.stdout?.on("data", (d: Buffer) => {
@@ -1228,11 +1231,13 @@ export function startInstall(): Job {
         }
       }
 
-      let effectiveReqFile = reqFile;
+      const resolvedReqContent = readPythonRequirements(shippedReq);
+      let effectiveReqFile = path.join(root, ".requirements-resolved.txt");
+      fs.writeFileSync(effectiveReqFile, resolvedReqContent, "utf-8");
       if (isAmdGpu && exists(reqFile)) {
         try {
           await cleanupZluda(root, path.join(root, ".venv"), job);
-          let reqContent = fs.readFileSync(reqFile, "utf-8");
+          let reqContent = resolvedReqContent;
           reqContent = reqContent
             .split(/\r?\n/)
             .filter((line) => {
@@ -1253,7 +1258,7 @@ export function startInstall(): Job {
         }
       } else if (isLegacySetup && exists(reqFile)) {
         try {
-          let reqContent = fs.readFileSync(reqFile, "utf-8");
+          let reqContent = resolvedReqContent;
           reqContent = reqContent.replace(/torch==\d+\.\d+\.\d+/g, "torch==2.7.1");
           reqContent = reqContent.replace(/torchaudio==\d+\.\d+\.\d+/g, "torchaudio==2.7.1");
           reqContent = reqContent.replace(/torchvision(?:>=|==)\d+\.\d+\.\d+/g, "torchvision==0.22.1");
@@ -1321,7 +1326,7 @@ export function startInstall(): Job {
 
       appendLog(job, "Downloading default training pretrains, base voice models, and prerequisites…");
       await streamRun(job, venvPy, [
-        path.join("rvc", "lib", "tools", "prerequisites_download.py"),
+        path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
         "--pretraineds-hifigan",
         "--models",
         "--exe",
@@ -1414,7 +1419,7 @@ export function startPrerequisites(py: string[] | null): Job {
       const prefix = py ? py.slice(1) : [];
       await streamRun(job, exe, [
         ...prefix,
-        path.join("rvc", "lib", "tools", "prerequisites_download.py"),
+        path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
         "--pretraineds-hifigan",
         "--models",
         "--exe",

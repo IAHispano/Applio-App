@@ -263,9 +263,10 @@ function seedDataRoot(code: string, data: string): void {
   } catch {
     /* first run */
   }
-  const codeEntries = ["requirements.txt", "LICENSE", "core.py", "rvc", "uvr", "tools", "plugins"];
+  const codeEntries = ["requirements.txt", "LICENSE", "core.py", "uvr", "tools", "plugins"];
   const dataEntries = ["assets"];
-  const needsSeed = current !== version || !fs.existsSync(path.join(data, "rvc"));
+  fs.mkdirSync(path.join(data, "rvc", "models"), { recursive: true });
+  const needsSeed = current !== version;
   if (!needsSeed) {
     for (const entry of dataEntries) {
       if (!fs.existsSync(path.join(data, entry)) && fs.existsSync(path.join(code, entry))) {
