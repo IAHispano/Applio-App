@@ -6,22 +6,27 @@ import { loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
 import { getRepoRoot, pythonEnv, spawnPython } from "@/python";
 import { RealtimeProcessManager } from "@/realtime-process";
+import { beginRealtimeSession, gpuJobRunning, schedulerStatus } from "@/scheduler";
 import { assertEngineReady } from "@/setup";
+import { inferenceWorker } from "@/worker";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);
 
-const manager = new RealtimeProcessManager((graphsDisabled) =>
-  spawnPython(
-    ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
-    {
-      cwd: getRepoRoot(),
-      env: pythonEnv({
-        APPLIO_ENABLE_CUDA_GRAPHS: process.env.APPLIO_ENABLE_CUDA_GRAPHS || "1",
-        ...(graphsDisabled ? { APPLIO_DISABLE_CUDA_GRAPHS: "1" } : {}),
-      }),
-    },
-  ),
+const manager = new RealtimeProcessManager(
+  (graphsDisabled) =>
+    spawnPython(
+      ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
+      {
+        cwd: getRepoRoot(),
+        detached: process.platform !== "win32",
+        env: pythonEnv({
+          APPLIO_ENABLE_CUDA_GRAPHS: process.env.APPLIO_ENABLE_CUDA_GRAPHS || "1",
+          ...(graphsDisabled ? { APPLIO_DISABLE_CUDA_GRAPHS: "1" } : {}),
+        }),
+      },
+    ),
+  process.platform !== "win32",
 );
 
 function backend(pathname: string): string {
@@ -61,11 +66,13 @@ router.get("/status", async (_req: Request, res: Response) => {
     wsAudio: `/api/realtime/ws-audio`,
     wsConfig: `/api/realtime/change-config`,
     logs: manager.logs.slice(-30),
+    scheduling: schedulerStatus(),
   });
 });
 
 // Background prewarm of the realtime engine so it is instantly reachable
 router.post("/prewarm", async (_req: Request, res: Response) => {
+  await manager.waitForStop();
   try {
     await assertEngineReady();
   } catch (err) {
@@ -85,6 +92,11 @@ router.post("/prewarm", async (_req: Request, res: Response) => {
 });
 
 router.post("/start", async (_req: Request, res: Response) => {
+  await manager.waitForStop();
+  if (gpuJobRunning())
+    return res
+      .status(409)
+      .json({ error: "A GPU job is running. Stop it or wait for it to finish before starting realtime." });
   try {
     await assertEngineReady();
   } catch (err) {
@@ -114,10 +126,14 @@ router.post("/start", async (_req: Request, res: Response) => {
   }
 });
 
-router.post("/stop", (_req: Request, res: Response) => {
-  manager.stop();
+router.post("/stop", async (_req: Request, res: Response) => {
+  await manager.stop();
   res.json({ ok: true });
 });
+
+export function stopRealtime(): void {
+  manager.stop();
+}
 
 router.post("/record", async (req: Request, res: Response) => {
   try {
@@ -157,34 +173,71 @@ router.put("/config", (req: Request, res: Response) => {
 /** Attach WS upgrade proxying: /api/realtime/ws-audio + /change-config -> engine (binary-safe). */
 export function attachRealtimeProxy(server: http.Server) {
   const wss = new WebSocketServer({ noServer: true });
-  server.on("upgrade", (req, socket, head) => {
+  server.on("upgrade", async (req, socket, head) => {
     const url = req.url || "";
     let target: string | null = null;
     if (url.startsWith("/api/realtime/ws-audio")) target = `ws://127.0.0.1:${RT_PORT}/ws-audio`;
     else if (url.startsWith("/api/realtime/change-config"))
       target = `ws://127.0.0.1:${RT_PORT}/change-config`;
     if (!target) return; // not ours
-    wss.handleUpgrade(req, socket, head, (client) => proxySocket(client, target as string));
+    const audio = url.startsWith("/api/realtime/ws-audio");
+    const release = audio ? beginRealtimeSession() : undefined;
+    if (audio && !release) {
+      socket.end("HTTP/1.1 409 Conflict\r\nConnection: close\r\n\r\nGPU is busy.");
+      return;
+    }
+    let upgraded = false;
+    try {
+      if (audio) await inferenceWorker.releaseGpu();
+      if (socket.destroyed) return;
+      wss.handleUpgrade(req, socket, head, (client) => {
+        upgraded = true;
+        proxySocket(client, target as string, release || undefined);
+      });
+    } catch (error) {
+      console.warn("[realtime] Could not open audio session:", error);
+      socket.destroy();
+    } finally {
+      if (!upgraded) release?.();
+    }
   });
 }
 
-function proxySocket(client: WebSocket, target: string) {
+function proxySocket(client: WebSocket, target: string, release?: () => void) {
   const upstream = new WebSocket(target);
   const queue: Array<{ data: RawData; binary: boolean }> = [];
+  const timer = setTimeout(() => close(), 15000);
+  let closed = false;
   client.on("message", (data, isBinary) => {
+    if (upstream.bufferedAmount > 1024 * 1024 || queue.length >= 16) {
+      close();
+      return;
+    }
     if (upstream.readyState === WebSocket.OPEN) upstream.send(data, { binary: isBinary });
     else queue.push({ data, binary: isBinary });
   });
   upstream.on("open", () => {
+    clearTimeout(timer);
     for (const m of queue) {
       if (upstream.readyState === WebSocket.OPEN) upstream.send(m.data, { binary: m.binary });
     }
     queue.length = 0;
   });
   upstream.on("message", (data, isBinary) => {
+    if (client.bufferedAmount > 1024 * 1024) {
+      close();
+      return;
+    }
     if (client.readyState === WebSocket.OPEN) client.send(data, { binary: isBinary });
   });
   const close = () => {
+    if (closed) return;
+    closed = true;
+    clearTimeout(timer);
+    queue.length = 0;
+    // Terminate the realtime process before admitting waiting GPU work. This
+    // also releases CUDA allocations even if Python's disconnect cleanup fails.
+    if (release) void manager.stop().then(release);
     try {
       client.close();
     } catch {

@@ -2,11 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
-import { startCliJob } from "@/cli";
+import { runJobStep, startCliJob } from "@/cli";
 import { errMsg } from "@/errors";
 import { setProgress } from "@/jobs";
 import { audioUpload } from "@/lib/upload";
-import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
+import { getCodeRoot, getOutputsDir, resolveUserPath, runPythonModule } from "@/python";
 import { booleanCoerce } from "@/schemas";
 import { requireEngineReady } from "@/setup";
 
@@ -27,7 +27,7 @@ const catalogCache: { mtimeMs: number; entries: UvrModelEntry[] } = { mtimeMs: 0
 // Live registry from uvr/models.py (single source of truth).
 // Cached in-memory with file mtime check to avoid launching Python repeatedly.
 async function fetchCatalog(): Promise<UvrModelEntry[]> {
-  const modelsPy = path.join(getRepoRoot(), "uvr", "models.py");
+  const modelsPy = path.join(getCodeRoot(), "uvr", "models.py");
   let currentMtime = 0;
   try {
     if (fs.existsSync(modelsPy)) {
@@ -198,6 +198,13 @@ router.post("/separate", requireEngineReady, upload.single("audio"), (req: Reque
       { inputPath: inputAbs, model: p.model, outputFormat: p.outputFormat, device: p.device },
       args,
       {
+        prepare: (job) =>
+          runJobStep(
+            job,
+            [path.join("uvr", "install.py")],
+            "UVR dependencies ready.",
+            "Audio separation setup",
+          ),
         onChunk: (chunk) => {
           // tqdm progress (" 45%|…") → real %. Take the last percentage in
           // the chunk; only move forward.

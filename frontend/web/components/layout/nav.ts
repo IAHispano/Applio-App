@@ -68,6 +68,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "System",
     items: [
+      {
+        icon: Activity,
+        label: "Job history",
+        to: "/jobs",
+        blurb: "Recent jobs, outputs and interrupted work",
+      },
       { icon: Settings, label: "Settings", to: "/settings", blurb: "Engine configuration and preferences" },
       { icon: Bug, label: "Report a Bug", to: "/report", blurb: "System diagnostics and issue reporting" },
     ],

@@ -54,6 +54,9 @@ def run_uvr_script(
     single_stem: str = None,
     device: str = "auto",
 ):
+    from uvr.install import ensure_dependencies
+
+    ensure_dependencies()
     uvr_script = os.path.join(current_script_directory, "uvr", "separate.py")
     if not os.path.exists(uvr_script):
         return "UVR separation script not found in uvr/separate.py."

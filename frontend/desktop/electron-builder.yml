@@ -22,8 +22,10 @@ files:
     to: .
     filter:
       - requirements.txt
+      - requirements-uvr.txt
       - LICENSE
       - core.py
+      - backend/revision.json
       - ffmpeg.exe
       - ffprobe.exe
       - ffmpeg
@@ -35,6 +37,7 @@ files:
       - requirements-engine.txt
       - LICENSE
       - "rvc/**/*"
+      - "!rvc/models/**"
       - assets/config_template.json
       - "!**/__pycache__"
       - "!**/*.pyc"
@@ -46,6 +49,10 @@ files:
       - "**/*"
       - "!**/__pycache__"
       - "!**/*.pyc"
+      - "!**/*.pth"
+      - "!**/*.pt"
+      - "!**/*.ckpt"
+      - "!**/*.onnx"
   - from: ../../tools
     to: tools
     filter:
@@ -60,6 +67,9 @@ files:
       - "!*.ipynb"
       - "!demo.*"
       - "!i18n/languages_legacy/**"
+      - "!audios/**"
+      - "!datasets/**"
+      - "!uvr-models/**"
       - "!**/__pycache__"
       - "!**/*.pyc"
       - "!**/.venv/**"

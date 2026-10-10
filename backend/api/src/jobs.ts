@@ -1,4 +1,7 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { getConfigDir } from "@/config";
+import { JobHistory } from "@/job-history";
 
 export type JobStatus = "queued" | "running" | "done" | "error";
 export type JobType = "inference" | "batch-inference" | "train" | "tts" | "download" | "other";
@@ -21,8 +24,55 @@ export interface Job {
 
 const jobs = new Map<string, Job>();
 const MAX_JOBS = 200;
+const history = new JobHistory(path.join(getConfigDir(), "jobs.json"));
+for (const job of history.load()) jobs.set(job.id, job);
+let saveTimer: NodeJS.Timeout | undefined;
+export function flushJobHistory(): void {
+  clearTimeout(saveTimer);
+  saveTimer = undefined;
+  history.save([...jobs.values()]);
+}
+export async function drainJobHistory(): Promise<void> {
+  flushJobHistory();
+  await history.drain();
+}
+function scheduleSave(): void {
+  if (!saveTimer)
+    saveTimer = setTimeout(() => {
+      saveTimer = undefined;
+      void history.saveAsync([...jobs.values()]);
+    }, 500);
+}
+process.on("exit", flushJobHistory);
+
+const cancellation = new Map<string, Set<() => void>>();
+export function registerJobCancellation(id: string, callback: () => void): () => void {
+  let callbacks = cancellation.get(id);
+  if (!callbacks) cancellation.set(id, (callbacks = new Set()));
+  callbacks.add(callback);
+  return () => {
+    callbacks.delete(callback);
+    if (!callbacks.size) cancellation.delete(id);
+  };
+}
+export function jobIsActive(job: Job): boolean {
+  return job.status === "running" || job.status === "queued";
+}
+export function cancelJob(job: Job, reason = "Stopped by user"): void {
+  if (!jobIsActive(job)) return;
+  const callbacks = [...(cancellation.get(job.id) || [])];
+  setError(job, reason);
+  cancellation.delete(job.id);
+  for (const callback of callbacks) {
+    try {
+      callback();
+    } catch {}
+  }
+}
 
 export function createJob(type: JobType, params?: Record<string, unknown>): Job {
+  if (jobs.size >= MAX_JOBS && [...jobs.values()].every(jobIsActive))
+    throw new Error("Too many active jobs. Finish or cancel a job before starting another.");
   const now = new Date().toISOString();
   const job: Job = {
     id: randomUUID(),
@@ -34,11 +84,16 @@ export function createJob(type: JobType, params?: Record<string, unknown>): Job 
     logs: [],
   };
   jobs.set(job.id, job);
-  notifyAllJobs(job);
   if (jobs.size > MAX_JOBS) {
-    const oldest = [...jobs.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-    if (oldest) jobs.delete(oldest.id);
+    const oldest = [...jobs.values()]
+      .filter((j) => !jobIsActive(j))
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+    if (oldest) {
+      jobs.delete(oldest.id);
+      lastNotifyAt.delete(oldest.id);
+    }
   }
+  notifyAllJobs(job);
   return job;
 }
 
@@ -55,9 +110,11 @@ export function appendLog(job: Job, line: string) {
   if (job.logs.length > 500) job.logs = job.logs.slice(-500);
   job.updatedAt = new Date().toISOString();
   notifyThrottled(job);
+  scheduleSave();
 }
 
 export function setRunning(job: Job) {
+  if (!jobIsActive(job)) return;
   job.status = "running";
   job.updatedAt = new Date().toISOString();
   notify(job);
@@ -65,13 +122,17 @@ export function setRunning(job: Job) {
 }
 
 export function setProgress(job: Job, pct: number) {
-  job.progress = Math.max(0, Math.min(100, Math.round(pct)));
+  if (!jobIsActive(job) || !Number.isFinite(pct)) return;
+  const progress = Math.max(0, Math.min(100, Math.round(pct)));
+  if (job.progress === progress) return;
+  job.progress = progress;
   job.updatedAt = new Date().toISOString();
   notify(job);
   notifyAllJobs(job);
 }
 
 export function setDone(job: Job, result?: Record<string, unknown>, outputFile?: string) {
+  if (!jobIsActive(job)) return;
   job.status = "done";
   job.result = result;
   if (outputFile) job.outputFile = outputFile;
@@ -82,6 +143,7 @@ export function setDone(job: Job, result?: Record<string, unknown>, outputFile?:
 }
 
 export function setError(job: Job, error: string, errorDetails?: string) {
+  if (!jobIsActive(job)) return;
   job.status = "error";
   job.error = error;
   if (errorDetails) {
@@ -154,6 +216,12 @@ export function subscribeAllJobs(listener: (job: ReturnType<typeof jobSummary>) 
 }
 
 function notifyAllJobs(job: Job): void {
+  if (!jobIsActive(job)) {
+    cancellation.delete(job.id);
+    clearTimeout(saveTimer);
+    saveTimer = undefined;
+    void history.saveAsync([...jobs.values()]);
+  } else scheduleSave();
   if (!allJobListeners.size) return;
   const summary = jobSummary(job);
   for (const listener of allJobListeners) {

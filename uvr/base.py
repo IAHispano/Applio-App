@@ -8,7 +8,6 @@ from logging import Logger
 
 import librosa
 import numpy as np
-import requests
 import soundfile as sf
 import torch
 from tqdm import tqdm
@@ -99,29 +98,16 @@ def download_file(url: str, output_path: str, logger=None, timeout=300):
         if logger:
             logger.debug(f"Model file already present: {output_path}")
         return output_path
-    os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
-    tmp_path = output_path + ".part"
-    with requests.get(url, stream=True, timeout=timeout) as response:
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Failed to download {url}, response code: {response.status_code}"
-            )
-        total = int(response.headers.get("content-length", 0))
-        with (
-            open(tmp_path, "wb") as f,
-            tqdm(
-                total=total or None,
-                unit="B",
-                unit_scale=True,
-                desc=os.path.basename(output_path),
-            ) as bar,
-        ):
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if not chunk:
-                    continue
-                f.write(chunk)
-                bar.update(len(chunk))
-    os.replace(tmp_path, output_path)
+    from rvc.lib.tools.http_download import download_http
+
+    with tqdm(unit="B", unit_scale=True, desc=os.path.basename(output_path)) as bar:
+
+        def progress(received, total):
+            bar.total = total or None
+            bar.n = received
+            bar.refresh()
+
+        download_http(url, output_path, progress=progress)
     return output_path
 
 

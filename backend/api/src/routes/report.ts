@@ -4,7 +4,8 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "@/errors";
-import { getAppVersion, getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
+import { getAppVersion, getCodeRoot, getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
+import { schedulerStatus } from "@/scheduler";
 
 const router = Router();
 const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";
@@ -13,6 +14,12 @@ router.get("/info", async (_req: Request, res: Response) => {
   // Same source as /api/settings/version: the code root package.json, not
   // the stale seeded copy in the writable data dir.
   const version = getAppVersion();
+  let backendRevision = "unknown";
+  try {
+    backendRevision = JSON.parse(
+      fs.readFileSync(path.join(getCodeRoot(), "backend", "revision.json"), "utf8"),
+    ).commit;
+  } catch {}
   let python = "";
   try {
     const r = await runPythonModule(["--version"]);
@@ -23,6 +30,8 @@ router.get("/info", async (_req: Request, res: Response) => {
   res.json({
     app: "Applio",
     version,
+    backendRevision,
+    scheduling: schedulerStatus(),
     platform: `${os.platform()} ${os.release()} (${os.arch()})`,
     node: process.version,
     python,

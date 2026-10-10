@@ -2,7 +2,9 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
+import { registerJobCancellation } from "@/jobs";
 import { getBackendRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
+import { gpuJobRunning, schedulerStatus, setGpuPreparation } from "@/scheduler";
 import type { BatchInferenceParams, InferenceParams, TtsParams } from "@/schemas";
 
 export interface SingleInferRequest {
@@ -121,6 +123,8 @@ export class InferenceWorkerManager {
   private activeJob: WorkerRequest | null = null;
   private isReady = false;
   private readyCallbacks: (() => void)[] = [];
+  private readyFailures: ((error: Error) => void)[] = [];
+  private cancellation = new Map<string, () => void>();
   private restarting = false;
   private warmedUp = false;
   private warmupTimer?: NodeJS.Timeout;
@@ -158,6 +162,7 @@ export class InferenceWorkerManager {
 
     const rlOut = readline.createInterface({ input: child.stdout });
     rlOut.on("line", (line) => {
+      if (this.child !== child) return;
       const trimmed = line.trim();
       if (!trimmed) return;
       if (trimmed.startsWith('{"_applio_ipc":')) {
@@ -174,6 +179,7 @@ export class InferenceWorkerManager {
 
     const rlErr = readline.createInterface({ input: child.stderr });
     rlErr.on("line", (line) => {
+      if (this.child !== child) return;
       const trimmed = line.trim();
       if (!trimmed) return;
       if (this.activeJob) {
@@ -182,11 +188,12 @@ export class InferenceWorkerManager {
     });
 
     child.on("error", (err) => {
-      this.handleProcessExit(err);
+      if (this.child === child) this.handleProcessExit(err);
     });
 
     child.on("exit", (code) => {
-      this.handleProcessExit(new Error(`Inference worker exited with code ${code}`));
+      if (this.child === child)
+        this.handleProcessExit(new Error(`Inference worker exited with code ${code}`));
     });
   }
 
@@ -195,6 +202,7 @@ export class InferenceWorkerManager {
       this.isReady = true;
       const cbs = [...this.readyCallbacks];
       this.readyCallbacks = [];
+      this.readyFailures = [];
       for (const cb of cbs) cb();
       this.processNext();
     } else if (msg.type === "log") {
@@ -205,6 +213,7 @@ export class InferenceWorkerManager {
       if (this.activeJob && this.activeJob.id === msg.id) {
         const job = this.activeJob;
         this.activeJob = null;
+        this.removeCancellation(job.id);
         if (job.command === "infer") {
           job.resolve({ outputPath: msg.outputPath || "", info: String(msg.info || "") });
         } else if (job.command === "infer_batch") {
@@ -231,6 +240,7 @@ export class InferenceWorkerManager {
       if (this.activeJob && this.activeJob.id === msg.id) {
         const job = this.activeJob;
         this.activeJob = null;
+        this.removeCancellation(job.id);
         job.reject(new Error(msg.error || "Worker task failed"));
         this.processNext();
       }
@@ -240,9 +250,13 @@ export class InferenceWorkerManager {
   private handleProcessExit(err: Error) {
     this.isReady = false;
     this.child = null;
+    for (const reject of this.readyFailures) reject(err);
+    this.readyCallbacks = [];
+    this.readyFailures = [];
     if (this.activeJob) {
       const job = this.activeJob;
       this.activeJob = null;
+      this.removeCancellation(job.id);
       job.reject(err);
     }
     if (this.queue.length > 0 && !this.restarting) {
@@ -257,8 +271,26 @@ export class InferenceWorkerManager {
   public waitReady(): Promise<void> {
     if (this.isReady && this.child) return Promise.resolve();
     this.start();
-    return new Promise((resolve) => {
-      this.readyCallbacks.push(resolve);
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(
+        () => fail(new Error("Inference worker startup timed out after 90 seconds.")),
+        90000,
+      );
+      const cleanup = () => {
+        clearTimeout(timer);
+        this.readyCallbacks = this.readyCallbacks.filter((cb) => cb !== ready);
+        this.readyFailures = this.readyFailures.filter((cb) => cb !== fail);
+      };
+      const ready = () => {
+        cleanup();
+        resolve();
+      };
+      const fail = (error: Error) => {
+        cleanup();
+        reject(error);
+      };
+      this.readyCallbacks.push(ready);
+      this.readyFailures.push(fail);
     });
   }
 
@@ -270,9 +302,11 @@ export class InferenceWorkerManager {
   }
 
   public async warmup(): Promise<void> {
+    if (gpuJobRunning() || schedulerStatus().realtime) return;
     if (this.warmedUp) return;
     await this.waitReady();
     if (this.warmedUp || this.activeJob || this.queue.length > 0 || !this.child) return;
+    if (gpuJobRunning() || schedulerStatus().realtime) return;
     this.warmedUp = true;
     try {
       this.child.stdin?.write(`${JSON.stringify({ command: "warmup" })}\n`);
@@ -282,7 +316,9 @@ export class InferenceWorkerManager {
   }
 
   public async preloadModel(pthPath: string, sid = 0): Promise<void> {
+    if (gpuJobRunning() || schedulerStatus().realtime) return;
     await this.waitReady();
+    if (gpuJobRunning() || schedulerStatus().realtime || this.activeJob || this.queue.length) return;
     if (!this.child) return;
     try {
       this.child.stdin?.write(`${JSON.stringify({ command: "preload_model", pthPath, sid })}\n`);
@@ -299,7 +335,7 @@ export class InferenceWorkerManager {
     onLog: (msg: string) => void,
   ): Promise<{ outputPath: string; info: string }> {
     return new Promise<{ outputPath: string; info: string }>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "infer",
         id,
         params,
@@ -309,7 +345,12 @@ export class InferenceWorkerManager {
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
@@ -321,7 +362,7 @@ export class InferenceWorkerManager {
     onLog: (msg: string) => void,
   ): Promise<{ info: string }> {
     return new Promise<{ info: string }>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "infer_batch",
         id,
         params,
@@ -331,7 +372,12 @@ export class InferenceWorkerManager {
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
@@ -350,7 +396,7 @@ export class InferenceWorkerManager {
   ): Promise<{ outputTtsPath: string; outputRvcPath?: string; outputPath: string; info: string }> {
     return new Promise<{ outputTtsPath: string; outputRvcPath?: string; outputPath: string; info: string }>(
       (resolve, reject) => {
-        this.queue.push({
+        this.enqueue({
           command: "tts",
           id,
           params: options.params,
@@ -364,7 +410,12 @@ export class InferenceWorkerManager {
           resolve,
           reject,
         });
-        void this.waitReady().then(() => this.processNext());
+        void this.waitReady()
+          .then(() => this.processNext())
+          .catch((error) => {
+            this.cancel(id);
+            reject(error);
+          });
       },
     );
   }
@@ -376,7 +427,7 @@ export class InferenceWorkerManager {
     onLog: (msg: string) => void,
   ): Promise<{ info: unknown; plot: string }> {
     return new Promise<{ info: unknown; plot: string }>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "analyze_audio",
         id,
         inputPath,
@@ -385,7 +436,12 @@ export class InferenceWorkerManager {
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
@@ -398,7 +454,7 @@ export class InferenceWorkerManager {
     onLog: (msg: string) => void,
   ): Promise<{ outputImage: string; outputTxt: string }> {
     return new Promise<{ outputImage: string; outputTxt: string }>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "f0_curve",
         id,
         inputPath,
@@ -409,7 +465,12 @@ export class InferenceWorkerManager {
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
@@ -422,7 +483,7 @@ export class InferenceWorkerManager {
     onLog: (msg: string) => void,
   ): Promise<{ message: string; file: string | null }> {
     return new Promise<{ message: string; file: string | null }>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "model_blender",
         id,
         modelName,
@@ -433,21 +494,32 @@ export class InferenceWorkerManager {
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
   public async inspectModel(pthPath: string): Promise<Record<string, unknown>> {
+    const id = randomUUID();
     return new Promise<Record<string, unknown>>((resolve, reject) => {
-      this.queue.push({
+      this.enqueue({
         command: "inspect_model",
-        id: randomUUID(),
+        id,
         pthPath,
         onLog: () => {},
         resolve,
         reject,
       });
-      void this.waitReady().then(() => this.processNext());
+      void this.waitReady()
+        .then(() => this.processNext())
+        .catch((error) => {
+          this.cancel(id);
+          reject(error);
+        });
     });
   }
 
@@ -532,10 +604,69 @@ export class InferenceWorkerManager {
     }
   }
 
+  private removeCancellation(id: string): void {
+    this.cancellation.get(id)?.();
+    this.cancellation.delete(id);
+  }
+
+  private enqueue(request: WorkerRequest): void {
+    this.queue.push(request);
+    this.cancellation.set(
+      request.id,
+      registerJobCancellation(request.id, () => this.cancel(request.id)),
+    );
+  }
+
+  public cancel(id: string): void {
+    const index = this.queue.findIndex((request) => request.id === id);
+    if (index !== -1) {
+      const [request] = this.queue.splice(index, 1);
+      this.removeCancellation(id);
+      request.reject(new Error("Stopped by user"));
+    } else if (this.activeJob?.id === id) {
+      this.stop();
+      if (this.queue.length)
+        void this.waitReady()
+          .then(() => this.processNext())
+          .catch(() => {});
+    }
+  }
+
+  public async releaseGpu(): Promise<void> {
+    const child = this.child;
+    this.stop();
+    if (!child || child.exitCode !== null) return;
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(() => {
+        child.kill("SIGKILL");
+      }, 5000);
+      child.once("close", () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
+  }
+
   public stop() {
-    if (this.child) {
+    clearTimeout(this.warmupTimer);
+    const child = this.child;
+    this.child = null;
+    this.isReady = false;
+    this.warmedUp = false;
+    if (this.activeJob) {
+      const request = this.activeJob;
+      this.activeJob = null;
+      this.removeCancellation(request.id);
+      const fail = () => request.reject(new Error("Inference worker stopped"));
+      if (child && child.exitCode === null) child.once("close", fail);
+      else fail();
+    }
+    for (const reject of [...this.readyFailures]) reject(new Error("Inference worker stopped"));
+    this.readyCallbacks = [];
+    this.readyFailures = [];
+    if (child) {
       try {
-        this.child.kill();
+        child.kill();
       } catch {
         /* ignore */
       }
@@ -545,3 +676,7 @@ export class InferenceWorkerManager {
 }
 
 export const inferenceWorker = new InferenceWorkerManager();
+setGpuPreparation(async (job) => {
+  if (job.type === "train" || job.params?.setup || (job.params?.model && job.params?.outputFormat))
+    await inferenceWorker.releaseGpu();
+});

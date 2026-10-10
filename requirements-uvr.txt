@@ -1,0 +1,8 @@
+# Installed when audio separation is first used.
+onnx>=1.18.0
+onnx2torch-py313>=1.6.0
+torchvision>=0.26.0
+julius>=0.2.0
+rotary-embedding-torch>=0.6.0
+beartype>=0.18.0
+ml_collections>=1.1.0

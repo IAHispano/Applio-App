@@ -4,6 +4,12 @@ export class RealtimeAudioSender {
   private ready = false;
   private inFlight = false;
   private latest: Float32Array | null = null;
+  private latestAt = 0;
+  droppedBlocks = 0;
+  queueDelayMs = 0;
+  get queuedBlocks(): number {
+    return this.latest ? 1 : 0;
+  }
 
   constructor(private readonly send: (chunk: Float32Array) => void) {}
 
@@ -15,7 +21,9 @@ export class RealtimeAudioSender {
   capture(chunk: Float32Array): void {
     if (!this.ready) return;
     if (this.inFlight) {
+      if (this.latest) this.droppedBlocks++;
       this.latest = chunk;
+      this.latestAt = performance.now();
       return;
     }
     this.inFlight = true;
@@ -25,6 +33,7 @@ export class RealtimeAudioSender {
   acknowledge(): void {
     this.inFlight = false;
     const latest = this.latest;
+    this.queueDelayMs = latest ? performance.now() - this.latestAt : 0;
     this.latest = null;
     if (latest) this.capture(latest);
   }
@@ -74,14 +83,20 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.rp = 0;
     this.wp = 0;
     this.buffered = 0;
+    this.dropped = 0;
+    this.underruns = 0;
+    this.reportFrames = 0;
+    this.started = false;
     this.port.onmessage = (e) => {
       const c = new Float32Array(e.data.chunk);
+      this.started = true;
       // A burst of replies must not leave seconds of old audio to play.
       // Retain at most two blocks, including the newly arrived block.
       const limit = Math.min(this.ring.length, c.length * 2);
       const skip = Math.max(0, c.length - limit);
       const incoming = c.length - skip;
       const drop = Math.max(0, this.buffered + incoming - limit);
+      this.dropped += drop + skip;
       this.rp = (this.rp + drop) % this.ring.length;
       this.buffered -= drop;
       for (let i = skip; i < c.length; i++) {
@@ -101,9 +116,16 @@ class PlaybackProcessor extends AudioWorkletProcessor {
         s = this.ring[this.rp];
         this.rp = (this.rp + 1) % this.ring.length;
         this.buffered--;
+      } else if (this.started) {
+        this.underruns++;
       }
       outL[i] = s;
       if (outR) outR[i] = s;
+    }
+    this.reportFrames += outL.length;
+    if (this.reportFrames >= sampleRate / 4) {
+      this.reportFrames = 0;
+      this.port.postMessage({ stats: { queuedMs: this.buffered / sampleRate * 1000, droppedFrames: this.dropped, underrunFrames: this.underruns } });
     }
     return true;
   }

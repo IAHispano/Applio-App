@@ -106,6 +106,9 @@ jobs:
           # Unsigned CI builds (no Apple Developer certificate on runners).
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
+      - name: Verify packaged startup and job reliability
+        run: pnpm release:check
+
       - name: Upload build artifacts
         # Installers are already compressed (.exe/.dmg/.AppImage/.deb), so
         # upload them directly instead of re-zipping (saves CPU on every job

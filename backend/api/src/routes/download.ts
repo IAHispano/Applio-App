@@ -4,9 +4,19 @@ import { type Request, type Response, Router } from "express";
 import multer from "multer";
 import { z } from "zod";
 import { startCliJob } from "@/cli";
+import { downloadFile } from "@/download-file";
 import { errMsg } from "@/errors";
-import { appendLog, createJob, setDone, setError, setProgress, setRunning } from "@/jobs";
+import {
+  appendLog,
+  createJob,
+  registerJobCancellation,
+  setDone,
+  setError,
+  setProgress,
+  setRunning,
+} from "@/jobs";
 import { getLogsDir, getRepoRoot, getUploadsDir, moveUploadedModel } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 
 const router = Router();
 
@@ -101,7 +111,7 @@ async function fetchPretrainedData(): Promise<Record<string, Record<string, { D:
   } catch {
     /* fetch below */
   }
-  const r = await fetch(PRETRAINS_URL);
+  const r = await fetch(PRETRAINS_URL, { signal: AbortSignal.timeout(15000) });
   if (!r.ok) throw new Error(`Could not fetch pretrains.json (${r.status})`);
   const data = (await r.json()) as Record<string, Record<string, { D: string; G: string }>>;
   fs.writeFileSync(cache, JSON.stringify(data, null, 2));
@@ -155,45 +165,37 @@ router.post("/pretraineds", async (req: Request, res: Response) => {
 
     const job = createJob("download", { model, sampleRate, files: tasks.map((t) => t.url) });
     void (async () => {
-      setRunning(job);
+      if (!(await acquireJobSlot(job, "network"))) return;
       try {
-        for (let i = 0; i < tasks.length; i++) {
-          const t = tasks[i];
-          appendLog(job, `Downloading ${t.url}`);
-          const head = await fetch(t.url, { method: "HEAD" }).catch(() => null);
-          const total = Number(head?.headers.get("content-length") || 0);
-          const r = await fetch(t.url);
-          if (!r.ok || !r.body) throw new Error(`Download failed (${r.status}): ${t.url}`);
-          fs.mkdirSync(path.dirname(t.dest), { recursive: true });
-          const file = fs.createWriteStream(t.dest);
-          const reader = r.body.getReader();
-          let done = 0;
-          let lastPct = -1;
-          for (;;) {
-            const { done: end, value } = await reader.read();
-            if (end) break;
-            done += value.length;
-            await new Promise<void>((resolve, reject) =>
-              file.write(value, (e) => (e ? reject(e) : resolve())),
-            );
-            if (total > 0) {
-              const pct = Math.floor((done / total) * 100);
-              if (pct >= lastPct + 10) {
-                lastPct = pct;
-                appendLog(job, `${path.basename(t.dest)}: ${pct}%`);
-              }
-              // Overall progress across all files in this job.
-              setProgress(job, ((i + pct / 100) / tasks.length) * 100);
+        setRunning(job);
+        try {
+          for (let i = 0; i < tasks.length; i++) {
+            const t = tasks[i];
+            appendLog(job, `Downloading ${t.url}`);
+            const controller = new AbortController();
+            const unregister = registerJobCancellation(job.id, () => controller.abort());
+            try {
+              await downloadFile(t.url, t.dest, {
+                signal: controller.signal,
+                onRetry: (attempt) => appendLog(job, `Retrying ${path.basename(t.dest)} (${attempt}/3)…`),
+                onProgress: (received, total) => {
+                  if (total) setProgress(job, ((i + received / total) / tasks.length) * 100);
+                },
+              });
+            } finally {
+              unregister();
             }
+            if (job.status !== "running") return;
+            setProgress(job, ((i + 1) / tasks.length) * 100);
+            appendLog(job, `Saved ${t.dest}`);
           }
-          await new Promise<void>((resolve) => file.close(() => resolve()));
-          setProgress(job, ((i + 1) / tasks.length) * 100);
-          appendLog(job, `Saved ${t.dest}`);
+          setDone(job, { message: "Pretrained model downloaded successfully!" });
+        } catch (err) {
+          appendLog(job, `ERROR: ${errMsg(err)}`);
+          setError(job, errMsg(err) || "Download failed");
         }
-        setDone(job, { message: "Pretrained model downloaded successfully!" });
-      } catch (err) {
-        appendLog(job, `ERROR: ${errMsg(err)}`);
-        setError(job, errMsg(err) || "Download failed");
+      } finally {
+        releaseJobSlot(job.id);
       }
     })();
     return res.status(202).json({ jobId: job.id });

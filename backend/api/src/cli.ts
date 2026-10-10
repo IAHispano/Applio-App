@@ -1,8 +1,20 @@
 import { spawn } from "node:child_process";
 import { errDetails, errMsg, explainExitCode } from "@/errors";
-import { appendLog, createJob, getJob, type Job, type JobType, setDone, setError, setRunning } from "@/jobs";
+import {
+  appendLog,
+  createJob,
+  getJob,
+  type Job,
+  type JobType,
+  jobIsActive,
+  registerJobCancellation,
+  setDone,
+  setError,
+  setRunning,
+} from "@/jobs";
 import { repoRel as sharedRepoRel } from "@/lib/fsutils";
 import { runPythonModule } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 
 const jobPids = new Map<string, number>();
 const jobGroups = new Set<string>();
@@ -61,11 +73,22 @@ export function appendChunkLogs(
   return kept;
 }
 
+const pidCancellation = new Map<string, () => void>();
 export function trackPid(jobId: string, pid?: number, group = false) {
+  pidCancellation.get(jobId)?.();
+  pidCancellation.delete(jobId);
   if (pid) {
     jobPids.set(jobId, pid);
+    pidCancellation.set(
+      jobId,
+      registerJobCancellation(jobId, () => {
+        killJobTree(jobId);
+      }),
+    );
     if (group) jobGroups.add(jobId);
     else jobGroups.delete(jobId);
+    const job = getJob(jobId);
+    if (job && !jobIsActive(job)) killJobTree(jobId);
   } else {
     jobPids.delete(jobId);
     jobGroups.delete(jobId);
@@ -105,6 +128,7 @@ export function killJobTree(jobId: string): boolean {
 }
 
 export interface CliJobOptions {
+  prepare?: (job: Job) => Promise<void>;
   parse?: (stdout: string, stderr: string) => { result?: Record<string, unknown>; outputFile?: string };
   // Last stdout line required for commands that always exit 0.
   expectSuccess?: string | RegExp;
@@ -121,52 +145,67 @@ export function startCliJob(
 ): Job {
   const job = createJob(type, params);
   void (async () => {
-    setRunning(job);
+    const resource =
+      type === "download" && params.modelLink
+        ? "model-download"
+        : type === "download" || params.url || params.plugin
+          ? "network"
+          : args[0] === "-c"
+            ? "none"
+            : "gpu";
+    if (resource !== "none" && !(await acquireJobSlot(job, resource))) return;
     try {
-      const group = useGroupKill();
-      const r = await runPythonModule(args, {
-        detached: group,
-        onData: (chunk, stream) => {
-          appendChunkLogs(job, chunk, stream, { prefix: false });
-          try {
-            opts.onChunk?.(chunk, stream);
-          } catch {
-            /* progress parsing must never fail the job */
-          }
-        },
-        onSpawn: (pid) => trackPid(job.id, pid, group),
-      });
-      trackPid(job.id, undefined);
-      if (r.code !== 0) {
-        const explanation = explainExitCode(r.code);
-        const outputTail = (r.stderr || r.stdout || job.logs.slice(-15).join("\n")).trim();
-        const header = explanation
-          ? `Process exited with code ${r.code}: ${explanation}`
-          : `Process exited with code ${r.code}`;
-        throw new Error(outputTail ? `${header}\n\n${outputTail}` : header);
+      setRunning(job);
+      try {
+        if (opts.prepare) await opts.prepare(job);
+        if (!jobIsActive(job)) return;
+        const group = useGroupKill();
+        const r = await runPythonModule(args, {
+          detached: group,
+          onData: (chunk, stream) => {
+            appendChunkLogs(job, chunk, stream, { prefix: false });
+            try {
+              opts.onChunk?.(chunk, stream);
+            } catch {
+              /* progress parsing must never fail the job */
+            }
+          },
+          onSpawn: (pid) => trackPid(job.id, pid, group),
+        });
+        trackPid(job.id, undefined);
+        if (r.code !== 0) {
+          const explanation = explainExitCode(r.code);
+          const outputTail = (r.stderr || r.stdout || job.logs.slice(-15).join("\n")).trim();
+          const header = explanation
+            ? `Process exited with code ${r.code}: ${explanation}`
+            : `Process exited with code ${r.code}`;
+          throw new Error(outputTail ? `${header}\n\n${outputTail}` : header);
+        }
+        const lastLine = lastStdoutLine(r.stdout);
+        if (opts.expectSuccess) {
+          const ok =
+            typeof opts.expectSuccess === "string"
+              ? lastLine === opts.expectSuccess || r.stdout.includes(opts.expectSuccess)
+              : opts.expectSuccess.test(lastLine) || opts.expectSuccess.test(r.stdout);
+          if (!ok) throw new Error(lastLine.slice(-1000) || "Job reported failure");
+        }
+        const parsed = opts.parse ? opts.parse(r.stdout, r.stderr) : undefined;
+        const resultObj = parsed?.result ?? { message: lastLine || "Done" };
+        const outputRel = parsed?.outputFile ? repoRel(parsed.outputFile) : undefined;
+        setDone(job, resultObj, outputRel);
+      } catch (err) {
+        trackPid(job.id, undefined);
+        const message = errMsg(err);
+        const details = errDetails(err);
+        appendLog(job, `ERROR: ${message}`);
+        if (details && details !== message) {
+          appendLog(job, `DETAILS: ${details}`);
+        }
+        const j = getJob(job.id);
+        if (j && j.status === "running") setError(j, message || "CLI job failed", details);
       }
-      const lastLine = lastStdoutLine(r.stdout);
-      if (opts.expectSuccess) {
-        const ok =
-          typeof opts.expectSuccess === "string"
-            ? lastLine === opts.expectSuccess || r.stdout.includes(opts.expectSuccess)
-            : opts.expectSuccess.test(lastLine) || opts.expectSuccess.test(r.stdout);
-        if (!ok) throw new Error(lastLine.slice(-1000) || "Job reported failure");
-      }
-      const parsed = opts.parse ? opts.parse(r.stdout, r.stderr) : undefined;
-      const resultObj = parsed?.result ?? { message: lastLine || "Done" };
-      const outputRel = parsed?.outputFile ? repoRel(parsed.outputFile) : undefined;
-      setDone(job, resultObj, outputRel);
-    } catch (err) {
-      trackPid(job.id, undefined);
-      const message = errMsg(err);
-      const details = errDetails(err);
-      appendLog(job, `ERROR: ${message}`);
-      if (details && details !== message) {
-        appendLog(job, `DETAILS: ${details}`);
-      }
-      const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, message || "CLI job failed", details);
+    } finally {
+      releaseJobSlot(job.id);
     }
   })();
   return job;
@@ -185,6 +224,7 @@ export async function runJobStep(
   step: string,
   opts: { onLine?: (line: string, stream: "stdout" | "stderr") => void } = {},
 ): Promise<void> {
+  if (!jobIsActive(job)) throw new Error("Stopped by user");
   const group = useGroupKill();
   const r = await runPythonModule(args, {
     detached: group,
@@ -215,11 +255,20 @@ export async function runJobStep(
 }
 
 // Runs `python -c <code>` where code prints one `APPLIO_JSON:{...}` line.
-export async function runPythonJson<T = unknown>(code: string, onData?: (line: string) => void): Promise<T> {
+export async function runPythonJson<T = unknown>(
+  code: string,
+  onData?: (line: string) => void,
+  job?: Job,
+): Promise<T> {
+  if (job && !jobIsActive(job)) throw new Error("Stopped by user");
   const r = await runPythonModule(["-c", code], {
+    detached: job ? useGroupKill() : false,
+    onSpawn: job ? (pid) => trackPid(job.id, pid, useGroupKill()) : undefined,
     onData: (chunk, stream) => {
       if (stream === "stderr") onData?.(`[stderr] ${chunk.trim().slice(0, 500)}`);
     },
+  }).finally(() => {
+    if (job) trackPid(job.id, undefined);
   });
   if (r.code !== 0) {
     const explanation = explainExitCode(r.code);

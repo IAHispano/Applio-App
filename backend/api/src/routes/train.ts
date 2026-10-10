@@ -7,10 +7,21 @@ import multer from "multer";
 import { z } from "zod";
 import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "@/cli";
 import { errDetails, errMsg } from "@/errors";
-import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
+import {
+  appendLog,
+  cancelJob,
+  createJob,
+  getJob,
+  listJobs,
+  setDone,
+  setError,
+  setProgress,
+  setRunning,
+} from "@/jobs";
 import { repoRel } from "@/lib/fsutils";
 import { defaultPretrainedPaths, pretrainedFileReady, resolvePretrained } from "@/pretraineds";
 import { getLogsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 import { booleanCoerce } from "@/schemas";
 import { assertEngineReady } from "@/setup";
 
@@ -521,31 +532,36 @@ router.post("/train", async (req: Request, res: Response) => {
   }
   const job = createJob("train", { step: "train", ...p });
   void (async () => {
-    setRunning(job);
+    if (!(await acquireJobSlot(job, "gpu"))) return;
     try {
-      await ensureTrainingPretrained(p, job);
-      if (getJob(job.id)?.status !== "running") return;
-      const trainArgs = buildTrainArgs(p);
-      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
-        onLine: trainProgressHandler(job, p.totalEpoch),
-      });
-      setProgress(job, 100);
-      if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
-        appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
-        const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-        await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+      setRunning(job);
+      try {
+        await ensureTrainingPretrained(p, job);
+        if (getJob(job.id)?.status !== "running") return;
+        const trainArgs = buildTrainArgs(p);
+        await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
+          onLine: trainProgressHandler(job, p.totalEpoch),
+        });
+        setProgress(job, 100);
+        if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
+          appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
+          const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
+          await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+        }
+        setDone(job, { message: `Model ${p.modelName} trained successfully.` });
+      } catch (err) {
+        trackPid(job.id, undefined);
+        const message = errMsg(err);
+        const details = errDetails(err);
+        appendLog(job, `ERROR: ${message}`);
+        if (details && details !== message) {
+          appendLog(job, `DETAILS: ${details}`);
+        }
+        const j = getJob(job.id);
+        if (j && j.status === "running") setError(j, message || "Training failed", details);
       }
-      setDone(job, { message: `Model ${p.modelName} trained successfully.` });
-    } catch (err) {
-      trackPid(job.id, undefined);
-      const message = errMsg(err);
-      const details = errDetails(err);
-      appendLog(job, `ERROR: ${message}`);
-      if (details && details !== message) {
-        appendLog(job, `DETAILS: ${details}`);
-      }
-      const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, message || "Training failed", details);
+    } finally {
+      releaseJobSlot(job.id);
     }
   })();
   return res.status(202).json({ jobId: job.id });
@@ -655,55 +671,60 @@ router.post("/pipeline", async (req: Request, res: Response) => {
 
   const job = createJob("train", { pipeline: true, ...p });
   void (async () => {
-    setRunning(job);
-    const aborted = () => getJob(job.id)?.status !== "running";
+    if (!(await acquireJobSlot(job, "gpu"))) return;
     try {
-      await ensureTrainingPretrained(p, job);
-      if (aborted()) return;
-      appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
-      const prepArgs = buildPreprocessArgs({ ...p, datasetPath: ds });
-      await runJobStep(job, prepArgs, `Model ${p.modelName} preprocessed successfully.`, "Preprocess");
-      if (aborted()) return;
-
-      appendLog(job, "\n>>> [2/4] Extracting Features...");
-      const extractArgs = buildExtractArgs(p);
-      await runJobStep(job, extractArgs, `Model ${p.modelName} extracted successfully.`, "Extract");
-      if (aborted()) return;
-
-      appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
-      const trainArgs = buildTrainArgs(p);
-      await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
-        onLine: trainProgressHandler(job, p.totalEpoch),
-      });
-      setProgress(job, 100);
-      if (aborted()) return;
-
-      if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
-        appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
-        const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-        await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+      setRunning(job);
+      const aborted = () => getJob(job.id)?.status !== "running";
+      try {
+        await ensureTrainingPretrained(p, job);
         if (aborted()) return;
-      }
+        appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
+        const prepArgs = buildPreprocessArgs({ ...p, datasetPath: ds });
+        await runJobStep(job, prepArgs, `Model ${p.modelName} preprocessed successfully.`, "Preprocess");
+        if (aborted()) return;
 
-      appendLog(job, "\n>>> [4/4] Verifying artifacts...");
-      const pthAbs = path.join(getLogsDir(), p.modelName, `${p.modelName}.pth`);
-      if (!fs.existsSync(pthAbs)) {
-        throw new Error(`Training produced no model file (missing ${p.modelName}.pth).`);
-      }
+        appendLog(job, "\n>>> [2/4] Extracting Features...");
+        const extractArgs = buildExtractArgs(p);
+        await runJobStep(job, extractArgs, `Model ${p.modelName} extracted successfully.`, "Extract");
+        if (aborted()) return;
 
-      const pthRel = `logs/${p.modelName}/${p.modelName}.pth`;
-      if (aborted()) return;
-      setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
-    } catch (err) {
-      trackPid(job.id, undefined);
-      const message = errMsg(err);
-      const details = errDetails(err);
-      appendLog(job, `ERROR: ${message}`);
-      if (details && details !== message) {
-        appendLog(job, `DETAILS: ${details}`);
+        appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
+        const trainArgs = buildTrainArgs(p);
+        await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
+          onLine: trainProgressHandler(job, p.totalEpoch),
+        });
+        setProgress(job, 100);
+        if (aborted()) return;
+
+        if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
+          appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
+          const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
+          await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+          if (aborted()) return;
+        }
+
+        appendLog(job, "\n>>> [4/4] Verifying artifacts...");
+        const pthAbs = path.join(getLogsDir(), p.modelName, `${p.modelName}.pth`);
+        if (!fs.existsSync(pthAbs)) {
+          throw new Error(`Training produced no model file (missing ${p.modelName}.pth).`);
+        }
+
+        const pthRel = `logs/${p.modelName}/${p.modelName}.pth`;
+        if (aborted()) return;
+        setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
+      } catch (err) {
+        trackPid(job.id, undefined);
+        const message = errMsg(err);
+        const details = errDetails(err);
+        appendLog(job, `ERROR: ${message}`);
+        if (details && details !== message) {
+          appendLog(job, `DETAILS: ${details}`);
+        }
+        const j = getJob(job.id);
+        if (j && j.status === "running") setError(j, message || "Pipeline failed", details);
       }
-      const j = getJob(job.id);
-      if (j && j.status === "running") setError(j, message || "Pipeline failed", details);
+    } finally {
+      releaseJobSlot(job.id);
     }
   })();
   return res.status(202).json({ jobId: job.id });
@@ -719,7 +740,7 @@ router.post("/stop", (req: Request, res: Response) => {
       if (id && j.id !== id) continue;
       if (model && j.params?.modelName !== model) continue;
       appendLog(j, "Stopped by user.");
-      setError(j, "Stopped by user");
+      cancelJob(j);
     }
   };
   if (jobId) {

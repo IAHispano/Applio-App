@@ -4,9 +4,8 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import { startStorageCleaner } from "@/cleaner";
-import { killJobTree } from "@/cli";
 import { apiError, errMsg } from "@/errors";
-import { getJob, setError } from "@/jobs";
+import { cancelJob, flushJobHistory, getJob, jobIsActive, listJobs } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
   getCodeRoot,
@@ -14,6 +13,7 @@ import {
   getOutputsDir,
   getPythonBin,
   getRepoRoot,
+  noEnv,
   resolveUserPath,
   runPythonModule,
 } from "@/python";
@@ -26,7 +26,7 @@ import inferenceRouter from "@/routes/inference";
 import jobsRouter from "@/routes/jobs";
 import modelsRouter from "@/routes/models";
 import pluginsRouter from "@/routes/plugins";
-import realtimeRouter, { attachRealtimeProxy } from "@/routes/realtime";
+import realtimeRouter, { attachRealtimeProxy, stopRealtime } from "@/routes/realtime";
 import reportRouter from "@/routes/report";
 import settingsRouter, { autoStartPresence, stopPresence } from "@/routes/settings";
 import setupRouter from "@/routes/setup";
@@ -161,12 +161,8 @@ app.post("/api/jobs/:id/stop", (req, res) => {
   if (job.status === "done" || job.status === "error") {
     return res.json({ ok: true, alreadyFinished: true });
   }
-  const killed = killJobTree(job.id);
-  if (killed) {
-    setError(job, "Stopped by user");
-    return res.json({ ok: true });
-  }
-  return res.status(404).json({ error: "Job has no running process (may have finished starting)." });
+  cancelJob(job);
+  return res.json({ ok: true });
 });
 
 // Catch-all Express error handler to return rich JSON diagnostics to frontend
@@ -195,7 +191,7 @@ const server = app.listen(PORT, "127.0.0.1", () => {
   autoStartTensorboard();
   // Warm the inference worker (CUDA context + default embedder) in the
   // background so the first conversion doesn't pay one-time load costs.
-  inferenceWorker.warmupDelayed();
+  if (!noEnv()) inferenceWorker.warmupDelayed();
   // Automatically clean expired temporary audio files and uploads
   startStorageCleaner();
 });
@@ -204,22 +200,30 @@ const server = app.listen(PORT, "127.0.0.1", () => {
 // so the WS proxy attaches directly to our HTTP server.
 attachRealtimeProxy(server);
 
-process.on("SIGINT", () => {
+let shuttingDown = false;
+function shutdown(code = 0): void {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  for (const job of listJobs())
+    if (jobIsActive(job)) cancelJob(job, "Interrupted by app shutdown. Start the job again to continue.");
+  flushJobHistory();
+  inferenceWorker.stop();
+  stopRealtime();
   stopPresence();
   stopTensorboard();
-  process.exit(0);
-});
-process.on("SIGTERM", () => {
-  stopPresence();
-  stopTensorboard();
-  process.exit(0);
-});
+  server.close();
+  setTimeout(() => process.exit(code), 250);
+}
+process.on("SIGINT", () => shutdown());
+process.on("SIGTERM", () => shutdown());
 
 process.on("uncaughtException", (err) => {
   // eslint-disable-next-line no-console
   console.error("[applio-api] Uncaught exception:", err);
+  shutdown(1);
 });
 process.on("unhandledRejection", (reason) => {
   // eslint-disable-next-line no-console
   console.error("[applio-api] Unhandled rejection:", reason);
+  shutdown(1);
 });

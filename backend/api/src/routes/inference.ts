@@ -7,6 +7,7 @@ import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunnin
 import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 import { type InferenceParams, inferenceParamsSchema } from "@/schemas";
 import { assertEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
@@ -80,89 +81,94 @@ router.post("/", upload.single("audio"), async (req: Request, res: Response) => 
 async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs: string) {
   const job = getJob(jobId);
   if (!job) return;
-  setRunning(job);
+  if (!(await acquireJobSlot(job, "gpu"))) return;
   try {
-    const ts = Date.now();
-    const ext = String(params.exportFormat || "WAV").toLowerCase();
-    const outAbs = path.join(getOutputsDir(), `web_output_${ts}.${ext === "m4a" ? "m4a" : ext}`);
-    // infer engine expects a .wav output path then renames by export format; give .wav stem
-    const outWav = outAbs.replace(/\.[a-z0-9]+$/i, ".wav");
-
-    let finalServed: string | null = null;
-    let runStdout = "";
-
-    // Real progress from the engine's own log markers: total chunks, then
-    // one line per converted chunk, then the save step. Monotonic by design.
-    let totalChunks = 0;
-    let lastPct = -1;
-    const trackProgress = (trimmed: string) => {
-      let m = trimmed.match(/Audio split into (\d+) chunks/);
-      if (m) {
-        totalChunks = Math.max(1, Number(m[1]));
-        lastPct = 10;
-        setProgress(job, 10);
-        return;
-      }
-      m = trimmed.match(/Converted audio chunk (\d+)/);
-      if (m && totalChunks > 0) {
-        const pct = 10 + Math.round((80 * Math.min(Number(m[1]), totalChunks)) / totalChunks);
-        if (pct > lastPct) {
-          lastPct = pct;
-          setProgress(job, pct);
-        }
-        return;
-      }
-      if (/Saving audio as/i.test(trimmed) && lastPct < 96) {
-        lastPct = 96;
-        setProgress(job, 96);
-      }
-    };
-
+    setRunning(job);
     try {
-      trackPid(job.id, inferenceWorker.getPid());
-      const res = await inferenceWorker.infer(job.id, params, inputAbs, outWav, (chunk) => {
-        const trimmed = chunk.trim().slice(0, 1000);
-        if (trimmed) {
-          appendLog(job, trimmed);
-          runStdout += `${trimmed}\n`;
-          trackProgress(trimmed);
+      const ts = Date.now();
+      const ext = String(params.exportFormat || "WAV").toLowerCase();
+      const outAbs = path.join(getOutputsDir(), `web_output_${ts}.${ext === "m4a" ? "m4a" : ext}`);
+      // infer engine expects a .wav output path then renames by export format; give .wav stem
+      const outWav = outAbs.replace(/\.[a-z0-9]+$/i, ".wav");
+
+      let finalServed: string | null = null;
+      let runStdout = "";
+
+      // Real progress from the engine's own log markers: total chunks, then
+      // one line per converted chunk, then the save step. Monotonic by design.
+      let totalChunks = 0;
+      let lastPct = -1;
+      const trackProgress = (trimmed: string) => {
+        let m = trimmed.match(/Audio split into (\d+) chunks/);
+        if (m) {
+          totalChunks = Math.max(1, Number(m[1]));
+          lastPct = 10;
+          setProgress(job, 10);
+          return;
         }
-      });
-      trackPid(job.id, undefined);
-      finalServed = res.outputPath || outWav;
-    } catch (workerErr) {
-      appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
-      const args = toCliArgs(params, inputAbs, outWav);
-      const result = await runPythonModule(args, {
-        onData: (chunk) => {
+        m = trimmed.match(/Converted audio chunk (\d+)/);
+        if (m && totalChunks > 0) {
+          const pct = 10 + Math.round((80 * Math.min(Number(m[1]), totalChunks)) / totalChunks);
+          if (pct > lastPct) {
+            lastPct = pct;
+            setProgress(job, pct);
+          }
+          return;
+        }
+        if (/Saving audio as/i.test(trimmed) && lastPct < 96) {
+          lastPct = 96;
+          setProgress(job, 96);
+        }
+      };
+
+      try {
+        const res = await inferenceWorker.infer(job.id, params, inputAbs, outWav, (chunk) => {
           const trimmed = chunk.trim().slice(0, 1000);
           if (trimmed) {
             appendLog(job, trimmed);
             runStdout += `${trimmed}\n`;
             trackProgress(trimmed);
           }
-        },
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (result.code !== 0) {
-        throw new Error(result.stderr.slice(-3000) || `Inference failed with code ${result.code}`);
+        });
+        trackPid(job.id, undefined);
+        finalServed = res.outputPath || outWav;
+      } catch (workerErr) {
+        if (job.status !== "running") return;
+        appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
+        const args = toCliArgs(params, inputAbs, outWav);
+        const result = await runPythonModule(args, {
+          onData: (chunk) => {
+            const trimmed = chunk.trim().slice(0, 1000);
+            if (trimmed) {
+              appendLog(job, trimmed);
+              runStdout += `${trimmed}\n`;
+              trackProgress(trimmed);
+            }
+          },
+          onSpawn: (pid) => trackPid(job.id, pid),
+        });
+        trackPid(job.id, undefined);
+        if (result.code !== 0) {
+          throw new Error(result.stderr.slice(-3000) || `Inference failed with code ${result.code}`);
+        }
+        runStdout += result.stdout;
       }
-      runStdout += result.stdout;
+
+      const finalAbs = outWav.replace(/\.wav$/i, `.${ext}`);
+      const served =
+        finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outWav;
+
+      if (!fs.existsSync(served)) throw new Error("Inference finished but no output file was found.");
+      const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
+      appendLog(job, `Done -> ${rel}`);
+      setDone(job, { stdout: runStdout.slice(-2000) }, rel);
+    } catch (err) {
+      trackPid(job.id, undefined);
+      appendLog(job, `ERROR: ${errMsg(err)}`);
+      setError(job, errMsg(err) || "Inference failed");
     }
-
-    const finalAbs = outWav.replace(/\.wav$/i, `.${ext}`);
-    const served =
-      finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outWav;
-
-    if (!fs.existsSync(served)) throw new Error("Inference finished but no output file was found.");
-    const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
-    appendLog(job, `Done -> ${rel}`);
-    setDone(job, { stdout: runStdout.slice(-2000) }, rel);
-  } catch (err) {
-    trackPid(job.id, undefined);
-    appendLog(job, `ERROR: ${errMsg(err)}`);
-    setError(job, errMsg(err) || "Inference failed");
+  } finally {
+    releaseJobSlot(job.id);
   }
 }
 

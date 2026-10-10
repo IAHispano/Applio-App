@@ -14,6 +14,7 @@ import {
   resolveUserPath,
   runPythonModule,
 } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 import { type TtsParams, ttsSchema } from "@/schemas";
 import { assertEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
@@ -128,83 +129,88 @@ router.post("/", upload.single("txt_file"), async (req: Request, res: Response) 
 async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
   const job = getJob(jobId);
   if (!job) return;
-  setRunning(job);
-
-  const ts = Date.now();
-  const ext = params.exportFormat.toLowerCase();
-  const outTts = path.join(getOutputsDir(), `tts_output_${ts}.wav`);
-  const outRvc = path.join(getOutputsDir(), `tts_rvc_output_${ts}.wav`);
-  let runStdout = "";
-  let finalServed: string | null = null;
-
+  if (!(await acquireJobSlot(job, "gpu"))) return;
   try {
-    setProgress(job, 10);
+    setRunning(job);
+
+    const ts = Date.now();
+    const ext = params.exportFormat.toLowerCase();
+    const outTts = path.join(getOutputsDir(), `tts_output_${ts}.wav`);
+    const outRvc = path.join(getOutputsDir(), `tts_rvc_output_${ts}.wav`);
+    let runStdout = "";
+    let finalServed: string | null = null;
+
     try {
-      trackPid(job.id, inferenceWorker.getPid());
-      const res = await inferenceWorker.tts(
-        job.id,
-        {
-          params,
-          ttsText: params.ttsText,
-          ttsFile,
-          ttsVoice: params.ttsVoice,
-          ttsRate: params.ttsRate,
-          outputTtsPath: outTts,
-          outputRvcPath: outRvc,
-        },
-        (chunk) => {
-          const trimmed = chunk.trim().slice(0, 1000);
-          if (trimmed) {
-            appendLog(job, trimmed);
-            runStdout += `${trimmed}\n`;
-            if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
-            if (/TTS RVC conversion completed/i.test(trimmed)) setProgress(job, 95);
-          }
-        },
-      );
-      trackPid(job.id, undefined);
-      finalServed = res.outputRvcPath || res.outputPath || outRvc;
-    } catch (workerErr) {
-      appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
-      const args = toCliArgs(params, ttsFile, outTts, outRvc);
-      const result = await runPythonModule(args, {
-        onData: (chunk) => {
-          const trimmed = chunk.trim().slice(0, 1000);
-          if (trimmed) {
-            appendLog(job, trimmed);
-            runStdout += `${trimmed}\n`;
-            if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
-          }
-        },
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (result.code !== 0) {
-        throw new Error(result.stderr.slice(-3000) || `TTS failed with code ${result.code}`);
+      setProgress(job, 10);
+      try {
+        const res = await inferenceWorker.tts(
+          job.id,
+          {
+            params,
+            ttsText: params.ttsText,
+            ttsFile,
+            ttsVoice: params.ttsVoice,
+            ttsRate: params.ttsRate,
+            outputTtsPath: outTts,
+            outputRvcPath: outRvc,
+          },
+          (chunk) => {
+            const trimmed = chunk.trim().slice(0, 1000);
+            if (trimmed) {
+              appendLog(job, trimmed);
+              runStdout += `${trimmed}\n`;
+              if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
+              if (/TTS RVC conversion completed/i.test(trimmed)) setProgress(job, 95);
+            }
+          },
+        );
+        trackPid(job.id, undefined);
+        finalServed = res.outputRvcPath || res.outputPath || outRvc;
+      } catch (workerErr) {
+        if (job.status !== "running") return;
+        appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
+        const args = toCliArgs(params, ttsFile, outTts, outRvc);
+        const result = await runPythonModule(args, {
+          onData: (chunk) => {
+            const trimmed = chunk.trim().slice(0, 1000);
+            if (trimmed) {
+              appendLog(job, trimmed);
+              runStdout += `${trimmed}\n`;
+              if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
+            }
+          },
+          onSpawn: (pid) => trackPid(job.id, pid),
+        });
+        trackPid(job.id, undefined);
+        if (result.code !== 0) {
+          throw new Error(result.stderr.slice(-3000) || `TTS failed with code ${result.code}`);
+        }
+        runStdout += result.stdout;
       }
-      runStdout += result.stdout;
+
+      const finalAbs = outRvc.replace(/\.wav$/i, `.${ext}`);
+      const served =
+        finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outRvc;
+
+      if (!fs.existsSync(served)) throw new Error("TTS finished but no output file was found.");
+      const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
+      appendLog(job, `Done -> ${rel}`);
+      setProgress(job, 100);
+      setDone(
+        job,
+        {
+          stdout: runStdout.slice(-2000),
+          ttsIntermediate: `assets/audios/${path.basename(outTts)}`,
+        },
+        rel,
+      );
+    } catch (err) {
+      trackPid(job.id, undefined);
+      appendLog(job, `ERROR: ${errMsg(err)}`);
+      setError(job, errMsg(err) || "TTS failed");
     }
-
-    const finalAbs = outRvc.replace(/\.wav$/i, `.${ext}`);
-    const served =
-      finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outRvc;
-
-    if (!fs.existsSync(served)) throw new Error("TTS finished but no output file was found.");
-    const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
-    appendLog(job, `Done -> ${rel}`);
-    setProgress(job, 100);
-    setDone(
-      job,
-      {
-        stdout: runStdout.slice(-2000),
-        ttsIntermediate: `assets/audios/${path.basename(outTts)}`,
-      },
-      rel,
-    );
-  } catch (err) {
-    trackPid(job.id, undefined);
-    appendLog(job, `ERROR: ${errMsg(err)}`);
-    setError(job, errMsg(err) || "TTS failed");
+  } finally {
+    releaseJobSlot(job.id);
   }
 }
 

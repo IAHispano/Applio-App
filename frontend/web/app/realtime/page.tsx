@@ -129,6 +129,14 @@ export default function RealtimePage() {
   const [streaming, setStreaming] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [latency, setLatency] = useState(0);
+  const [diagnostics, setDiagnostics] = useState({
+    estimatedMs: 0,
+    queuedBlocks: 0,
+    droppedBlocks: 0,
+    playbackQueuedMs: 0,
+    playbackDroppedMs: 0,
+    underrunMs: 0,
+  });
   const [roundTrip, setRoundTrip] = useState(0);
   const [volume, setVolume] = useState(-90);
   const [msg, setMsg] = useState("");
@@ -288,11 +296,44 @@ export default function RealtimePage() {
       const ws = new WebSocket(apiWs("/api/realtime/ws-audio"));
       ws.binaryType = "arraybuffer";
       let sentAt = 0;
+      let lastRoundTrip = 0;
+      let lastCaptureQueueMs = 0;
       let retryEager = false;
       const sender = new RealtimeAudioSender((chunk) => {
+        lastCaptureQueueMs = sender.queueDelayMs;
         sentAt = performance.now();
         ws.send(chunk);
       });
+      setDiagnostics({
+        estimatedMs: 0,
+        queuedBlocks: 0,
+        droppedBlocks: 0,
+        playbackQueuedMs: 0,
+        playbackDroppedMs: 0,
+        underrunMs: 0,
+      });
+      const inputLatency =
+        (stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })?.latency ||
+        0;
+      playNode.port.onmessage = (event) => {
+        const stats = event.data.stats;
+        if (!stats || sessRef.current?.ws !== ws) return;
+        setDiagnostics({
+          estimatedMs:
+            (block / ctx.sampleRate) * 1000 +
+            crossfade * 1000 +
+            inputLatency * 1000 +
+            lastCaptureQueueMs +
+            lastRoundTrip +
+            stats.queuedMs +
+            (ctx.outputLatency || ctx.baseLatency || 0) * 1000,
+          queuedBlocks: sender.queuedBlocks,
+          droppedBlocks: sender.droppedBlocks,
+          playbackQueuedMs: stats.queuedMs,
+          playbackDroppedMs: (stats.droppedFrames / ctx.sampleRate) * 1000,
+          underrunMs: (stats.underrunFrames / ctx.sampleRate) * 1000,
+        });
+      };
       sessRef.current = { ws, ctx, stream, nodes: [src, inNode, playNode, gain], els: outputElements };
       ws.onopen = () => {
         ws.send(
@@ -392,7 +433,8 @@ export default function RealtimePage() {
             /* ignore */
           }
         } else {
-          setRoundTrip(performance.now() - sentAt);
+          lastRoundTrip = performance.now() - sentAt;
+          setRoundTrip(lastRoundTrip);
           playNode.port.postMessage({ chunk: ev.data }, [ev.data]);
           sender.acknowledge();
         }
@@ -1452,10 +1494,30 @@ export default function RealtimePage() {
             )}
           </div>
           {streaming && (
-            <span className="text-xs text-neutral-400 tabular-nums" role="status" aria-live="polite">
-              {t("Processing")} {latency.toFixed(0)}ms · {t("Round trip")} {roundTrip.toFixed(0)}ms · volume{" "}
-              {volume.toFixed(0)}dB
-            </span>
+            <>
+              <span className="text-xs text-neutral-400 tabular-nums" role="status" aria-live="polite">
+                {t("Processing")} {latency.toFixed(0)}ms · {t("Round trip")} {roundTrip.toFixed(0)}ms · volume{" "}
+                {volume.toFixed(0)}dB
+              </span>
+              <details className="text-xs text-[var(--muted)]">
+                <summary className="cursor-pointer">{t("Audio diagnostics")}</summary>
+                <p className="my-2">
+                  {t("Estimated audio delay")}: {diagnostics.estimatedMs.toFixed(0)}ms · {t("Playback queue")}
+                  : {diagnostics.playbackQueuedMs.toFixed(0)}ms · {t("Waiting blocks")}:{" "}
+                  {diagnostics.queuedBlocks}
+                </p>
+                <p className="my-2">
+                  {t("Dropped input blocks")}: {diagnostics.droppedBlocks} · {t("Dropped playback")}:{" "}
+                  {diagnostics.playbackDroppedMs.toFixed(0)}ms · {t("Playback underruns")}:{" "}
+                  {diagnostics.underrunMs.toFixed(0)}ms
+                </p>
+                <p className="my-2">
+                  {t(
+                    "Estimated delay includes capture, transport and reported output buffering. Device latency can differ.",
+                  )}
+                </p>
+              </details>
+            </>
           )}
         </div>
       </Stage>

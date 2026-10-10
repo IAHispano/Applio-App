@@ -29,7 +29,10 @@
     "dist:mac": "pnpm build:all && pnpm --filter @applio/desktop dist:mac",
     "dist:linux": "pnpm build:all && pnpm --filter @applio/desktop dist:linux",
     "backend:init": "git submodule update --init --recursive",
-    "backend:check": "node scripts/check-backend.mjs"
+    "backend:check": "node scripts/check-backend.mjs",
+    "reliability:check": "node scripts/check-reliability.mjs",
+    "runtime:check": "node scripts/check-runtime.mjs",
+    "release:check": "pnpm reliability:check && node scripts/check-runtime.mjs --packaged"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.14",

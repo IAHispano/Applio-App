@@ -2,8 +2,9 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
+import { trackPid } from "@/cli";
 import { errDetails, errMsg } from "@/errors";
-import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
+import { appendLog, createJob, getJob, type Job, jobIsActive, setDone, setError, setRunning } from "@/jobs";
 import { missingDefaultPretraineds } from "@/pretraineds";
 import {
   ensureWindowsRealPythonSync,
@@ -19,6 +20,7 @@ import {
   refreshWindowsEnv,
   resolveBasePythonFromCfg,
 } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 
 // First-run setup engine: checks every dependency on startup and installs
 // what's missing, streaming progress as a job.
@@ -631,6 +633,7 @@ async function streamRun(
   args: string[],
   opts: { shell?: boolean } = {},
 ): Promise<void> {
+  if (!jobIsActive(job)) throw new Error("Stopped by user");
   appendLog(job, `$ ${cmd} ${args.join(" ")}`);
   const root = getRepoRoot();
   const extraDirs: string[] = [root];
@@ -659,6 +662,7 @@ async function streamRun(
       shell: opts.shell || false,
       env: pythonEnv({ PATH: pathEnv, UV_HTTP_TIMEOUT: "300" }),
     });
+    trackPid(job.id, child.pid);
     const recentOutput: string[] = [];
     child.stdout?.on("data", (d: Buffer) => {
       for (const line of d.toString().split("\n")) {
@@ -680,9 +684,14 @@ async function streamRun(
         }
       }
     });
-    child.on("error", (e) => reject(new Error(`Failed to start ${cmd}: ${e.message}`)));
+    child.on("error", (e) => {
+      trackPid(job.id, undefined);
+      reject(new Error(`Failed to start ${cmd}: ${e.message}`));
+    });
     child.on("close", (code) => {
-      if (code === 0) resolve();
+      trackPid(job.id, undefined);
+      if (!jobIsActive(job)) reject(new Error("Stopped by user"));
+      else if (code === 0) resolve();
       else {
         const tail = recentOutput.slice(-8).join("\n").trim();
         const msg = tail ? `${cmd} failed (exit code ${code}):\n${tail}` : `${cmd} exited with code ${code}`;
@@ -1126,276 +1135,292 @@ export function startInstall(): Job {
   const job = createJob("other", { setup: true });
   activeInstallId = job.id;
   void (async () => {
-    setRunning(job);
+    if (!(await acquireJobSlot(job))) return;
     try {
-      const root = getRepoRoot();
-      const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-      const pnpmShell = process.platform === "win32";
+      setRunning(job);
+      try {
+        const root = getRepoRoot();
+        const pnpmCmd = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+        const pnpmShell = process.platform === "win32";
 
-      let venvPy = venvPythonPath();
-      const uvBin = await ensureUv(job);
-      const hasUv = Boolean(uvBin);
-      if (!exists(venvPy)) {
-        if (process.platform === "win32") {
-          killProcessesInVenv(path.join(root, ".venv"));
-        }
-        appendLog(job, "Creating app virtualenv (.venv)…");
-        if (uvBin) {
-          await streamRun(job, uvBin, [
-            "venv",
-            path.join(root, ".venv"),
-            "--python",
-            "3.12",
-            "--seed",
-            "--clear",
-            "--force",
-          ]);
-        } else {
-          // stdlib `venv` inherits the base interpreter version, and
-          // findPython() only resolves 3.12, so this venv is 3.12.
-          let py312 = await findPython();
-          if (!py312) {
-            await bootstrapSystemPython(job);
-            py312 = await findPython();
+        let venvPy = venvPythonPath();
+        const uvBin = await ensureUv(job);
+        const hasUv = Boolean(uvBin);
+        if (!exists(venvPy)) {
+          if (process.platform === "win32") {
+            killProcessesInVenv(path.join(root, ".venv"));
           }
-          if (!py312) {
-            throw new Error(
-              "Python 3.12 could not be found or installed. Install Python 3.12 from https://www.python.org/downloads/ and press Install again.",
-            );
-          }
-          // bootstrap may have created the venv itself (macOS uv path).
-          venvPy = venvPythonPath();
-          if (!exists(venvPy)) {
-            await streamRun(job, py312.cmd[0], [
-              ...py312.cmd.slice(1),
-              "-m",
+          appendLog(job, "Creating app virtualenv (.venv)…");
+          if (uvBin) {
+            await streamRun(job, uvBin, [
               "venv",
               path.join(root, ".venv"),
+              "--python",
+              "3.12",
+              "--seed",
+              "--clear",
+              "--force",
             ]);
-          }
-        }
-      } else {
-        appendLog(job, "App virtualenv already exists ✓");
-        const engineCheck = await checkEngineDeps([venvPy]);
-        if (!engineCheck.ok) {
-          appendLog(
-            job,
-            `Notice: Dependencies incomplete (${engineCheck.detail}). Repairing engine packages…`,
-          );
-        }
-      }
-      if (process.platform === "win32") {
-        await ensureWindowsRealPython(path.join(root, ".venv"), job);
-        // Re-resolve: the staging step may have just created python.real.exe.
-        venvPy = venvPythonPath();
-        await ensureWindowsVcRedist(job);
-      }
-
-      appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
-      if (!uvBin) {
-        await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
-      }
-      // NVIDIA GPU wheels live on the PyTorch index, not PyPI. Install the
-      // whole requirements file against that index so torch/torchaudio resolve
-      // to CUDA builds, e.g.:
-      //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
-      // unsafe-best-match is required because the torch index also mirrors a
-      // few PyPI packages at older versions.
-      const { getGpuHardware, installAmdRocm, cleanupZluda } = await import("@/rocm");
-      const gpuHardware = getGpuHardware();
-      const isAmdGpu =
-        process.platform === "win32" && (gpuHardware.isAmd || Boolean(process.env.APPLIO_ROCM_GFX));
-
-      const gpus = !isAmdGpu ? await getNvidiaGpus() : null;
-      const hasLegacyGpu = gpus ? isLegacyNvidiaGpu(gpus) : false;
-      const torchCuda = !isAmdGpu ? await resolveTorchCudaTag(job) : null;
-      const isLegacySetup = !isAmdGpu && (hasLegacyGpu || torchCuda === "cu126");
-
-      if (torchCuda)
-        appendLog(job, `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`);
-      const torchIndex = torchCuda
-        ? ["--extra-index-url", `https://download.pytorch.org/whl/${torchCuda}`]
-        : [];
-      const reqFile = path.join(root, "requirements.txt");
-      const shippedReq = path.join(getCodeRoot(), "requirements.txt");
-      if (shippedReq !== reqFile && exists(shippedReq)) {
-        try {
-          if (
-            !exists(reqFile) ||
-            fs.readFileSync(shippedReq, "utf-8") !== fs.readFileSync(reqFile, "utf-8")
-          ) {
-            fs.copyFileSync(shippedReq, reqFile);
-          }
-        } catch {
-          /* non-fatal */
-        }
-      }
-
-      const resolvedReqContent = readPythonRequirements(shippedReq);
-      let effectiveReqFile = path.join(root, ".requirements-resolved.txt");
-      fs.writeFileSync(effectiveReqFile, resolvedReqContent, "utf-8");
-      if (isAmdGpu && exists(reqFile)) {
-        try {
-          await cleanupZluda(root, path.join(root, ".venv"), job);
-          let reqContent = resolvedReqContent;
-          reqContent = reqContent
-            .split(/\r?\n/)
-            .filter((line) => {
-              const l = line.trim();
-              if (/^torch==/i.test(l)) return false;
-              if (/^torchaudio==/i.test(l)) return false;
-              if (/^torchvision/i.test(l)) return false;
-              if (/^nvidia-/i.test(l)) return false;
-              if (/^onnxruntime-gpu/i.test(l)) return false;
-              return true;
-            })
-            .join("\n");
-          const rocmReqFile = path.join(root, "requirements-rocm.txt");
-          fs.writeFileSync(rocmReqFile, reqContent, "utf-8");
-          effectiveReqFile = rocmReqFile;
-        } catch (e) {
-          appendLog(job, `Note: Could not prepare ROCm requirements file (${e}).`);
-        }
-      } else if (isLegacySetup && exists(reqFile)) {
-        try {
-          let reqContent = resolvedReqContent;
-          reqContent = reqContent.replace(/torch==\d+\.\d+\.\d+/g, "torch==2.7.1");
-          reqContent = reqContent.replace(/torchaudio==\d+\.\d+\.\d+/g, "torchaudio==2.7.1");
-          reqContent = reqContent.replace(/torchvision(?:>=|==)\d+\.\d+\.\d+/g, "torchvision==0.22.1");
-          const legacyReqFile = path.join(root, "requirements-legacy.txt");
-          fs.writeFileSync(legacyReqFile, reqContent, "utf-8");
-          effectiveReqFile = legacyReqFile;
-        } catch (e) {
-          appendLog(job, `Note: Could not prepare legacy requirements file (${e}).`);
-        }
-      }
-
-      if (uvBin) {
-        appendLog(job, "Using uv (fast installer)…");
-        await streamRun(job, uvBin, [
-          "pip",
-          "install",
-          "--python",
-          venvPy,
-          "-r",
-          effectiveReqFile,
-          ...torchIndex,
-          ...(torchIndex.length > 0 ? ["--index-strategy", "unsafe-best-match"] : []),
-        ]);
-      } else {
-        // Single requirements install so the GPU index applies to torch AND
-        // torchaudio (a separate `pip install torch` first would be
-        // overwritten by the CPU wheel from PyPI on the second call).
-        await streamRun(job, venvPy, [
-          "-m",
-          "pip",
-          "install",
-          "--timeout",
-          "120",
-          "--retries",
-          "5",
-          "-r",
-          effectiveReqFile,
-          ...torchIndex,
-        ]);
-      }
-
-      if (isAmdGpu) {
-        await installAmdRocm(venvPy, job);
-      } else if (isLegacySetup) {
-        appendLog(
-          job,
-          "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…",
-        );
-        await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", "torch", "torchvision", "torchaudio"]);
-        await streamRun(job, venvPy, [
-          "-m",
-          "pip",
-          "install",
-          "--no-cache-dir",
-          "torch==2.7.1",
-          "torchvision==0.22.1",
-          "torchaudio==2.7.1",
-          "--extra-index-url",
-          `https://download.pytorch.org/whl/${torchCuda || "cu126"}`,
-        ]);
-      }
-
-      process.env.PYTHON_BIN = venvPy;
-      appendLog(job, `Using Python env: ${venvPy}`);
-
-      appendLog(job, "Downloading default training pretrains, base voice models, and prerequisites…");
-      await streamRun(job, venvPy, [
-        path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
-        "--pretraineds-hifigan",
-        "--models",
-        "--exe",
-      ]);
-
-      if (exists(path.join(root, "backend", "api", "package.json"))) {
-        appendLog(job, "Installing web dependencies…");
-        await streamRun(job, pnpmCmd, ["install"], {
-          shell: pnpmShell,
-        });
-        if (!exists(path.join(root, "frontend", "web", ".next", "standalone", "server.js"))) {
-          if (await webDevServerRunning()) {
-            appendLog(
-              job,
-              `! Skipping web build — a dev server is already serving port ${WEB_PORT}. ` +
-                "Dev mode does not need the production bundle; to build it, stop `pnpm dev` and run `pnpm build`.",
-            );
           } else {
-            appendLog(job, "Building web interface…");
-            try {
-              await streamRun(job, pnpmCmd, ["run", "build"], { shell: pnpmShell });
-            } catch (e) {
-              appendLog(
-                job,
-                `! Web build failed (${e}) — everything else installed; run \`pnpm build\` manually.`,
+            // stdlib `venv` inherits the base interpreter version, and
+            // findPython() only resolves 3.12, so this venv is 3.12.
+            let py312 = await findPython();
+            if (!py312) {
+              await bootstrapSystemPython(job);
+              py312 = await findPython();
+            }
+            if (!py312) {
+              throw new Error(
+                "Python 3.12 could not be found or installed. Install Python 3.12 from https://www.python.org/downloads/ and press Install again.",
               );
             }
+            // bootstrap may have created the venv itself (macOS uv path).
+            venvPy = venvPythonPath();
+            if (!exists(venvPy)) {
+              await streamRun(job, py312.cmd[0], [
+                ...py312.cmd.slice(1),
+                "-m",
+                "venv",
+                path.join(root, ".venv"),
+              ]);
+            }
+          }
+        } else {
+          appendLog(job, "App virtualenv already exists ✓");
+          const engineCheck = await checkEngineDeps([venvPy]);
+          if (!engineCheck.ok) {
+            appendLog(
+              job,
+              `Notice: Dependencies incomplete (${engineCheck.detail}). Repairing engine packages…`,
+            );
           }
         }
-      } else {
-        appendLog(job, "Packaged app — web bundles already included ✓");
-      }
-
-      cached = null;
-      let final = await getStatus(true);
-      if (!final.ready && process.platform === "win32") {
-        const engineCheck = final.checks.find((c) => c.id === "engine" || c.id === "vcredist");
-        if (
-          engineCheck &&
-          engineCheck.status !== "ok" &&
-          (engineCheck.detail.includes("Visual C++") ||
-            engineCheck.detail.includes("126") ||
-            engineCheck.detail.includes("c10.dll") ||
-            engineCheck.detail.includes("The specified module could not be found"))
-        ) {
-          appendLog(job, "Engine check indicates Visual C++ Redistributable is needed. Installing…");
+        if (process.platform === "win32") {
+          await ensureWindowsRealPython(path.join(root, ".venv"), job);
+          // Re-resolve: the staging step may have just created python.real.exe.
+          venvPy = venvPythonPath();
           await ensureWindowsVcRedist(job);
-          cached = null;
-          final = await getStatus(true);
         }
+
+        appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
+        if (!uvBin) {
+          await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
+        }
+        // NVIDIA GPU wheels live on the PyTorch index, not PyPI. Install the
+        // whole requirements file against that index so torch/torchaudio resolve
+        // to CUDA builds, e.g.:
+        //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
+        // unsafe-best-match is required because the torch index also mirrors a
+        // few PyPI packages at older versions.
+        const { getGpuHardware, installAmdRocm, cleanupZluda } = await import("@/rocm");
+        const gpuHardware = getGpuHardware();
+        const isAmdGpu =
+          process.platform === "win32" && (gpuHardware.isAmd || Boolean(process.env.APPLIO_ROCM_GFX));
+
+        const gpus = !isAmdGpu ? await getNvidiaGpus() : null;
+        const hasLegacyGpu = gpus ? isLegacyNvidiaGpu(gpus) : false;
+        const torchCuda = !isAmdGpu ? await resolveTorchCudaTag(job) : null;
+        const isLegacySetup = !isAmdGpu && (hasLegacyGpu || torchCuda === "cu126");
+
+        if (torchCuda)
+          appendLog(
+            job,
+            `PyTorch CUDA index: ${torchCuda} (override with APPLIO_TORCH_CUDA=cu126|cu128|cpu)`,
+          );
+        const torchIndex = torchCuda
+          ? ["--extra-index-url", `https://download.pytorch.org/whl/${torchCuda}`]
+          : [];
+        const reqFile = path.join(root, "requirements.txt");
+        const shippedReq = path.join(getCodeRoot(), "requirements.txt");
+        if (shippedReq !== reqFile && exists(shippedReq)) {
+          try {
+            if (
+              !exists(reqFile) ||
+              fs.readFileSync(shippedReq, "utf-8") !== fs.readFileSync(reqFile, "utf-8")
+            ) {
+              fs.copyFileSync(shippedReq, reqFile);
+            }
+          } catch {
+            /* non-fatal */
+          }
+        }
+
+        const resolvedReqContent = readPythonRequirements(shippedReq);
+        let effectiveReqFile = path.join(root, ".requirements-resolved.txt");
+        fs.writeFileSync(effectiveReqFile, resolvedReqContent, "utf-8");
+        if (isAmdGpu && exists(reqFile)) {
+          try {
+            await cleanupZluda(root, path.join(root, ".venv"), job);
+            let reqContent = resolvedReqContent;
+            reqContent = reqContent
+              .split(/\r?\n/)
+              .filter((line) => {
+                const l = line.trim();
+                if (/^torch==/i.test(l)) return false;
+                if (/^torchaudio==/i.test(l)) return false;
+                if (/^torchvision/i.test(l)) return false;
+                if (/^nvidia-/i.test(l)) return false;
+                if (/^onnxruntime-gpu/i.test(l)) return false;
+                return true;
+              })
+              .join("\n");
+            const rocmReqFile = path.join(root, "requirements-rocm.txt");
+            fs.writeFileSync(rocmReqFile, reqContent, "utf-8");
+            effectiveReqFile = rocmReqFile;
+          } catch (e) {
+            appendLog(job, `Note: Could not prepare ROCm requirements file (${e}).`);
+          }
+        } else if (isLegacySetup && exists(reqFile)) {
+          try {
+            let reqContent = resolvedReqContent;
+            reqContent = reqContent.replace(/torch==\d+\.\d+\.\d+/g, "torch==2.7.1");
+            reqContent = reqContent.replace(/torchaudio==\d+\.\d+\.\d+/g, "torchaudio==2.7.1");
+            reqContent = reqContent.replace(/torchvision(?:>=|==)\d+\.\d+\.\d+/g, "torchvision==0.22.1");
+            const legacyReqFile = path.join(root, "requirements-legacy.txt");
+            fs.writeFileSync(legacyReqFile, reqContent, "utf-8");
+            effectiveReqFile = legacyReqFile;
+          } catch (e) {
+            appendLog(job, `Note: Could not prepare legacy requirements file (${e}).`);
+          }
+        }
+
+        if (uvBin) {
+          appendLog(job, "Using uv (fast installer)…");
+          await streamRun(job, uvBin, [
+            "pip",
+            "install",
+            "--python",
+            venvPy,
+            "-r",
+            effectiveReqFile,
+            ...torchIndex,
+            ...(torchIndex.length > 0 ? ["--index-strategy", "unsafe-best-match"] : []),
+          ]);
+        } else {
+          // Single requirements install so the GPU index applies to torch AND
+          // torchaudio (a separate `pip install torch` first would be
+          // overwritten by the CPU wheel from PyPI on the second call).
+          await streamRun(job, venvPy, [
+            "-m",
+            "pip",
+            "install",
+            "--timeout",
+            "120",
+            "--retries",
+            "5",
+            "-r",
+            effectiveReqFile,
+            ...torchIndex,
+          ]);
+        }
+
+        if (isAmdGpu) {
+          await installAmdRocm(venvPy, job);
+        } else if (isLegacySetup) {
+          appendLog(
+            job,
+            "Ensuring PyTorch 2.7.1 downgrade for older NVIDIA GPU (GTX / P104-100 / Pascal / Maxwell)…",
+          );
+          await streamRun(job, venvPy, [
+            "-m",
+            "pip",
+            "uninstall",
+            "-y",
+            "torch",
+            "torchvision",
+            "torchaudio",
+          ]);
+          await streamRun(job, venvPy, [
+            "-m",
+            "pip",
+            "install",
+            "--no-cache-dir",
+            "torch==2.7.1",
+            "torchvision==0.22.1",
+            "torchaudio==2.7.1",
+            "--extra-index-url",
+            `https://download.pytorch.org/whl/${torchCuda || "cu126"}`,
+          ]);
+        }
+
+        process.env.PYTHON_BIN = venvPy;
+        appendLog(job, `Using Python env: ${venvPy}`);
+
+        appendLog(job, "Downloading default training pretrains, base voice models, and prerequisites…");
+        await streamRun(job, venvPy, [
+          path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
+          "--pretraineds-hifigan",
+          "--models",
+          "--exe",
+        ]);
+
+        if (exists(path.join(root, "backend", "api", "package.json"))) {
+          appendLog(job, "Installing web dependencies…");
+          await streamRun(job, pnpmCmd, ["install"], {
+            shell: pnpmShell,
+          });
+          if (!exists(path.join(root, "frontend", "web", ".next", "standalone", "server.js"))) {
+            if (await webDevServerRunning()) {
+              appendLog(
+                job,
+                `! Skipping web build — a dev server is already serving port ${WEB_PORT}. ` +
+                  "Dev mode does not need the production bundle; to build it, stop `pnpm dev` and run `pnpm build`.",
+              );
+            } else {
+              appendLog(job, "Building web interface…");
+              try {
+                await streamRun(job, pnpmCmd, ["run", "build"], { shell: pnpmShell });
+              } catch (e) {
+                appendLog(
+                  job,
+                  `! Web build failed (${e}) — everything else installed; run \`pnpm build\` manually.`,
+                );
+              }
+            }
+          }
+        } else {
+          appendLog(job, "Packaged app — web bundles already included ✓");
+        }
+
+        cached = null;
+        let final = await getStatus(true);
+        if (!final.ready && process.platform === "win32") {
+          const engineCheck = final.checks.find((c) => c.id === "engine" || c.id === "vcredist");
+          if (
+            engineCheck &&
+            engineCheck.status !== "ok" &&
+            (engineCheck.detail.includes("Visual C++") ||
+              engineCheck.detail.includes("126") ||
+              engineCheck.detail.includes("c10.dll") ||
+              engineCheck.detail.includes("The specified module could not be found"))
+          ) {
+            appendLog(job, "Engine check indicates Visual C++ Redistributable is needed. Installing…");
+            await ensureWindowsVcRedist(job);
+            cached = null;
+            final = await getStatus(true);
+          }
+        }
+        for (const c of final.checks) {
+          appendLog(
+            job,
+            `${c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✗"} ${c.label}: ${c.detail}`,
+          );
+        }
+        if (!final.ready) throw new Error("Setup finished but some required checks still fail — see above.");
+        setDone(job, { message: "Setup complete — Applio is ready.", ready: true });
+      } catch (err) {
+        const message = errMsg(err);
+        const details = errDetails(err);
+        appendLog(job, `ERROR: ${message}`);
+        if (details && details !== message) {
+          appendLog(job, `DETAILS: ${details}`);
+        }
+        setError(job, message, details);
+      } finally {
+        activeInstallId = null;
       }
-      for (const c of final.checks) {
-        appendLog(
-          job,
-          `${c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✗"} ${c.label}: ${c.detail}`,
-        );
-      }
-      if (!final.ready) throw new Error("Setup finished but some required checks still fail — see above.");
-      setDone(job, { message: "Setup complete — Applio is ready.", ready: true });
-    } catch (err) {
-      const message = errMsg(err);
-      const details = errDetails(err);
-      appendLog(job, `ERROR: ${message}`);
-      if (details && details !== message) {
-        appendLog(job, `DETAILS: ${details}`);
-      }
-      setError(job, message, details);
     } finally {
-      activeInstallId = null;
+      releaseJobSlot(job.id);
     }
   })();
   return job;
@@ -1404,36 +1429,41 @@ export function startInstall(): Job {
 export function startPrerequisites(py: string[] | null): Job {
   const job = createJob("other", { setup: "prerequisites" });
   void (async () => {
-    setRunning(job);
+    if (!(await acquireJobSlot(job))) return;
     try {
-      if (!py && process.platform === "win32") {
-        await ensureWindowsRealPython(path.join(getRepoRoot(), ".venv"), job);
+      setRunning(job);
+      try {
+        if (!py && process.platform === "win32") {
+          await ensureWindowsRealPython(path.join(getRepoRoot(), ".venv"), job);
+        }
+        // Prefer the venv interpreter (staged real copy on win32) over a bare
+        // system python; keep the system fallback when no venv exists yet.
+        let exe = py ? py[0] : process.env.PYTHON_BIN || null;
+        if (!exe) {
+          const venvPy = venvPythonPath();
+          exe = exists(venvPy) ? venvPy : process.platform === "win32" ? "python" : "python3";
+        }
+        const prefix = py ? py.slice(1) : [];
+        await streamRun(job, exe, [
+          ...prefix,
+          path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
+          "--pretraineds-hifigan",
+          "--models",
+          "--exe",
+        ]);
+        cached = null;
+        setDone(job, { message: "Engine models downloaded." });
+      } catch (err) {
+        const message = errMsg(err);
+        const details = errDetails(err);
+        appendLog(job, `ERROR: ${message}`);
+        if (details && details !== message) {
+          appendLog(job, `DETAILS: ${details}`);
+        }
+        setError(job, message, details);
       }
-      // Prefer the venv interpreter (staged real copy on win32) over a bare
-      // system python; keep the system fallback when no venv exists yet.
-      let exe = py ? py[0] : process.env.PYTHON_BIN || null;
-      if (!exe) {
-        const venvPy = venvPythonPath();
-        exe = exists(venvPy) ? venvPy : process.platform === "win32" ? "python" : "python3";
-      }
-      const prefix = py ? py.slice(1) : [];
-      await streamRun(job, exe, [
-        ...prefix,
-        path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
-        "--pretraineds-hifigan",
-        "--models",
-        "--exe",
-      ]);
-      cached = null;
-      setDone(job, { message: "Engine models downloaded." });
-    } catch (err) {
-      const message = errMsg(err);
-      const details = errDetails(err);
-      appendLog(job, `ERROR: ${message}`);
-      if (details && details !== message) {
-        appendLog(job, `DETAILS: ${details}`);
-      }
-      setError(job, message, details);
+    } finally {
+      releaseJobSlot(job.id);
     }
   })();
   return job;

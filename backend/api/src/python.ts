@@ -711,12 +711,12 @@ export function runPythonModule(
     let stderr = "";
     child.stdout?.on("data", (d: Buffer) => {
       const s = d.toString();
-      stdout += s;
+      stdout = (stdout + s).slice(-4 * 1024 * 1024);
       opts.onData?.(s, "stdout");
     });
     child.stderr?.on("data", (d: Buffer) => {
       const s = d.toString();
-      stderr += s;
+      stderr = (stderr + s).slice(-2 * 1024 * 1024);
       opts.onData?.(s, "stderr");
     });
     child.on("error", reject);

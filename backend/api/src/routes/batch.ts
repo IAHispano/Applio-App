@@ -6,6 +6,7 @@ import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunning } from "@/jobs";
 import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
+import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
 import { type BatchInferenceParams, batchInferenceSchema } from "@/schemas";
 import { requireEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
@@ -59,71 +60,76 @@ async function runBatchJob(
 ) {
   const job = getJob(jobId);
   if (!job) return;
-  setRunning(job);
-
-  let totalFiles = 0;
-  let doneFiles = 0;
-  let lastPct = -1;
-  let runStdout = "";
-
-  const trackProgress = (trimmed: string) => {
-    const totalMatch = trimmed.match(/Detected (\d+) audio files for inference\./);
-    if (totalMatch) {
-      totalFiles = Math.max(1, Number(totalMatch[1]));
-      lastPct = 5;
-      setProgress(job, 5);
-      return;
-    }
-    if (/File .* inferred successfully\./.test(trimmed) && totalFiles > 0) {
-      doneFiles += 1;
-      const pct = 5 + Math.round((90 * Math.min(doneFiles, totalFiles)) / totalFiles);
-      if (pct > lastPct) {
-        lastPct = pct;
-        setProgress(job, pct);
-      }
-    }
-  };
-
+  if (!(await acquireJobSlot(job, "gpu"))) return;
   try {
-    try {
-      trackPid(job.id, inferenceWorker.getPid());
-      await inferenceWorker.inferBatch(job.id, params, inputFolder, outputFolder, (chunk) => {
-        const trimmed = chunk.trim().slice(0, 1000);
-        if (trimmed) {
-          appendLog(job, trimmed);
-          runStdout += `${trimmed}\n`;
-          trackProgress(trimmed);
+    setRunning(job);
+
+    let totalFiles = 0;
+    let doneFiles = 0;
+    let lastPct = -1;
+    let runStdout = "";
+
+    const trackProgress = (trimmed: string) => {
+      const totalMatch = trimmed.match(/Detected (\d+) audio files for inference\./);
+      if (totalMatch) {
+        totalFiles = Math.max(1, Number(totalMatch[1]));
+        lastPct = 5;
+        setProgress(job, 5);
+        return;
+      }
+      if (/File .* inferred successfully\./.test(trimmed) && totalFiles > 0) {
+        doneFiles += 1;
+        const pct = 5 + Math.round((90 * Math.min(doneFiles, totalFiles)) / totalFiles);
+        if (pct > lastPct) {
+          lastPct = pct;
+          setProgress(job, pct);
         }
-      });
-      trackPid(job.id, undefined);
-    } catch (workerErr) {
-      appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
-      const args = toCliArgs(params, inputFolder, outputFolder);
-      const result = await runPythonModule(args, {
-        onData: (chunk) => {
+      }
+    };
+
+    try {
+      try {
+        await inferenceWorker.inferBatch(job.id, params, inputFolder, outputFolder, (chunk) => {
           const trimmed = chunk.trim().slice(0, 1000);
           if (trimmed) {
             appendLog(job, trimmed);
             runStdout += `${trimmed}\n`;
             trackProgress(trimmed);
           }
-        },
-        onSpawn: (pid) => trackPid(job.id, pid),
-      });
-      trackPid(job.id, undefined);
-      if (result.code !== 0) {
-        throw new Error(result.stderr.slice(-3000) || `Batch inference failed with code ${result.code}`);
+        });
+        trackPid(job.id, undefined);
+      } catch (workerErr) {
+        if (job.status !== "running") return;
+        appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
+        const args = toCliArgs(params, inputFolder, outputFolder);
+        const result = await runPythonModule(args, {
+          onData: (chunk) => {
+            const trimmed = chunk.trim().slice(0, 1000);
+            if (trimmed) {
+              appendLog(job, trimmed);
+              runStdout += `${trimmed}\n`;
+              trackProgress(trimmed);
+            }
+          },
+          onSpawn: (pid) => trackPid(job.id, pid),
+        });
+        trackPid(job.id, undefined);
+        if (result.code !== 0) {
+          throw new Error(result.stderr.slice(-3000) || `Batch inference failed with code ${result.code}`);
+        }
+        runStdout += result.stdout;
       }
-      runStdout += result.stdout;
-    }
 
-    const rel = path.relative(getRepoRoot(), outputFolder).replace(/\\/g, "/");
-    appendLog(job, `Done -> ${rel}`);
-    setDone(job, { stdout: runStdout.slice(-2000) }, rel);
-  } catch (err) {
-    trackPid(job.id, undefined);
-    appendLog(job, `ERROR: ${errMsg(err)}`);
-    setError(job, errMsg(err) || "Batch inference failed");
+      const rel = path.relative(getRepoRoot(), outputFolder).replace(/\\/g, "/");
+      appendLog(job, `Done -> ${rel}`);
+      setDone(job, { stdout: runStdout.slice(-2000) }, rel);
+    } catch (err) {
+      trackPid(job.id, undefined);
+      appendLog(job, `ERROR: ${errMsg(err)}`);
+      setError(job, errMsg(err) || "Batch inference failed");
+    }
+  } finally {
+    releaseJobSlot(job.id);
   }
 }
 

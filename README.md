@@ -144,6 +144,10 @@ First run: open the app, press **Install / Repair** on the setup screen (creates
 
 RVC comes directly from the pinned Applio submodule. UVR stays in this app.
 
+Audio separation installs its optional dependencies when first used, preserving the installed RVC runtime. Model weights stay in user storage rather than the app package.
+
+Job history survives app restarts; interrupted work is marked so it can be started again. GPU jobs run one at a time, and realtime sessions hold new GPU work in the queue until stopped. Downloads recover from interrupted connections when the server supports resuming. Realtime shows processing time, estimated audio delay, queue depth, and dropped audio to help diagnose device and transport delays.
+
 ### User settings
 
 Preferences are stored separately from the app installation:
@@ -167,6 +171,9 @@ Desktop, web/API, and Python commands use the same settings. For a separate prof
 | `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `frontend/desktop/dist-installers/`) |
 | `pnpm typecheck` | TypeScript checks across all packages |
 | `pnpm backend:init` / `backend:check` | Initialize or verify the pinned shared engine |
+| `pnpm reliability:check` | Check job recovery, cancellation, scheduling, audio queues, and download recovery |
+| `pnpm runtime:check` | Verify startup of the built API and frontend |
+| `pnpm release:check` | Check reliability and startup of the packaged app before uploading release artifacts |
 | `pnpm format` | Format/lint-fix the frontend and API with Biome |
 
 ### CLI Mode

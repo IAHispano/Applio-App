@@ -44,6 +44,7 @@ export interface ModelLists {
 export type JobStatus = "queued" | "running" | "done" | "error";
 
 export interface Job {
+  label?: string;
   id: string;
   type: string;
   status: JobStatus;

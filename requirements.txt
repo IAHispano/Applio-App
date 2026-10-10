@@ -1,17 +1,6 @@
 -r backend/applio/requirements-engine.txt
 
-# Applio UVR stem separation (uvr/): onnx2torch needs torchvision from the
-# same build as torch (cu128 index with unsafe-best-match), otherwise its
-# import fails with "torchvision::nms does not exist".
-onnx>=1.18.0
-onnx2torch-py313>=1.6.0
-torchvision>=0.26.0
-julius>=0.2.0
-# MSST Roformer models (uvr/roformer)
-rotary-embedding-torch>=0.6.0
-beartype>=0.18.0
-# MDXC models (uvr/arch_mdxc.py + uvr/tfc_tdf_v3.py)
-ml_collections>=1.1.0
+# Optional audio separation dependencies are installed on first use.
 
 # App integrations
 ffmpeg-python>=0.2.0
