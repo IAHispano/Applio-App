@@ -154,9 +154,8 @@ Desktop, web/API, and Python commands use the same settings. For a separate prof
 | `pnpm build` | Production build of API + web |
 | `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `app/desktop/dist-installers/`) |
 | `pnpm typecheck` | TypeScript checks across all packages |
-| `pnpm test` | Settings regression tests and API build |
-| `python -m unittest discover -s tests` | Python settings regression tests |
-| `pnpm format` | Format/lint-fix `app` + `tests` with Biome |
+| `pnpm backend:init` / `backend:check` | Initialize or verify the pinned shared engine |
+| `pnpm format` | Format/lint-fix `app` with Biome |
 
 ### CLI Mode
 

@@ -57,6 +57,9 @@ files:
     filter:
       - "**/*"
       - "!config.json"
+      - "!*.ipynb"
+      - "!demo.*"
+      - "!i18n/languages_legacy/**"
       - "!**/__pycache__"
       - "!**/*.pyc"
       - "!**/.venv/**"
