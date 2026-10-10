@@ -3,7 +3,19 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, Notification, nativeImage, session, shell, Tray } from "electron";
+import {
+  app,
+  BrowserWindow,
+  clipboard,
+  dialog,
+  ipcMain,
+  Menu,
+  Notification,
+  nativeImage,
+  session,
+  shell,
+  Tray,
+} from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 import { waitFor } from "./startup";
@@ -1800,22 +1812,20 @@ if (!gotLock) {
     // Explicit mic grant for our local UI so background (tray-driven)
     // streaming is never stuck on a permission prompt.
     try {
-      session.defaultSession.setPermissionRequestHandler(
-        (webContents, permission, callback, details) => {
-          try {
-            if (permission === "media") {
-              const url = details.requestingUrl || webContents.getURL();
-              if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) {
-                callback(true);
-                return;
-              }
+      session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+        try {
+          if (permission === "media") {
+            const url = details.requestingUrl || webContents.getURL();
+            if (/^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?\//.test(url)) {
+              callback(true);
+              return;
             }
-          } catch {
-            /* fall through to deny */
           }
-          callback(false);
-        },
-      );
+        } catch {
+          /* fall through to deny */
+        }
+        callback(false);
+      });
     } catch {
       /* non-fatal */
     }
