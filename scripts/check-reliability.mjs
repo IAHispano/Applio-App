@@ -24,7 +24,8 @@ try {
         ["jobs", "scheduler", "download-file", "job-history", "realtime-process"]
           .map((name) => `export * from ${JSON.stringify(path.join(root, "backend/api/src", `${name}.ts`))};`)
           .join("\n") +
-        `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};`,
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};` +
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};`,
       loader: "ts",
       resolveDir: root,
     },
@@ -175,6 +176,7 @@ try {
   let failedOnce = false;
   const ranges = [];
   server = http.createServer((req, res) => {
+    if (req.url === "/startup-hang") return;
     if (req.url === "/missing") {
       res.writeHead(404);
       res.end();
@@ -203,6 +205,11 @@ try {
   });
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
   const base = `http://127.0.0.1:${server.address().port}`;
+  assert.equal(await api.waitFor(`${base}/good`, 1), true);
+  assert.equal(await api.waitFor(`${base}/missing`, 0.1, undefined, 10), false);
+  const startupDeadline = performance.now();
+  assert.equal(await api.waitFor(`${base}/startup-hang`, 0.15), false);
+  assert.ok(performance.now() - startupDeadline < 1000, "Stalled service exceeded its startup deadline");
   const destination = path.join(temporary, "model.pth");
   await api.downloadFile(`${base}/retry`, destination, {
     sha256: createHash("sha256").update(payload).digest("hex"),

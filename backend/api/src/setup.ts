@@ -440,7 +440,23 @@ function checkWebBuild(): { ok: boolean; detail: string } {
   return { ok: false, detail: "web bundle missing — run pnpm build" };
 }
 
-export async function getStatus(force = false): Promise<SetupStatus> {
+let statusCheck: Promise<SetupStatus> | undefined;
+export function getStatus(force = false): Promise<SetupStatus> {
+  if (statusCheck) return statusCheck;
+  const check = computeStatus(force);
+  statusCheck = check;
+  void check.then(
+    () => {
+      if (statusCheck === check) statusCheck = undefined;
+    },
+    () => {
+      if (statusCheck === check) statusCheck = undefined;
+    },
+  );
+  return check;
+}
+
+async function computeStatus(force: boolean): Promise<SetupStatus> {
   if (noEnv()) {
     const bypassed: SetupStatus = {
       ready: true,

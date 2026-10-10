@@ -6,6 +6,7 @@ import path from "node:path";
 import { app, BrowserWindow, clipboard, dialog, ipcMain, Notification, nativeImage, shell } from "electron";
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
+import { waitFor } from "./startup";
 
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
@@ -129,65 +130,80 @@ function setupWindowsAmdRocmEnv(): void {
   }
 
   // Check MSVC toolchain if installed on system (for MIOpen / hiprtc runtime JIT compilation)
-  try {
-    const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
-    const vswhere = path.join(pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe");
-    if (fs.existsSync(vswhere)) {
-      const { execSync } = require("node:child_process");
-      const vsPath = execSync(
-        `"${vswhere}" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`,
-        { encoding: "utf-8", windowsHide: true, timeout: 5000 },
-      ).trim();
-      if (vsPath && fs.existsSync(vsPath)) {
-        const msvcBase = path.join(vsPath, "VC", "Tools", "MSVC");
-        if (fs.existsSync(msvcBase)) {
-          const versions = fs
-            .readdirSync(msvcBase, { withFileTypes: true })
-            .filter((d: fs.Dirent) => d.isDirectory())
-            .map((d: fs.Dirent) => d.name)
-            .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
-          if (versions.length > 0) {
-            const latestVer = versions[0];
-            const binDir = path.join(msvcBase, latestVer, "bin", "Hostx64", "x64");
-            const msvcInc = path.join(msvcBase, latestVer, "include");
-            if (fs.existsSync(binDir) && !parts.some((p) => p.toLowerCase() === binDir.toLowerCase())) {
-              parts.push(binDir);
-            }
-            if (fs.existsSync(msvcInc)) {
-              const currentInc = process.env.INCLUDE || "";
-              const incParts = currentInc.split(path.delimiter).filter(Boolean);
-              if (!incParts.some((p) => p.toLowerCase() === msvcInc.toLowerCase())) {
-                incParts.push(msvcInc);
+  if (
+    process.env.HIP_PATH ||
+    process.env.ROCM_PATH ||
+    process.env.APPLIO_ROCM_GFX ||
+    candidatesVenv.some(
+      (venv) =>
+        fs.existsSync(path.join(venv, ".rocm-installed")) ||
+        ["amdhip64.dll", "torch_hip.dll", "c10_hip.dll", "rocblas.dll", ".rocm-installed"].some((file) =>
+          fs.existsSync(path.join(venv, "Lib", "site-packages", "torch", "lib", file)),
+        ),
+    )
+  )
+    try {
+      const pf86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+      const vswhere = path.join(pf86, "Microsoft Visual Studio", "Installer", "vswhere.exe");
+      if (fs.existsSync(vswhere)) {
+        const { execSync } = require("node:child_process");
+        const vsPath = execSync(
+          `"${vswhere}" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`,
+          { encoding: "utf-8", windowsHide: true, timeout: 5000 },
+        ).trim();
+        if (vsPath && fs.existsSync(vsPath)) {
+          const msvcBase = path.join(vsPath, "VC", "Tools", "MSVC");
+          if (fs.existsSync(msvcBase)) {
+            const versions = fs
+              .readdirSync(msvcBase, { withFileTypes: true })
+              .filter((d: fs.Dirent) => d.isDirectory())
+              .map((d: fs.Dirent) => d.name)
+              .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
+            if (versions.length > 0) {
+              const latestVer = versions[0];
+              const binDir = path.join(msvcBase, latestVer, "bin", "Hostx64", "x64");
+              const msvcInc = path.join(msvcBase, latestVer, "include");
+              if (fs.existsSync(binDir) && !parts.some((p) => p.toLowerCase() === binDir.toLowerCase())) {
+                parts.push(binDir);
               }
-              const sdkIncBase = path.join(pf86, "Windows Kits", "10", "Include");
-              if (fs.existsSync(sdkIncBase)) {
-                try {
-                  const sdkVersions = fs
-                    .readdirSync(sdkIncBase, { withFileTypes: true })
-                    .filter((d: fs.Dirent) => d.isDirectory())
-                    .map((d: fs.Dirent) => d.name)
-                    .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
-                  if (sdkVersions.length > 0) {
-                    for (const sub of ["ucrt", "shared", "um"]) {
-                      const p = path.join(sdkIncBase, sdkVersions[0], sub);
-                      if (fs.existsSync(p) && !incParts.some((ip) => ip.toLowerCase() === p.toLowerCase())) {
-                        incParts.push(p);
+              if (fs.existsSync(msvcInc)) {
+                const currentInc = process.env.INCLUDE || "";
+                const incParts = currentInc.split(path.delimiter).filter(Boolean);
+                if (!incParts.some((p) => p.toLowerCase() === msvcInc.toLowerCase())) {
+                  incParts.push(msvcInc);
+                }
+                const sdkIncBase = path.join(pf86, "Windows Kits", "10", "Include");
+                if (fs.existsSync(sdkIncBase)) {
+                  try {
+                    const sdkVersions = fs
+                      .readdirSync(sdkIncBase, { withFileTypes: true })
+                      .filter((d: fs.Dirent) => d.isDirectory())
+                      .map((d: fs.Dirent) => d.name)
+                      .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
+                    if (sdkVersions.length > 0) {
+                      for (const sub of ["ucrt", "shared", "um"]) {
+                        const p = path.join(sdkIncBase, sdkVersions[0], sub);
+                        if (
+                          fs.existsSync(p) &&
+                          !incParts.some((ip) => ip.toLowerCase() === p.toLowerCase())
+                        ) {
+                          incParts.push(p);
+                        }
                       }
                     }
+                  } catch {
+                    /* ignore */
                   }
-                } catch {
-                  /* ignore */
                 }
+                process.env.INCLUDE = incParts.join(path.delimiter);
               }
-              process.env.INCLUDE = incParts.join(path.delimiter);
             }
           }
         }
       }
+    } catch {
+      /* ignore */
     }
-  } catch {
-    /* ignore */
-  }
 
   // ROCm PyTorch wheels are standalone and do NOT require an external AMD HIP SDK installation.
   process.env.HIP_VISIBLE_DEVICES ??= "0";
@@ -697,26 +713,6 @@ async function reportBootFailure(): Promise<"retry" | "quit"> {
   }
 }
 
-async function waitFor(
-  url: string,
-  timeoutSeconds = 60,
-  onTick?: (progressRatio: number) => void,
-  intervalMs = 150,
-): Promise<boolean> {
-  const maxAttempts = Math.max(1, Math.floor((timeoutSeconds * 1000) / intervalMs));
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      const r = await fetch(url);
-      if (r.ok) return true;
-    } catch {
-      /* not up yet */
-    }
-    onTick?.(i / maxAttempts);
-    await new Promise((r) => setTimeout(r, intervalMs));
-  }
-  return false;
-}
-
 function getSplashHtml(_version: string): string {
   const html = `<!doctype html>
 <html>
@@ -1187,7 +1183,17 @@ function initAutoUpdater(): void {
   });
 }
 
+function primeStartupData(): void {
+  // Readiness checks remain authoritative in the UI and job endpoints, but
+  // importing torch must not prevent the window from painting.
+  for (const route of ["setup/status", "models"])
+    void fetch(`http://127.0.0.1:${API_PORT}/api/${route}`, { signal: AbortSignal.timeout(180000) })
+      .then((response) => response.body?.cancel())
+      .catch(() => {});
+}
+
 async function createWindow(): Promise<void> {
+  const startupStarted = performance.now();
   showSplash();
   let movingLogs = false;
   try {
@@ -1249,10 +1255,7 @@ async function createWindow(): Promise<void> {
 
     // Preload & prime engine data
     setSplashStatus("Loading Applio…", 88);
-    await Promise.all([
-      fetch(`http://127.0.0.1:${API_PORT}/api/setup/status`).catch(() => {}),
-      fetch(`http://127.0.0.1:${API_PORT}/api/models`).catch(() => {}),
-    ]);
+    primeStartupData();
   } else {
     let attempt = 0;
     for (;;) {
@@ -1263,7 +1266,7 @@ async function createWindow(): Promise<void> {
       const apiHealthUrl = `http://127.0.0.1:${API_PORT}/api/health`;
       const webHealthUrl = `http://127.0.0.1:${WEB_PORT}/`;
 
-      const [webOk] = await Promise.all([
+      const [webOk, apiOk] = await Promise.all([
         waitFor(webHealthUrl, 60, (ratio) =>
           setSplashStatus(
             movingLogs ? "Moving logs folder…" : "Starting Applio…",
@@ -1273,12 +1276,9 @@ async function createWindow(): Promise<void> {
         waitFor(apiHealthUrl, apiStartupTimeout),
       ]);
 
-      if (webOk) {
+      if (webOk && apiOk) {
         setSplashStatus("Loading Applio…", 88);
-        await Promise.all([
-          fetch(`http://127.0.0.1:${API_PORT}/api/setup/status`).catch(() => {}),
-          fetch(`http://127.0.0.1:${API_PORT}/api/models`).catch(() => {}),
-        ]);
+        primeStartupData();
         break;
       }
       const action = await reportBootFailure();
@@ -1339,18 +1339,17 @@ async function createWindow(): Promise<void> {
     windowShown = true;
     setSplashStatus("Ready!", 100);
 
-    // Give a brief moment for the bar to smoothly reach 100%, then remove splash before showing the app
-    setTimeout(() => {
-      closeSplash();
-      setTimeout(() => {
-        if (!mainWindow || mainWindow.isDestroyed()) return;
-        if (saved?.isMaximized) {
-          mainWindow.maximize();
-        }
-        mainWindow.show();
-        mainWindow.focus();
-      }, 50);
-    }, 180);
+    closeSplash();
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (saved?.isMaximized) {
+      mainWindow.maximize();
+    }
+    mainWindow.show();
+    mainWindow.focus();
+    logToTailAndFile(
+      `[startup] window visible after ${Math.round(performance.now() - startupStarted)}ms`,
+      "launcher.log",
+    );
   };
   mainWindow.once("ready-to-show", showMainWindow);
   setTimeout(showMainWindow, 5000);
