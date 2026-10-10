@@ -693,11 +693,6 @@ export default function TrainPage() {
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 min-w-0">
                             <p className="text-sm font-bold text-white m-0 truncate">{s.title}</p>
-                            {s.key === "train" && (
-                              <Badge variant="neutral" className="shrink-0">
-                                {t("Core step")}
-                              </Badge>
-                            )}
                           </div>
                           <p className="text-[11px] text-neutral-400 m-0 truncate">{s.desc}</p>
                         </div>
