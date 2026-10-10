@@ -56,7 +56,11 @@ def ensure_dependencies():
             "-c",
             str(constraints_file),
         ]
-        if "+cu" in torch_version or "+cpu" in torch_version or "+rocm" in torch_version:
+        if (
+            "+cu" in torch_version
+            or "+cpu" in torch_version
+            or "+rocm" in torch_version
+        ):
             cuda = torch_version.split("+")[1]
             command.extend(
                 ["--extra-index-url", f"https://download.pytorch.org/whl/{cuda}"]
