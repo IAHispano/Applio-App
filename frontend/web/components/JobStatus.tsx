@@ -5,6 +5,7 @@ import { Alert, Badge, Button } from "@/components/ui";
 import { errMsg, type Job, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { historyState, historyStateLabels } from "@/lib/job-history";
+import { cleanJobLogs } from "@/lib/useJob";
 
 // Shared job status UI: badge + error + cancel + progress.
 export function JobBadge({ status, error }: { status: Job["status"]; error?: string }) {
@@ -53,7 +54,9 @@ export function JobError({ message, details, logs, jobId, className, onDismiss }
 
   let diagnosticText = details;
   if (!diagnosticText && logs && logs.length > 0) {
-    diagnosticText = logs.slice(-50).join("\n");
+    // Collapse tqdm progress spam so error diagnostics keep real context
+    // instead of 50 "Downloading all files: 64%|…" redraws.
+    diagnosticText = cleanJobLogs(logs).slice(-50).join("\n");
   }
 
   const fullCopyText = [

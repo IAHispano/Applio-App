@@ -55,16 +55,59 @@ export function usePersistentJobId(key: string) {
 }
 
 // Shared job polling hook.
+// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI ESC prefix is required to strip terminal codes
+const ANSI_RE = /\[[0-9;?]*[a-zA-Z]/g;
+
+// Matches tqdm-style live progress bars ("Downloading all files: 64%|██| ...").
+// Keep in sync with the backend collapse helper in api/src/jobs.ts.
+export function isProgressBarLine(line: string): boolean {
+  return /(\d{1,3})%\s*\|/.test(line);
+}
+
+export function progressBarDesc(line: string): string {
+  const idx = line.search(/\d{1,3}%\s*\|/);
+  if (idx === -1) return "";
+  return line
+    .slice(0, idx)
+    .replace(/^\[(stdout|stderr)\]\s*/i, "")
+    .trim()
+    .toLowerCase();
+}
+
+// Collapse live progress redraws so a run of same-bar updates ("64%|…",
+// "65%|…") stays 1 line showing only the latest. Distinct bars (new desc)
+// still start a new line; non-progress lines always break the run.
+export function collapseProgressLogs(logs: string[]): string[] {
+  const out: string[] = [];
+  for (const line of logs) {
+    if (isProgressBarLine(line) && out.length > 0) {
+      const prev = out[out.length - 1];
+      if (isProgressBarLine(prev) && progressBarDesc(prev) === progressBarDesc(line)) {
+        out[out.length - 1] = line;
+        continue;
+      }
+    }
+    out.push(line);
+  }
+  return out;
+}
+
 export function cleanJobLogs(logs?: string[]): string[] {
   if (!logs) return [];
-  return logs
-    .map((l) =>
-      l
+  const cleaned: string[] = [];
+  for (const entry of logs) {
+    // Backend entries can glue many tqdm redraws into one chunk with \r
+    // separators; split first so each update collapses exactly.
+    for (const frag of entry.split(/\r+\n?|\n/)) {
+      const l = frag
+        .replace(ANSI_RE, "")
         .replace(/^\$ python.*$/i, "")
         .replace(/^\[(stdout|stderr)\]\s*/i, "")
-        .trim(),
-    )
-    .filter((l) => l.length > 0);
+        .trim();
+      if (l.length > 0) cleaned.push(l);
+    }
+  }
+  return collapseProgressLogs(cleaned);
 }
 
 export function useJob(jobId: string | null) {

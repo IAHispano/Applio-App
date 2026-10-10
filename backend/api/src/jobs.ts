@@ -110,11 +110,43 @@ export function listJobs(): Job[] {
 }
 
 export function appendLog(job: Job, line: string) {
-  job.logs.push(line.slice(0, 2000));
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI ESC prefix is required to strip terminal codes
+  const clean = line.replace(/\[[0-9;?]*[a-zA-Z]/g, "").slice(0, 2000);
+  // Live progress bars (tqdm redraws like "Downloading all files: 64%|...").
+  // They arrive as many lines per second; keep only the latest per bar so the
+  // log stays 1 line instead of 1 line per step. Same-desc check keeps
+  // distinct bars (e.g. a new file/phase) as separate lines.
+  if (isProgressBarLine(clean) && job.logs.length > 0) {
+    const last = job.logs[job.logs.length - 1];
+    if (isProgressBarLine(last) && progressBarDesc(last) === progressBarDesc(clean)) {
+      job.logs[job.logs.length - 1] = clean;
+      job.updatedAt = new Date().toISOString();
+      notifyThrottled(job);
+      scheduleSave();
+      return;
+    }
+  }
+  job.logs.push(clean);
   if (job.logs.length > 500) job.logs = job.logs.slice(-500);
   job.updatedAt = new Date().toISOString();
   notifyThrottled(job);
   scheduleSave();
+}
+
+// Matches tqdm-style bars ("Downloading all files: 64%|██| 836M/1.31G [...]").
+// Keep in sync with the frontend collapse helper in web/lib/useJob.ts.
+export function isProgressBarLine(line: string): boolean {
+  return /(\d{1,3})%\s*\|/.test(line);
+}
+
+export function progressBarDesc(line: string): string {
+  const idx = line.search(/\d{1,3}%\s*\|/);
+  if (idx === -1) return "";
+  return line
+    .slice(0, idx)
+    .replace(/^\[(stdout|stderr)\]\s*/i, "")
+    .trim()
+    .toLowerCase();
 }
 
 export function setRunning(job: Job) {

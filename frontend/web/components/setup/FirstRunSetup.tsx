@@ -7,6 +7,7 @@ import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import type { SetupStatus } from "@/lib/setup";
 import { toast } from "@/lib/toast";
+import { cleanJobLogs } from "@/lib/useJob";
 
 interface FirstRunSetupProps {
   onComplete: () => void;
@@ -88,13 +89,10 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     };
   }, [jobId, t]);
 
-  // Cleaned and filtered logs list
-  const processedLogs = useMemo(() => {
-    if (!job?.logs?.length) return [];
-    return job.logs
-      .map((log) => log.replace(/^\[(stdout|stderr)\]\s*/i, "").trim())
-      .filter((log) => log.length > 0);
-  }, [job?.logs]);
+  // Cleaned and filtered logs list. cleanJobLogs also splits \r-glued tqdm
+  // redraws and collapses same-bar progress updates in place, so a long
+  // "Downloading all files: 64%|…" download stays 1 live line, not 1 per step.
+  const processedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 
   // Auto-scroll logs as new output arrives
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes
@@ -371,7 +369,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             title={t("Setup Encountered an Issue")}
             details={
               job?.errorDetails ||
-              (job?.logs && job.logs.length > 0 ? job.logs.slice(-50).join("\n") : undefined)
+              (job?.logs && job.logs.length > 0 ? cleanJobLogs(job.logs).slice(-50).join("\n") : undefined)
             }
             copyText={[
               "Applio Setup Error:",
@@ -380,7 +378,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
               job?.errorDetails
                 ? `\nError Details:\n${job.errorDetails}`
                 : job?.logs && job.logs.length > 0
-                  ? `\nRecent Console Logs:\n${job.logs.slice(-60).join("\n")}`
+                  ? `\nRecent Console Logs:\n${cleanJobLogs(job.logs).slice(-60).join("\n")}`
                   : null,
             ]
               .filter(Boolean)

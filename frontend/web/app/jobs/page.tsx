@@ -10,6 +10,7 @@ import { Alert, Badge, Button, Card, CustomSelect, StatTile } from "@/components
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
+import { cleanJobLogs } from "@/lib/useJob";
 
 export default function JobsPage() {
   const { t } = useI18n();
@@ -151,7 +152,7 @@ export default function JobsPage() {
                       <JobProgress status={job.status} progress={job.progress} />
                       {job.logs.length > 0 && (
                         <p className="m-0 text-xs text-[var(--muted)] line-clamp-2 break-words">
-                          {job.logs.at(-1)}
+                          {cleanJobLogs(job.logs).at(-1)}
                         </p>
                       )}
                     </>
@@ -212,7 +213,7 @@ export default function JobsPage() {
                         <section>
                           <h3 className="text-sm font-medium mt-0 mb-2">{t("Recent logs")}</h3>
                           <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs rounded-lg bg-black/30 p-3 m-0">
-                            {job.logs.join("\n")}
+                            {cleanJobLogs(job.logs).join("\n")}
                           </pre>
                         </section>
                       )}

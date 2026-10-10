@@ -680,8 +680,13 @@ async function streamRun(
     });
     trackPid(job.id, child.pid);
     const recentOutput: string[] = [];
+    // Split on \r too: tqdm progress bars redraw with carriage returns
+    // ("Downloading all files: 64%|..."), and appendLog collapses same-bar
+    // redraws in place so they stay 1 line instead of 1 line per step.
+    // biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI ESC prefix is required to strip terminal codes
+    const stripAnsi = (s: string) => s.replace(/\[[0-9;?]*[a-zA-Z]/g, "");
     child.stdout?.on("data", (d: Buffer) => {
-      for (const line of d.toString().split("\n")) {
+      for (const line of stripAnsi(d.toString()).split(/\r+\n?|\n/)) {
         const trimmed = line.trim();
         if (trimmed) {
           appendLog(job, trimmed.slice(0, 500));
@@ -691,7 +696,7 @@ async function streamRun(
       }
     });
     child.stderr?.on("data", (d: Buffer) => {
-      for (const line of d.toString().split("\n")) {
+      for (const line of stripAnsi(d.toString()).split(/\r+\n?|\n/)) {
         const trimmed = line.trim();
         if (trimmed) {
           appendLog(job, trimmed.slice(0, 500));
