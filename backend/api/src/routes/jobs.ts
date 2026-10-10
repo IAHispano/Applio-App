@@ -40,7 +40,7 @@ router.get("/", (_req: Request, res: Response) => {
 router.get("/:id", (req: Request, res: Response) => {
   const job = getJob(req.params.id);
   if (!job) return res.status(404).json({ error: "Job not found" });
-  res.json({ job });
+  res.json({ job: { ...job, label: jobSummary(job).label } });
 });
 
 // Live job stream (server-sent events, proxy-safe unlike websockets).
@@ -55,7 +55,7 @@ router.get("/:id/events", (req: Request, res: Response) => {
     Connection: "keep-alive",
     "X-Accel-Buffering": "no",
   });
-  res.write(`data: ${JSON.stringify({ job })}\n\n`);
+  res.write(`data: ${JSON.stringify({ job: { ...job, label: jobSummary(job).label } })}\n\n`);
   if (job.status === "done" || job.status === "error") {
     res.end();
     return;
@@ -66,7 +66,7 @@ router.get("/:id/events", (req: Request, res: Response) => {
       return;
     }
     try {
-      res.write(`data: ${JSON.stringify({ job: j })}\n\n`);
+      res.write(`data: ${JSON.stringify({ job: { ...j, label: jobSummary(j).label } })}\n\n`);
     } catch {
       /* client gone */
     }

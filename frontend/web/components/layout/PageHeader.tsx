@@ -12,9 +12,9 @@ interface PageHeaderProps {
 export default function PageHeader({ title, description, children, className = "" }: PageHeaderProps) {
   return (
     <div
-      className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-[var(--border)] ${className}`}
+      className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-[var(--border)] ${className}`}
     >
-      <div className="space-y-1 min-w-0">
+      <div className="space-y-1 min-w-0 sm:flex-1 sm:basis-64">
         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--heading)] m-0 break-words">
           {title}
         </h1>
@@ -24,7 +24,7 @@ export default function PageHeader({ title, description, children, className = "
           </p>
         )}
       </div>
-      {children && <div className="flex items-center gap-2 flex-wrap max-w-full">{children}</div>}
+      {children && <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">{children}</div>}
     </div>
   );
 }

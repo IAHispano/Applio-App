@@ -78,7 +78,7 @@ export function JobPanelContent({
     <>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <JobBadge status={job.status} />
+          <JobBadge status={job.status} error={job.error} />
           <span className="text-neutral-400 text-xs font-medium">{t("Activity")}</span>
         </div>
         {(job.status === "queued" || job.status === "running") && (

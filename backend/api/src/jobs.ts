@@ -12,6 +12,7 @@ export interface Job {
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
+  startedAt?: string;
   finishedAt?: string;
   params?: Record<string, unknown>;
   logs: string[];
@@ -48,7 +49,10 @@ process.on("exit", flushJobHistory);
 const cancellation = new Map<string, Set<() => void>>();
 export function registerJobCancellation(id: string, callback: () => void): () => void {
   let callbacks = cancellation.get(id);
-  if (!callbacks) cancellation.set(id, (callbacks = new Set()));
+  if (!callbacks) {
+    callbacks = new Set();
+    cancellation.set(id, callbacks);
+  }
   callbacks.add(callback);
   return () => {
     callbacks.delete(callback);
@@ -116,6 +120,7 @@ export function appendLog(job: Job, line: string) {
 export function setRunning(job: Job) {
   if (!jobIsActive(job)) return;
   job.status = "running";
+  job.startedAt ??= new Date().toISOString();
   job.updatedAt = new Date().toISOString();
   notify(job);
   notifyAllJobs(job);

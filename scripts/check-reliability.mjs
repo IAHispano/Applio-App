@@ -25,6 +25,7 @@ try {
           .map((name) => `export * from ${JSON.stringify(path.join(root, "backend/api/src", `${name}.ts`))};`)
           .join("\n") +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};` +
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/job-history.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};`,
       loader: "ts",
       resolveDir: root,
@@ -36,6 +37,17 @@ try {
     outfile: bundle,
   });
   const api = require(bundle);
+  assert.equal(api.historyState({ status: "error", error: "Stopped by user" }), "stopped");
+  assert.equal(api.historyState({ status: "error", error: "Interrupted by app restart." }), "interrupted");
+  assert.equal(api.historyState({ status: "error", error: "Download failed: HTTP 503" }), "error");
+  assert.equal(api.fieldValue(false), "No");
+  assert.equal(api.fieldValue(0), "0");
+  assert.equal(api.duration("invalid", Date.now()), "—");
+  assert.equal(api.duration("2026-10-10T10:00:00Z", "2026-10-10T10:01:05Z"), "1m 5s");
+  assert.deepEqual(api.jobContext({ params: { modelName: "Messi", inputPath: "voice.wav" } }), [
+    ["Model name", "Messi"],
+    ["Input audio", "voice.wav"],
+  ]);
   const child = new EventEmitter();
   child.exitCode = null;
   let kills = 0;
@@ -113,6 +125,10 @@ try {
   const first = api.createJob("inference");
   assert.equal(await api.acquireJobSlot(first), true);
   api.setRunning(first);
+  assert.ok(Number.isFinite(Date.parse(first.startedAt)));
+  const startedAt = first.startedAt;
+  api.setRunning(first);
+  assert.equal(first.startedAt, startedAt, "Repeated running updates reset the start time");
   assert.equal(api.beginRealtimeSession(), null);
   const waiting = api.createJob("train");
   const cancelled = api.acquireJobSlot(waiting);
@@ -146,6 +162,7 @@ try {
   assert.equal(restored.find((job) => job.id === next.id).status, "error");
   assert.match(restored.find((job) => job.id === next.id).error, /restart/);
   assert.equal(restored.find((job) => job.id === first.id).outputFile, "out.wav");
+  assert.equal(restored.find((job) => job.id === first.id).startedAt, startedAt);
   api.cancelJob(next);
   api.releaseJobSlot(next.id);
   const network = Array.from({ length: 3 }, () => api.createJob("download"));

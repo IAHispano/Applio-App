@@ -841,12 +841,12 @@ button.danger:hover {
   padding: 3px;
   background: var(--input-bg);
   border: 1px solid var(--border);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-button);
 }
 button.segmented-item {
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-pill);
+  border-radius: calc(var(--radius-button) - 4px);
   padding: 6px 14px;
   color: var(--muted);
   box-shadow: none;

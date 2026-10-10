@@ -50,6 +50,8 @@ export interface Job {
   status: JobStatus;
   createdAt: string;
   updatedAt: string;
+  startedAt?: string;
+  params?: Record<string, unknown>;
   finishedAt?: string;
   logs: string[];
   result?: Record<string, unknown>;

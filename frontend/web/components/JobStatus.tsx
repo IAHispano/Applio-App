@@ -4,22 +4,34 @@ import { StopCircle } from "lucide-react";
 import { Alert, Badge, Button } from "@/components/ui";
 import { errMsg, type Job, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { historyState, historyStateLabels } from "@/lib/job-history";
 
 // Shared job status UI: badge + error + cancel + progress.
-export function JobBadge({ status }: { status: Job["status"] }) {
+export function JobBadge({ status, error }: { status: Job["status"]; error?: string }) {
   const { t } = useI18n();
-  const variant =
-    status === "done" ? "success" : status === "error" ? "danger" : status === "running" ? "info" : "neutral";
+  const state = historyState({ status, error } as Job);
+  const interrupted = state === "stopped" || state === "interrupted";
+  const variant = interrupted
+    ? "neutral"
+    : status === "done"
+      ? "success"
+      : status === "error"
+        ? "danger"
+        : status === "running"
+          ? "info"
+          : "neutral";
 
   return (
     <Badge variant={variant} dot size="sm" aria-label={t("Status: {status}", { status })}>
-      {status === "done"
-        ? t("Completed")
-        : status === "running"
-          ? t("In Progress")
-          : status === "error"
-            ? t("Failed")
-            : t("Queued")}
+      {interrupted
+        ? t(historyStateLabels[state])
+        : status === "done"
+          ? t("Completed")
+          : status === "running"
+            ? t("In Progress")
+            : status === "error"
+              ? t("Failed")
+              : t("Queued")}
     </Badge>
   );
 }
@@ -91,7 +103,7 @@ export function JobProgress({ status, progress }: { status: Job["status"]; progr
         <div
           className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
           role="progressbar"
-          aria-label={t("Download progress")}
+          aria-label={t("Job progress")}
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={pct}

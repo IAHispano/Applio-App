@@ -11,7 +11,7 @@ import { waitFor } from "./startup";
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
 app.setName("Applio");
-if (process.platform === "win32") app.setAppUserModelId("org.applio.app");
+if (process.platform === "win32") app.setAppUserModelId("Applio");
 
 try {
   process.env.APPLIO_LOCALE ??= app.getLocale();

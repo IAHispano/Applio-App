@@ -60,7 +60,7 @@ function SegmentedControlInner<T extends string>({
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is tablist|radiogroup, aria-label is valid on both
     <div
-      className="segmented max-w-full overflow-x-auto hide-scrollbar"
+      className="segmented max-w-full min-w-0 flex-wrap"
       role={listRole}
       aria-label={ariaLabel}
     >
