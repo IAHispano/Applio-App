@@ -4,11 +4,22 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
 import { errMsg } from "@/errors";
-import { getAppVersion, getCodeRoot, getOutputsDir, getRepoRoot, runPythonModule } from "@/python";
+import {
+  getAppVersion,
+  getCodeRoot,
+  getOutputsDir,
+  getPythonBin,
+  getRepoRoot,
+  runPythonModule,
+} from "@/python";
 import { schedulerStatus } from "@/scheduler";
 
 const router = Router();
 const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";
+
+// `python --version` spawns a full interpreter (~0.5s cold on Windows) and
+// the binary never changes under a process, so cache per resolved binary.
+const pythonVersionCache = new Map<string, string>();
 
 router.get("/info", async (_req: Request, res: Response) => {
   // Same source as /api/settings/version: the code root package.json, not
@@ -22,8 +33,15 @@ router.get("/info", async (_req: Request, res: Response) => {
   } catch {}
   let python = "";
   try {
-    const r = await runPythonModule(["--version"]);
-    python = (r.stdout + r.stderr).trim();
+    const bin = getPythonBin();
+    const hit = pythonVersionCache.get(bin);
+    if (hit !== undefined) {
+      python = hit;
+    } else {
+      const r = await runPythonModule(["--version"]);
+      python = (r.stdout + r.stderr).trim();
+      pythonVersionCache.set(bin, python);
+    }
   } catch {
     /* ignore */
   }

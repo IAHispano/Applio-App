@@ -376,8 +376,21 @@ router.get("/theme", (req: Request, res: Response) => {
   }
 });
 
-router.get("/version-check", async (_req: Request, res: Response) => {
+let versionCache: { at: number; data: Record<string, unknown> } | null = null;
+const VERSION_TTL_MS = 60 * 60 * 1000;
+
+router.get("/version-check", async (req: Request, res: Response) => {
   try {
+    // Home + update modal + settings all hit this on app open; without a
+    // cache every mount pays a GitHub round-trip (up to 8s offline). Cache
+    // for an hour, bypassable with ?refresh=1.
+    if (req.query.refresh !== "1" && versionCache && Date.now() - versionCache.at < VERSION_TTL_MS) {
+      return res.json(versionCache.data);
+    }
+    const send = (data: Record<string, unknown>) => {
+      versionCache = { at: Date.now(), data };
+      return res.json(data);
+    };
     const local = getAppVersion();
     const headers: Record<string, string> = { "User-Agent": "Applio" };
     // Authenticated requests get 5k/hr instead of 60 — avoids the 403 wall.
@@ -402,7 +415,7 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     const isDev = process.env.NODE_ENV === "development" || process.env.APPLIO_DEV === "1";
 
     if (!releases || releases.length === 0) {
-      return res.json({
+      return send({
         local,
         latest: local,
         status: "up-to-date",
@@ -451,7 +464,7 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     // "unknown → vX.Y.Z (N updates behind)". Surface status "unknown" so
     // the UI stays quiet instead of pushing a bogus update.
     if (isUnknownLocal) {
-      return res.json({
+      return send({
         local: "unknown",
         latest,
         status: "unknown",
@@ -488,7 +501,7 @@ router.get("/version-check", async (_req: Request, res: Response) => {
     // A few updates older (e.g. >= 2 versions behind) means outdated -> requires auto-update for security
     const isOutdated = status === "behind" && versionsBehind >= 2;
 
-    res.json({
+    return send({
       local: normalizedLocal,
       latest,
       status,

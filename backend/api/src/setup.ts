@@ -503,7 +503,30 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
     detail: web.detail,
   });
 
-  const py = await findPython();
+  const pyPromise = findPython();
+  const ffPromise = checkFfmpeg();
+  const vcPromise = process.platform === "win32" ? isWindowsVcRedistInstalled() : Promise.resolve(true);
+
+  // Synchronous filesystem work runs while the subprocesses above are in
+  // flight, so a cold home load pays ~max(check) instead of sum(check).
+  const logsDir = getLogsDir();
+  let models = 0;
+  try {
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, e.name);
+        if (e.isDirectory()) walk(full);
+        else if (e.name.endsWith(".pth") && !e.name.startsWith("G_") && !e.name.startsWith("D_")) models++;
+      }
+    };
+    if (exists(logsDir)) walk(logsDir);
+  } catch {
+    /* ignore */
+  }
+  const missingPretraineds = missingDefaultPretraineds();
+
+  const [py, ff, vcInstalled] = await Promise.all([pyPromise, ffPromise, vcPromise]);
+
   checks.push({
     id: "python",
     label: py ? `Python ${py.version}` : "Python (3.11 / 3.12)",
@@ -528,7 +551,6 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
     });
   }
 
-  const ff = await checkFfmpeg();
   checks.push({
     id: "ffmpeg",
     label: "ffmpeg",
@@ -536,20 +558,6 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
     detail: ff.ok ? ff.detail : `${ff.detail} — some audio formats may fail`,
   });
 
-  const logsDir = getLogsDir();
-  let models = 0;
-  try {
-    const walk = (dir: string) => {
-      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-        const full = path.join(dir, e.name);
-        if (e.isDirectory()) walk(full);
-        else if (e.name.endsWith(".pth") && !e.name.startsWith("G_") && !e.name.startsWith("D_")) models++;
-      }
-    };
-    if (exists(logsDir)) walk(logsDir);
-  } catch {
-    /* ignore */
-  }
   checks.push({
     id: "models",
     label: "Voice models",
@@ -557,7 +565,6 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
     detail: models > 0 ? `${models} model(s) in logs/` : "none yet — use the Download tab",
   });
 
-  const missingPretraineds = missingDefaultPretraineds();
   checks.push({
     id: "pretraineds",
     label: "Default training pretrains",
@@ -619,7 +626,6 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
   }
 
   if (process.platform === "win32") {
-    const vcInstalled = await isWindowsVcRedistInstalled();
     if (!vcInstalled) {
       checks.push({
         id: "vcredist",

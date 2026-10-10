@@ -123,7 +123,7 @@ export default function Home() {
           refreshSetup(force),
           apiGet<ModelsSummary>("/api/models").catch(() => null),
           apiGet<SystemInfo>("/api/report/info").catch(() => null),
-          apiGet<VersionInfo>("/api/settings/version-check", { force: true }).catch(() => null),
+          apiGet<VersionInfo>("/api/settings/version-check").catch(() => null),
         ]);
         if (modelsRes) setModelsData(modelsRes);
         if (sysRes) setSysInfo(sysRes);

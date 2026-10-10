@@ -169,10 +169,8 @@ export default function AutoUpdateModal() {
     }
 
     try {
-      // Fetch version check from API
-      const data = await apiGet<VersionCheckData>("/api/settings/version-check", {
-        force: true,
-      });
+      // Fetch version check from API (server caches GitHub for an hour)
+      const data = await apiGet<VersionCheckData>("/api/settings/version-check");
 
       // 3. Disable if API reports dev environment
       if (data.isDev) {

@@ -34,6 +34,7 @@ import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "@/rout
 import trainRouter from "@/routes/train";
 import ttsRouter from "@/routes/tts";
 import uvrRouter from "@/routes/uvr";
+import { getStatus } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const app = express();
@@ -189,6 +190,9 @@ const server = app.listen(PORT, "127.0.0.1", () => {
   autoStartPresence();
   // Start TensorBoard in background so it is ready immediately when user opens tab.
   autoStartTensorboard();
+  // Warm the setup-status cache in the background so the first home load
+  // after app start doesn't pay the cold torch-import cost on demand.
+  void getStatus(false).catch(() => {});
   // Warm the inference worker (CUDA context + default embedder) in the
   // background so the first conversion doesn't pay one-time load costs.
   if (!noEnv()) inferenceWorker.warmupDelayed();
