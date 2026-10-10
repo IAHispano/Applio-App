@@ -59,11 +59,7 @@ function SegmentedControlInner<T extends string>({
 
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is tablist|radiogroup, aria-label is valid on both
-    <div
-      className="segmented max-w-full min-w-0 flex-wrap"
-      role={listRole}
-      aria-label={ariaLabel}
-    >
+    <div className="segmented max-w-full min-w-0 flex-wrap" role={listRole} aria-label={ariaLabel}>
       {options.map((option, idx) => {
         const Icon = option.icon;
         const active = option.value === value;
