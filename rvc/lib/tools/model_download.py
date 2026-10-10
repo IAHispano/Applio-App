@@ -181,7 +181,9 @@ def handle_extraction_process():
         if filename.endswith(".zip"):
             zipfile_path = os.path.join(zips_path, filename)
             model_name = format_title(os.path.basename(zipfile_path).split(".zip")[0])
-            extract_folder_path = os.path.join(get_logs_dir(), os.path.normpath(model_name))
+            extract_folder_path = os.path.join(
+                get_logs_dir(), os.path.normpath(model_name)
+            )
             success = extract(zipfile_path, extract_folder_path)
             clean_extracted_files(extract_folder_path, model_name)
 

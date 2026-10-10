@@ -1231,7 +1231,8 @@ def interactive_mode():
                         "Method (rmvpe, fcpe, crepe, swift)", "rmvpe"
                     )
                     img = prompt_with_default(
-                        "Output plot image path", os.path.join(logs_path, "f0_curve.png")
+                        "Output plot image path",
+                        os.path.join(logs_path, "f0_curve.png"),
                     )
                     txt = prompt_with_default(
                         "Output curve txt path", os.path.join(logs_path, "f0_curve.txt")
@@ -2098,7 +2099,9 @@ if click is not None:
         try:
             run_audio_analyzer_script(
                 kwargs["input_path"],
-                kwargs.get("save_plot_path", os.path.join(logs_path, "audio_analysis.png")),
+                kwargs.get(
+                    "save_plot_path", os.path.join(logs_path, "audio_analysis.png")
+                ),
             )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
@@ -2116,7 +2119,9 @@ if click is not None:
         try:
             run_audio_analyzer_script(
                 kwargs["input_path"],
-                kwargs.get("save_plot_path", os.path.join(logs_path, "audio_analysis.png")),
+                kwargs.get(
+                    "save_plot_path", os.path.join(logs_path, "audio_analysis.png")
+                ),
             )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
@@ -2131,7 +2136,9 @@ if click is not None:
         help="Pitch extraction method.",
     )
     @click.option(
-        "--output-image", default=os.path.join(logs_path, "f0_curve.png"), help="Path to save F0 plot PNG."
+        "--output-image",
+        default=os.path.join(logs_path, "f0_curve.png"),
+        help="Path to save F0 plot PNG.",
     )
     @click.option(
         "--output-txt",

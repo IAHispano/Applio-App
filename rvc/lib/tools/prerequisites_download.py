@@ -179,7 +179,10 @@ def prequisites_download_pipeline(
     )
 
     with tqdm(
-        total=total_size or None, unit="iB", unit_scale=True, desc="Downloading all files"
+        total=total_size or None,
+        unit="iB",
+        unit_scale=True,
+        desc="Downloading all files",
     ) as global_bar:
         if models:
             download_mapping_files(models_list, global_bar)

@@ -117,7 +117,9 @@ async def change_config(ws: WebSocket):
         vc_instance.vc_model.board = new_board
         vc_instance.vc_model.kwargs = kwargs.copy()
 
-    model_pth = resolve_logs_path(params.get("model_path", vc_instance.vc_model.model_path))
+    model_pth = resolve_logs_path(
+        params.get("model_path", vc_instance.vc_model.model_path)
+    )
     params["model_path"] = model_pth
     if model_pth and vc_instance.vc_model.model_path != model_pth:
         import torch
@@ -271,7 +273,11 @@ async def websocket_audio(ws: WebSocket):
     global vc_instance, params, active_audio_ws
     await ws.accept()
     if active_audio_ws is not None:
-        await ws.send_text(json.dumps({"type": "error", "message": "A realtime stream is already active."}))
+        await ws.send_text(
+            json.dumps(
+                {"type": "error", "message": "A realtime stream is already active."}
+            )
+        )
         await ws.close(code=1013)
         return
     active_audio_ws = ws
@@ -312,9 +318,12 @@ async def websocket_audio(ws: WebSocket):
         # Initialize model kernels before the browser starts capturing. Audio
         # sent during model loading would otherwise remain queued and stale.
         warmup_options = dict(
-            f0_up_key=params.get("f0_up_key", 0), index_rate=params.get("index_rate", 0),
-            protect=params.get("protect", 0.5), volume_envelope=params.get("volume_envelope", 1),
-            f0_autotune=params.get("autotune", False), f0_autotune_strength=params.get("autotune_strength", 1),
+            f0_up_key=params.get("f0_up_key", 0),
+            index_rate=params.get("index_rate", 0),
+            protect=params.get("protect", 0.5),
+            volume_envelope=params.get("volume_envelope", 1),
+            f0_autotune=params.get("autotune", False),
+            f0_autotune_strength=params.get("autotune_strength", 1),
             proposed_pitch=params.get("proposed_pitch", False),
             proposed_pitch_threshold=params.get("proposed_pitch_threshold", 155),
         )
@@ -323,13 +332,20 @@ async def websocket_audio(ws: WebSocket):
             # Retain headroom for device/OS jitter, and enlarge blocks on CPU,
             # AMD, or expensive model configurations before capturing audio.
             for _ in range(3):
-                needed = min(AUDIO_SAMPLE_RATE, math.ceil(warmup_ms * 1.25 / 10) * (AUDIO_SAMPLE_RATE // 100))
+                needed = min(
+                    AUDIO_SAMPLE_RATE,
+                    math.ceil(warmup_ms * 1.25 / 10) * (AUDIO_SAMPLE_RATE // 100),
+                )
                 if needed <= block_frame:
                     break
                 block_frame = needed
                 vc_instance.block_frame = block_frame
-                vc_instance.vc_model.realloc(block_frame, vc_instance.extra_frame,
-                    vc_instance.crossfade_frame, vc_instance.sola_search_frame)
+                vc_instance.vc_model.realloc(
+                    block_frame,
+                    vc_instance.extra_frame,
+                    vc_instance.crossfade_frame,
+                    vc_instance.sola_search_frame,
+                )
                 vc_instance.generate_strength()
                 warmup_ms = vc_instance.warmup(**warmup_options)
         params["block_frame"] = block_frame

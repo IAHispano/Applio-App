@@ -624,15 +624,22 @@ class VoiceChanger:
         try:
             timings = []
             for _ in range(5):
-                _, _, perf = self.on_request(np.zeros(self.block_frame, dtype=np.float32), **kwargs)
+                _, _, perf = self.on_request(
+                    np.zeros(self.block_frame, dtype=np.float32), **kwargs
+                )
                 timings.append(perf[1])
             completed = True
             return max(timings[-3:])
         finally:
             model.vad, model.input_sensitivity = vad, threshold
             if completed:
-                for buffer in (model.audio_buffer, model.convert_buffer,
-                               model.pitch_buffer, model.pitchf_buffer, self.sola_buffer):
+                for buffer in (
+                    model.audio_buffer,
+                    model.convert_buffer,
+                    model.pitch_buffer,
+                    model.pitchf_buffer,
+                    self.sola_buffer,
+                ):
                     buffer.zero_()
 
     @torch.no_grad()

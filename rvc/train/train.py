@@ -568,9 +568,13 @@ def run(
 
     cache = []
     # collect the reference audio for tensorboard evaluation
-    if os.path.isfile(os.path.join(get_logs_dir(), "reference", embedder_name, "feats.npy")):
+    if os.path.isfile(
+        os.path.join(get_logs_dir(), "reference", embedder_name, "feats.npy")
+    ):
         print("Using", embedder_name, "reference set for validation")
-        phone = np.load(os.path.join(get_logs_dir(), "reference", embedder_name, "feats.npy"))
+        phone = np.load(
+            os.path.join(get_logs_dir(), "reference", embedder_name, "feats.npy")
+        )
         # expanding x2 to match pitch size
         phone = np.repeat(phone, 2, axis=0)
         phone_lengths = torch.LongTensor([phone.shape[0]]).to(device)

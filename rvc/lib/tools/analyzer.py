@@ -53,7 +53,9 @@ def plot_features(times, cent, bw, rolloff, duration):
 
 
 def analyze_audio(audio_file, save_plot_path=None):
-    save_plot_path = save_plot_path or os.path.join(get_logs_dir(), "audio_analysis.png")
+    save_plot_path = save_plot_path or os.path.join(
+        get_logs_dir(), "audio_analysis.png"
+    )
     y, sr = librosa.load(audio_file)
     stft, duration, cent, bw, rolloff = calculate_features(y, sr)
 

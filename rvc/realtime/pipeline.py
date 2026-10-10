@@ -15,6 +15,7 @@ sys.path.append(now_dir)
 class CudaGraphCaptureError(RuntimeError):
     """The service must restart before it can safely use eager CUDA inference."""
 
+
 from rvc.realtime.utils.torch import circular_write, AudioProcessorTorch, IndexWrapper
 from rvc.realtime.utils.fcpe import RealtimeMel, local_decoder
 from rvc.configs.config import Config
@@ -92,7 +93,9 @@ class RealtimeVoiceConverter:
         rate: Tensor = None,
         skip_head: int = None,
     ):
-        output = self.net_g.infer(feats, p_len, pitch, pitchf, sid, rate, skip_head)[0][0, 0]
+        output = self.net_g.infer(feats, p_len, pitch, pitchf, sid, rate, skip_head)[0][
+            0, 0
+        ]
 
         return torch.clip(output, -1.0, 1.0, out=output)
 
@@ -132,8 +135,10 @@ class Realtime_Pipeline:
         self._graph_failed = False
         gpu_name = (vc.config.gpu_name or "").upper()
         self._graph_supported = (
-            str(self.device).startswith("cuda") and "NVIDIA" in gpu_name
-            and not getattr(torch.version, "hip", None) and "ZLUDA" not in gpu_name
+            str(self.device).startswith("cuda")
+            and "NVIDIA" in gpu_name
+            and not getattr(torch.version, "hip", None)
+            and "ZLUDA" not in gpu_name
             and os.environ.get("APPLIO_DISABLE_CUDA_GRAPHS") != "1"
             # Opt in only for services whose supervisor can recover by
             # replacing the process after an invalid CUDA capture.
@@ -200,8 +205,12 @@ class Realtime_Pipeline:
                 sample_rate=self.sample_rate,
                 hop_size=self.window,
             )
-            f0_model.model.wav2mel.mel_extractor = RealtimeMel(f0_model.model.wav2mel.mel_extractor)
-            f0_model.model.model.latent2cents_local_decoder = types.MethodType(local_decoder, f0_model.model.model)
+            f0_model.model.wav2mel.mel_extractor = RealtimeMel(
+                f0_model.model.wav2mel.mel_extractor
+            )
+            f0_model.model.model.latent2cents_local_decoder = types.MethodType(
+                local_decoder, f0_model.model.model
+            )
             strip_parametrizations(f0_model.model)
         elif f0_method in ("swift", "swiftf0", "swift-f0"):
             f0_model = SWIFT(
@@ -431,9 +440,9 @@ class Realtime_Pipeline:
 
             if self.use_f0:
                 if feats0 is not None:
-                    feats0 = F.interpolate(feats0.permute(0, 2, 1), scale_factor=2).permute(
-                        0, 2, 1
-                    )[:, :p_len, :]
+                    feats0 = F.interpolate(
+                        feats0.permute(0, 2, 1), scale_factor=2
+                    ).permute(0, 2, 1)[:, :p_len, :]
                 pitch_p = pitch[-p_len:].unsqueeze(0)
                 pitchf_p = pitchf[-p_len:].unsqueeze(0) * (
                     formant_length / return_length
@@ -455,7 +464,9 @@ class Realtime_Pipeline:
             # Trim oldest context so model output covers only the current block.
             # Match the legacy float32 rate rounding without a GPU .item()
             # synchronization inside the synthesizer.
-            head = int(feats.shape[1] * (1.0 - float(np.float32(return_length / p_len))))
+            head = int(
+                feats.shape[1] * (1.0 - float(np.float32(return_length / p_len)))
+            )
             self._p_len_tensor.fill_(p_len)
             out_audio = self.vc.inference(
                 feats,
@@ -495,12 +506,28 @@ class Realtime_Pipeline:
         proposed = args[10] if len(args) > 10 else kwargs.get("proposed_pitch", False)
         noise = args[12] if len(args) > 12 else kwargs.get("reduced_noise")
         board = args[13] if len(args) > 13 else kwargs.get("board")
-        if not self._graph_supported or self._graph_failed or self.f0_method not in ("fcpe", "rmvpe") or proposed or noise is not None or board is not None:
+        if (
+            not self._graph_supported
+            or self._graph_failed
+            or self.f0_method not in ("fcpe", "rmvpe")
+            or proposed
+            or noise is not None
+            or board is not None
+        ):
             self._graph_cache = None
             return self._voice_conversion(audio, pitch, pitchf, *args, **kwargs)
-        key = (audio.data_ptr(), pitch.data_ptr() if pitch is not None else None,
-               pitchf.data_ptr() if pitchf is not None else None, tuple(args), tuple(sorted(kwargs.items())),
-               id(self.vc.net_g), id(self.hubert_model), id(self.f0_model), id(self.big_tsr), id(self.torch_sid))
+        key = (
+            audio.data_ptr(),
+            pitch.data_ptr() if pitch is not None else None,
+            pitchf.data_ptr() if pitchf is not None else None,
+            tuple(args),
+            tuple(sorted(kwargs.items())),
+            id(self.vc.net_g),
+            id(self.hubert_model),
+            id(self.f0_model),
+            id(self.big_tsr),
+            id(self.torch_sid),
+        )
         if self._graph_cache is None or self._graph_cache[0] != key:
             self._graph_cache = None  # Release the previous graph's workspace.
             saved_pitch = pitch.clone() if pitch is not None else None
@@ -511,11 +538,15 @@ class Realtime_Pipeline:
                     self._voice_conversion(audio, pitch, pitchf, *args, **kwargs)
                 graph = torch.cuda.CUDAGraph()
                 with torch.cuda.graph(graph):
-                    output = self._voice_conversion(audio, pitch, pitchf, *args, **kwargs)
+                    output = self._voice_conversion(
+                        audio, pitch, pitchf, *args, **kwargs
+                    )
                 self._graph_cache = (key, graph, output)
             except (RuntimeError, torch.OutOfMemoryError) as error:
                 self._graph_failed = True
-                raise CudaGraphCaptureError("CUDA graph capture failed; restart with eager inference") from error
+                raise CudaGraphCaptureError(
+                    "CUDA graph capture failed; restart with eager inference"
+                ) from error
             finally:
                 # torch.cuda.graph's context can fail in capture_end before it
                 # restores its side stream. Eager fallback must use the caller's
