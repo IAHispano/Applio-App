@@ -185,7 +185,8 @@ def run_worker():
 
                     # Look for the latest model in logs/ to preload so the first user conversion is instant
                     preloaded_name = None
-                    logs_dir = os.path.join(now_dir, "logs")
+                    from rvc.lib.user_config import get_logs_dir
+                    logs_dir = get_logs_dir()
                     if os.path.isdir(logs_dir):
                         candidates = []
                         for r, _, files in os.walk(logs_dir):

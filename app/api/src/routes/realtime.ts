@@ -1,19 +1,28 @@
-import type { ChildProcess } from "node:child_process";
 import type http from "node:http";
 import net from "node:net";
 import { type Request, type Response, Router } from "express";
 import { type RawData, WebSocket, WebSocketServer } from "ws";
 import { loadConfig, saveConfig } from "@/config";
 import { errMsg } from "@/errors";
-import { getRepoRoot, spawnPython } from "@/python";
+import { getRepoRoot, pythonEnv, spawnPython } from "@/python";
+import { RealtimeProcessManager } from "@/realtime-process";
 import { assertEngineReady } from "@/setup";
 
 const router = Router();
 export const RT_PORT = Number(process.env.RT_PORT || 8001);
 
-let rtProc: ChildProcess | null = null;
-let rtStartedAt: string | null = null;
-let rtLogs: string[] = [];
+const manager = new RealtimeProcessManager((graphsDisabled) =>
+  spawnPython(
+    ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
+    {
+      cwd: getRepoRoot(),
+      env: pythonEnv({
+        APPLIO_ENABLE_CUDA_GRAPHS: process.env.APPLIO_ENABLE_CUDA_GRAPHS || "1",
+        ...(graphsDisabled ? { APPLIO_DISABLE_CUDA_GRAPHS: "1" } : {}),
+      }),
+    },
+  ),
+);
 
 function backend(pathname: string): string {
   // The uvicorn engine (rvc/realtime/client.py) serves unprefixed routes:
@@ -44,42 +53,16 @@ function portOpen(port: number): Promise<boolean> {
 }
 
 router.get("/status", async (_req: Request, res: Response) => {
-  const alive = rtProc !== null && rtProc.exitCode === null;
+  const alive = manager.proc !== null && manager.proc.exitCode === null;
   const reachable = await portOpen(RT_PORT);
   res.json({
     running: alive && reachable,
-    startedAt: rtStartedAt,
+    startedAt: manager.startedAt,
     wsAudio: `/api/realtime/ws-audio`,
     wsConfig: `/api/realtime/change-config`,
-    logs: rtLogs.slice(-30),
+    logs: manager.logs.slice(-30),
   });
 });
-
-function startRealtimeProcess(): ChildProcess {
-  rtProc?.kill();
-  rtLogs = [];
-  const proc = spawnPython(
-    ["-m", "uvicorn", "rvc.realtime.client:app", "--host", "127.0.0.1", "--port", String(RT_PORT)],
-    {
-      cwd: getRepoRoot(),
-    },
-  );
-  rtStartedAt = new Date().toISOString();
-  proc.stdout?.on("data", (d: Buffer) => {
-    rtLogs.push(d.toString().trim().slice(0, 500));
-    if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
-  });
-  proc.stderr?.on("data", (d: Buffer) => {
-    rtLogs.push(`[stderr] ${d.toString().trim().slice(0, 500)}`);
-    if (rtLogs.length > 200) rtLogs = rtLogs.slice(-200);
-  });
-  proc.on("error", (e) => {
-    rtLogs.push(`spawn error: ${String(e)}`);
-    if (rtProc === proc) rtProc = null;
-  });
-  rtProc = proc;
-  return proc;
-}
 
 // Background prewarm of the realtime engine so it is instantly reachable
 router.post("/prewarm", async (_req: Request, res: Response) => {
@@ -89,11 +72,11 @@ router.post("/prewarm", async (_req: Request, res: Response) => {
     return res.status(503).json({ error: errMsg(err) });
   }
   try {
-    if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
-      return res.json({ ok: true, running: true, startedAt: rtStartedAt });
+    if (manager.proc && manager.proc.exitCode === null && (await portOpen(RT_PORT))) {
+      return res.json({ ok: true, running: true, startedAt: manager.startedAt });
     }
-    if (!rtProc || rtProc.exitCode !== null) {
-      startRealtimeProcess();
+    if (!manager.proc || manager.proc.exitCode !== null) {
+      manager.start();
     }
     return res.json({ ok: true, starting: true });
   } catch (err) {
@@ -108,33 +91,31 @@ router.post("/start", async (_req: Request, res: Response) => {
     return res.status(503).json({ error: errMsg(err) });
   }
   try {
-    if (rtProc && rtProc.exitCode === null && (await portOpen(RT_PORT))) {
-      return res.json({ ok: true, reused: true, startedAt: rtStartedAt });
+    if (manager.proc && manager.proc.exitCode === null && (await portOpen(RT_PORT))) {
+      return res.json({ ok: true, reused: true, startedAt: manager.startedAt });
     }
-    startRealtimeProcess();
+    if (!manager.proc || manager.proc.exitCode !== null) manager.start();
     for (let i = 0; i < 30; i++) {
       await new Promise((r) => setTimeout(r, 1000));
-      if (!rtProc || (rtProc.exitCode !== null && rtProc.exitCode !== undefined)) {
-        rtProc = null;
+      if (!manager.proc || (manager.proc.exitCode !== null && manager.proc.exitCode !== undefined)) {
+        manager.proc = null;
         return res.status(500).json({
           error: "Realtime engine exited. Check uvicorn is installed and a GPU/model is available.",
-          logs: rtLogs.slice(-10),
+          logs: manager.logs.slice(-10),
         });
       }
-      if (await portOpen(RT_PORT)) return res.json({ ok: true, startedAt: rtStartedAt });
+      if (await portOpen(RT_PORT)) return res.json({ ok: true, startedAt: manager.startedAt });
     }
     return res
       .status(504)
-      .json({ error: "Realtime engine did not come up in time.", logs: rtLogs.slice(-10) });
+      .json({ error: "Realtime engine did not come up in time.", logs: manager.logs.slice(-10) });
   } catch (err) {
     return res.status(500).json({ error: errMsg(err) });
   }
 });
 
 router.post("/stop", (_req: Request, res: Response) => {
-  rtProc?.kill();
-  rtProc = null;
-  rtStartedAt = null;
+  manager.stop();
   res.json({ ok: true });
 });
 

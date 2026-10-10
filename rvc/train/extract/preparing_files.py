@@ -2,6 +2,7 @@ import os
 import shutil
 from random import shuffle
 from rvc.configs.config import Config
+from rvc.lib.user_config import get_logs_dir
 import json
 
 config = Config()
@@ -40,7 +41,7 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
 
     def find_mute_base(sub_dir: str) -> str:
         candidates = [
-            os.path.join(current_directory, "logs", sub_dir),
+            os.path.join(get_logs_dir(), sub_dir),
             os.path.join(
                 os.path.abspath(
                     os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -71,11 +72,11 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
         if sid not in sids:
             sids.append(sid)
 
-        # Calculate relative pathing
-        rel_wav = os.path.relpath(f"{os.path.join(gt_wavs_dir, name)}.wav")
-        rel_feat = os.path.relpath(f"{os.path.join(feature_dir, name)}.npy")
-        rel_f0 = os.path.relpath(f"{os.path.join(f0_dir, name)}.wav.npy")
-        rel_f0nsf = os.path.relpath(f"{os.path.join(f0nsf_dir, name)}.wav.npy")
+        # Absolute paths support datasets and features on a different drive.
+        rel_wav = os.path.abspath(f"{os.path.join(gt_wavs_dir, name)}.wav")
+        rel_feat = os.path.abspath(f"{os.path.join(feature_dir, name)}.npy")
+        rel_f0 = os.path.abspath(f"{os.path.join(f0_dir, name)}.wav.npy")
+        rel_f0nsf = os.path.abspath(f"{os.path.join(f0nsf_dir, name)}.wav.npy")
 
         options.append(
             f"{rel_wav}|{rel_feat}|{rel_f0}|{rel_f0nsf}|{sid}".replace("\\", "/")
@@ -95,10 +96,10 @@ def generate_filelist(model_path: str, sample_rate: int, include_mutes: int = 2)
             and os.path.exists(mute_f0_raw)
             and os.path.exists(mute_f0nsf_raw)
         ):
-            mute_audio_path = os.path.relpath(mute_audio_raw).replace("\\", "/")
-            mute_feature_path = os.path.relpath(mute_feature_raw).replace("\\", "/")
-            mute_f0_path = os.path.relpath(mute_f0_raw).replace("\\", "/")
-            mute_f0nsf_path = os.path.relpath(mute_f0nsf_raw).replace("\\", "/")
+            mute_audio_path = os.path.abspath(mute_audio_raw).replace("\\", "/")
+            mute_feature_path = os.path.abspath(mute_feature_raw).replace("\\", "/")
+            mute_f0_path = os.path.abspath(mute_f0_raw).replace("\\", "/")
+            mute_f0nsf_path = os.path.abspath(mute_f0nsf_raw).replace("\\", "/")
 
             # adding x files per sid
             for sid in sids * include_mutes:

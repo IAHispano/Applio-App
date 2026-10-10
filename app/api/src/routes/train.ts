@@ -8,7 +8,9 @@ import { z } from "zod";
 import { killJobTree, runJobStep, runPythonJson, startCliJob, trackPid } from "@/cli";
 import { errDetails, errMsg } from "@/errors";
 import { appendLog, createJob, getJob, listJobs, setDone, setError, setProgress, setRunning } from "@/jobs";
-import { getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
+import { repoRel } from "@/lib/fsutils";
+import { defaultPretrainedPaths, pretrainedFileReady, resolvePretrained } from "@/pretraineds";
+import { getLogsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
 import { booleanCoerce } from "@/schemas";
 import { assertEngineReady } from "@/setup";
 
@@ -53,7 +55,7 @@ function walkFiles(root: string, exts: string[], exclude: (f: string) => boolean
       const full = path.join(dir, e.name);
       if (e.isDirectory()) walk(full);
       else if (exts.includes(path.extname(e.name).toLowerCase()) && !exclude(e.name)) {
-        out.push(path.relative(getRepoRoot(), full).replace(/\\/g, "/"));
+        out.push(repoRel(full));
       }
     }
   };
@@ -122,7 +124,7 @@ router.get("/gpus", async (_req: Request, res: Response) => {
 });
 
 router.get("/exports", (_req: Request, res: Response) => {
-  const logs = path.join(getRepoRoot(), "logs");
+  const logs = getLogsDir();
   res.json({
     models: walkFiles(logs, [".pth"]),
     indexes: walkFiles(logs, [".index"], (f) => f.includes("trained")),
@@ -135,8 +137,8 @@ router.get("/export-file", (req: Request, res: Response) => {
   try {
     const rel = String(req.query.file || "");
     if (!rel) return res.status(400).json({ error: "Provide 'file'." });
-    const abs = path.resolve(getRepoRoot(), rel);
-    const logs = path.resolve(getRepoRoot(), "logs");
+    const abs = resolveUserPath(rel);
+    const logs = getLogsDir();
     if (!abs.startsWith(logs + path.sep)) return res.status(403).json({ error: "Only logs/ files." });
     const ext = path.extname(abs).toLowerCase();
     if (ext !== ".pth" && ext !== ".index") return res.status(403).json({ error: "Only .pth/.index." });
@@ -246,7 +248,7 @@ interface PreprocessParams {
 function buildPreprocessArgs(p: PreprocessParams): string[] {
   return [
     path.join("rvc", "train", "preprocess", "preprocess.py"),
-    path.join("logs", p.modelName),
+    path.join(getLogsDir(), p.modelName),
     p.datasetPath,
     p.sampleRate,
     String(p.cpuCores),
@@ -274,7 +276,7 @@ interface ExtractParams {
 function buildExtractArgs(p: ExtractParams): string[] {
   return [
     path.join("rvc", "train", "extract", "extract.py"),
-    path.join("logs", p.modelName),
+    path.join(getLogsDir(), p.modelName),
     p.f0Method,
     String(p.cpuCores),
     p.gpu,
@@ -305,24 +307,35 @@ interface TrainStepParams {
   indexAlgorithm: string;
 }
 
-function resolvePretrained(
-  vocoder: string,
-  sampleRate: string,
-  customPretrained: boolean,
-  gPath?: string,
-  dPath?: string,
-): [string, string] {
-  if (customPretrained) {
-    return [gPath || "", dPath || ""];
+async function ensureTrainingPretrained(
+  p: TrainStepParams,
+  job: ReturnType<typeof createJob>,
+): Promise<void> {
+  if (!p.pretrained) return;
+  if (!p.customPretrained && !defaultPretrainedPaths(p.vocoder, p.sampleRate).every(pretrainedFileReady)) {
+    appendLog(job, `Downloading default ${p.vocoder} pretrains (${p.sampleRate} Hz) before training...`);
+    await runJobStep(
+      job,
+      [
+        path.join("rvc", "lib", "tools", "prerequisites_download.py"),
+        "--vocoder",
+        p.vocoder,
+        "--sample-rate",
+        p.sampleRate,
+      ],
+      "Prerequisites installed successfully.",
+      "Pretrained download",
+    );
   }
-  const srPrefix = sampleRate.slice(0, 2);
-  const basePath = path.join("rvc", "models", "pretraineds", vocoder.toLowerCase());
-  const pg = path.join(basePath, `f0G${srPrefix}k.pth`);
-  const pd = path.join(basePath, `f0D${srPrefix}k.pth`);
-  if (fs.existsSync(path.resolve(getRepoRoot(), pg)) && fs.existsSync(path.resolve(getRepoRoot(), pd))) {
-    return [pg, pd];
-  }
-  return ["", ""];
+  const [g, d] = resolvePretrained(
+    p.vocoder,
+    p.sampleRate,
+    p.customPretrained,
+    p.gPretrainedPath,
+    p.dPretrainedPath,
+  );
+  appendLog(job, `Using pretrained G: ${g}`);
+  appendLog(job, `Using pretrained D: ${d}`);
 }
 
 function buildTrainArgs(p: TrainStepParams): string[] {
@@ -349,7 +362,11 @@ function buildTrainArgs(p: TrainStepParams): string[] {
 }
 
 function buildIndexArgs(name: string, indexAlgorithm: string): string[] {
-  return [path.join("rvc", "train", "process", "extract_index.py"), path.join("logs", name), indexAlgorithm];
+  return [
+    path.join("rvc", "train", "process", "extract_index.py"),
+    path.join(getLogsDir(), name),
+    indexAlgorithm,
+  ];
 }
 
 // Derive determinate 0-100 progress from training stdout lines so the
@@ -381,7 +398,7 @@ function trainProgressHandler(job: { id: string; progress?: number }, totalEpoch
 
 router.post("/preprocess", async (req: Request, res: Response) => {
   try {
-    await assertEngineReady();
+    await assertEngineReady({ allowMissingPretraineds: true });
   } catch (err) {
     return res.status(503).json({ error: errMsg(err) });
   }
@@ -425,7 +442,7 @@ router.post("/preprocess", async (req: Request, res: Response) => {
 
 router.post("/extract", async (req: Request, res: Response) => {
   try {
-    await assertEngineReady();
+    await assertEngineReady({ allowMissingPretraineds: true });
   } catch (err) {
     return res.status(503).json({ error: errMsg(err) });
   }
@@ -463,7 +480,7 @@ router.post("/extract", async (req: Request, res: Response) => {
 // shutdown_check is intentionally not exposed — the server must stay up.
 router.post("/train", async (req: Request, res: Response) => {
   try {
-    await assertEngineReady();
+    await assertEngineReady({ allowMissingPretraineds: true });
   } catch (err) {
     return res.status(503).json({ error: errMsg(err) });
   }
@@ -506,6 +523,8 @@ router.post("/train", async (req: Request, res: Response) => {
   void (async () => {
     setRunning(job);
     try {
+      await ensureTrainingPretrained(p, job);
+      if (getJob(job.id)?.status !== "running") return;
       const trainArgs = buildTrainArgs(p);
       await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
         onLine: trainProgressHandler(job, p.totalEpoch),
@@ -534,7 +553,7 @@ router.post("/train", async (req: Request, res: Response) => {
 
 router.post("/index", async (req: Request, res: Response) => {
   try {
-    await assertEngineReady();
+    await assertEngineReady({ allowMissingPretraineds: true });
   } catch (err) {
     return res.status(503).json({ error: errMsg(err) });
   }
@@ -559,7 +578,7 @@ router.post("/index", async (req: Request, res: Response) => {
 
 router.post("/pipeline", async (req: Request, res: Response) => {
   try {
-    await assertEngineReady();
+    await assertEngineReady({ allowMissingPretraineds: true });
   } catch (err) {
     return res.status(503).json({ error: errMsg(err) });
   }
@@ -639,6 +658,8 @@ router.post("/pipeline", async (req: Request, res: Response) => {
     setRunning(job);
     const aborted = () => getJob(job.id)?.status !== "running";
     try {
+      await ensureTrainingPretrained(p, job);
+      if (aborted()) return;
       appendLog(job, "\n>>> [1/4] Preprocessing Dataset...");
       const prepArgs = buildPreprocessArgs({ ...p, datasetPath: ds });
       await runJobStep(job, prepArgs, `Model ${p.modelName} preprocessed successfully.`, "Preprocess");
@@ -665,7 +686,7 @@ router.post("/pipeline", async (req: Request, res: Response) => {
       }
 
       appendLog(job, "\n>>> [4/4] Verifying artifacts...");
-      const pthAbs = path.join(getRepoRoot(), "logs", p.modelName, `${p.modelName}.pth`);
+      const pthAbs = path.join(getLogsDir(), p.modelName, `${p.modelName}.pth`);
       if (!fs.existsSync(pthAbs)) {
         throw new Error(`Training produced no model file (missing ${p.modelName}.pth).`);
       }
@@ -708,7 +729,7 @@ router.post("/stop", (req: Request, res: Response) => {
   }
   if (m) {
     try {
-      const cfgPath = path.join(getRepoRoot(), "logs", path.basename(m), "config.json");
+      const cfgPath = path.join(getLogsDir(), path.basename(m), "config.json");
       const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf-8")) as { process_pids?: unknown };
       const pids = Array.isArray(cfg.process_pids)
         ? cfg.process_pids.filter((p): p is number => typeof p === "number")

@@ -10,6 +10,7 @@ import { getJob, setError } from "@/jobs";
 import {
   ensureWindowsRealPythonSync,
   getCodeRoot,
+  getLogsDir,
   getOutputsDir,
   getPythonBin,
   getRepoRoot,
@@ -47,14 +48,15 @@ const outputsDir = getOutputsDir();
 app.use("/outputs", express.static(outputsDir, { maxAge: "1h", fallthrough: true }));
 app.use("/assets", express.static(path.join(repoRoot, "assets"), { maxAge: "1h", fallthrough: true }));
 
-// Ensure essential shipped log directories (mute, reference) exist in repoRoot
+// Ensure essential shipped training data exists in the selected logs folder.
 try {
   const codeRoot = getCodeRoot();
-  if (codeRoot !== repoRoot) {
+  fs.mkdirSync(getLogsDir(), { recursive: true });
+  if (path.join(codeRoot, "logs") !== getLogsDir()) {
     const shipped = ["mute", "mute_spin", "mute_spin-v2", "reference"];
     for (const sub of shipped) {
       const src = path.join(codeRoot, "logs", sub);
-      const dest = path.join(repoRoot, "logs", sub);
+      const dest = path.join(getLogsDir(), sub);
       if (fs.existsSync(src) && !fs.existsSync(dest)) {
         fs.cpSync(src, dest, { recursive: true });
       }

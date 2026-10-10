@@ -1040,6 +1040,7 @@ export default function TrainPage() {
           <ToggleField
             id="modal-train-pretrained"
             label={t("Use pretrained model")}
+            description={t("Missing default pretrains download automatically before training.")}
             checked={pretrained}
             onChange={setPretrained}
           />

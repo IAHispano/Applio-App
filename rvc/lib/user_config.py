@@ -28,6 +28,31 @@ def config_path():
     return directory / "config.json"
 
 
+def get_logs_dir():
+    """Model/training storage, pinned by the API for its child processes."""
+    override = os.environ.get("APPLIO_LOGS_DIR")
+    if override:
+        return str(Path(override).resolve())
+    config = load_config()
+    # A saved move is applied by the API at its next startup. Standalone Python
+    # and currently running sessions keep using the source until that commits.
+    configured = config.get("logs_move_from") or config.get("logs_dir")
+    root = Path(os.environ.get("APPLIO_ROOT") or Path(__file__).resolve().parents[2])
+    return str(Path(configured).resolve() if configured else root / "logs")
+
+
+def resolve_logs_path(value):
+    """Resolve the UI's logical logs/ paths for realtime model loading."""
+    normalized = (value or "").replace("\\", "/")
+    if normalized == "logs" or normalized.startswith("logs/"):
+        root = Path(get_logs_dir()).resolve()
+        resolved = (root / normalized[5:]).resolve()
+        if not resolved.is_relative_to(root):
+            raise ValueError(f"Path escapes logs folder: {value}")
+        return str(resolved)
+    return value
+
+
 def _read_object(file):
     with file.open(encoding="utf-8") as stream:
         value = json.load(stream)

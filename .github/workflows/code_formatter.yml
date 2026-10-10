@@ -8,7 +8,6 @@ on:
       - '**/*.py'
       - '**/*.ipynb'
       - 'app/**'
-      - 'tests/**'
       - 'biome.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -72,10 +71,10 @@ jobs:
       # which fails on pre-existing lint debt. The formatter job must
       # apply what it can and exit 0, not go red on lint findings.
       - name: Run Biome formatter (app)
-        run: pnpm exec biome format --write app tests
+        run: pnpm exec biome format --write app
 
       - name: Organize imports (app)
-        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false app tests
+        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false app
 
       - name: Commit and push directly
         run: |

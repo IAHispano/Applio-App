@@ -1,6 +1,17 @@
 "use client";
 
-import { Activity, Check, Cpu, HardDrive, Palette, Power, RefreshCw, Sliders, Trash2 } from "lucide-react";
+import {
+  Activity,
+  Check,
+  Cpu,
+  FolderOpen,
+  HardDrive,
+  Palette,
+  Power,
+  RefreshCw,
+  Sliders,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import {
@@ -126,6 +137,7 @@ const THEME_PRESETS: ThemePreset[] = [
 ];
 
 interface AppConfig {
+  logs_dir?: string;
   model_index_filter?: boolean;
   discord_presence?: boolean;
   lang?: { override: boolean; selected_lang: string };
@@ -189,6 +201,60 @@ export default function SettingsPage() {
   } | null>(null);
   const [cleaning, setCleaning] = useState(false);
   const [cleanMsg, setCleanMsg] = useState<string | null>(null);
+  const [logsDirInput, setLogsDirInput] = useState("");
+  const [activeLogsDir, setActiveLogsDir] = useState("");
+  const [defaultLogsDir, setDefaultLogsDir] = useState("");
+  const [savingLogsDir, setSavingLogsDir] = useState(false);
+  const [logsDirMessage, setLogsDirMessage] = useState("");
+  const [canPickFolder, setCanPickFolder] = useState(false);
+  const [pickingFolder, setPickingFolder] = useState(false);
+
+  useEffect(() => {
+    setCanPickFolder(
+      typeof (window as unknown as { applio?: { chooseFolder?: unknown } }).applio?.chooseFolder ===
+        "function",
+    );
+  }, []);
+
+  async function chooseLogsFolder() {
+    const bridge = (
+      window as unknown as {
+        applio?: { chooseFolder?: (defaultPath?: string) => Promise<string | null> };
+      }
+    ).applio;
+    if (!bridge?.chooseFolder) return;
+    setPickingFolder(true);
+    setError("");
+    try {
+      const selected = await bridge.chooseFolder(logsDirInput || activeLogsDir || defaultLogsDir);
+      if (selected) {
+        setLogsDirInput(selected);
+        setLogsDirMessage("");
+      }
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setPickingFolder(false);
+    }
+  }
+
+  async function saveLogsDir() {
+    setSavingLogsDir(true);
+    setLogsDirMessage("");
+    setError("");
+    try {
+      const r = await apiSend<{ config: AppConfig }>("/api/settings", "PUT", {
+        logs_dir: logsDirInput.trim(),
+      });
+      setCfg(r.config);
+      setLogsDirInput(r.config.logs_dir || "");
+      setLogsDirMessage(t("Saved. Restart Applio to move your files."));
+    } catch (e) {
+      setError(errMsg(e));
+    } finally {
+      setSavingLogsDir(false);
+    }
+  }
 
   const fetchStorage = useCallback(async () => {
     try {
@@ -229,8 +295,17 @@ export default function SettingsPage() {
 
   const load = useCallback(async () => {
     try {
-      const c = await apiGet<{ config: AppConfig }>("/api/settings");
+      const c = await apiGet<{
+        config: AppConfig;
+        logsDir: string;
+        defaultLogsDir: string;
+        logsMoveError?: string;
+      }>("/api/settings");
       setCfg(c.config);
+      setLogsDirInput(c.config.logs_dir || "");
+      setActiveLogsDir(c.logsDir);
+      setDefaultLogsDir(c.defaultLogsDir);
+      if (c.logsMoveError) setError(c.logsMoveError);
       const l = await apiGet<{ languages: string[]; named?: Array<{ code: string; name: string }> }>(
         "/api/settings/languages",
       );
@@ -914,6 +989,67 @@ export default function SettingsPage() {
             "Manage temporary audio outputs, cached files, and upload storage to free up disk space.",
           )}
         />
+
+        <div className="space-y-3 pb-4 border-b border-white/5">
+          <FormField label={t("Logs & Models Folder")} htmlFor="settings-logs-dir">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                id="settings-logs-dir"
+                type="text"
+                value={logsDirInput}
+                onChange={(e) => setLogsDirInput(e.target.value)}
+                placeholder={defaultLogsDir}
+                readOnly={canPickFolder}
+                className="min-w-0 flex-1"
+                disabled={savingLogsDir || pickingFolder}
+                aria-describedby="settings-logs-dir-help"
+              />
+              {canPickFolder && (
+                <Button
+                  size="md"
+                  variant="ghost"
+                  icon={<FolderOpen size={14} />}
+                  onClick={chooseLogsFolder}
+                  disabled={savingLogsDir || pickingFolder}
+                >
+                  {t("Choose Folder")}
+                </Button>
+              )}
+            </div>
+          </FormField>
+          <p
+            id="settings-logs-dir-help"
+            className="text-xs text-neutral-400 m-0"
+            role="status"
+            aria-live="polite"
+          >
+            {logsDirMessage ||
+              ((cfg.logs_dir || defaultLogsDir) !== activeLogsDir
+                ? t("Restart Applio to move your files.")
+                : t("Files move automatically after restarting Applio."))}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="md"
+              variant="ghost"
+              onClick={saveLogsDir}
+              disabled={savingLogsDir || pickingFolder || logsDirInput.trim() === (cfg.logs_dir || "")}
+            >
+              {savingLogsDir ? t("Saving…") : t("Save Folder")}
+            </Button>
+            <Button
+              size="md"
+              variant="ghost"
+              disabled={savingLogsDir || pickingFolder || !logsDirInput}
+              onClick={() => {
+                setLogsDirInput("");
+                setLogsDirMessage("");
+              }}
+            >
+              {t("Use Default")}
+            </Button>
+          </div>
+        </div>
 
         <div className="pt-1 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">

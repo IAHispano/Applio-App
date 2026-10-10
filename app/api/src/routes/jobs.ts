@@ -1,7 +1,29 @@
 import { type Request, type Response, Router } from "express";
-import { getJob, listJobs, subscribeJob } from "@/jobs";
+import { getJob, jobSummary, listJobs, subscribeAllJobs, subscribeJob } from "@/jobs";
 
 const router = Router();
+
+router.get("/activity", (_req: Request, res: Response) => {
+  res.json({ jobs: listJobs().map(jobSummary) });
+});
+
+router.get("/events", (req: Request, res: Response) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.write(`data: ${JSON.stringify({ jobs: listJobs().map(jobSummary) })}\n\n`);
+  const unsubscribe = subscribeAllJobs((job) => {
+    res.write(`data: ${JSON.stringify({ job })}\n\n`);
+  });
+  const heartbeat = setInterval(() => res.write(": heartbeat\n\n"), 15000);
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    unsubscribe();
+  });
+});
 
 router.get("/", (_req: Request, res: Response) => {
   res.json({ jobs: listJobs().map((j) => ({ ...j, logs: j.logs.slice(-20) })) });

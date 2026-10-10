@@ -59,6 +59,19 @@ Run Applio online for free using cloud GPUs without installing anything locally:
 2. Launch **Applio**. On first launch the setup screen checks every dependency — press **Install / Repair** and wait.
 3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
 
+Setup automatically downloads the default HiFi-GAN and RefineGAN training pretrains. With **Use pretrained model** enabled, training also downloads a missing pair for the selected vocoder and sample rate before starting. A failed download stops the job with an error; training from scratch requires explicitly disabling this option.
+
+### Store models and training logs on another drive
+
+In **Settings → Disk & Cache Storage → Logs & Models Folder**, click **Choose Folder** to select a location on any drive, then **Save Folder** and close and reopen Applio. Downloaded models, training data, checkpoints, and TensorBoard logs use this folder. Click **Use Default**, then save, to restore the default location. In a browser, enter the folder path manually.
+
+Applio automatically moves the existing folder on restart, including across drives, and updates training file lists to the new paths. It verifies the copied files before removing the original folder to free disk space. Existing destination files are preserved; conflicting files stop the move and leave the original folder in use.
+
+### Realtime latency
+
+Realtime capture begins after the model is ready. Extra conversion context provides past audio history without imposing a startup silence period. The realtime status shows processing time and request round-trip time separately; microphone capture, playback, and audio-device buffering also contribute to the delay you hear.
+
+
 > [!WARNING]
 > **macOS first launch:** the app is not Apple-notarized yet, so Gatekeeper may claim Applio "is damaged".
 > It isn't — clear the download quarantine and open it again:

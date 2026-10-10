@@ -4,9 +4,11 @@ import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import { errDetails, errMsg } from "@/errors";
 import { appendLog, createJob, getJob, type Job, setDone, setError, setRunning } from "@/jobs";
+import { missingDefaultPretraineds } from "@/pretraineds";
 import {
   ensureWindowsRealPythonSync,
   getCodeRoot,
+  getLogsDir,
   getRepoRoot,
   getWindowsPythonCandidates,
   killProcessesInVenv,
@@ -513,7 +515,7 @@ export async function getStatus(force = false): Promise<SetupStatus> {
     detail: ff.ok ? ff.detail : `${ff.detail} — some audio formats may fail`,
   });
 
-  const logsDir = path.join(getRepoRoot(), "logs");
+  const logsDir = getLogsDir();
   let models = 0;
   try {
     const walk = (dir: string) => {
@@ -532,6 +534,16 @@ export async function getStatus(force = false): Promise<SetupStatus> {
     label: "Voice models",
     status: "ok",
     detail: models > 0 ? `${models} model(s) in logs/` : "none yet — use the Download tab",
+  });
+
+  const missingPretraineds = missingDefaultPretraineds();
+  checks.push({
+    id: "pretraineds",
+    label: "Default training pretrains",
+    status: missingPretraineds.length ? "missing" : "ok",
+    detail: missingPretraineds.length
+      ? `${missingPretraineds.length} missing file(s) — setup downloads these automatically`
+      : "HiFi-GAN and RefineGAN pretrains ready",
   });
 
   if (process.platform === "win32") {
@@ -1307,16 +1319,13 @@ export function startInstall(): Job {
       process.env.PYTHON_BIN = venvPy;
       appendLog(job, `Using Python env: ${venvPy}`);
 
-      appendLog(job, "Downloading base voice models and prerequisites (hubert, rmvpe)…");
-      try {
-        await streamRun(job, venvPy, [
-          path.join("rvc", "lib", "tools", "prerequisites_download.py"),
-          "--models",
-          "--exe",
-        ]);
-      } catch (e) {
-        appendLog(job, `Note: Prerequisites download step: ${e}`);
-      }
+      appendLog(job, "Downloading default training pretrains, base voice models, and prerequisites…");
+      await streamRun(job, venvPy, [
+        path.join("rvc", "lib", "tools", "prerequisites_download.py"),
+        "--pretraineds-hifigan",
+        "--models",
+        "--exe",
+      ]);
 
       if (exists(path.join(root, "app", "api", "package.json"))) {
         appendLog(job, "Installing web dependencies…");
@@ -1410,6 +1419,7 @@ export function startPrerequisites(py: string[] | null): Job {
         "--models",
         "--exe",
       ]);
+      cached = null;
       setDone(job, { message: "Engine models downloaded." });
     } catch (err) {
       const message = errMsg(err);
@@ -1435,9 +1445,17 @@ export function venvPythonPath(): string {
   return path.join(root, ".venv", "bin", "python");
 }
 
-export async function assertEngineReady(): Promise<void> {
+export async function assertEngineReady(opts: { allowMissingPretraineds?: boolean } = {}): Promise<void> {
   if (noEnv()) return;
   const status = await getStatus(false);
+  // Training repairs a missing default pair before launching the trainer.
+  if (
+    opts.allowMissingPretraineds &&
+    status.checks.every(
+      (c) => c.status === "ok" || ["pretraineds", "ffmpeg", "models", "zluda", "rocm"].includes(c.id),
+    )
+  )
+    return;
   if (!status.ready) {
     const failed = status.checks
       .filter((c) => c.status !== "ok")

@@ -9,6 +9,7 @@ import { autoUpdater, type UpdateInfo } from "electron-updater";
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
 app.setName("Applio");
+if (process.platform === "win32") app.setAppUserModelId("org.applio.app");
 
 try {
   process.env.APPLIO_LOCALE ??= app.getLocale();
@@ -1186,6 +1187,17 @@ function initAutoUpdater(): void {
 
 async function createWindow(): Promise<void> {
   showSplash();
+  let movingLogs = false;
+  try {
+    const file = path.join(process.env.APPLIO_CONFIG_DIR || app.getPath("userData"), "config.json");
+    const config = JSON.parse(fs.readFileSync(file, "utf-8"));
+    movingLogs = !!(config.logs_move_from || config.logs_cleanup_from);
+  } catch {
+    /* first launch or no pending move */
+  }
+  // Large cross-drive copies run before the API accepts jobs. Keep the splash
+  // open during relocation instead of treating the normal boot timeout as a failure.
+  const apiStartupTimeout = movingLogs ? 24 * 60 * 60 : 60;
 
   if (isDev) {
     setSplashStatus("Connecting to dev environment…", 15);
@@ -1204,7 +1216,11 @@ async function createWindow(): Promise<void> {
         if (res && !apiDone) setSplashStatus("Dev server ready, waiting for engine…", 55);
         return res;
       }),
-      waitFor(apiHealthUrl, 60, (ratio) => {
+      waitFor(apiHealthUrl, apiStartupTimeout, (ratio) => {
+        if (movingLogs) {
+          setSplashStatus("Moving logs folder…", 20);
+          return;
+        }
         if (webDone && !apiDone) {
           setSplashStatus("Starting engine…", 55 + Math.round(ratio * 30));
         }
@@ -1247,9 +1263,12 @@ async function createWindow(): Promise<void> {
 
       const [webOk] = await Promise.all([
         waitFor(webHealthUrl, 60, (ratio) =>
-          setSplashStatus(`Starting Applio…`, 20 + Math.min(65, Math.round(ratio * 65))),
+          setSplashStatus(
+            movingLogs ? "Moving logs folder…" : "Starting Applio…",
+            movingLogs ? 20 : 20 + Math.min(65, Math.round(ratio * 65)),
+          ),
         ),
-        waitFor(apiHealthUrl, 60),
+        waitFor(apiHealthUrl, apiStartupTimeout),
       ]);
 
       if (webOk) {
@@ -1295,6 +1314,11 @@ async function createWindow(): Promise<void> {
       contextIsolation: true,
       nodeIntegration: false,
     },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:\/\//i.test(url)) void shell.openExternal(url).catch(() => {});
+    return { action: "deny" };
   });
 
   // Set macOS dock icon if supported
@@ -1393,6 +1417,52 @@ async function createWindow(): Promise<void> {
 }
 
 // Window control handlers
+const notifiedJobs = new Set<string>();
+ipcMain.handle("job:notify", (event, value: unknown) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win || !Notification.isSupported() || typeof value !== "object" || !value) return false;
+  const { id, title, body, href } = value as Record<string, unknown>;
+  if (
+    typeof id !== "string" ||
+    id.length > 100 ||
+    typeof title !== "string" ||
+    typeof body !== "string" ||
+    typeof href !== "string" ||
+    href !== `/jobs/${encodeURIComponent(id)}` ||
+    notifiedJobs.has(id)
+  )
+    return false;
+  const notification = new Notification({
+    title: `Applio · ${title.slice(0, 100)}`,
+    body: body.slice(0, 300),
+    silent: true,
+  });
+  notification.on("click", () => {
+    if (win.isDestroyed()) return;
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+    win.webContents.send("job:open", href);
+  });
+  notification.on("failed", () => notifiedJobs.delete(id));
+  notifiedJobs.add(id);
+  const oldest = notifiedJobs.values().next().value;
+  if (notifiedJobs.size > 500 && oldest !== undefined) notifiedJobs.delete(oldest);
+  notification.show();
+  return true;
+});
+
+ipcMain.handle("dialog:choose-folder", async (event, defaultPath: unknown) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!win) return null;
+  const result = await dialog.showOpenDialog(win, {
+    title: "Choose folder",
+    defaultPath: typeof defaultPath === "string" && path.isAbsolute(defaultPath) ? defaultPath : undefined,
+    properties: ["openDirectory", "createDirectory", "dontAddToRecent"],
+  });
+  return result.canceled ? null : (result.filePaths[0] ?? null);
+});
+
 ipcMain.on("window:minimize", (event) => {
   const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
   win?.minimize();

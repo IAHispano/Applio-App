@@ -5,14 +5,14 @@ import { z } from "zod";
 import { runPythonJson } from "@/cli";
 import { errMsg } from "@/errors";
 import { repoRel, scanModels, walkDir } from "@/lib/fsutils";
-import { getRepoRoot, resolveUserPath } from "@/python";
+import { getLogsDir, getRepoRoot, resolveUserPath } from "@/python";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
 
 router.get("/", (_req: Request, res: Response) => {
   const root = getRepoRoot();
-  const logsDir = path.join(root, "logs");
+  const logsDir = getLogsDir();
   const audiosDir = path.join(root, "assets", "audios");
 
   const files = scanModels(logsDir);
@@ -52,8 +52,7 @@ export interface ModelDetail {
 
 router.get("/library", (_req: Request, res: Response) => {
   try {
-    const root = getRepoRoot();
-    const logsDir = path.join(root, "logs");
+    const logsDir = getLogsDir();
     if (!fs.existsSync(logsDir)) {
       return res.json({ models: [] });
     }
@@ -300,22 +299,18 @@ router.post("/inspect", async (req: Request, res: Response) => {
 router.delete("/:name", (req: Request, res: Response) => {
   try {
     const name = decodeURIComponent(req.params.name);
-    const root = getRepoRoot();
-    const logsDir = path.join(root, "logs");
+    const logsDir = getLogsDir();
 
-    let targetPath = path.resolve(logsDir, name);
-    if (!targetPath.startsWith(logsDir)) {
+    const targetPath = name.replace(/\\/g, "/").startsWith("logs/")
+      ? resolveUserPath(name)
+      : path.resolve(logsDir, name);
+    const relative = path.relative(logsDir, targetPath);
+    if (!relative || relative === ".." || relative.startsWith(`..${path.sep}`) || path.isAbsolute(relative)) {
       return res.status(400).json({ error: "Invalid model path: escapes logs directory" });
     }
 
     if (!fs.existsSync(targetPath)) {
-      // Check if name is a file within logs
-      const candidateFile = path.resolve(root, name);
-      if (candidateFile.startsWith(logsDir) && fs.existsSync(candidateFile)) {
-        targetPath = candidateFile;
-      } else {
-        return res.status(404).json({ error: `Model not found: ${name}` });
-      }
+      return res.status(404).json({ error: `Model not found: ${name}` });
     }
 
     const stat = fs.statSync(targetPath);

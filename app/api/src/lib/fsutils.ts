@@ -1,8 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
-import { getRepoRoot } from "@/python";
+import { getLogsDir, getRepoRoot } from "@/python";
 
 export function repoRel(absPath: string): string {
+  const rel = path.relative(getLogsDir(), absPath);
+  if (rel !== ".." && !rel.startsWith(`..${path.sep}`) && !path.isAbsolute(rel)) {
+    return path.posix.join("logs", rel.replace(/\\/g, "/"));
+  }
   return path.relative(getRepoRoot(), absPath).replace(/\\/g, "/");
 }
 

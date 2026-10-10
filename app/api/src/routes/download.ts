@@ -6,7 +6,7 @@ import { z } from "zod";
 import { startCliJob } from "@/cli";
 import { errMsg } from "@/errors";
 import { appendLog, createJob, setDone, setError, setProgress, setRunning } from "@/jobs";
-import { getRepoRoot, getUploadsDir } from "@/python";
+import { getLogsDir, getRepoRoot, getUploadsDir, moveUploadedModel } from "@/python";
 
 const router = Router();
 
@@ -74,11 +74,11 @@ router.post("/drop", upload.single("file"), (req: Request, res: Response) => {
       modelName = modelName.slice(0, modelName.toLowerCase().indexOf(".index"));
     }
     if (!modelName) modelName = "model";
-    const modelDir = path.join(getRepoRoot(), "logs", modelName);
+    const modelDir = path.join(getLogsDir(), modelName);
     fs.mkdirSync(modelDir, { recursive: true });
     const dest = path.join(modelDir, fileName);
     if (fs.existsSync(dest)) fs.rmSync(dest);
-    fs.renameSync(req.file.path, dest);
+    moveUploadedModel(req.file.path, dest);
     return res.json({ ok: true, file: fileName, modelDir: `logs/${modelName}` });
   } catch (err) {
     if (req.file) fs.rmSync(req.file.path, { force: true });

@@ -25,6 +25,7 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { JobPanelContent } from "@/components/JobPanel";
 import Link from "@/components/layout/IntentLink";
+import SupportLink from "@/components/SupportLink";
 import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg, fileBasename } from "@/lib/api";
@@ -493,6 +494,12 @@ export default function Home() {
             <JobPanelContent jobId={jobId} activity={activity} embedded />
           </div>
         )}
+      </section>
+      <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3 rounded-xl border border-[var(--border)]">
+        <p className="text-xs text-[var(--muted)] m-0">
+          {t("Enjoying Applio? Your support helps us keep it free.")}
+        </p>
+        <SupportLink className="shrink-0" />
       </section>
     </div>
   );

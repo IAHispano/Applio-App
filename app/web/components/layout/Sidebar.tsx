@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS } from "@/components/layout/nav";
+import SupportLink from "@/components/SupportLink";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
 import webPackage from "@/package.json";
@@ -116,6 +117,9 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
+      <div className="shrink-0 pt-3 mt-3 border-t border-[var(--border)] px-3">
+        <SupportLink className="py-2" />
+      </div>
     </>
   );
 }

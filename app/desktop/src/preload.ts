@@ -33,6 +33,9 @@ export interface ApplioBridge {
   versions: NodeJS.ProcessVersions;
   controls: WindowControls;
   updater: UpdaterBridge;
+  chooseFolder: (defaultPath?: string) => Promise<string | null>;
+  showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
+  onJobOpen: (listener: (href: string) => void) => () => void;
 }
 
 declare global {
@@ -44,6 +47,14 @@ declare global {
 contextBridge.exposeInMainWorld("applio", {
   platform: process.platform,
   versions: process.versions,
+  chooseFolder: (defaultPath?: string) => ipcRenderer.invoke("dialog:choose-folder", defaultPath),
+  showJobNotification: (value: { id: string; title: string; body: string; href: string }) =>
+    ipcRenderer.invoke("job:notify", value),
+  onJobOpen: (listener: (href: string) => void) => {
+    const handler = (_event: unknown, href: string) => listener(href);
+    ipcRenderer.on("job:open", handler);
+    return () => ipcRenderer.removeListener("job:open", handler);
+  },
   controls: {
     minimize: () => ipcRenderer.send("window:minimize"),
     toggleMaximize: () => ipcRenderer.send("window:toggle-maximize"),

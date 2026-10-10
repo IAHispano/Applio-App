@@ -11,6 +11,7 @@ import librosa
 from matplotlib import pyplot as plt
 
 from rvc.lib.predictors.F0Extractor import F0Extractor
+from rvc.lib.user_config import get_logs_dir
 
 
 def extract_f0_curve(
@@ -20,8 +21,8 @@ def extract_f0_curve(
     txt_path: str = None,
 ):
     print("Extracting F0 Curve...")
-    image_path = image_path or os.path.join("logs", "f0_plot.png")
-    txt_path = txt_path or os.path.join("logs", "f0_curve.txt")
+    image_path = image_path or os.path.join(get_logs_dir(), "f0_plot.png")
+    txt_path = txt_path or os.path.join(get_logs_dir(), "f0_curve.txt")
     y, sr = librosa.load(audio_path, sr=None)
     hop_length = 160
 

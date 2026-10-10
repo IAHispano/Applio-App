@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Syne } from "next/font/google";
 import "@/app/globals.css";
+import JobNotifications from "@/components/JobNotifications";
 import AppShell from "@/components/layout/AppShell";
 import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
@@ -41,6 +42,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <TermsModal />
               <AutoUpdateModal />
               <Toaster />
+              <JobNotifications />
             </SetupProvider>
           </ThemeProvider>
         </I18nProvider>

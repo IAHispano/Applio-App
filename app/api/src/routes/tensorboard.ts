@@ -1,10 +1,9 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import fs from "node:fs";
 import net from "node:net";
-import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { errMsg } from "@/errors";
-import { getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "@/python";
+import { getLogsDir, getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "@/python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);
@@ -97,7 +96,7 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
   const p = (async () => {
     try {
       const root = getRepoRoot();
-      const logsDir = path.join(root, "logs");
+      const logsDir = getLogsDir();
       if (!fs.existsSync(logsDir)) {
         fs.mkdirSync(logsDir, { recursive: true });
       }
@@ -107,7 +106,7 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
 
       const proc = spawn(
         pythonBin,
-        ["-m", "tensorboard.main", "--logdir", "logs", "--host", "127.0.0.1", "--port", String(TB_PORT)],
+        ["-m", "tensorboard.main", "--logdir", logsDir, "--host", "127.0.0.1", "--port", String(TB_PORT)],
         {
           cwd: root,
           windowsHide: true,

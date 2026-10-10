@@ -1,6 +1,76 @@
 import { type ChildProcess, execSync, spawn, spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { loadConfig, saveConfig } from "@/config";
+import { cleanupMovedLogs, moveLogsDirectory } from "@/logs-storage";
+
+let activeLogsDir: string | undefined;
+let logsMoveError: string | undefined;
+
+export function getLogsMoveError(): string | undefined {
+  return logsMoveError;
+}
+
+// Move at startup, then pin storage for this API lifetime so running jobs and
+// engine workers agree even after the user selects another folder.
+export function getLogsDir(): string {
+  if (!activeLogsDir) {
+    const cfg = loadConfig();
+    const configured = cfg.logs_dir;
+    const destination = path.resolve(
+      typeof configured === "string" && configured ? configured : path.join(getRepoRoot(), "logs"),
+    );
+    activeLogsDir = destination;
+    const source = typeof cfg.logs_move_from === "string" ? cfg.logs_move_from : "";
+    try {
+      if (source) {
+        const next = { ...cfg, logs_move_from: "", logs_cleanup_from: source };
+        moveLogsDirectory(source, destination, getRepoRoot(), () => saveConfig(next));
+        Object.assign(cfg, next);
+      }
+      if (typeof cfg.logs_cleanup_from === "string" && cfg.logs_cleanup_from) {
+        cleanupMovedLogs(cfg.logs_cleanup_from, destination);
+        delete cfg.logs_cleanup_from;
+        saveConfig(cfg);
+      }
+    } catch (err) {
+      logsMoveError = err instanceof Error ? err.message : String(err);
+      // Before commit, keep using the untouched original folder. After commit,
+      // the new folder is authoritative and source cleanup retries next boot.
+      if (source && loadConfig().logs_move_from) activeLogsDir = path.resolve(source);
+    }
+  }
+  return activeLogsDir;
+}
+
+export function validateLogsDir(value: string): string {
+  const dir = value.trim();
+  if (!dir) return "";
+  if (!path.isAbsolute(dir) || dir.includes("\0")) {
+    throw new Error("Logs folder must be an absolute path.");
+  }
+  const resolved = path.resolve(dir);
+  fs.mkdirSync(resolved, { recursive: true });
+  const probe = path.join(resolved, `.applio-write-test-${randomUUID()}`);
+  try {
+    fs.writeFileSync(probe, "", { flag: "wx" });
+  } finally {
+    fs.rmSync(probe, { force: true });
+  }
+  return resolved;
+}
+
+export function moveUploadedModel(source: string, destination: string): void {
+  try {
+    fs.renameSync(source, destination);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EXDEV") throw err;
+    // Upload staging can be on C: while the models folder is on another drive.
+    fs.copyFileSync(source, destination);
+    fs.unlinkSync(source);
+  }
+}
 
 export function refreshWindowsEnv(): void {
   if (process.platform !== "win32") return;
@@ -507,6 +577,7 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
     }
   }
   const env: NodeJS.ProcessEnv = { ...process.env, PYTHONIOENCODING: "utf-8", ...extra };
+  env.APPLIO_LOGS_DIR = getLogsDir();
   env.PYTHONUNBUFFERED ??= "1";
   if (process.platform === "darwin") {
     env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
@@ -612,6 +683,16 @@ export function runPythonModule(
 }
 
 export function resolveInsideRepo(p: string): string {
+  const normalized = p.replace(/\\/g, "/");
+  if (normalized === "logs" || normalized.startsWith("logs/")) {
+    const root = getLogsDir();
+    const resolved = path.resolve(root, normalized.slice(5));
+    const rel = path.relative(root, resolved);
+    if (rel === ".." || rel.startsWith(`..${path.sep}`) || path.isAbsolute(rel)) {
+      throw new Error(`Path escapes logs folder: ${p}`);
+    }
+    return resolved;
+  }
   const root = getRepoRoot();
   const resolved = path.resolve(root, p);
   const rel = path.relative(root, resolved);

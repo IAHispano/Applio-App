@@ -13,12 +13,24 @@ import {
   loadLanguageDictionary,
   resolveSupportedLanguage,
 } from "@/i18n";
-import { getAppVersion, getPythonGuiBin, getRepoRoot, getUploadsDir, noEnv, pythonEnv } from "@/python";
+import { validateLogsMove } from "@/logs-storage";
+import {
+  getAppVersion,
+  getLogsDir,
+  getLogsMoveError,
+  getPythonGuiBin,
+  getRepoRoot,
+  getUploadsDir,
+  noEnv,
+  pythonEnv,
+  validateLogsDir,
+} from "@/python";
 import { getStatus } from "@/setup";
 
 const router = Router();
 
 const settingsSchema = z.object({
+  logs_dir: z.string().optional(),
   model_index_filter: z.boolean().optional(),
   discord_presence: z.boolean().optional(),
   lang: z.object({ override: z.boolean(), selected_lang: z.string().min(1) }).optional(),
@@ -37,7 +49,12 @@ const settingsSchema = z.object({
 
 router.get("/", (_req: Request, res: Response) => {
   try {
-    res.json({ config: loadConfig() });
+    res.json({
+      config: loadConfig(),
+      logsDir: getLogsDir(),
+      logsMoveError: getLogsMoveError(),
+      defaultLogsDir: path.join(getRepoRoot(), "logs"),
+    });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
   }
@@ -48,8 +65,21 @@ router.put("/", (req: Request, res: Response) => {
   if (!parsed.success)
     return res.status(400).json({ error: "Invalid settings", details: parsed.error.flatten() });
   try {
+    const active = getLogsDir();
+    if (parsed.data.logs_dir !== undefined) {
+      try {
+        parsed.data.logs_dir = validateLogsDir(parsed.data.logs_dir);
+        validateLogsMove(active, parsed.data.logs_dir || path.join(getRepoRoot(), "logs"));
+      } catch (err) {
+        return res.status(400).json({ error: `Cannot use logs folder: ${errMsg(err)}` });
+      }
+    }
     const cfg = loadConfig();
     deepMerge(cfg, parsed.data);
+    if (parsed.data.logs_dir !== undefined) {
+      const destination = parsed.data.logs_dir || path.join(getRepoRoot(), "logs");
+      cfg.logs_move_from = path.resolve(destination) === active ? "" : active;
+    }
     saveConfig(cfg);
     res.json({ ok: true, config: cfg });
   } catch (err) {

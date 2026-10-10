@@ -20,69 +20,14 @@ import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
+import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { useSpeakers } from "@/lib/useSpeakers";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
 }
-
-const INPUT_WORKLET = `
-class InputProcessor extends AudioWorkletProcessor {
-  constructor() {
-    super();
-    this.buffer = new Float32Array(96000);
-    this.buffered = 0;
-    this.block = 0;
-    this.port.onmessage = (e) => {
-      this.block = e.data.block_frame || 0;
-      if (e.data.reset) this.buffered = 0;
-    };
-  }
-  process(inputs) {
-    const ch = inputs[0] && inputs[0][0];
-    if (ch && ch.length > 0) {
-      if (this.buffered + ch.length > this.buffer.length) {
-        const nextBuf = new Float32Array(Math.max(this.buffer.length * 2, this.buffered + ch.length));
-        nextBuf.set(this.buffer.subarray(0, this.buffered));
-        this.buffer = nextBuf;
-      }
-      this.buffer.set(ch, this.buffered);
-      this.buffered += ch.length;
-    }
-    if (this.block > 0) {
-      while (this.buffered >= this.block) {
-        const out = new Float32Array(this.block);
-        out.set(this.buffer.subarray(0, this.block));
-        this.port.postMessage({ chunk: out }, [out.buffer]);
-        this.buffer.copyWithin(0, this.block, this.buffered);
-        this.buffered -= this.block;
-      }
-    }
-    return true;
-  }
-}
-registerProcessor('input-processor', InputProcessor);`;
-
-const PLAYBACK_WORKLET = `
-class PlaybackProcessor extends AudioWorkletProcessor {
-  constructor() { super(); this.ring = new Float32Array(98304); this.rp = 0; this.wp = 0;
-    this.port.onmessage = (e) => { const c = new Float32Array(e.data.chunk);
-      for (let i = 0; i < c.length; i++) { this.ring[this.wp] = c[i]; this.wp = (this.wp + 1) % this.ring.length; } }; }
-  process(inputs, outputs) {
-    const outL = outputs[0] && outputs[0][0];
-    const outR = outputs[0] && outputs[0][1];
-    if (!outL) return true;
-    const len = outL.length;
-    for (let i = 0; i < len; i++) {
-      let s = 0;
-      if (this.rp !== this.wp) { s = this.ring[this.rp]; this.rp = (this.rp + 1) % this.ring.length; }
-      outL[i] = s; if (outR) outR[i] = s;
-    }
-    return true;
-  }
-}
-registerProcessor('playback-processor', PlaybackProcessor);`;
 
 interface RtStatus {
   running: boolean;
@@ -136,7 +81,8 @@ export default function RealtimePage() {
   const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
   const [cleanAudio, setCleanAudio] = useState(false);
   const [cleanStrength, setCleanStrength] = useState(0.5);
-  const [chunkMs, setChunkMs] = useState(250);
+  const [chunkMs, setChunkMs] = useState(30);
+  const [autoChunk, setAutoChunk] = useState(true);
   const [crossfade, setCrossfade] = useState(0.05);
   const [extraSize, setExtraSize] = useState(2.5);
   const [silent, setSilent] = useState(-60);
@@ -181,7 +127,9 @@ export default function RealtimePage() {
   const [delayFeedback, setDelayFeedback] = useState(0.0);
   const [delayMix, setDelayMix] = useState(0.5);
   const [streaming, setStreaming] = useState(false);
+  const [connecting, setConnecting] = useState(false);
   const [latency, setLatency] = useState(0);
+  const [roundTrip, setRoundTrip] = useState(0);
   const [volume, setVolume] = useState(-90);
   const [msg, setMsg] = useState("");
   const [recOn, setRecOn] = useState(false);
@@ -203,6 +151,7 @@ export default function RealtimePage() {
     nodes: AudioNode[];
     els: HTMLAudioElement[];
   } | null>(null);
+  const streamEpochRef = useRef(0);
 
   const refreshEngine = useCallback(async () => {
     try {
@@ -286,6 +235,7 @@ export default function RealtimePage() {
   }
 
   async function startStream() {
+    if (connecting || sessRef.current) return;
     setMsg("");
     if (!engine?.running) {
       setMsg(t("Start the engine first."));
@@ -295,8 +245,12 @@ export default function RealtimePage() {
       setMsg(t("Select a voice model."));
       return;
     }
+    setConnecting(true);
+    ++streamEpochRef.current;
+    let openingStream: MediaStream | undefined;
+    let openingContext: AudioContext | undefined;
     try {
-      const block = Math.round((chunkMs * 48000) / 1000);
+      let block = Math.round(((autoChunk ? 30 : chunkMs) * 48000) / 1000);
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(inDev ? { deviceId: { exact: inDev } } : {}),
@@ -304,7 +258,9 @@ export default function RealtimePage() {
           sampleRate: { exact: 48000 },
         },
       });
+      openingStream = stream;
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
+      openingContext = ctx;
       const inputBlob = new Blob([INPUT_WORKLET], { type: "application/javascript" });
       const inputBlobUrl = URL.createObjectURL(inputBlob);
       try {
@@ -322,34 +278,28 @@ export default function RealtimePage() {
       }
       const src = ctx.createMediaStreamSource(stream);
       const inNode = new AudioWorkletNode(ctx, "input-processor");
-      inNode.port.postMessage({ block_frame: block });
       src.connect(inNode);
       const playNode = new AudioWorkletNode(ctx, "playback-processor", { outputChannelCount: [2] });
       const gain = ctx.createGain();
       gain.gain.value = outGain / 100;
       playNode.connect(gain);
-      const dest = ctx.createMediaStreamDestination();
-      gain.connect(dest);
-      const el = new Audio();
-      el.srcObject = dest.stream;
-      const anyEl = el as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
-      if (outDev && anyEl.setSinkId) {
-        try {
-          await anyEl.setSinkId(outDev);
-        } catch {
-          /* Chrome-only; fall back to default output */
-        }
-      }
-      await el.play();
+      const outputElements = await connectRealtimeOutput(ctx, gain, outDev);
 
       const ws = new WebSocket(apiWs("/api/realtime/ws-audio"));
       ws.binaryType = "arraybuffer";
-      sessRef.current = { ws, ctx, stream, nodes: [src, inNode, playNode, gain], els: [el] };
+      let sentAt = 0;
+      let retryEager = false;
+      const sender = new RealtimeAudioSender((chunk) => {
+        sentAt = performance.now();
+        ws.send(chunk);
+      });
+      sessRef.current = { ws, ctx, stream, nodes: [src, inNode, playNode, gain], els: outputElements };
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
             type: "init",
             block_frame: block,
+            automatic_block_size: autoChunk,
             cross_fade_overlap_size: crossfade,
             extra_convert_size: extraSize,
             model_path: model,
@@ -411,38 +361,75 @@ export default function RealtimePage() {
             },
           }),
         );
-        setStreaming(true);
-        setMsg(t("Streaming ✓ speak into your microphone."));
+        setMsg(t("Preparing realtime model…"));
         apiSend("/api/realtime/config", "PUT", { model_file: model, index_file: index }).catch(() => {});
       };
       inNode.port.onmessage = (e) => {
         const chunk: Float32Array = e.data.chunk;
-        if (ws.readyState === WebSocket.OPEN) ws.send(chunk);
+        if (ws.readyState === WebSocket.OPEN) sender.capture(chunk);
       };
       ws.onmessage = (ev) => {
+        if (sessRef.current?.ws !== ws) return;
         if (typeof ev.data === "string") {
           try {
             const m = JSON.parse(ev.data);
+            if (m.type === "retry_eager") retryEager = true;
+            if (m.type === "error") setMsg(String(m.message));
+            if (m.type === "ready") {
+              if (Number.isInteger(m.block_frame) && m.block_frame >= 480 && m.block_frame <= 48000) {
+                block = m.block_frame;
+                setChunkMs(Math.round(block / 48));
+              }
+              setConnecting(false);
+              sender.start();
+              inNode.port.postMessage({ block_frame: block, reset: true });
+              setStreaming(true);
+              setMsg(t("Streaming ✓ speak into your microphone."));
+            }
             if (m.type === "latency") setLatency(m.value);
             if (typeof m.volume === "number") setVolume(m.volume);
           } catch {
             /* ignore */
           }
         } else {
+          setRoundTrip(performance.now() - sentAt);
           playNode.port.postMessage({ chunk: ev.data }, [ev.data]);
+          sender.acknowledge();
         }
       };
       ws.onclose = () => {
-        if (sessRef.current) stopStream(true);
+        if (sessRef.current?.ws !== ws) return;
+        stopStream(true);
+        if (retryEager) {
+          const recoveryEpoch = streamEpochRef.current;
+          setMsg(t("Restarting realtime with compatible inference…"));
+          apiSend("/api/realtime/start", "POST", {})
+            .then(() => {
+              if (streamEpochRef.current === recoveryEpoch) return reconnectRef.current();
+            })
+            .catch((error) => setMsg(errMsg(error)));
+        }
       };
-      ws.onerror = () => setMsg(t("WebSocket error — is the engine running?"));
+      ws.onerror = () => {
+        if (sessRef.current?.ws === ws) setMsg(t("WebSocket error — is the engine running?"));
+      };
     } catch (e) {
+      setConnecting(false);
       setMsg(errMsg(e));
       stopStream(true);
+      openingStream?.getTracks().forEach((track) => {
+        track.stop();
+      });
+      if (openingContext?.state !== "closed") await openingContext?.close();
     }
   }
 
+  const reconnectRef = useRef(startStream);
+  reconnectRef.current = startStream;
+
   function stopStream(silentStop = false) {
+    ++streamEpochRef.current;
+    setConnecting(false);
     const s = sessRef.current;
     sessRef.current = null;
     try {
@@ -851,12 +838,16 @@ export default function RealtimePage() {
                 id="rt-chunk-ms"
                 label={`${t("Chunk Size (ms)")} ${t("(reconnect to apply)")}`}
                 value={chunkMs}
-                min={50}
+                min={20}
                 max={1000}
                 step={10}
                 unit="ms"
-                onChange={setChunkMs}
+                onChange={(value) => {
+                  setChunkMs(value);
+                  setAutoChunk(false);
+                }}
               />
+              <ToggleField label={t("Auto chunk size")} checked={autoChunk} onChange={setAutoChunk} />
             </div>
             <div>
               <SliderField
@@ -1447,8 +1438,8 @@ export default function RealtimePage() {
         <div className="flex items-center justify-between gap-4 pt-2 border-t border-white/5">
           <div className="flex items-center gap-3">
             {!streaming ? (
-              <Button onClick={startStream} icon={<Play size={16} />}>
-                {t("Start Streaming")}
+              <Button onClick={startStream} disabled={connecting} icon={<Play size={16} />}>
+                {connecting ? t("Preparing…") : t("Start Streaming")}
               </Button>
             ) : (
               <Button
@@ -1462,7 +1453,8 @@ export default function RealtimePage() {
           </div>
           {streaming && (
             <span className="text-xs text-neutral-400 tabular-nums" role="status" aria-live="polite">
-              latency {latency.toFixed(0)}ms · volume {volume.toFixed(0)}dB
+              {t("Processing")} {latency.toFixed(0)}ms · {t("Round trip")} {roundTrip.toFixed(0)}ms · volume{" "}
+              {volume.toFixed(0)}dB
             </span>
           )}
         </div>

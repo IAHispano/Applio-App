@@ -50,7 +50,9 @@ current_script_directory = os.path.dirname(os.path.realpath(__file__))
 if current_script_directory not in sys.path:
     sys.path.append(current_script_directory)
 
-logs_path = os.path.join(current_script_directory, "logs")
+from rvc.lib.user_config import get_logs_dir
+
+logs_path = get_logs_dir()
 python = sys.executable
 
 
@@ -98,15 +100,9 @@ def get_config():
 
 
 def pretrained_selector(vocoder: str, sample_rate: int):
-    base_path = os.path.join(
-        current_script_directory, "rvc", "models", "pretraineds", vocoder.lower()
-    )
-    sr_tag = str(sample_rate)[:2]
-    path_g = os.path.join(base_path, f"f0G{sr_tag}k.pth")
-    path_d = os.path.join(base_path, f"f0D{sr_tag}k.pth")
-    if os.path.exists(path_g) and os.path.exists(path_d):
-        return path_g, path_d
-    return "", ""
+    from rvc.lib.tools.prerequisites_download import ensure_pretrained
+
+    return ensure_pretrained(vocoder, sample_rate)
 
 
 def _base_infer_kwargs(
@@ -762,6 +758,13 @@ def run_train_script(
                     "Please provide the path to the pretrained G and D models."
                 )
             pg, pd = g_pretrained_path, d_pretrained_path
+            if not all(
+                path and os.path.isfile(path) and os.path.getsize(path) > 0
+                for path in (pg, pd)
+            ):
+                raise ValueError(
+                    "Custom pretrained G and D files must exist and be non-empty."
+                )
     else:
         pg, pd = "", ""
 
@@ -891,7 +894,7 @@ def run_prerequisites_script(
 
 
 def run_audio_analyzer_script(
-    input_path: str, save_plot_path: str = "logs/audio_analysis.png"
+    input_path: str, save_plot_path: str = os.path.join(logs_path, "audio_analysis.png")
 ):
     if not os.path.exists(input_path):
         raise FileNotFoundError(f"Audio file not found: '{input_path}'")
@@ -1228,10 +1231,10 @@ def interactive_mode():
                         "Method (rmvpe, fcpe, crepe, swift)", "rmvpe"
                     )
                     img = prompt_with_default(
-                        "Output plot image path", "logs/f0_curve.png"
+                        "Output plot image path", os.path.join(logs_path, "f0_curve.png")
                     )
                     txt = prompt_with_default(
-                        "Output curve txt path", "logs/f0_curve.txt"
+                        "Output curve txt path", os.path.join(logs_path, "f0_curve.txt")
                     )
                     img_res, txt_res = extract_f0_curve(inp, method, img, txt)
                     print(f"Extracted F0 curve: {img_res}, {txt_res}")
@@ -2087,7 +2090,7 @@ if click is not None:
     @click.option("--input-path", required=True, help="Path to input audio file.")
     @click.option(
         "--save-plot-path",
-        default="logs/audio_analysis.png",
+        default=os.path.join(logs_path, "audio_analysis.png"),
         help="Path to save analysis spectrogram.",
     )
     def audio_analyzer(**kwargs):
@@ -2095,7 +2098,7 @@ if click is not None:
         try:
             run_audio_analyzer_script(
                 kwargs["input_path"],
-                kwargs.get("save_plot_path", "logs/audio_analysis.png"),
+                kwargs.get("save_plot_path", os.path.join(logs_path, "audio_analysis.png")),
             )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
@@ -2105,7 +2108,7 @@ if click is not None:
     @click.option("--input-path", required=True, help="Path to input audio file.")
     @click.option(
         "--save-plot-path",
-        default="logs/audio_analysis.png",
+        default=os.path.join(logs_path, "audio_analysis.png"),
         help="Path to save analysis spectrogram.",
     )
     def analyze_alias(**kwargs):
@@ -2113,7 +2116,7 @@ if click is not None:
         try:
             run_audio_analyzer_script(
                 kwargs["input_path"],
-                kwargs.get("save_plot_path", "logs/audio_analysis.png"),
+                kwargs.get("save_plot_path", os.path.join(logs_path, "audio_analysis.png")),
             )
         except Exception as e:
             click.echo(f"Error: {e}", err=True)
@@ -2128,11 +2131,11 @@ if click is not None:
         help="Pitch extraction method.",
     )
     @click.option(
-        "--output-image", default="logs/f0_curve.png", help="Path to save F0 plot PNG."
+        "--output-image", default=os.path.join(logs_path, "f0_curve.png"), help="Path to save F0 plot PNG."
     )
     @click.option(
         "--output-txt",
-        default="logs/f0_curve.txt",
+        default=os.path.join(logs_path, "f0_curve.txt"),
         help="Path to save F0 curve text file.",
     )
     def f0_curve(**kwargs):
