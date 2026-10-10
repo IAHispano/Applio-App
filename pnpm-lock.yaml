@@ -18,7 +18,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  app/api:
+  backend/api:
     dependencies:
       '@types/ws':
         specifier: ^8.18.1
@@ -64,7 +64,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  app/desktop:
+  frontend/desktop:
     dependencies:
       electron-updater:
         specifier: ^6.8.9
@@ -83,7 +83,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.3
 
-  app/web:
+  frontend/web:
     dependencies:
       '@tailwindcss/postcss':
         specifier: ^4.3.3

@@ -1,9 +1,9 @@
 // Post-build: copy client static assets + public dir next to the standalone
-// server (Next.js omits them from standalone output). Run from app/web.
+// server (Next.js omits them from standalone output). Run from frontend/web.
 // Compatible with both npm (flat node_modules, real dirs) and pnpm
 // (symlinked node_modules, standalone tracing can leave broken symlinks).
 // Docs (verified with Playwright, HTTP 200):
-// - Next.js standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
+// - Next.js standalone: https://nextjs.org/docs/backend/api-reference/config/next-config-js/output
 // - pnpm symlinks: https://pnpm.io/motivation
 // - electron-builder FileSet: https://www.electron.build/docs/api/app-builder-lib.interface.fileset/
 import fs from "node:fs";
@@ -97,7 +97,7 @@ ensureDir(standaloneModules);
 // Resolve a package directory, npm/pnpm compatible. `fromPkgJson` is the
 // package.json of the dependent, so Node resolves transitive deps through
 // the dependent's own node_modules — including pnpm's isolated .pnpm store,
-// where transitive deps are NOT hoisted to app/web/node_modules.
+// where transitive deps are NOT hoisted to frontend/web/node_modules.
 function resolvePkgDir(dep: string, fromPkgJson: string): string | null {
   // Fast path: hoisted or directly-symlinked locations (npm flat, pnpm direct).
   for (const base of [webModules, rootModules]) {

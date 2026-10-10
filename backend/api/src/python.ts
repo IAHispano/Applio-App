@@ -286,7 +286,7 @@ if (process.platform === "darwin") {
   }
 }
 
-// app/api is two levels below the repo root, both as source and compiled.
+// backend/api is two levels below the repo root, both as source and compiled.
 export function getRepoRoot(): string {
   if (process.env.APPLIO_ROOT && fs.existsSync(process.env.APPLIO_ROOT)) {
     return path.resolve(process.env.APPLIO_ROOT);
@@ -354,10 +354,10 @@ export function getAppVersion(): string {
   const candidates = [
     path.join(codeRoot, "package.json"),
     path.join(repoRoot, "package.json"),
-    path.join(codeRoot, "app", "desktop", "package.json"),
-    path.join(repoRoot, "app", "desktop", "package.json"),
-    path.join(codeRoot, "app", "api", "package.json"),
-    path.join(repoRoot, "app", "api", "package.json"),
+    path.join(codeRoot, "frontend", "desktop", "package.json"),
+    path.join(repoRoot, "frontend", "desktop", "package.json"),
+    path.join(codeRoot, "backend", "api", "package.json"),
+    path.join(repoRoot, "backend", "api", "package.json"),
   ];
   for (const f of candidates) {
     try {

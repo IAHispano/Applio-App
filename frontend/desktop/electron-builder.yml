@@ -77,17 +77,17 @@ files:
       - "mute_spin/**/*"
       - "mute_spin-v2/**/*"
       - "reference/**/*"
-  - from: ../../app/api/dist
-    to: app/api/dist
-  - from: ../../app/api/package.json
-    to: app/api/package.json
+  - from: ../../backend/api/dist
+    to: backend/api/dist
+  - from: ../../backend/api/package.json
+    to: backend/api/package.json
   # NOTE: standalone is copied as one whole tree. copy-static.mts
   # (web postbuild) already places .next/static, public, and real
   # node_modules dirs inside it, so do NOT list them again here:
   # duplicate file sets race on the same destination and fail on
   # macOS/Linux with EEXIST hard-link errors in electron-builder.
-  - from: ../../app/web/.next/standalone
-    to: app/web/.next/standalone
+  - from: ../../frontend/web/.next/standalone
+    to: frontend/web/.next/standalone
 
 win:
   target:

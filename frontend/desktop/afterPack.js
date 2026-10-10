@@ -37,7 +37,7 @@ function findPackagedAppDir(appOutDir, productFilename) {
     path.join(appOutDir, `${productFilename}.app`, "Contents", "Resources", "app"),
   ];
   for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, "app", "web", ".next", "standalone", "server.js"))) return dir;
+    if (fs.existsSync(path.join(dir, "frontend", "web", ".next", "standalone", "server.js"))) return dir;
   }
   return null;
 }
@@ -49,11 +49,11 @@ function ensureStandaloneNodeModules(packagedAppDir) {
   // styled-jsx, @swc/helpers, ...) belongs to @applio/web, so its
   // standalone/node_modules tree is pruned from the package even when listed
   // in `files`. Copy the already-dereferenced tree (prepared by
-  // app/web/scripts/copy-static.mts, npm/pnpm compatible) here instead.
+  // frontend/web/scripts/copy-static.mts, npm/pnpm compatible) here instead.
   // afterPack runs after files are packaged, before signing, which is the
   // documented stage for modifying the bundle structure.
   const src = path.resolve(__dirname, "..", "web", ".next", "standalone", "node_modules");
-  const dest = path.join(packagedAppDir, "app", "web", ".next", "standalone", "node_modules");
+  const dest = path.join(packagedAppDir, "frontend", "web", ".next", "standalone", "node_modules");
   if (!fs.existsSync(src)) {
     console.warn("[afterPack] standalone node_modules source missing, skipping:", src);
     return;

@@ -404,7 +404,7 @@ async function checkFfmpeg(): Promise<{ ok: boolean; detail: string }> {
 
 const WEB_PORT = process.env.WEB_PORT || "3000";
 
-// A running `next dev` owns app/web/.next (it keeps .next/trace open), so a
+// A running `next dev` owns frontend/web/.next (it keeps .next/trace open), so a
 // concurrent `next build` dies with EPERM on Windows. Probe the port instead
 // of failing the whole install over a build dev mode does not need.
 async function webDevServerRunning(): Promise<boolean> {
@@ -426,13 +426,13 @@ function checkWebBuild(): { ok: boolean; detail: string } {
   // has no such var and falls back to the repo root.
   const codeRoot = process.env.APPLIO_CODE_ROOT;
   const root = codeRoot && exists(codeRoot) ? path.resolve(codeRoot) : getRepoRoot();
-  if (exists(path.join(root, "app", "web", ".next", "standalone", "server.js"))) {
+  if (exists(path.join(root, "frontend", "web", ".next", "standalone", "server.js"))) {
     return { ok: true, detail: "production build ready" };
   }
-  if (exists(path.join(root, "app", "web", ".next", "BUILD_ID"))) {
+  if (exists(path.join(root, "frontend", "web", ".next", "BUILD_ID"))) {
     return { ok: true, detail: "build ready" };
   }
-  if (exists(path.join(root, "app", "web", "package.json"))) {
+  if (exists(path.join(root, "frontend", "web", "package.json"))) {
     return { ok: true, detail: "web source ready" };
   }
   return { ok: false, detail: "web bundle missing — run pnpm build" };
@@ -1332,12 +1332,12 @@ export function startInstall(): Job {
         "--exe",
       ]);
 
-      if (exists(path.join(root, "app", "api", "package.json"))) {
+      if (exists(path.join(root, "backend", "api", "package.json"))) {
         appendLog(job, "Installing web dependencies…");
         await streamRun(job, pnpmCmd, ["install"], {
           shell: pnpmShell,
         });
-        if (!exists(path.join(root, "app", "web", ".next", "standalone", "server.js"))) {
+        if (!exists(path.join(root, "frontend", "web", ".next", "standalone", "server.js"))) {
           if (await webDevServerRunning()) {
             appendLog(
               job,

@@ -1,5 +1,6 @@
 packages:
-  - "app/*"
+  - "frontend/*"
+  - "backend/api"
 allowBuilds:
   electron: true
   esbuild: true

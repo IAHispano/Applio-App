@@ -115,6 +115,18 @@ Applio supports AMD GPUs on Windows out-of-the-box via native **AMD ROCm PyTorch
 
 ### Developers (any OS)
 
+Source layout:
+
+```text
+frontend/web/      Web interface
+frontend/desktop/  Electron shell and installers
+backend/api/       App API and job orchestration
+backend/applio/    Pinned shared RVC engine
+uvr/              App-only audio separation
+tools/            App-only audio utilities
+assets/           Shared app resources
+```
+
 Prerequisites: Python 3.10–3.12, Node.js 22+, `pnpm@11`, ffmpeg.
 
 ```bash
@@ -152,10 +164,10 @@ Desktop, web/API, and Python commands use the same settings. For a separate prof
 | `pnpm dev` | API + web with hot reload |
 | `pnpm desktop:dev` | API + web + Electron shell |
 | `pnpm build` | Production build of API + web |
-| `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `app/desktop/dist-installers/`) |
+| `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `frontend/desktop/dist-installers/`) |
 | `pnpm typecheck` | TypeScript checks across all packages |
 | `pnpm backend:init` / `backend:check` | Initialize or verify the pinned shared engine |
-| `pnpm format` | Format/lint-fix `app` with Biome |
+| `pnpm format` | Format/lint-fix the frontend and API with Biome |
 
 ### CLI Mode
 

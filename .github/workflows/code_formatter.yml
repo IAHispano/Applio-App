@@ -7,7 +7,8 @@ on:
     paths:
       - '**/*.py'
       - '**/*.ipynb'
-      - 'app/**'
+      - 'frontend/**'
+      - 'backend/api/**'
       - 'biome.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -71,10 +72,10 @@ jobs:
       # which fails on pre-existing lint debt. The formatter job must
       # apply what it can and exit 0, not go red on lint findings.
       - name: Run Biome formatter (app)
-        run: pnpm exec biome format --write app
+        run: pnpm exec biome format --write frontend backend/api
 
       - name: Organize imports (app)
-        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false app
+        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false frontend backend/api
 
       - name: Commit and push directly
         run: |

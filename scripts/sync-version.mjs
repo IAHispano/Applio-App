@@ -7,7 +7,7 @@ import fs from "node:fs";
 const v = (process.env.RELEASE_VERSION || "").replace(/^v/, "");
 if (!v) throw new Error("empty version");
 
-for (const f of ["package.json", "app/api/package.json", "app/web/package.json", "app/desktop/package.json"]) {
+for (const f of ["package.json", "backend/api/package.json", "frontend/web/package.json", "frontend/desktop/package.json"]) {
   const p = JSON.parse(fs.readFileSync(f, "utf8"));
   p.version = v;
   fs.writeFileSync(f, `${JSON.stringify(p, null, 2)}\n`);

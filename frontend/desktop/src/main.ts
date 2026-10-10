@@ -461,8 +461,8 @@ function startProdBackends(): void {
       }
     }
   }
-  const serverEntry = path.join(code, "app", "api", "dist", "index.js");
-  const nextStandalone = path.join(code, "app", "web", ".next", "standalone", "server.js");
+  const serverEntry = path.join(code, "backend", "api", "dist", "index.js");
+  const nextStandalone = path.join(code, "frontend", "web", ".next", "standalone", "server.js");
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     ELECTRON_RUN_AS_NODE: "1",
