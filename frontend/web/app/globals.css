@@ -971,7 +971,8 @@ button.segmented-item.is-active:hover {
   color: var(--warn);
   border-color: var(--warn);
 }
-details {
+/* Shared Disclosure controls its own spacing; avoid double padding. */
+details:not([data-disclosure]) {
   margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-input);

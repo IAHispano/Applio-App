@@ -56,23 +56,24 @@ export default function Disclosure({
 
   return (
     <details
+      data-disclosure
       ref={initialOpenRef}
-      className={`group border border-white/10 rounded-xl overflow-hidden bg-white/[0.02] ${className}`}
+      className={`group mt-2 p-0 border border-white/10 rounded-lg overflow-hidden bg-white/[0.02] ${className}`}
       open={open}
       onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}
     >
       <summary
         aria-describedby={description ? helpId : undefined}
-        className={`px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none ${summaryClassName}`}
+        className={`min-h-11 px-3 py-2.5 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between gap-3 select-none ${summaryClassName}`}
       >
         <span className="flex items-center gap-2 min-w-0">
-          {icon}
+          {icon && <span className="flex shrink-0 items-center justify-center">{icon}</span>}
           <span className="min-w-0">
             <span className="block truncate">{title}</span>
             {description && (
               <span
                 id={helpId}
-                className="block mt-1 text-[11px] font-normal text-neutral-400 leading-relaxed"
+                className="block mt-0.5 text-[11px] font-normal text-neutral-400 leading-snug"
               >
                 {description}
               </span>
@@ -84,7 +85,7 @@ export default function Disclosure({
           className="transition-transform duration-200 group-open:rotate-180 text-neutral-400 shrink-0"
         />
       </summary>
-      <div className={`p-4 border-t border-white/10 space-y-4 bg-black/20 ${bodyClassName}`}>{children}</div>
+      <div className={`p-3 border-t border-white/10 space-y-3 bg-black/20 ${bodyClassName}`}>{children}</div>
     </details>
   );
 }
