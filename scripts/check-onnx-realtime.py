@@ -51,9 +51,7 @@ if args.provider == "cuda":
     from rvc.realtime.onnx_decoder import DecoderGraph
 
     os.environ.pop("APPLIO_EXPERIMENTAL_ONNX_DECODER", None)
-    original = RealtimeVoiceConverter(
-        str(args.model.resolve()), device="cuda:0"
-    )
+    original = RealtimeVoiceConverter(str(args.model.resolve()), device="cuda:0")
     decoder = voice.vc_model.pipeline.vc.net_g.dec
     graph = DecoderGraph(original.net_g.dec)
     torch.backends.cudnn.allow_tf32 = False
