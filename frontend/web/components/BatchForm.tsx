@@ -41,6 +41,9 @@ export default function BatchForm() {
   const [pthPath, setPthPath] = useState("");
   const [indexPath, setIndexPath] = useState("");
   const [inputFolder, setInputFolder] = useState("assets/audios");
+  const [mode, setMode] = useState("files");
+  const [inputPath, setInputPath] = useState("");
+  const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [outputFolder, setOutputFolder] = useState("assets/audios/batch_output");
   const [pitch, setPitch] = useState(0);
   const [indexRate, setIndexRate] = useState(0.75);
@@ -57,11 +60,11 @@ export default function BatchForm() {
   const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
   const [cleanAudio, setCleanAudio] = useState(false);
   const [cleanStrength, setCleanStrength] = useState(0.5);
-  // Formant shifting (parity with Gradio batch tab)
+  // Formant shifting
   const [formantShifting, setFormantShifting] = useState(false);
   const [formantQfrency, setFormantQfrency] = useState(1.0);
   const [formantTimbre, setFormantTimbre] = useState(1.0);
-  // Post-process FX rack (parity with Gradio batch tab; backend already supports it)
+  // Post-process FX rack
   const [postProcess, setPostProcess] = useState(false);
   const [reverb, setReverb] = useState(false);
   const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
@@ -175,14 +178,17 @@ export default function BatchForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!pthPath) {
+    if (mode === "files" ? !pthPath : !selectedModels.length) {
       setError(t("Select a voice model."));
       return;
     }
     setBusy(true);
     try {
       const { jobId: id } = await submitJob("/api/inference/batch", {
-        pthPath,
+        pthPath: mode === "files" ? pthPath : selectedModels[0],
+        mode,
+        inputPath,
+        models: selectedModels.map((model) => ({ pthPath: model, indexPath: matchIndex(model, indexes) })),
         indexPath,
         inputFolder,
         outputFolder,
@@ -240,7 +246,7 @@ export default function BatchForm() {
         delaySeconds,
         delayFeedback,
         delayMix,
-        sid,
+        sid: mode === "files" ? sid : 0,
       });
       setJobId(id);
     } catch (err) {
@@ -257,25 +263,44 @@ export default function BatchForm() {
         <CardHeader
           icon={<Layers size={18} className="text-white" />}
           title={t("Batch Source & Voice Model")}
-          description={t("Converts every supported audio file in the input folder (server-side paths).")}
+          description={t(
+            "Choose one model for many files, many models for one file, or many models for many files.",
+          )}
           action={
-            pthPath ? (
+            (mode === "files" ? pthPath : selectedModels.length) ? (
               <Badge variant="success" size="sm" dot>
                 {t("Ready")}
               </Badge>
             ) : undefined
           }
         />
+        <div className="mb-4">
+          <label htmlFor="batch-mode" className="text-xs font-medium text-neutral-300">
+            {t("Batch mode")}
+          </label>
+          <CustomSelect
+            id="batch-mode"
+            value={mode}
+            onChange={(e) => setMode(e.target.value)}
+            options={[
+              { value: "files", label: t("Mode 1: One model, multiple files") },
+              { value: "models", label: t("Mode 2: Multiple models, one file") },
+              { value: "both", label: t("Mode 3: Multiple models, multiple files") },
+            ]}
+          />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor="batch-input-folder" className="text-xs font-medium text-neutral-300">
-              {t("Input Folder (server path)")}
+              {mode === "models" ? t("Input File (server path)") : t("Input Folder (server path)")}
             </label>
             <input
               id="batch-input-folder"
               type="text"
-              value={inputFolder}
-              onChange={(e) => setInputFolder(e.target.value)}
+              value={mode === "models" ? inputPath : inputFolder}
+              onChange={(e) =>
+                mode === "models" ? setInputPath(e.target.value) : setInputFolder(e.target.value)
+              }
               className="w-full mt-1 text-xs"
             />
           </div>
@@ -293,17 +318,40 @@ export default function BatchForm() {
           </div>
         </div>
         <div className="mt-3">
-          <VoiceModelField
-            models={models}
-            selectedModel={pthPath}
-            indexes={indexes}
-            indexPath={indexPath}
-            indexSelectId="batch-index-file"
-            onSelect={handleModelSelect}
-            onUnload={handleUnloadModel}
-            onRefresh={loadModels}
-            onIndexChange={setIndexPath}
-          />
+          {mode === "files" ? (
+            <VoiceModelField
+              models={models}
+              selectedModel={pthPath}
+              indexes={indexes}
+              indexPath={indexPath}
+              indexSelectId="batch-index-file"
+              onSelect={handleModelSelect}
+              onUnload={handleUnloadModel}
+              onRefresh={loadModels}
+              onIndexChange={setIndexPath}
+            />
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs text-neutral-300">{t("Select voice models")}</p>
+              {models.map((model) => (
+                <label key={model} className="flex items-center gap-2 text-xs">
+                  <input
+                    type="checkbox"
+                    checked={selectedModels.includes(model)}
+                    onChange={(e) =>
+                      setSelectedModels((current) =>
+                        e.target.checked ? [...current, model] : current.filter((item) => item !== model),
+                      )
+                    }
+                  />
+                  {model}
+                </label>
+              ))}
+              <p className="text-xs text-neutral-400">
+                {t("Each model uses its matching index and writes to its own output folder.")}
+              </p>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -414,7 +462,7 @@ export default function BatchForm() {
               ))}
             </CustomSelect>
           </div>
-          {speakers.length > 1 && (
+          {mode === "files" && speakers.length > 1 && (
             <div>
               <label htmlFor="batch-speaker-id" className="text-xs font-medium text-neutral-300">
                 {t("Speaker ID")}
@@ -895,7 +943,15 @@ export default function BatchForm() {
       <Card>
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Button type="submit" disabled={busy || !pthPath || !inputFolder} icon={<Wand2 size={16} />}>
+            <Button
+              type="submit"
+              disabled={
+                busy ||
+                (mode === "files" ? !pthPath : !selectedModels.length) ||
+                (mode === "models" ? !inputPath : !inputFolder)
+              }
+              icon={<Wand2 size={16} />}
+            >
               {busy ? t("Converting Batch…") : t("Convert Batch")}
             </Button>
 
@@ -944,13 +1000,17 @@ export default function BatchForm() {
               role="progressbar"
               aria-valuemin={0}
               aria-valuemax={100}
+              aria-valuenow={job.progress}
               aria-label={t("Batch Conversion in Progress…")}
             >
-              <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
+              <div
+                className="h-full bg-white rounded-full transition-all duration-300"
+                style={{ width: `${job.progress ?? 0}%` }}
+              />
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-neutral-400 pt-1 break-all">
               <span>
-                {t("Input:")} {inputFolder}
+                {t("Input:")} {mode === "models" ? inputPath : inputFolder}
               </span>
               <span>
                 {t("Output:")} {outputFolder}
@@ -984,7 +1044,7 @@ export default function BatchForm() {
               <div>
                 <h3 className="text-base font-bold text-white m-0">{t("Batch Conversion Complete")}</h3>
                 <p className="text-xs text-neutral-400 m-0 mt-0.5">
-                  {t("All audio files in the folder have been converted with the selected voice timbre.")}
+                  {t("All selected files and voice models have been processed.")}
                 </p>
               </div>
             </div>

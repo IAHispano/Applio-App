@@ -12,40 +12,46 @@ import { requireEngineReady } from "@/setup";
 import { inferenceWorker } from "@/worker";
 
 const router = Router();
+const audioExtension = /\.(wav|mp3|flac|ogg|m4a|aac|aiff|aif|wma|opus)$/i;
 router.use(requireEngineReady);
-
-function toCliArgs(p: BatchInferenceParams, inputFolder: string, outputFolder: string): string[] {
-  return [
-    path.join("rvc", "infer", "infer.py"),
-    "--input-folder",
-    inputFolder,
-    "--output-folder",
-    outputFolder,
-    "--pth-path",
-    p.pthPath,
-    "--index-path",
-    p.indexPath || "",
-    ...buildCommonInferArgs(p),
-  ];
-}
 
 router.post("/", (req: Request, res: Response) => {
   try {
     const parsed = batchInferenceSchema.safeParse(req.body);
-    if (!parsed.success) {
+    if (!parsed.success)
       return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
-    }
-    const p: BatchInferenceParams = parsed.data;
-    const inputFolder = resolveUserPath(p.inputFolder);
+    const p = parsed.data;
+    const source = resolveUserPath(p.mode === "models" ? p.inputPath : p.inputFolder);
     const outputFolder = resolveUserPath(p.outputFolder);
-    if (!fs.existsSync(inputFolder))
-      return res.status(400).json({ error: `Input folder not found: ${p.inputFolder}` });
+    if (
+      !fs.existsSync(source) ||
+      (p.mode === "models" ? !fs.statSync(source).isFile() : !fs.statSync(source).isDirectory())
+    )
+      return res.status(400).json({ error: "Input file or folder not found" });
+    if (p.mode === "models" && !audioExtension.test(source))
+      return res.status(400).json({ error: "Unsupported input audio file" });
+    const models = p.mode === "files" ? [{ pthPath: p.pthPath, indexPath: p.indexPath }] : p.models;
+    for (const model of models) {
+      const modelPath = resolveUserPath(model.pthPath);
+      const indexPath = model.indexPath ? resolveUserPath(model.indexPath) : "";
+      if (!fs.existsSync(modelPath) || !fs.statSync(modelPath).isFile())
+        return res.status(400).json({ error: `Model not found: ${model.pthPath}` });
+      if (indexPath && (!fs.existsSync(indexPath) || !fs.statSync(indexPath).isFile()))
+        return res.status(400).json({ error: `Index not found: ${model.indexPath}` });
+    }
+    const inputs =
+      p.mode === "models"
+        ? [source]
+        : fs
+            .readdirSync(source)
+            .filter((name) => audioExtension.test(name))
+            .map((name) => path.join(source, name))
+            .filter((file) => fs.statSync(file).isFile())
+            .sort();
+    if (!inputs.length) return res.status(400).json({ error: "No supported audio files found" });
     fs.mkdirSync(outputFolder, { recursive: true });
-    const pthAbs = resolveUserPath(p.pthPath);
-    if (!fs.existsSync(pthAbs)) return res.status(400).json({ error: `Model not found: ${p.pthPath}` });
-
     const job = createJob("batch-inference", p);
-    void runBatchJob(job.id, p, inputFolder, outputFolder);
+    void runBatchJob(job.id, p, inputs, outputFolder);
     return res.status(202).json({ jobId: job.id });
   } catch (err) {
     return res.status(500).json({ error: errMsg(err) || "Batch inference failed to start" });
@@ -55,76 +61,75 @@ router.post("/", (req: Request, res: Response) => {
 async function runBatchJob(
   jobId: string,
   params: BatchInferenceParams,
-  inputFolder: string,
+  inputs: string[],
   outputFolder: string,
 ) {
   const job = getJob(jobId);
-  if (!job) return;
-  if (!(await acquireJobSlot(job, "gpu"))) return;
+  if (!job || !(await acquireJobSlot(job, "gpu"))) return;
   try {
     setRunning(job);
-
-    let totalFiles = 0;
-    let doneFiles = 0;
-    let lastPct = -1;
-    let runStdout = "";
-
-    const trackProgress = (trimmed: string) => {
-      const totalMatch = trimmed.match(/Detected (\d+) audio files for inference\./);
-      if (totalMatch) {
-        totalFiles = Math.max(1, Number(totalMatch[1]));
-        lastPct = 5;
-        setProgress(job, 5);
-        return;
-      }
-      if (/File .* inferred successfully\./.test(trimmed) && totalFiles > 0) {
-        doneFiles += 1;
-        const pct = 5 + Math.round((90 * Math.min(doneFiles, totalFiles)) / totalFiles);
-        if (pct > lastPct) {
-          lastPct = pct;
-          setProgress(job, pct);
-        }
-      }
-    };
-
-    try {
-      try {
-        await inferenceWorker.inferBatch(job.id, params, inputFolder, outputFolder, (chunk) => {
-          const trimmed = chunk.trim().slice(0, 1000);
-          if (trimmed) {
-            appendLog(job, trimmed);
-            runStdout += `${trimmed}\n`;
-            trackProgress(trimmed);
-          }
-        });
-        trackPid(job.id, undefined);
-      } catch (workerErr) {
+    const models =
+      params.mode === "files" ? [{ pthPath: params.pthPath, indexPath: params.indexPath }] : params.models;
+    const total = models.length * inputs.length;
+    let done = 0;
+    for (const [modelNumber, model] of models.entries()) {
+      // Numbered directories distinguish checkpoints with the same basename.
+      const modelDir =
+        params.mode === "files"
+          ? outputFolder
+          : path.join(
+              outputFolder,
+              `${modelNumber + 1}_${path.basename(model.pthPath, path.extname(model.pthPath))}`,
+            );
+      fs.mkdirSync(modelDir, { recursive: true });
+      const selected = { ...params, ...model };
+      for (const input of inputs) {
         if (job.status !== "running") return;
-        appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
-        const args = toCliArgs(params, inputFolder, outputFolder);
-        const result = await runPythonModule(args, {
-          onData: (chunk) => {
-            const trimmed = chunk.trim().slice(0, 1000);
-            if (trimmed) {
-              appendLog(job, trimmed);
-              runStdout += `${trimmed}\n`;
-              trackProgress(trimmed);
-            }
-          },
-          onSpawn: (pid) => trackPid(job.id, pid),
-        });
-        trackPid(job.id, undefined);
-        if (result.code !== 0) {
-          throw new Error(result.stderr.slice(-3000) || `Batch inference failed with code ${result.code}`);
+        // Preserve the source extension in the stem to avoid voice.wav/voice.mp3 collisions.
+        const output = path.join(modelDir, `${path.basename(input)}_output.wav`);
+        appendLog(job, `${done + 1}/${total}: ${path.basename(input)} -> ${path.basename(model.pthPath)}`);
+        const log = (chunk: string) => {
+          if (chunk.trim()) appendLog(job, chunk.trim().slice(0, 1000));
+        };
+        let served: string | undefined;
+        try {
+          const result = await inferenceWorker.infer(job.id, selected, input, output, log);
+          served = result.outputPath;
+        } catch (workerErr) {
+          if (job.status !== "running") return;
+          appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
+          const result = await runPythonModule(
+            [
+              path.join("rvc", "infer", "infer.py"),
+              "--input-path",
+              input,
+              "--output-path",
+              output,
+              "--pth-path",
+              selected.pthPath,
+              "--index-path",
+              selected.indexPath,
+              ...buildCommonInferArgs(selected),
+            ],
+            { onData: log, onSpawn: (pid) => trackPid(job.id, pid) },
+          );
+          if (result.code !== 0)
+            throw new Error(result.stderr.slice(-3000) || `Inference failed with code ${result.code}`);
         }
-        runStdout += result.stdout;
+        trackPid(job.id, undefined);
+        if (job.status !== "running") return;
+        const expected = output.replace(/\.wav$/i, `.${params.exportFormat.toLowerCase()}`);
+        if (!fs.existsSync(served || expected))
+          throw new Error(`No output found for ${path.basename(input)}`);
+        setProgress(job, Math.round((++done * 100) / total));
       }
-
-      const rel = path.relative(getRepoRoot(), outputFolder).replace(/\\/g, "/");
-      appendLog(job, `Done -> ${rel}`);
-      setDone(job, { stdout: runStdout.slice(-2000) }, rel);
-    } catch (err) {
-      trackPid(job.id, undefined);
+    }
+    const rel = path.relative(getRepoRoot(), outputFolder).replace(/\\/g, "/");
+    appendLog(job, `Done -> ${rel}`);
+    setDone(job, { files: done, models: models.length }, rel);
+  } catch (err) {
+    trackPid(job.id, undefined);
+    if (job.status === "running") {
       appendLog(job, `ERROR: ${errMsg(err)}`);
       setError(job, errMsg(err) || "Batch inference failed");
     }

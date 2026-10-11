@@ -98,12 +98,34 @@ export const baseInferSchema = z.object({
 export type InferenceParams = z.infer<typeof baseInferSchema>;
 
 export const inferenceParamsSchema = baseInferSchema;
-export type BatchInferenceParamsInput = z.infer<typeof baseInferSchema>;
 
-export const batchInferenceSchema = baseInferSchema.extend({
-  inputFolder: z.string().min(1),
-  outputFolder: z.string().min(1),
-});
+export const batchInferenceSchema = baseInferSchema
+  .omit({ pthPath: true })
+  .extend({
+    pthPath: z.string().default(""),
+    mode: z.enum(["files", "models", "both"]).default("files"),
+    inputFolder: z.string().default(""),
+    inputPath: z.string().default(""),
+    models: z
+      .array(
+        z.object({
+          pthPath: z.string().min(1),
+          indexPath: z.string().default(""),
+        }),
+      )
+      .max(100)
+      .default([]),
+    outputFolder: z.string().min(1),
+  })
+  .superRefine((p, ctx) => {
+    if (p.mode === "files" && !p.pthPath.trim())
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["pthPath"], message: "Select a model" });
+    const field = p.mode === "models" ? "inputPath" : "inputFolder";
+    if (!p[field].trim())
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: "Input is required" });
+    if (p.mode !== "files" && p.models.length === 0)
+      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["models"], message: "Select at least one model" });
+  });
 
 export type BatchInferenceParams = z.infer<typeof batchInferenceSchema>;
 

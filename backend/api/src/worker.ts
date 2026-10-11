@@ -5,7 +5,7 @@ import readline from "node:readline";
 import { registerJobCancellation } from "@/jobs";
 import { getBackendRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 import { gpuJobRunning, schedulerStatus, setGpuPreparation } from "@/scheduler";
-import type { BatchInferenceParams, InferenceParams, TtsParams } from "@/schemas";
+import type { InferenceParams, TtsParams } from "@/schemas";
 
 export interface SingleInferRequest {
   command: "infer";
@@ -15,17 +15,6 @@ export interface SingleInferRequest {
   outputPath: string;
   onLog: (msg: string) => void;
   resolve: (res: { outputPath: string; info: string }) => void;
-  reject: (err: Error) => void;
-}
-
-export interface BatchInferRequest {
-  command: "infer_batch";
-  id: string;
-  params: BatchInferenceParams;
-  inputFolder: string;
-  outputFolder: string;
-  onLog: (msg: string) => void;
-  resolve: (res: { info: string }) => void;
   reject: (err: Error) => void;
 }
 
@@ -89,7 +78,6 @@ export interface InspectModelRequest {
 
 export type WorkerRequest =
   | SingleInferRequest
-  | BatchInferRequest
   | TtsWorkerRequest
   | AnalyzeAudioRequest
   | F0CurveRequest
@@ -216,8 +204,6 @@ export class InferenceWorkerManager {
         this.removeCancellation(job.id);
         if (job.command === "infer") {
           job.resolve({ outputPath: msg.outputPath || "", info: String(msg.info || "") });
-        } else if (job.command === "infer_batch") {
-          job.resolve({ info: String(msg.info || "Batch inference completed") });
         } else if (job.command === "tts") {
           job.resolve({
             outputTtsPath: msg.outputTtsPath || "",
@@ -341,33 +327,6 @@ export class InferenceWorkerManager {
         params,
         inputPath,
         outputPath,
-        onLog,
-        resolve,
-        reject,
-      });
-      void this.waitReady()
-        .then(() => this.processNext())
-        .catch((error) => {
-          this.cancel(id);
-          reject(error);
-        });
-    });
-  }
-
-  public async inferBatch(
-    id: string,
-    params: BatchInferenceParams,
-    inputFolder: string,
-    outputFolder: string,
-    onLog: (msg: string) => void,
-  ): Promise<{ info: string }> {
-    return new Promise<{ info: string }>((resolve, reject) => {
-      this.enqueue({
-        command: "infer_batch",
-        id,
-        params,
-        inputFolder,
-        outputFolder,
         onLog,
         resolve,
         reject,
@@ -536,14 +495,6 @@ export class InferenceWorkerManager {
         id: req.id,
         inputPath: req.inputPath,
         outputPath: req.outputPath,
-        params: req.params,
-      };
-    } else if (req.command === "infer_batch") {
-      payload = {
-        command: "infer_batch",
-        id: req.id,
-        inputFolder: req.inputFolder,
-        outputFolder: req.outputFolder,
         params: req.params,
       };
     } else if (req.command === "tts") {
