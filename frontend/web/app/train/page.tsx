@@ -569,7 +569,7 @@ export default function TrainPage() {
                   className="w-full mt-1"
                   description={t(SETTING_HELP.pitchMethod)}
                 >
-                  {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
+                  {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
                     <option key={s} value={s}>
                       {s}
                     </option>
@@ -901,7 +901,7 @@ export default function TrainPage() {
               className="w-full mt-1"
               description={t(SETTING_HELP.pitchMethod)}
             >
-              {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
+              {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>

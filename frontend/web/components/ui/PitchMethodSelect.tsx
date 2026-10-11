@@ -6,7 +6,7 @@ import { SETTING_HELP } from "@/lib/setting-help";
 import CustomSelect from "./CustomSelect";
 
 /** Pitch extraction algorithms (mirrors the backend F0_METHODS validation). */
-export const F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"];
+export const F0_METHODS = ["rmvpe", "fcpe", "swift", "crepe"];
 
 /** Same set as F0_METHODS today; kept as an alias so realtime can narrow it later. */
 export const REALTIME_F0_METHODS: string[] = F0_METHODS;

@@ -148,14 +148,10 @@ export const SETTING_HELP = {
   rmvpe: "Neural pitch detection for speech and singing; suitable as a starting point for voice conversion.",
   fcpe: "A lightweight neural pitch detector; compare its pitch stability and processing time with RMVPE.",
   swift: "An alternative pitch detector. Compare its results when another method misses notes.",
-  crepe: "The full CREPE neural pitch model. It needs more processing than CREPE-tiny.",
-  crepeTiny: "A smaller CREPE model that trades model size and processing cost for pitch-detection accuracy.",
 } as const;
 
 export const PITCH_METHOD_HELP: Record<string, string> = {
   rmvpe: SETTING_HELP.rmvpe,
   fcpe: SETTING_HELP.fcpe,
   swift: SETTING_HELP.swift,
-  crepe: SETTING_HELP.crepe,
-  "crepe-tiny": SETTING_HELP.crepeTiny,
 };
