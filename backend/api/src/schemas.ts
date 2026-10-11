@@ -111,6 +111,7 @@ export const batchInferenceSchema = baseInferSchema
         z.object({
           pthPath: z.string().min(1),
           indexPath: z.string().default(""),
+          overrides: baseInferSchema.partial().default({}),
         }),
       )
       .max(100)

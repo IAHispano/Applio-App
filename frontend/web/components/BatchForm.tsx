@@ -3,28 +3,58 @@
 import { ArrowRight, CheckCircle2, Layers, StopCircle, Wand2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import ConversionParameters from "@/components/ConversionParameters";
+import ConversionParameters, { type ConversionParameterValues } from "@/components/ConversionParameters";
 import { JobError } from "@/components/JobStatus";
-import { Alert, Badge, Button, Card, CardHeader, VoiceModelField } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SettingHelp from "@/components/ui/SettingHelp";
-import { errMsg, fetchModels, stopJob, submitJob } from "@/lib/api";
+import { errMsg, fetchModels, fileBasename, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
+type ConversionParameterSetters = {
+  [K in keyof ConversionParameterValues]: (value: ConversionParameterValues[K]) => void;
+};
+
+const BATCH_CONFIG_KEY = "applio:batch-config";
+
+function loadBatchConfig(): {
+  indexes: Record<string, string>;
+  overrides: Record<string, Partial<ConversionParameterValues>>;
+} {
+  try {
+    if (typeof sessionStorage === "undefined") return { indexes: {}, overrides: {} };
+    const raw = sessionStorage.getItem(BATCH_CONFIG_KEY);
+    if (!raw) return { indexes: {}, overrides: {} };
+    const parsed = JSON.parse(raw) as {
+      indexes?: Record<string, string>;
+      overrides?: Record<string, Partial<ConversionParameterValues>>;
+    };
+    return {
+      indexes: parsed.indexes && typeof parsed.indexes === "object" ? parsed.indexes : {},
+      overrides: parsed.overrides && typeof parsed.overrides === "object" ? parsed.overrides : {},
+    };
+  } catch {
+    return { indexes: {}, overrides: {} };
+  }
+}
+
 export default function BatchForm() {
   const [models, setModels] = useState<string[]>([]);
   const [indexes, setIndexes] = useState<string[]>([]);
   const { t } = useI18n();
-  const [pthPath, setPthPath] = useState("");
-  const [indexPath, setIndexPath] = useState("");
   const [inputFolder, setInputFolder] = useState("assets/audios");
-  const [mode, setMode] = useState("files");
   const [inputPath, setInputPath] = useState("");
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
+  const [modelQuery, setModelQuery] = useState("");
+  const [modelIndexes, setModelIndexes] = useState<Record<string, string>>(() => loadBatchConfig().indexes);
+  const [paramOverrides, setParamOverrides] = useState<Record<string, Partial<ConversionParameterValues>>>(
+    () => loadBatchConfig().overrides,
+  );
+  const [editingTarget, setEditingTarget] = useState<string>("global");
   const [outputFolder, setOutputFolder] = useState("assets/audios/batch_output");
   const [pitch, setPitch] = useState(0);
   const [indexRate, setIndexRate] = useState(0.75);
@@ -87,7 +117,11 @@ export default function BatchForm() {
   const { job, error, setError } = useJob(jobId);
   const [busy, setBusy] = useState(false);
 
-  const speakers = useSpeakers(pthPath);
+  const speakers = useSpeakers(selectedModels[0] ?? "");
+
+  const filteredModels = modelQuery.trim()
+    ? models.filter((m) => m.toLowerCase().includes(modelQuery.trim().toLowerCase()))
+    : models;
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
@@ -99,8 +133,7 @@ export default function BatchForm() {
         setModels(m.models);
         setIndexes(m.indexes);
         if (m.models[0]) {
-          setPthPath((prev) => prev || m.models[0]);
-          setIndexPath((prev) => prev || matchIndex(m.models[0], m.indexes));
+          setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
         }
       })
       .catch(() => {});
@@ -112,27 +145,6 @@ export default function BatchForm() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [loadAvailableModels]);
-
-  function handleModelSelect(selected: string, idxList = indexes) {
-    setPthPath(selected);
-    setIndexPath(matchIndex(selected, idxList));
-    setSid(0);
-  }
-
-  function handleUnloadModel() {
-    setPthPath("");
-    setIndexPath("");
-    setSid(0);
-  }
-
-  function loadModels() {
-    fetchModels()
-      .then((m) => {
-        setModels(m.models);
-        setIndexes(m.indexes);
-      })
-      .catch(() => {});
-  }
 
   function resetDefaults() {
     setPitch(0);
@@ -156,21 +168,203 @@ export default function BatchForm() {
     setPostProcess(false);
   }
 
+  const globalValues: ConversionParameterValues = {
+    pitch,
+    indexRate,
+    volumeEnvelope,
+    protect,
+    f0Method,
+    embedderModel,
+    embedderModelCustom,
+    exportFormat,
+    splitAudio,
+    f0Autotune,
+    f0AutotuneStrength,
+    proposedPitch,
+    proposedPitchThreshold,
+    cleanAudio,
+    cleanStrength,
+    formantShifting,
+    formantQfrency,
+    formantTimbre,
+    postProcess,
+    reverb,
+    reverbRoomSize,
+    reverbDamping,
+    reverbWetGain,
+    reverbDryGain,
+    reverbWidth,
+    reverbFreezeMode,
+    pitchShift,
+    pitchShiftSemitones,
+    delay,
+    delaySeconds,
+    delayFeedback,
+    delayMix,
+    compressor,
+    compressorThreshold,
+    compressorRatio,
+    compressorAttack,
+    compressorRelease,
+    limiter,
+    limiterThreshold,
+    limiterReleaseTime,
+    chorus,
+    chorusRate,
+    chorusDepth,
+    chorusCenterDelay,
+    chorusFeedback,
+    chorusMix,
+    bitcrush,
+    bitcrushBitDepth,
+    clipping,
+    clippingThreshold,
+    distortion,
+    distortionGain,
+    gain,
+    gainDb,
+  };
+
+  const globalSetters: ConversionParameterSetters = {
+    pitch: setPitch,
+    indexRate: setIndexRate,
+    volumeEnvelope: setVolumeEnvelope,
+    protect: setProtect,
+    f0Method: setF0Method,
+    embedderModel: setEmbedderModel,
+    embedderModelCustom: setEmbedderModelCustom,
+    exportFormat: setExportFormat,
+    splitAudio: setSplitAudio,
+    f0Autotune: setF0Autotune,
+    f0AutotuneStrength: setF0AutotuneStrength,
+    proposedPitch: setProposedPitch,
+    proposedPitchThreshold: setProposedPitchThreshold,
+    cleanAudio: setCleanAudio,
+    cleanStrength: setCleanStrength,
+    formantShifting: setFormantShifting,
+    formantQfrency: setFormantQfrency,
+    formantTimbre: setFormantTimbre,
+    postProcess: setPostProcess,
+    reverb: setReverb,
+    reverbRoomSize: setReverbRoomSize,
+    reverbDamping: setReverbDamping,
+    reverbWetGain: setReverbWetGain,
+    reverbDryGain: setReverbDryGain,
+    reverbWidth: setReverbWidth,
+    reverbFreezeMode: setReverbFreezeMode,
+    pitchShift: setPitchShift,
+    pitchShiftSemitones: setPitchShiftSemitones,
+    delay: setDelay,
+    delaySeconds: setDelaySeconds,
+    delayFeedback: setDelayFeedback,
+    delayMix: setDelayMix,
+    compressor: setCompressor,
+    compressorThreshold: setCompressorThreshold,
+    compressorRatio: setCompressorRatio,
+    compressorAttack: setCompressorAttack,
+    compressorRelease: setCompressorRelease,
+    limiter: setLimiter,
+    limiterThreshold: setLimiterThreshold,
+    limiterReleaseTime: setLimiterReleaseTime,
+    chorus: setChorus,
+    chorusRate: setChorusRate,
+    chorusDepth: setChorusDepth,
+    chorusCenterDelay: setChorusCenterDelay,
+    chorusFeedback: setChorusFeedback,
+    chorusMix: setChorusMix,
+    bitcrush: setBitcrush,
+    bitcrushBitDepth: setBitcrushBitDepth,
+    clipping: setClipping,
+    clippingThreshold: setClippingThreshold,
+    distortion: setDistortion,
+    distortionGain: setDistortionGain,
+    gain: setGain,
+    gainDb: setGainDb,
+  };
+
+  // Per-model index + parameter overrides, kept for the session only.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        BATCH_CONFIG_KEY,
+        JSON.stringify({ indexes: modelIndexes, overrides: paramOverrides }),
+      );
+    } catch {
+      /* session storage unavailable: config stays in memory */
+    }
+  }, [modelIndexes, paramOverrides]);
+
+  const indexFor = (model: string) => modelIndexes[model] ?? matchIndex(model, indexes);
+
+  const overrideCount = (model: string) => Object.keys(paramOverrides[model] ?? {}).length;
+
+  const setModelOverride = <K extends keyof ConversionParameterValues>(
+    model: string,
+    key: K,
+    value: ConversionParameterValues[K],
+  ) => {
+    setParamOverrides((prev) => ({ ...prev, [model]: { ...prev[model], [key]: value } }));
+  };
+
+  // Editing target for the shared Conversion Parameters card: global defaults
+  // or one selected model. Each target keeps its own values.
+  useEffect(() => {
+    if (selectedModels.length < 2) {
+      setEditingTarget("global");
+    } else if (editingTarget !== "global" && !selectedModels.includes(editingTarget)) {
+      setEditingTarget("global");
+    }
+  }, [selectedModels, editingTarget]);
+
+  const editingModel = editingTarget !== "global" ? editingTarget : null;
+
+  const paramsValues: ConversionParameterValues = editingModel
+    ? { ...globalValues, ...paramOverrides[editingModel] }
+    : globalValues;
+
+  const paramsSetters: ConversionParameterSetters = editingModel
+    ? (Object.fromEntries(
+        (Object.keys(globalValues) as (keyof ConversionParameterValues)[]).map((key) => [
+          key,
+          (value: ConversionParameterValues[typeof key]) => setModelOverride(editingModel, key, value),
+        ]),
+      ) as ConversionParameterSetters)
+    : globalSetters;
+
+  const paramsReset = editingModel
+    ? () =>
+        setParamOverrides((prev) => {
+          const next = { ...prev };
+          delete next[editingModel];
+          return next;
+        })
+    : resetDefaults;
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (mode === "files" ? !pthPath : !selectedModels.length) {
+    if (!selectedModels.length) {
       setError(t("Select a voice model."));
       return;
     }
+    const singleFile = inputPath.trim().length > 0;
+    if (!singleFile && !inputFolder.trim()) {
+      setError(t("Provide an input folder or a single audio file."));
+      return;
+    }
+    const derivedMode = singleFile ? "models" : selectedModels.length > 1 ? "both" : "files";
     setBusy(true);
     try {
       const { jobId: id } = await submitJob("/api/inference/batch", {
-        pthPath: mode === "files" ? pthPath : selectedModels[0],
-        mode,
+        pthPath: selectedModels[0],
+        mode: derivedMode,
         inputPath,
-        models: selectedModels.map((model) => ({ pthPath: model, indexPath: matchIndex(model, indexes) })),
-        indexPath,
+        models: selectedModels.map((model) => ({
+          pthPath: model,
+          indexPath: indexFor(model),
+          ...(overrideCount(model) > 0 ? { overrides: paramOverrides[model] } : {}),
+        })),
+        indexPath: indexFor(selectedModels[0]),
         inputFolder,
         outputFolder,
         pitch,
@@ -227,7 +421,7 @@ export default function BatchForm() {
         delaySeconds,
         delayFeedback,
         delayMix,
-        sid: mode === "files" ? sid : 0,
+        sid: singleFile || selectedModels.length > 1 ? 0 : sid,
       });
       setJobId(id);
     } catch (err) {
@@ -239,7 +433,7 @@ export default function BatchForm() {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {/* 1. Folders & Voice Model Card */}
+      {/* 1. Models & Audio Source Card */}
       <Card>
         <CardHeader
           icon={<Layers size={18} className="text-white" />}
@@ -248,214 +442,180 @@ export default function BatchForm() {
             "Choose one model for many files, many models for one file, or many models for many files.",
           )}
           action={
-            (mode === "files" ? pthPath : selectedModels.length) ? (
+            selectedModels.length && (inputFolder.trim() || inputPath.trim()) ? (
               <Badge variant="success" size="sm" dot>
                 {t("Ready")}
               </Badge>
             ) : undefined
           }
         />
-        <div className="mb-4">
-          <label htmlFor="batch-mode" className="text-xs font-medium text-neutral-300">
-            {t("Batch mode")}
-          </label>
-          <CustomSelect
-            id="batch-mode"
-            value={mode}
-            onChange={(e) => setMode(e.target.value)}
-            options={[
-              { value: "files", label: t("Mode 1: One model, multiple files") },
-              { value: "models", label: t("Mode 2: Multiple models, one file") },
-              { value: "both", label: t("Mode 3: Multiple models, multiple files") },
-            ]}
-            description={t(SETTING_HELP.batchMode)}
+        <fieldset className="space-y-2 m-0 p-0 border-0 min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <legend className="text-xs font-medium text-neutral-300 p-0">{t("Voice models")}</legend>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="ghost-link"
+                onClick={() => setSelectedModels(models)}
+                disabled={!models.length}
+              >
+                {t("Select all")}
+              </button>
+              <button
+                type="button"
+                className="ghost-link"
+                onClick={() => setSelectedModels([])}
+                disabled={!selectedModels.length}
+              >
+                {t("Clear")}
+              </button>
+            </div>
+          </div>
+          <input
+            id="batch-model-search"
+            type="text"
+            value={modelQuery}
+            onChange={(e) => setModelQuery(e.target.value)}
+            placeholder={t("Search models…")}
+            className="w-full text-xs"
+            aria-label={t("Search models…")}
           />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label htmlFor="batch-input-folder" className="text-xs font-medium text-neutral-300">
-              {mode === "models" ? t("Input File (server path)") : t("Input Folder (server path)")}
-            </label>
-            <input
-              id="batch-input-folder"
-              type="text"
-              value={mode === "models" ? inputPath : inputFolder}
-              onChange={(e) =>
-                mode === "models" ? setInputPath(e.target.value) : setInputFolder(e.target.value)
-              }
-              className="w-full mt-1 text-xs"
-              aria-describedby={`${"batch-input-folder"}-help`}
-            />
-            <SettingHelp text={t(SETTING_HELP.batchInput)} controlId={"batch-input-folder"} />
-          </div>
-          <div>
-            <label htmlFor="batch-output-folder" className="text-xs font-medium text-neutral-300">
-              {t("Output Folder (server path)")}
-            </label>
-            <input
-              id="batch-output-folder"
-              type="text"
-              value={outputFolder}
-              onChange={(e) => setOutputFolder(e.target.value)}
-              className="w-full mt-1 text-xs"
-              aria-describedby={`${"batch-output-folder"}-help`}
-            />
-            <SettingHelp text={t(SETTING_HELP.batchOutput)} controlId={"batch-output-folder"} />
-          </div>
-        </div>
-        <div className="mt-3">
-          {mode === "files" ? (
-            <VoiceModelField
-              models={models}
-              selectedModel={pthPath}
-              indexes={indexes}
-              indexPath={indexPath}
-              indexSelectId="batch-index-file"
-              onSelect={handleModelSelect}
-              onUnload={handleUnloadModel}
-              onRefresh={loadModels}
-              onIndexChange={setIndexPath}
-            />
-          ) : (
-            <div className="space-y-2">
-              <p className="text-xs text-neutral-300">{t("Select voice models")}</p>
-              {models.map((model) => (
-                <label key={model} className="flex items-center gap-2 text-xs">
+          {filteredModels.map((model) => {
+            const checked = selectedModels.includes(model);
+            return (
+              <div key={model} className="rounded-xl border border-white/5 bg-black/20 px-2 py-1.5">
+                <label className="flex items-center gap-3 text-xs cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={selectedModels.includes(model)}
+                    checked={checked}
                     onChange={(e) =>
                       setSelectedModels((current) =>
                         e.target.checked ? [...current, model] : current.filter((item) => item !== model),
                       )
                     }
                   />
-                  {model}
+                  <span className="truncate flex-1" title={model}>
+                    {fileBasename(model)}
+                  </span>
                 </label>
-              ))}
-              <p className="text-xs text-neutral-400">
-                {t("Each model uses its matching index and writes to its own output folder.")}
-              </p>
-            </div>
+                {checked && (
+                  <div className="mt-1.5 pl-6">
+                    <label htmlFor={`batch-index-${model}`} className="sr-only">
+                      {t("Index File")}
+                    </label>
+                    <CustomSelect
+                      id={`batch-index-${model}`}
+                      description={t(SETTING_HELP.index)}
+                      value={indexFor(model)}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setModelIndexes((prev) => ({ ...prev, [model]: v }));
+                      }}
+                      className="w-full"
+                    >
+                      <option value="">{t("None")}</option>
+                      {indexes.map((idx) => (
+                        <option key={idx} value={idx}>
+                          {fileBasename(idx)} ({idx})
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {filteredModels.length === 0 && (
+            <p className="text-xs text-neutral-400 m-0">
+              {models.length === 0 ? t("No models found.") : t("No models match your search.")}
+            </p>
           )}
+          <p className="text-xs text-neutral-400 m-0">
+            {t(
+              "Each model uses its matching index unless you pick another, and writes to its own output folder.",
+            )}
+          </p>
+        </fieldset>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label htmlFor="batch-input-folder" className="text-xs font-medium text-neutral-300">
+              {t("Input Folder")}
+            </label>
+            <input
+              id="batch-input-folder"
+              type="text"
+              value={inputFolder}
+              onChange={(e) => setInputFolder(e.target.value)}
+              className="w-full mt-1 text-xs"
+              aria-describedby={`${"batch-input-folder"}-help`}
+            />
+            <SettingHelp text={t(SETTING_HELP.batchInput)} controlId={"batch-input-folder"} />
+          </div>
+          <div>
+            <label htmlFor="batch-input-file" className="text-xs font-medium text-neutral-300">
+              {t("Or Single File")}
+            </label>
+            <input
+              id="batch-input-file"
+              type="text"
+              value={inputPath}
+              onChange={(e) => setInputPath(e.target.value)}
+              placeholder={t("Leave empty to convert the whole folder")}
+              className="w-full mt-1 text-xs"
+            />
+          </div>
         </div>
+        <div className="mt-3">
+          <label htmlFor="batch-output-folder" className="text-xs font-medium text-neutral-300">
+            {t("Output Folder")}
+          </label>
+          <input
+            id="batch-output-folder"
+            type="text"
+            value={outputFolder}
+            onChange={(e) => setOutputFolder(e.target.value)}
+            className="w-full mt-1 text-xs"
+            aria-describedby={`${"batch-output-folder"}-help`}
+          />
+          <SettingHelp text={t(SETTING_HELP.batchOutput)} controlId={"batch-output-folder"} />
+        </div>
+        {selectedModels.length > 0 && (
+          <p className="text-xs text-neutral-300 m-0 mt-3" role="status">
+            {inputPath.trim()
+              ? t("Conversions: {n}", { n: selectedModels.length })
+              : t("Conversions: {n} × folder", { n: selectedModels.length })}
+          </p>
+        )}
       </Card>
 
       <ConversionParameters
         idPrefix="batch"
-        onReset={resetDefaults}
-        values={{
-          pitch,
-          indexRate,
-          volumeEnvelope,
-          protect,
-          f0Method,
-          embedderModel,
-          embedderModelCustom,
-          exportFormat,
-          splitAudio,
-          f0Autotune,
-          f0AutotuneStrength,
-          proposedPitch,
-          proposedPitchThreshold,
-          cleanAudio,
-          cleanStrength,
-          formantShifting,
-          formantQfrency,
-          formantTimbre,
-          postProcess,
-          reverb,
-          reverbRoomSize,
-          reverbDamping,
-          reverbWetGain,
-          reverbDryGain,
-          reverbWidth,
-          reverbFreezeMode,
-          pitchShift,
-          pitchShiftSemitones,
-          delay,
-          delaySeconds,
-          delayFeedback,
-          delayMix,
-          compressor,
-          compressorThreshold,
-          compressorRatio,
-          compressorAttack,
-          compressorRelease,
-          limiter,
-          limiterThreshold,
-          limiterReleaseTime,
-          chorus,
-          chorusRate,
-          chorusDepth,
-          chorusCenterDelay,
-          chorusFeedback,
-          chorusMix,
-          bitcrush,
-          bitcrushBitDepth,
-          clipping,
-          clippingThreshold,
-          distortion,
-          distortionGain,
-          gain,
-          gainDb,
-        }}
-        setters={{
-          pitch: setPitch,
-          indexRate: setIndexRate,
-          volumeEnvelope: setVolumeEnvelope,
-          protect: setProtect,
-          f0Method: setF0Method,
-          embedderModel: setEmbedderModel,
-          embedderModelCustom: setEmbedderModelCustom,
-          exportFormat: setExportFormat,
-          splitAudio: setSplitAudio,
-          f0Autotune: setF0Autotune,
-          f0AutotuneStrength: setF0AutotuneStrength,
-          proposedPitch: setProposedPitch,
-          proposedPitchThreshold: setProposedPitchThreshold,
-          cleanAudio: setCleanAudio,
-          cleanStrength: setCleanStrength,
-          formantShifting: setFormantShifting,
-          formantQfrency: setFormantQfrency,
-          formantTimbre: setFormantTimbre,
-          postProcess: setPostProcess,
-          reverb: setReverb,
-          reverbRoomSize: setReverbRoomSize,
-          reverbDamping: setReverbDamping,
-          reverbWetGain: setReverbWetGain,
-          reverbDryGain: setReverbDryGain,
-          reverbWidth: setReverbWidth,
-          reverbFreezeMode: setReverbFreezeMode,
-          pitchShift: setPitchShift,
-          pitchShiftSemitones: setPitchShiftSemitones,
-          delay: setDelay,
-          delaySeconds: setDelaySeconds,
-          delayFeedback: setDelayFeedback,
-          delayMix: setDelayMix,
-          compressor: setCompressor,
-          compressorThreshold: setCompressorThreshold,
-          compressorRatio: setCompressorRatio,
-          compressorAttack: setCompressorAttack,
-          compressorRelease: setCompressorRelease,
-          limiter: setLimiter,
-          limiterThreshold: setLimiterThreshold,
-          limiterReleaseTime: setLimiterReleaseTime,
-          chorus: setChorus,
-          chorusRate: setChorusRate,
-          chorusDepth: setChorusDepth,
-          chorusCenterDelay: setChorusCenterDelay,
-          chorusFeedback: setChorusFeedback,
-          chorusMix: setChorusMix,
-          bitcrush: setBitcrush,
-          bitcrushBitDepth: setBitcrushBitDepth,
-          clipping: setClipping,
-          clippingThreshold: setClippingThreshold,
-          distortion: setDistortion,
-          distortionGain: setDistortionGain,
-          gain: setGain,
-          gainDb: setGainDb,
-        }}
+        onReset={paramsReset}
+        values={paramsValues}
+        setters={paramsSetters}
+        targetSelect={
+          selectedModels.length > 1 ? (
+            <>
+              <label htmlFor="batch-editing-target" className="sr-only">
+                {t("Editing target")}
+              </label>
+              <CustomSelect
+                id="batch-editing-target"
+                value={editingTarget}
+                onChange={(e) => setEditingTarget(e.target.value)}
+                size="sm"
+                description={t("Edit global defaults or one model's own settings.")}
+              >
+                <option value="global">{t("Global")}</option>
+                {selectedModels.map((model) => (
+                  <option key={model} value={model}>
+                    {fileBasename(model)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </>
+          ) : undefined
+        }
       />
 
       {/* 3. Action & Batch Output Card */}
@@ -464,11 +624,7 @@ export default function BatchForm() {
           <div className="flex items-center gap-3">
             <Button
               type="submit"
-              disabled={
-                busy ||
-                (mode === "files" ? !pthPath : !selectedModels.length) ||
-                (mode === "models" ? !inputPath : !inputFolder)
-              }
+              disabled={busy || !selectedModels.length || (!inputPath.trim() && !inputFolder.trim())}
               icon={<Wand2 size={16} />}
             >
               {busy ? t("Converting Batch…") : t("Convert Batch")}
@@ -529,7 +685,7 @@ export default function BatchForm() {
             </div>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-neutral-400 pt-1 break-all">
               <span>
-                {t("Input:")} {mode === "models" ? inputPath : inputFolder}
+                {t("Input:")} {inputPath.trim() || inputFolder}
               </span>
               <span>
                 {t("Output:")} {outputFolder}
@@ -577,7 +733,7 @@ export default function BatchForm() {
 
             <div className="flex items-center justify-end gap-3 pt-1 flex-wrap">
               <Link
-                href={`/inference?model=${encodeURIComponent(pthPath)}`}
+                href={`/inference?model=${encodeURIComponent(selectedModels[0] ?? "")}`}
                 className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5"
               >
                 <span>{t("Test in Single Inference")}</span>

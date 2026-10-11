@@ -30,7 +30,7 @@ router.post("/", (req: Request, res: Response) => {
       return res.status(400).json({ error: "Input file or folder not found" });
     if (p.mode === "models" && !audioExtension.test(source))
       return res.status(400).json({ error: "Unsupported input audio file" });
-    const models = p.mode === "files" ? [{ pthPath: p.pthPath, indexPath: p.indexPath }] : p.models;
+    const models = p.mode === "files" ? [{ pthPath: p.pthPath, indexPath: p.indexPath, overrides: {} }] : p.models;
     for (const model of models) {
       const modelPath = resolveUserPath(model.pthPath);
       const indexPath = model.indexPath ? resolveUserPath(model.indexPath) : "";
@@ -69,7 +69,7 @@ async function runBatchJob(
   try {
     setRunning(job);
     const models =
-      params.mode === "files" ? [{ pthPath: params.pthPath, indexPath: params.indexPath }] : params.models;
+      params.mode === "files" ? [{ pthPath: params.pthPath, indexPath: params.indexPath, overrides: {} }] : params.models;
     const total = models.length * inputs.length;
     let done = 0;
     for (const [modelNumber, model] of models.entries()) {
@@ -82,7 +82,8 @@ async function runBatchJob(
               `${modelNumber + 1}_${path.basename(model.pthPath, path.extname(model.pthPath))}`,
             );
       fs.mkdirSync(modelDir, { recursive: true });
-      const selected = { ...params, ...model };
+      const { overrides, ...modelPaths } = model;
+      const selected = { ...params, ...overrides, ...modelPaths };
       for (const input of inputs) {
         if (job.status !== "running") return;
         // Preserve the source extension in the stem to avoid voice.wav/voice.mp3 collisions.

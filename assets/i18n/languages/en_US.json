@@ -376,6 +376,7 @@
   "Enter the folder containing your custom speech embedder's model and configuration files.": "Enter the folder containing your custom speech embedder's model and configuration files.",
   "Enter the words to speak before optional voice conversion.": "Enter the words to speak before optional voice conversion.",
   "Entering Applio (%ss)…": "Entering Applio (%ss)…",
+  "Edit global defaults or one model's own settings.": "Edit global defaults or one model's own settings.",
   "Environment details and system specifications to include in your issue report.": "Environment details and system specifications to include in your issue report.",
   "Epoch": "Epoch",
   "Epoch Progress": "Epoch Progress",

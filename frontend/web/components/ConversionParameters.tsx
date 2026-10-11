@@ -83,6 +83,8 @@ interface ConversionParametersProps {
   setters: ConversionParameterSetters;
   idPrefix: string;
   onReset: () => void;
+  /** Optional control rendered next to the reset button (e.g. per-model target picker). */
+  targetSelect?: React.ReactNode;
 }
 
 export default function ConversionParameters({
@@ -90,6 +92,7 @@ export default function ConversionParameters({
   setters,
   idPrefix,
   onReset,
+  targetSelect,
 }: ConversionParametersProps) {
   const { t } = useI18n();
   const {
@@ -211,13 +214,16 @@ export default function ConversionParameters({
         title={t("Conversion Parameters")}
         description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
         action={
-          <button
-            type="button"
-            onClick={onReset}
-            className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-          >
-            {t("Reset defaults")}
-          </button>
+          <div className="flex items-center gap-2">
+            {targetSelect}
+            <button
+              type="button"
+              onClick={onReset}
+              className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+            >
+              {t("Reset defaults")}
+            </button>
+          </div>
         }
       />
 
