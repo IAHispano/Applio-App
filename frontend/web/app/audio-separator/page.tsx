@@ -124,14 +124,14 @@ export default function UvrPage() {
       count: number | string;
       info: string;
       devices?: GpuDevice[];
-      gpus?: { id: string; name: string }[];
+      gpus?: { id: string; name: string; kind?: string }[];
     }>("/api/train/gpus")
       .then((g) => {
-        if (g.devices && g.devices.length > 0) setGpuDevices(g.devices);
+        if (g.devices && g.devices.length > 0) setGpuDevices(g.devices.filter((d) => d.kind !== "mps"));
         else if (g.gpus && g.gpus.length > 0) {
           setGpuDevices(
             g.gpus
-              .filter((x) => x.id !== "-" && !x.id.includes("-"))
+              .filter((x) => x.kind !== "mps" && x.id !== "-" && !x.id.includes("-"))
               .map((x) => ({ id: x.id, name: x.name })),
           );
         }
@@ -310,16 +310,16 @@ export default function UvrPage() {
 
         {error && <Alert variant="error">{error}</Alert>}
 
-        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5 flex-wrap">
-          <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-            <label htmlFor="uvr-device" className="text-xs text-neutral-400 whitespace-nowrap">
+        <div className="grid gap-4 pt-3.5 border-t border-white/5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <div className="min-w-0 space-y-1.5 sm:max-w-md">
+            <label htmlFor="uvr-device" className="block text-xs text-neutral-400">
               {t("Device")}
             </label>
             <CustomSelect
               id="uvr-device"
               value={device}
               onValueChange={setDevice}
-              className="w-full sm:w-52"
+              className="w-full"
               options={[
                 { value: "auto", label: t("Auto (GPU if available)") },
                 { value: "cpu", label: t("CPU (saves VRAM)") },
@@ -333,12 +333,12 @@ export default function UvrPage() {
             disabled={busy || running || (!audioFile && !inputPath.trim()) || !model}
             loading={busy}
             icon={<Split size={16} />}
-            className="w-full sm:w-auto"
+            className="w-full sm:w-auto sm:mt-6"
           >
             {running ? t("Separating…") : t("Separate Stems")}
           </Button>
           {running && (
-            <span className="text-xs text-neutral-400">
+            <span className="text-xs text-neutral-400 sm:col-span-2">
               {t("Downloading weights on first run takes a while.")}
             </span>
           )}

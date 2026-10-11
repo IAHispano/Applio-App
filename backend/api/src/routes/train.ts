@@ -119,7 +119,7 @@ router.get("/gpus", async (_req: Request, res: Response) => {
       "        all_id = '-'.join(map(str, range(count)))",
       "        gpus.append({'id': all_id, 'name': f'All GPUs ({all_id})'})",
       "elif torch.backends.mps.is_available():",
-      "    item = {'id': '0', 'name': 'Apple Silicon GPU (MPS)'}",
+      "    item = {'id': '0', 'name': 'Apple Silicon GPU (MPS)', 'kind': 'mps'}",
       "    devices.append(item)",
       "    gpus.append(item)",
       "gpus.append({'id': '-', 'name': 'CPU'})",
@@ -128,7 +128,7 @@ router.get("/gpus", async (_req: Request, res: Response) => {
     const data = await runPythonJson<{
       count: number | string;
       info: string;
-      devices?: { id: string; name: string; mem?: number }[];
+      devices?: { id: string; name: string; mem?: number; kind?: string }[];
       gpus?: { id: string; name: string }[];
     }>(code);
     gpuCache = { at: now, data };
@@ -464,7 +464,7 @@ router.post("/extract", async (req: Request, res: Response) => {
   const parsed = z
     .object({
       modelName,
-      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
+      f0Method: z.enum(["crepe", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
       cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
       gpu: z.string().default("0"),
       sampleRate: z.enum(["32000", "40000", "44100", "48000"]).default("40000"),
@@ -615,7 +615,7 @@ router.post("/pipeline", async (req: Request, res: Response) => {
       noiseReduction: booleanCoerce.default(false),
       cleanStrength: z.coerce.number().min(0).max(1).default(0.7),
       normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
-      f0Method: z.enum(["crepe", "crepe-tiny", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
+      f0Method: z.enum(["crepe", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
       embedderModel: z
         .enum([
           "contentvec",

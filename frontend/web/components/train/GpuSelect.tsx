@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 
 export interface GpuDevice {
+  kind?: string;
   id: string; // "0", "1", ...
   name: string; // "GPU 0: NVIDIA GeForce RTX 3060 Ti (8 GB)"
   mem?: number | string;
