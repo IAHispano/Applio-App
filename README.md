@@ -28,7 +28,7 @@ macOS and Linux use their normal per-user app folders because application bundle
 
 - **NVIDIA:** setup chooses the appropriate PyTorch CUDA runtime.
 - **AMD on Windows:** setup detects the GPU architecture and installs native ROCm PyTorch and torchaudio from AMD’s repository. Availability depends on AMD’s wheels for your GPU. An incompatible optional torchvision installation no longer blocks HuBERT.
-- **Apple Silicon:** training and feature extraction can select **Apple Silicon GPU (MPS)**, with CPU fallback for unsupported operators. Inference and realtime currently use CPU on macOS; the training change does not enable MPS for those paths.
+- **Apple Silicon:** inference, realtime, feature extraction, and training select **Apple Silicon GPU (MPS)** when available. Neural models use FP32 on Metal; spectral frontends and losses use CPU where complex FFT operations require it. Inference and realtime startup can retry on CPU after MPS failures. Training uses smaller prefetch queues to reduce shared-memory pressure. These paths still need hardware validation on a Mac.
 - **CPU:** supported, with slower processing and training.
 
 macOS releases are not yet notarized. If Gatekeeper blocks the app, verify that it came from the official release page before removing its quarantine:
