@@ -46,10 +46,10 @@ try {
   assert.equal(trayStatus({ ...active, available: false }), "Service unavailable");
   assert.equal(trayStatus({ ...idle, operation: "start" }), "Starting realtime…");
   assert.equal(trayStatus({ ...active, operation: "stop" }), "Stopping realtime…");
-  assert.equal(canNavigateFromTray(active), false);
+  assert.equal(canNavigateFromTray(active), true);
   assert.equal(
     canNavigateFromTray({ ...idle, snapshot: { ...snapshot, streaming: false, connecting: true } }),
-    false,
+    true,
   );
   assert.equal(canNavigateFromTray({ ...idle, engine: true }), true);
   assert.deepEqual(parseTraySnapshot(snapshot), snapshot);
@@ -84,8 +84,8 @@ try {
   for (const label of ["Realtime", "Studio", "Window", "Folders"]) assert.ok(find(menu, label).submenu);
   assert.equal(find(menu, "Start Realtime").enabled, false);
   assert.equal(find(menu, "Stop Realtime").enabled, true);
-  assert.equal(find(menu, "Inference").enabled, false);
-  assert.equal(find(menu, "Settings").enabled, false);
+  assert.equal(find(menu, "Inference").enabled, true);
+  assert.equal(find(menu, "Settings").enabled, true);
   assert.equal(find(menu, "Mute microphone").checked, true);
   assert.equal(find(menu, "Local monitor").checked, true);
   assert.ok(find(menu, "Voice model: voice.pth"));

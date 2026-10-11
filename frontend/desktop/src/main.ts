@@ -1359,8 +1359,12 @@ async function openTrayPage(page: string): Promise<void> {
   try {
     const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
     const target = new URL(page, base).href;
-    if (new URL(mainWindow.webContents.getURL()).pathname !== new URL(target).pathname)
-      await mainWindow.loadURL(target);
+    const current = new URL(mainWindow.webContents.getURL() || "about:blank");
+    if (current.pathname !== new URL(target).pathname) {
+      if (!mainWindow.webContents.isLoadingMainFrame() && current.origin === new URL(target).origin)
+        mainWindow.webContents.send("app:navigate", new URL(target).pathname);
+      else await mainWindow.loadURL(target);
+    }
   } catch (error) {
     console.warn("[tray] navigation failed:", error);
   }
@@ -1543,9 +1547,8 @@ function sendRealtimeCommand(action: RealtimeTrayCommand): void {
   }
 }
 
-// Make sure the main window sits on the realtime tab (hidden is fine — the
-// stream runs from the page). Falls back to a full load with an autostart
-// hash that the page consumes on mount.
+// Open the realtime workspace with client-side navigation, retaining any
+// mounted audio session. A newly created window loads its autostart route.
 async function ensureRealtimePage(): Promise<boolean> {
   if (!mainWindow || mainWindow.isDestroyed()) {
     await createWindow();
@@ -1554,7 +1557,13 @@ async function ensureRealtimePage(): Promise<boolean> {
   try {
     if (!mainWindow.webContents.getURL().includes("/realtime")) {
       const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
-      await mainWindow.loadURL(`${base}realtime#autostart`);
+      const target = new URL("realtime#autostart", base);
+      if (
+        !mainWindow.webContents.isLoadingMainFrame() &&
+        new URL(mainWindow.webContents.getURL() || "about:blank").origin === target.origin
+      )
+        mainWindow.webContents.send("app:navigate", `${target.pathname}${target.hash}`);
+      else await mainWindow.loadURL(target.href);
     }
     return true;
   } catch {

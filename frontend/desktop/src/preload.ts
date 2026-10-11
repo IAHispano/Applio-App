@@ -37,6 +37,7 @@ export interface ApplioBridge {
   chooseFolder: (defaultPath?: string) => Promise<string | null>;
   restartAfterSetup: (jobId: string) => Promise<void>;
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
+  onNavigate: (listener: (href: string) => void) => () => void;
   onJobOpen: (listener: (href: string) => void) => () => void;
   onRealtimeCommand: (listener: (action: RealtimeTrayCommand) => void) => () => void;
   setPassthroughHotkey: (accelerator: string) => Promise<{ registered: boolean }>;
@@ -50,6 +51,11 @@ declare global {
 }
 
 contextBridge.exposeInMainWorld("applio", {
+  onNavigate: (listener: (href: string) => void) => {
+    const handler = (_event: unknown, href: string) => listener(href);
+    ipcRenderer.on("app:navigate", handler);
+    return () => ipcRenderer.removeListener("app:navigate", handler);
+  },
   platform: process.platform,
   setPassthroughHotkey: (accelerator: string) =>
     ipcRenderer.invoke("realtime:passthrough-hotkey", accelerator),

@@ -41,7 +41,7 @@ export function trayStatus(state: TrayState, t: TrayTranslate = (key) => key): s
 }
 
 export function canNavigateFromTray(state: TrayState): boolean {
-  return !state.operation && !state.session && !state.snapshot?.streaming && !state.snapshot?.connecting;
+  return !state.operation;
 }
 
 export function trayMenu(

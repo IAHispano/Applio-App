@@ -25,6 +25,7 @@ try {
           .map((name) => `export * from ${JSON.stringify(path.join(root, "backend/api/src", `${name}.ts`))};`)
           .join("\n") +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};` +
+        `\nexport { watchJob, pollJob } from ${JSON.stringify(path.join(root, "frontend/web/lib/api.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-diagnostics.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/job-history.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};` +
@@ -239,6 +240,48 @@ try {
   assert.ok(
     fs.readdirSync(temporary).some((file) => file.startsWith("broken.json.") && file.endsWith(".corrupt")),
   );
+
+  // Unmounting a view unsubscribes from updates; it must not cancel the job.
+  {
+    const originalFetch = globalThis.fetch;
+    const originalEvents = globalThis.EventSource;
+    const requests = [];
+    const streams = [];
+    const running = api.createJob("inference");
+    api.setRunning(running);
+    globalThis.fetch = async (url, options) => {
+      requests.push({ url: String(url), method: options?.method || "GET" });
+      return { ok: true, json: async () => ({ job: running }) };
+    };
+    globalThis.EventSource = class {
+      closed = false;
+      constructor() { streams.push(this); }
+      close() { this.closed = true; }
+    };
+    try {
+      const updates = [];
+      const unsubscribe = api.watchJob(running.id, (job) => updates.push(job.status), assert.fail);
+      await delay(0);
+      assert.equal(streams.length, 1);
+      unsubscribe();
+      assert.equal(streams[0].closed, true);
+      assert.equal(running.status, "running");
+      assert.ok(requests.every((request) => request.method === "GET" && !request.url.endsWith("/stop")));
+      const resume = api.watchJob(running.id, (job) => updates.push(job.status), assert.fail);
+      await delay(0);
+      assert.deepEqual(updates, ["running", "running"]);
+      resume();
+      const stopPolling = api.pollJob(running.id, () => {});
+      stopPolling();
+      await delay(0);
+      assert.equal(running.status, "running");
+      assert.ok(requests.every((request) => request.method === "GET"));
+      api.setDone(running);
+    } finally {
+      globalThis.fetch = originalFetch;
+      globalThis.EventSource = originalEvents;
+    }
+  }
 
   const payload = Buffer.alloc(1024 * 1024, 47);
   let failedOnce = false;

@@ -5,6 +5,7 @@ import { useState } from "react";
 import BatchForm from "@/components/BatchForm";
 import InferenceForm from "@/components/InferenceForm";
 import PageHeader from "@/components/layout/PageHeader";
+import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/lib/i18n";
 
@@ -29,9 +30,16 @@ export default function InferencePage() {
           ]}
         />
       </PageHeader>
-      <div id={`panel-${mode}`} role="tabpanel" aria-labelledby={`tab-${mode}`}>
-        {mode === "single" ? <InferenceForm /> : <BatchForm />}
-      </div>
+      <PersistentWorkspace active={mode === "single"}>
+        <div id="panel-single" role="tabpanel" aria-labelledby="tab-single">
+          <InferenceForm />
+        </div>
+      </PersistentWorkspace>
+      <PersistentWorkspace active={mode === "batch"}>
+        <div id="panel-batch" role="tabpanel" aria-labelledby="tab-batch">
+          <BatchForm />
+        </div>
+      </PersistentWorkspace>
     </div>
   );
 }
