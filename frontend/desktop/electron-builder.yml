@@ -64,9 +64,7 @@ files:
     filter:
       - "**/*"
       - "!config.json"
-      - "!*.ipynb"
       - "!demo.*"
-      - "!i18n/languages_legacy/**"
       - "!audios/**"
       - "!datasets/**"
       - "!uvr-models/**"

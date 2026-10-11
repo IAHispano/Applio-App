@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - '**/*.py'
-      - '**/*.ipynb'
       - 'frontend/**'
       - 'backend/api/**'
       - 'biome.json'
@@ -52,7 +51,7 @@ jobs:
           cache: 'pnpm'
 
       - name: Install Python formatters
-        run: pip install "black[jupyter]" autoflake
+        run: pip install black autoflake
 
       # Python formatting runs BEFORE pnpm install so node_modules
       # doesn't even exist yet when black/autoflake scan the tree.
@@ -63,7 +62,7 @@ jobs:
         # NOTE: use --extend-exclude, NOT --exclude. --exclude would
         # override black's defaults (which skip node_modules, .venv,
         # dist, build, ...) and cause third-party code to be reformatted.
-        run: black . --extend-exclude="backend/|.*\.ipynb$"
+        run: black . --extend-exclude="backend/"
 
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile

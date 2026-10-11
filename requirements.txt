@@ -3,6 +3,5 @@
 # Optional audio separation dependencies are installed on first use.
 
 # App integrations
-ffmpeg-python>=0.2.0
 pypresence==4.6.2
 yt-dlp==2026.8.19
