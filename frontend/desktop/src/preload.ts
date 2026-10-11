@@ -39,6 +39,7 @@ export interface ApplioBridge {
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
   onJobOpen: (listener: (href: string) => void) => () => void;
   onRealtimeCommand: (listener: (action: RealtimeTrayCommand) => void) => () => void;
+  setPassthroughHotkey: (accelerator: string) => Promise<{ registered: boolean }>;
   reportRealtimeState: (state: RealtimeTraySnapshot | null) => void;
 }
 
@@ -50,6 +51,8 @@ declare global {
 
 contextBridge.exposeInMainWorld("applio", {
   platform: process.platform,
+  setPassthroughHotkey: (accelerator: string) =>
+    ipcRenderer.invoke("realtime:passthrough-hotkey", accelerator),
   versions: process.versions,
   chooseFolder: (defaultPath?: string) => ipcRenderer.invoke("dialog:choose-folder", defaultPath),
   restartAfterSetup: (jobId: string) => ipcRenderer.invoke("setup:restart", jobId),

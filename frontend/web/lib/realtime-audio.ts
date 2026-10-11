@@ -95,7 +95,26 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.underruns = 0;
     this.reportFrames = 0;
     this.started = false;
+    this.passthrough = false;
+    this.waitingForVoice = false;
+    this.mix = 0;
+    this.inputGain = 1;
     this.port.onmessage = (e) => {
+      if (typeof e.data.passthrough === 'boolean') {
+        const next = e.data.passthrough;
+        if (next !== this.passthrough) {
+          this.passthrough = next;
+          this.waitingForVoice = !next;
+          if (!next) {
+            this.rp = this.wp;
+            this.buffered = 0;
+          }
+        }
+        if (Number.isFinite(e.data.inputGain)) this.inputGain = Math.max(0, Math.min(2, e.data.inputGain));
+        return;
+      }
+      if (this.passthrough || !e.data.chunk) return;
+      this.waitingForVoice = false;
       const c = new Float32Array(e.data.chunk);
       this.started = true;
       // A burst of replies must not leave seconds of old audio to play.
@@ -124,9 +143,17 @@ class PlaybackProcessor extends AudioWorkletProcessor {
         s = this.ring[this.rp];
         this.rp = (this.rp + 1) % this.ring.length;
         this.buffered--;
-      } else if (this.started) {
+      } else if (this.started && !this.passthrough && !this.waitingForVoice) {
         this.underruns++;
       }
+      const target = this.passthrough || this.waitingForVoice ? 1 : 0;
+      const step = 1 / (sampleRate * 0.01);
+      this.mix += Math.max(-step, Math.min(step, target - this.mix));
+      const channels = inputs[0] || [];
+      let microphone = 0;
+      for (const channel of channels) microphone += channel[i] || 0;
+      if (channels.length) microphone /= channels.length;
+      s = s * (1 - this.mix) + microphone * this.inputGain * this.mix;
       outL[i] = s;
       if (outR) outR[i] = s;
     }

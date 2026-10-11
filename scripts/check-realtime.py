@@ -21,7 +21,7 @@ from rvc.realtime.utils.vad import VADProcessor
 from rvc.realtime.utils.chunks import automatic_block_frame
 from rvc.realtime.pipeline import Realtime_Pipeline
 from rvc.infer.pipeline import Autotune
-from rvc.realtime.core import Realtime
+from rvc.realtime.core import Realtime, VoiceChanger
 
 assert automatic_block_frame(10) == 4800
 assert automatic_block_frame(100) == 7200
@@ -194,6 +194,32 @@ if torch.cuda.is_available():
         flush=True,
     )
 
+# The microphone gate drains generated overlap once, including crossfades
+# longer than a block. This checks continuity without requiring a model/GPU.
+from types import SimpleNamespace
+
+for overlap in (64, 192):
+    voice = VoiceChanger.__new__(VoiceChanger)
+    voice.crossfade_frame = overlap
+    voice.sola_buffer = torch.full((overlap,), 0.2)
+    voice.fade_out_window = torch.cos(torch.linspace(0, torch.pi / 2, overlap)) ** 2
+    voice._tail_remaining = overlap
+    recorded = []
+    voice.record_audio = True
+    voice.soundfile = SimpleNamespace(write=lambda value: recorded.append(value.copy()))
+    voice.vc_model = SimpleNamespace(inference=lambda *_: (None, -100, True))
+    tail = []
+    for _ in range(5):
+        output, _ = voice.process_audio(np.zeros(64, np.float32))
+        tail.extend(output)
+    tail = np.array(tail)
+    assert abs(tail[0] - 0.2) < 1e-6
+    assert np.all(np.diff(tail) <= 1e-6), "gate fade jumps or replays"
+    assert np.all(tail[overlap:] == 0), "gate tail never expires"
+    assert np.allclose(np.concatenate(recorded), tail)
+    assert not voice.sola_buffer.any()
+print("Bounded output-tail fade and recording continuity passed.", flush=True)
+
 if args.model:
     from rvc.realtime.core import VoiceChanger
 
@@ -291,9 +317,11 @@ if args.model:
         assert (
             np.isfinite(output).all() and np.abs(output).max() > 1e-6
         ), "VAD cut sustained converted audio"
-    for _ in range(10):
+    for silent_block in range(10):
         output, _, _ = vc.on_request(np.zeros(4800, np.float32))
-        assert not output.any(), "Gated silence contains stale audio"
+        assert np.isfinite(output).all()
+        if silent_block >= 2:
+            assert not output.any(), "Gated silence contains stale audio"
     for _ in range(10):
         output, _, _ = vc.on_request(
             (np.sin(np.arange(4800) * 2 * np.pi * 220 / 48000) * 0.05).astype(

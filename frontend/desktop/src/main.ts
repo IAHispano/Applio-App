@@ -8,6 +8,7 @@ import {
   BrowserWindow,
   clipboard,
   dialog,
+  globalShortcut,
   ipcMain,
   Menu,
   Notification,
@@ -18,6 +19,7 @@ import {
 } from "electron";
 import { NsisUpdater, autoUpdater as platformUpdater, type UpdateInfo } from "electron-updater";
 import { copyLegacyUserData, prepareInstallationStorage } from "./local-storage";
+import { PassthroughHotkey } from "./passthrough-hotkey";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 import { waitFor } from "./startup";
 import {
@@ -1321,6 +1323,21 @@ function currentTrayState(): TrayState {
   };
 }
 
+const passthroughHotkey = new PassthroughHotkey(globalShortcut, () => {
+  if (freshTraySnapshot(rendererTrayState, rendererTrayUpdatedAt)?.streaming)
+    sendRealtimeCommand("passthrough-toggle");
+});
+ipcMain.handle("realtime:passthrough-hotkey", (event, accelerator: unknown) => {
+  if (
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    event.sender !== mainWindow.webContents ||
+    event.senderFrame !== mainWindow.webContents.mainFrame
+  )
+    return { registered: false };
+  return passthroughHotkey.set(accelerator);
+});
+
 ipcMain.on("realtime:tray-state", (event, value: unknown) => {
   if (
     !mainWindow ||
@@ -2003,6 +2020,7 @@ app.on("activate", () => {
 
 app.on("before-quit", () => {
   isQuitting = true;
+  globalShortcut.unregisterAll();
   destroyTray();
   apiProc?.kill();
   webProc?.kill();

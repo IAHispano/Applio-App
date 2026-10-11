@@ -110,6 +110,9 @@ export default function RealtimePage() {
   const [silent, setSilent] = useState(-60);
   const [vad, setVad] = useState(true);
   const [inGain, setInGain] = useState(100);
+  const [passthrough, setPassthrough] = useState(false);
+  const [passthroughHotkey, setPassthroughHotkey] = useState("CommandOrControl+Alt+V");
+  const [hotkeyAvailable, setHotkeyAvailable] = useState(true);
   const [outGain, setOutGain] = useState(100);
   const [monitorSelf, setMonitorSelf] = useState(false);
   const [monitorVolume, setMonitorVolume] = useState(100);
@@ -180,6 +183,7 @@ export default function RealtimePage() {
     ctx: AudioContext;
     stream: MediaStream;
     nodes: AudioNode[];
+    playback: AudioWorkletNode;
     els: HTMLAudioElement[];
     settings: RealtimeSettingsSender;
     inputBridge?: AudioNode;
@@ -342,6 +346,7 @@ export default function RealtimePage() {
     setSilent(num(rt.silent_threshold, -90, -60, -60));
     setVad(bool(rt.vad_enabled, true));
     setInGain(num(rt.input_audio_gain, 0, 200, 100));
+    setPassthroughHotkey(str(rt.passthrough_hotkey, "CommandOrControl+Alt+V"));
     setOutGain(num(rt.output_audio_gain, 0, 200, 100));
     setMonitorSelf(bool(rt.monitor_enabled, false));
     setMonitorVolume(num(rt.monitor_volume, 0, 200, 100));
@@ -500,11 +505,11 @@ export default function RealtimePage() {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(inDev ? { deviceId: { exact: inDev } } : {}),
-          channelCount: { exact: 1 },
-          sampleRate: { exact: 48000 },
-          ...(voiceFocus !== "off"
-            ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-            : {}),
+          channelCount: { ideal: 1 },
+          sampleRate: { ideal: 48000 },
+          noiseSuppression: false,
+          autoGainControl: false,
+          echoCancellation: false,
         },
       });
       openingStream = stream;
@@ -535,6 +540,8 @@ export default function RealtimePage() {
         voiceFocusCleanupRef.current = openingVoiceFocusCleanup;
       }
       const playNode = new AudioWorkletNode(ctx, "playback-processor", { outputChannelCount: [2] });
+      src.connect(playNode);
+      playNode.port.postMessage({ passthrough: false, inputGain: inGain / 100 });
       const gain = ctx.createGain();
       gain.gain.value = outGain / 100;
       playNode.connect(gain);
@@ -631,6 +638,7 @@ export default function RealtimePage() {
         ctx,
         stream,
         nodes: [src, inNode, playNode, gain, monitorGain, monitorDest, outAnalyser],
+        playback: playNode,
         els: outputElements,
         settings: liveSettings,
         inputLatencyMs: inputLatency * 1000,
@@ -791,6 +799,7 @@ export default function RealtimePage() {
     else if (action === "stop") stopStream(false);
     else if (streaming) {
       if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
+      else if (action === "passthrough-toggle") setPassthrough((value) => !value);
       else {
         if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
         const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
@@ -830,6 +839,36 @@ export default function RealtimePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (streaming) sessRef.current?.playback.port.postMessage({ passthrough, inputGain: inGain / 100 });
+  }, [passthrough, inGain, streaming]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const bridge = (
+      window as unknown as {
+        applio?: { setPassthroughHotkey: (accelerator: string) => Promise<{ registered: boolean }> };
+      }
+    ).applio;
+    if (!bridge?.setPassthroughHotkey) return;
+    // Register only while streaming; shortcuts stay free for other apps at idle.
+    const timer = setTimeout(() => {
+      void bridge
+        .setPassthroughHotkey(streaming ? passthroughHotkey.trim() : "")
+        .then((result) => {
+          if (!cancelled) setHotkeyAvailable(result.registered);
+        })
+        .catch(() => {
+          if (!cancelled) setHotkeyAvailable(false);
+        });
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      void bridge.setPassthroughHotkey("");
+    };
+  }, [passthroughHotkey, streaming]);
+
   // Tray "Start Realtime" navigates here with #autostart when the tab is not
   // mounted yet: begin streaming once settings and the voice are ready.
   useEffect(() => {
@@ -842,6 +881,7 @@ export default function RealtimePage() {
   });
 
   function stopStream(silentStop = false) {
+    setPassthrough(false);
     const cleanup = voiceFocusCleanupRef.current;
     voiceFocusCleanupRef.current = null;
     void cleanup?.().catch(() => {});
@@ -974,6 +1014,7 @@ export default function RealtimePage() {
     extra_convert_size: extraSize,
     silent_threshold: silent,
     vad_enabled: vad,
+    passthrough_hotkey: passthroughHotkey,
     input_audio_gain: inGain,
     output_audio_gain: outGain,
     monitor_enabled: monitorSelf,
@@ -1055,11 +1096,11 @@ export default function RealtimePage() {
           stream = await navigator.mediaDevices.getUserMedia({
             audio: {
               ...(inDev ? { deviceId: { exact: inDev } } : {}),
-              channelCount: { exact: 1 },
-              sampleRate: { exact: 48000 },
-              ...(voiceFocus !== "off"
-                ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-                : {}),
+              channelCount: { ideal: 1 },
+              sampleRate: { ideal: 48000 },
+              noiseSuppression: false,
+              autoGainControl: false,
+              echoCancellation: false,
             },
           });
           if (cancelled || sessRef.current !== session) return;
@@ -1073,6 +1114,7 @@ export default function RealtimePage() {
           const oldBridge = session.inputBridge;
           const oldCleanup = voiceFocusCleanupRef.current;
           bridge.connect(session.nodes[1]);
+          source.connect(session.playback);
           oldSource.disconnect();
           oldBridge?.disconnect();
           session.stream = stream;
@@ -1401,7 +1443,15 @@ export default function RealtimePage() {
             </div>
           )}
         </div>
-        <Disclosure title={t("Voice cleanup (autotune / proposed pitch / clean)")} icon={<Wand2 size={15} />}>
+        <Disclosure
+          title={t("Voice cleanup (autotune / proposed pitch / clean)")}
+          icon={<Wand2 size={15} />}
+          description={
+            <>
+              {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
+            </>
+          }
+        >
           <div className="row">
             <div className="min-w-0 flex-1">
               <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
@@ -1501,7 +1551,15 @@ export default function RealtimePage() {
             </div>
           </div>
         </Disclosure>
-        <Disclosure title={t("Latency / VAD / gains")} icon={<Gauge size={15} />}>
+        <Disclosure
+          title={t("Latency / VAD / gains")}
+          icon={<Gauge size={15} />}
+          description={
+            <>
+              {t(SETTING_HELP.chunk)} {t(SETTING_HELP.vad)}
+            </>
+          }
+        >
           <div className="mb-4 space-y-3">
             <ToggleField
               id="rt-decoder-fp16"
@@ -1647,7 +1705,11 @@ export default function RealtimePage() {
             description={t(SETTING_HELP.vad)}
           />
         </Disclosure>
-        <Disclosure title={t("Monitor")} icon={<Headphones size={15} />}>
+        <Disclosure
+          title={t("Monitor")}
+          icon={<Headphones size={15} />}
+          description={t(SETTING_HELP.outputDevice)}
+        >
           <ToggleField
             id="rt-monitor-enabled"
             label={t("Hear myself")}
@@ -2252,6 +2314,42 @@ export default function RealtimePage() {
             </div>
           )}
         </Disclosure>
+        <div className="grid gap-4 sm:grid-cols-2 border-t border-white/5 pt-4">
+          <ToggleField
+            id="rt-passthrough"
+            disabled={!streaming}
+            label={t("Passthrough")}
+            checked={passthrough}
+            onChange={(value) => {
+              if (streaming) setPassthrough(value);
+            }}
+            description={t(
+              "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
+            )}
+          />
+          <div className="space-y-2">
+            <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
+              {t("Passthrough hotkey")}
+            </label>
+            <input
+              id="rt-passthrough-hotkey"
+              value={passthroughHotkey}
+              maxLength={80}
+              onChange={(event) => setPassthroughHotkey(event.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-neutral-400">
+              {t(
+                "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
+              )}
+            </p>
+            {!hotkeyAvailable && (
+              <p className="text-xs text-amber-300" role="status">
+                {t("Hotkey unavailable. Choose another combination.")}
+              </p>
+            )}
+          </div>
+        </div>
         <div className="space-y-4 pt-3 border-t border-white/5">
           <div className="flex items-center gap-3 flex-wrap">
             {!streaming ? (
@@ -2310,7 +2408,7 @@ export default function RealtimePage() {
                 <StatTile label={t("Processing")} value={`${latency.toFixed(0)} ms`} />
                 <StatTile label={t("Round trip")} value={`${roundTrip.toFixed(0)} ms`} />
                 <StatTile
-                  label={t("Voice level")}
+                  label={t("Input level")}
                   value={volume > 0 ? `${(20 * Math.log10(volume)).toFixed(1)} dB` : "−∞ dB"}
                 />
                 <StatTile label={t("Estimated delay")} value={`${diagnostics.estimatedMs.toFixed(0)} ms`} />

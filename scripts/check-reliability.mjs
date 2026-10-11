@@ -26,7 +26,8 @@ try {
           .join("\n") +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/job-history.ts"))};` +
-        `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};`,
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};` +
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/passthrough-hotkey.ts"))};`,
       loader: "ts",
       resolveDir: root,
     },
@@ -122,6 +123,44 @@ try {
   assert.ok(reports.length);
   assert.equal(reports[0].stats.droppedFrames, 1440);
   assert.ok(reports[0].stats.underrunFrames > 0);
+  const bypass = new Playback();
+  const render = (value = 0.25) => {
+    const left = new Float32Array(128), right = new Float32Array(128);
+    bypass.process([[new Float32Array(128).fill(value)]], [[left, right]]);
+    assert.deepEqual(left, right);
+    return left;
+  };
+  bypass.port.onmessage({ data: { chunk: new Float32Array(1440).fill(0.5).buffer } });
+  render();
+  bypass.port.onmessage({ data: { passthrough: true, inputGain: 1 } });
+  let previous = 0.5;
+  for (let n = 0; n < 8; n++) {
+    for (const sample of render()) { assert.ok(Math.abs(sample - previous) < 0.002); previous = sample; }
+  }
+  assert.equal(previous, 0.25);
+  bypass.port.onmessage({ data: { chunk: new Float32Array(1440).fill(9).buffer } });
+  bypass.port.onmessage({ data: { passthrough: false, inputGain: 1 } });
+  assert.equal(bypass.buffered, 0);
+  assert.ok(render().every((sample) => sample === 0.25), "wait for fresh converted audio");
+  bypass.port.onmessage({ data: { chunk: new Float32Array(1440).fill(0.5).buffer } });
+  for (let n = 0; n < 4; n++) render();
+  assert.equal(render()[127], 0.5);
+  bypass.port.onmessage({ data: { passthrough: true, inputGain: 0 } });
+  for (let n = 0; n < 4; n++) render();
+  assert.ok(render().every((sample) => sample === 0), "muted microphone leaked through bypass");
+  const bindings = new Map();
+  let toggles = 0;
+  const hotkey = new api.PassthroughHotkey({
+    register(key, callback) { if (key === "Ctrl+X") return false; bindings.set(key, callback); return true; },
+    unregister(key) { bindings.delete(key); },
+  }, () => toggles++);
+  assert.equal(hotkey.set("V").registered, false);
+  assert.equal(hotkey.set("CommandOrControl+Alt+V").registered, true);
+  assert.equal(hotkey.set("Ctrl+X").registered, false);
+  bindings.get("CommandOrControl+Alt+V")();
+  assert.equal(toggles, 1);
+  assert.equal(hotkey.set("").registered, true);
+  assert.equal(bindings.size, 0);
   const first = api.createJob("inference");
   assert.equal(await api.acquireJobSlot(first), true);
   api.setRunning(first);

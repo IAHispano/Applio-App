@@ -1,6 +1,13 @@
 import type { MenuItemConstructorOptions } from "electron";
 
-export type RealtimeTrayCommand = "start" | "stop" | "mute" | "unmute" | "monitor-on" | "monitor-off";
+export type RealtimeTrayCommand =
+  | "passthrough-toggle"
+  | "start"
+  | "stop"
+  | "mute"
+  | "unmute"
+  | "monitor-on"
+  | "monitor-off";
 
 export interface RealtimeTraySnapshot {
   connecting: boolean;
