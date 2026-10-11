@@ -19,6 +19,17 @@ import {
 import { autoUpdater, type UpdateInfo } from "electron-updater";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 import { waitFor } from "./startup";
+import {
+  canNavigateFromTray,
+  freshTraySnapshot,
+  parseTraySnapshot,
+  type RealtimeTrayCommand,
+  type RealtimeTraySnapshot,
+  type TrayState,
+  type TrayTranslate,
+  trayMenu,
+  trayStatus,
+} from "./tray-menu";
 
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
@@ -1208,12 +1219,113 @@ function primeStartupData(): void {
       .catch(() => {});
 }
 
-// ---- System tray: Open Applio, Start/Stop Realtime, Quit ----
+// ---- System tray ----
 let tray: Tray | null = null;
 let isQuitting = false;
 let realtimeRunning = false;
 let realtimeStreaming = false;
 let trayRefreshTimer: NodeJS.Timeout | null = null;
+let trayAvailable = false;
+let trayOperation: "start" | "stop" | null = null;
+let rendererTrayState: RealtimeTraySnapshot | null = null;
+let rendererTrayUpdatedAt = 0;
+let trayRefreshPending = false;
+let trayMenuOpen = false;
+let trayMenuSignature = "";
+let trayLanguage = "";
+let trayDictionary: Record<string, string> = {};
+const trayT: TrayTranslate = (key, vars) =>
+  (trayDictionary[key] || key).replace(/\{(\w+)\}/g, (token, name) =>
+    vars && name in vars ? String(vars[name]) : token,
+  );
+
+function refreshTrayLanguage(): void {
+  try {
+    const configFile = path.join(process.env.APPLIO_CONFIG_DIR || app.getPath("userData"), "config.json");
+    let selected = "";
+    try {
+      selected = JSON.parse(fs.readFileSync(configFile, "utf8"))?.lang?.selected_lang || "";
+    } catch {}
+    const directory = path.join(isDev ? repoRoot() : app.getAppPath(), "assets/i18n/languages");
+    const files = fs.readdirSync(directory).filter((name) => name.endsWith(".json"));
+    const locale = app.getLocale().replace(/-/g, "_");
+    const file =
+      files.find((name) => name === `${selected}.json`) ||
+      files.find((name) => name === `${locale}.json`) ||
+      files.find((name) => name.startsWith(`${locale.split("_")[0]}_`)) ||
+      "en_US.json";
+    if (file === trayLanguage) return;
+    trayDictionary = JSON.parse(fs.readFileSync(path.join(directory, file), "utf8"));
+    trayLanguage = file;
+  } catch {
+    /* English fallback until the language packs are available. */
+  }
+}
+
+function currentTrayState(): TrayState {
+  const snapshot = freshTraySnapshot(rendererTrayState, rendererTrayUpdatedAt);
+  return {
+    available: trayAvailable,
+    engine: realtimeRunning,
+    session: realtimeStreaming,
+    operation: trayOperation,
+    snapshot,
+    visible: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible(),
+    alwaysOnTop: !!mainWindow && !mainWindow.isDestroyed() && mainWindow.isAlwaysOnTop(),
+  };
+}
+
+ipcMain.on("realtime:tray-state", (event, value: unknown) => {
+  if (
+    !mainWindow ||
+    mainWindow.isDestroyed() ||
+    event.sender !== mainWindow.webContents ||
+    event.senderFrame !== mainWindow.webContents.mainFrame
+  )
+    return;
+  rendererTrayState = parseTraySnapshot(value);
+  rendererTrayUpdatedAt = Date.now();
+  buildTrayMenu();
+});
+
+async function openTrayPage(page: string): Promise<void> {
+  if (page !== "realtime" && !canNavigateFromTray(currentTrayState())) return;
+  if (!mainWindow || mainWindow.isDestroyed()) await createWindow();
+  focusMainWindow();
+  if (!mainWindow || mainWindow.isDestroyed()) return;
+  try {
+    const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
+    const target = new URL(page, base).href;
+    if (new URL(mainWindow.webContents.getURL()).pathname !== new URL(target).pathname)
+      await mainWindow.loadURL(target);
+  } catch (error) {
+    console.warn("[tray] navigation failed:", error);
+  }
+}
+
+async function openTrayFolder(kind: "models" | "outputs" | "logs" | "preferences"): Promise<void> {
+  try {
+    let directory =
+      kind === "logs"
+        ? launcherLogDir()
+        : kind === "preferences"
+          ? process.env.APPLIO_CONFIG_DIR || app.getPath("userData")
+          : path.join(dataRoot(), kind === "models" ? "logs" : "assets/audios");
+    if (kind === "models") {
+      const response = await fetch(`http://127.0.0.1:${API_PORT}/api/settings`, {
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) throw new Error("Could not resolve the models folder");
+      const settings = (await response.json()) as { logsDir?: string };
+      if (settings.logsDir) directory = settings.logsDir;
+    }
+    fs.mkdirSync(directory, { recursive: true });
+    const error = await shell.openPath(directory);
+    if (error) throw new Error(error);
+  } catch (error) {
+    console.warn("[tray] folder open failed:", error);
+  }
+}
 
 function focusMainWindow(): void {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -1223,24 +1335,6 @@ function focusMainWindow(): void {
     return;
   }
   void createWindow();
-}
-
-async function openRealtimePage(): Promise<void> {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    await createWindow();
-  }
-  if (!mainWindow || mainWindow.isDestroyed()) return;
-  if (mainWindow.isMinimized()) mainWindow.restore();
-  mainWindow.show();
-  mainWindow.focus();
-  const base = isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}/`;
-  try {
-    if (!mainWindow.webContents.getURL().includes("/realtime")) {
-      await mainWindow.loadURL(`${base}realtime`);
-    }
-  } catch {
-    /* ignore */
-  }
 }
 
 interface RealtimeTrayState {
@@ -1269,56 +1363,67 @@ async function fetchRealtimeState(): Promise<RealtimeTrayState | null> {
 
 function buildTrayMenu(): void {
   if (!tray || tray.isDestroyed()) return;
-  const menu = Menu.buildFromTemplate([
-    { label: "Open Applio", click: () => focusMainWindow() },
-    { label: "Open Realtime", click: () => void openRealtimePage() },
-    { type: "separator" },
-    {
-      label: "Start Realtime",
-      enabled: !realtimeStreaming,
-      click: () => void setRealtimeFromTray("start"),
-    },
-    {
-      label: "Stop Realtime",
-      enabled: realtimeStreaming || realtimeRunning,
-      click: () => void setRealtimeFromTray("stop"),
-    },
-    { type: "separator" },
-    {
-      label: "Quit Applio",
-      click: () => {
+  const state = currentTrayState();
+  tray.setToolTip(
+    `Applio · ${trayT(trayStatus(state))}${state.available && state.engine && state.session && state.snapshot?.streaming ? ` · ${Math.round(state.snapshot.processingMs)} ms` : ""}`,
+  );
+  const signature = JSON.stringify([state, trayLanguage]);
+  if (trayMenuOpen || signature === trayMenuSignature) return;
+  trayMenuSignature = signature;
+  const menu = Menu.buildFromTemplate(
+    trayMenu(state, trayT, {
+      show: focusMainWindow,
+      hide: () => {
+        mainWindow?.hide();
+        buildTrayMenu();
+      },
+      navigate: (page) => void openTrayPage(page),
+      realtime: (command) => {
+        if (command === "start" || command === "stop") void setRealtimeFromTray(command);
+        else sendRealtimeCommand(command);
+      },
+      alwaysOnTop: (enabled) => {
+        mainWindow?.setAlwaysOnTop(enabled);
+        buildTrayMenu();
+      },
+      folder: (kind) => void openTrayFolder(kind),
+      quit: () => {
         isQuitting = true;
         app.quit();
       },
-    },
-  ]);
+    }),
+  );
+  menu.on("menu-will-show", () => {
+    trayMenuOpen = true;
+  });
+  menu.on("menu-will-close", () => {
+    trayMenuOpen = false;
+    setTimeout(buildTrayMenu, 0);
+  });
   tray.setContextMenu(menu);
-  try {
-    tray.setToolTip(
-      realtimeStreaming ? "Applio · Realtime ON" : realtimeRunning ? "Applio · Engine ready" : "Applio",
-    );
-  } catch {
-    /* ignore */
-  }
 }
 
 async function refreshTrayState(): Promise<void> {
-  const st = await fetchRealtimeState();
-  if (st !== null) {
-    realtimeRunning = st.engine;
-    realtimeStreaming = st.streaming;
+  if (trayRefreshPending) return;
+  trayRefreshPending = true;
+  try {
+    const st = await fetchRealtimeState();
+    trayAvailable = st !== null;
+    realtimeRunning = st?.engine ?? false;
+    realtimeStreaming = st?.streaming ?? false;
+    refreshTrayLanguage();
+    buildTrayMenu();
+  } finally {
+    trayRefreshPending = false;
   }
-  buildTrayMenu();
 }
 
 // One-click realtime for gamers: drive the stream from the (possibly hidden)
 // main window so no window juggling is needed. Returns true once audio flows.
 async function setRealtimeFromTray(action: "start" | "stop"): Promise<void> {
-  try {
-    tray?.setToolTip(`Applio · ${action === "start" ? "Starting" : "Stopping"} realtime…`);
-  } catch {
-    /* ignore */
-  }
+  if (trayOperation) return;
+  trayOperation = action;
+  buildTrayMenu();
   try {
     if (action === "start") {
       if (!(await ensureRealtimePage())) throw new Error("Could not open the Realtime tab");
@@ -1328,7 +1433,7 @@ async function setRealtimeFromTray(action: "start" | "stop"): Promise<void> {
       for (;;) {
         await new Promise((r) => setTimeout(r, 2000));
         const st = await fetchRealtimeState();
-        if (st?.streaming) break;
+        if (st?.engine && st.streaming && currentTrayState().snapshot?.streaming) break;
         if (Date.now() > deadline) throw new Error("Audio did not start — open the Realtime tab to see why");
       }
     } else {
@@ -1350,7 +1455,7 @@ async function setRealtimeFromTray(action: "start" | "stop"): Promise<void> {
     if (Notification.isSupported()) {
       new Notification({
         title: "Applio",
-        body: action === "start" ? "Realtime ON — speak, your voice is live." : "Realtime OFF.",
+        body: trayT(action === "start" ? "Realtime active" : "Realtime stopped"),
       }).show();
     }
   } catch (err) {
@@ -1360,11 +1465,12 @@ async function setRealtimeFromTray(action: "start" | "stop"): Promise<void> {
       new Notification({ title: "Applio", body: `Could not ${action} realtime: ${message}` }).show();
     }
   } finally {
+    trayOperation = null;
     await refreshTrayState();
   }
 }
 
-function sendRealtimeCommand(action: "start" | "stop"): void {
+function sendRealtimeCommand(action: RealtimeTrayCommand): void {
   try {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send("realtime:command", action);
@@ -1414,7 +1520,7 @@ function createTray(): void {
     tray.on("click", () => focusMainWindow());
     buildTrayMenu();
     void refreshTrayState();
-    trayRefreshTimer = setInterval(() => void refreshTrayState(), 5000);
+    trayRefreshTimer = setInterval(() => void refreshTrayState(), 3000);
     trayRefreshTimer.unref?.();
   } catch (err) {
     console.warn("[tray] failed to create tray:", err);
@@ -1433,6 +1539,8 @@ function destroyTray(): void {
     /* ignore */
   }
   tray = null;
+  trayMenuSignature = "";
+  trayMenuOpen = false;
 }
 
 async function createWindow(): Promise<void> {
@@ -1636,6 +1744,9 @@ async function createWindow(): Promise<void> {
     mainWindow?.webContents.send("window:maximize-changed", false);
   });
 
+  mainWindow.on("show", buildTrayMenu);
+  mainWindow.on("hide", buildTrayMenu);
+  mainWindow.on("always-on-top-changed", buildTrayMenu);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });

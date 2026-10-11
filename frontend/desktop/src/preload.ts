@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "./tray-menu";
 
 export interface WindowControls {
   minimize: () => void;
@@ -37,7 +38,8 @@ export interface ApplioBridge {
   restartAfterSetup: (jobId: string) => Promise<void>;
   showJobNotification: (value: { id: string; title: string; body: string; href: string }) => Promise<boolean>;
   onJobOpen: (listener: (href: string) => void) => () => void;
-  onRealtimeCommand: (listener: (action: "start" | "stop") => void) => () => void;
+  onRealtimeCommand: (listener: (action: RealtimeTrayCommand) => void) => () => void;
+  reportRealtimeState: (state: RealtimeTraySnapshot | null) => void;
 }
 
 declare global {
@@ -58,8 +60,9 @@ contextBridge.exposeInMainWorld("applio", {
     ipcRenderer.on("job:open", handler);
     return () => ipcRenderer.removeListener("job:open", handler);
   },
-  onRealtimeCommand: (listener: (action: "start" | "stop") => void) => {
-    const handler = (_event: unknown, action: "start" | "stop") => listener(action);
+  reportRealtimeState: (state: RealtimeTraySnapshot | null) => ipcRenderer.send("realtime:tray-state", state),
+  onRealtimeCommand: (listener: (action: RealtimeTrayCommand) => void) => {
+    const handler = (_event: unknown, action: RealtimeTrayCommand) => listener(action);
     ipcRenderer.on("realtime:command", handler);
     return () => ipcRenderer.removeListener("realtime:command", handler);
   },
