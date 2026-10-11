@@ -1,19 +1,9 @@
 "use client";
 
-import {
-  Activity,
-  Disc,
-  Gauge,
-  Headphones,
-  Layers,
-  ListMusic,
-  Play,
-  RefreshCw,
-  Square,
-  Wand2,
-} from "lucide-react";
+import { Disc, Gauge, Headphones, Layers, ListMusic, Play, RefreshCw, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
+import RealtimeDiagnostics from "@/components/RealtimeDiagnostics";
 import {
   Badge,
   Button,
@@ -25,7 +15,6 @@ import {
   IconButton,
   PitchMethodSelect,
   REALTIME_F0_METHODS,
-  StatTile,
   ToggleField,
   VoiceModelField,
 } from "@/components/ui";
@@ -36,6 +25,7 @@ import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
+import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
 import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
@@ -164,9 +154,11 @@ export default function RealtimePage() {
     playbackQueuedMs: 0,
     playbackDroppedMs: 0,
     underrunMs: 0,
+    recentDroppedBlocks: 0,
+    recentUnderrunMs: 0,
   });
   const [roundTrip, setRoundTrip] = useState(0);
-  const [volume, setVolume] = useState(-90);
+  const [inputLevel, setInputLevel] = useState<{ rms: number | null; at: number }>({ rms: null, at: 0 });
   const [msg, setMsg] = useState("");
   const [recOn, setRecOn] = useState(false);
   const [recPath, setRecPath] = useState("assets/audios/record_audio.wav");
@@ -603,6 +595,7 @@ export default function RealtimePage() {
           else if (!applying) setMsg(t("Settings applied"));
         },
       );
+      setInputLevel({ rms: null, at: 0 });
       setDiagnostics({
         estimatedMs: 0,
         queuedBlocks: 0,
@@ -610,14 +603,22 @@ export default function RealtimePage() {
         playbackQueuedMs: 0,
         playbackDroppedMs: 0,
         underrunMs: 0,
+        recentDroppedBlocks: 0,
+        recentUnderrunMs: 0,
       });
       const inputLatency =
         (stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })?.latency ||
         0;
+      const healthWindow = new RealtimeHealthWindow();
       playNode.port.onmessage = (event) => {
         const stats = event.data.stats;
         if (!stats || sessRef.current?.ws !== ws) return;
         setDiagnostics({
+          ...healthWindow.push(
+            performance.now(),
+            sender.droppedBlocks,
+            (stats.underrunFrames / ctx.sampleRate) * 1000,
+          ),
           estimatedMs:
             (block / ctx.sampleRate) * 1000 +
             crossfade * 1000 +
@@ -739,7 +740,8 @@ export default function RealtimePage() {
               setMsg(t("Streaming ✓ speak into your microphone."));
             }
             if (m.type === "latency") setLatency(m.value);
-            if (typeof m.volume === "number") setVolume(m.volume);
+            if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
+              setInputLevel({ rms: m.volume, at: performance.now() });
           } catch {
             /* ignore */
           }
@@ -1710,48 +1712,92 @@ export default function RealtimePage() {
           icon={<Headphones size={15} />}
           description={t(SETTING_HELP.outputDevice)}
         >
-          <ToggleField
-            id="rt-monitor-enabled"
-            label={t("Hear myself")}
-            description={t(
-              "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
-            )}
-            checked={monitorSelf}
-            onChange={setMonitorSelf}
-          />
-          {monitorSelf && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-              <SliderField
-                id="rt-monitor-volume"
-                label={t("Monitor volume")}
-                value={monitorVolume}
-                min={0}
-                max={200}
-                step={1}
-                unit="%"
-                onChange={setMonitorVolume}
-                description={t("Local playback volume. Does not change the streamed output.")}
-              />
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
-                  <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
-                    {streaming || connecting ? `${outLevel}%` : "—"}
-                  </span>
-                </div>
-                <meter
-                  className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
+          <div className="space-y-4">
+            <ToggleField
+              id="rt-monitor-enabled"
+              label={t("Hear myself")}
+              description={t(
+                "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
+              )}
+              checked={monitorSelf}
+              onChange={setMonitorSelf}
+            />
+            {monitorSelf && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                <SliderField
+                  id="rt-monitor-volume"
+                  label={t("Monitor volume")}
+                  value={monitorVolume}
                   min={0}
-                  max={100}
-                  value={streaming || connecting ? outLevel : 0}
-                  aria-label={t("Output level")}
+                  max={200}
+                  step={1}
+                  unit="%"
+                  onChange={setMonitorVolume}
+                  description={t("Local playback volume. Does not change the streamed output.")}
                 />
-                <p className="text-[11px] text-neutral-400 m-0 leading-tight">
-                  {t("Use headphones to avoid feedback when monitoring.")}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
+                    <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
+                      {streaming || connecting ? `${outLevel}%` : "—"}
+                    </span>
+                  </div>
+                  <meter
+                    className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
+                    min={0}
+                    max={100}
+                    value={streaming || connecting ? outLevel : 0}
+                    aria-label={t("Output level")}
+                  />
+                  <p className="text-[11px] text-neutral-400 m-0 leading-tight">
+                    {t("Use headphones to avoid feedback when monitoring.")}
+                  </p>
+                </div>
+              </div>
+            )}
+            <div className="space-y-4 border-t border-white/5 pt-4">
+              <ToggleField
+                id="rt-passthrough"
+                disabled={!streaming}
+                label={t("Passthrough")}
+                checked={passthrough}
+                onChange={(value) => {
+                  if (streaming) setPassthrough(value);
+                }}
+                description={t(
+                  "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
+                )}
+              />
+              <div className="space-y-2 pl-6">
+                <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
+                  {t("Passthrough hotkey")}
+                </label>
+                <input
+                  id="rt-passthrough-hotkey"
+                  value={passthroughHotkey}
+                  maxLength={80}
+                  onChange={(event) => setPassthroughHotkey(event.target.value)}
+                  aria-describedby="rt-passthrough-hotkey-help"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-mono focus:border-white/25 focus:outline-none"
+                />
+                <p
+                  id="rt-passthrough-hotkey-help"
+                  className="max-w-xl text-[11px] leading-relaxed text-neutral-400"
+                >
+                  {t(
+                    "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
+                  )}
                 </p>
+                {!hotkeyAvailable && (
+                  <p className="text-xs text-amber-300" role="status">
+                    {t("Hotkey unavailable. Choose another combination.")}
+                  </p>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </Disclosure>
         <Disclosure
           title={t("Post-Process")}
@@ -2314,43 +2360,7 @@ export default function RealtimePage() {
             </div>
           )}
         </Disclosure>
-        <div className="grid gap-4 sm:grid-cols-2 border-t border-white/5 pt-4">
-          <ToggleField
-            id="rt-passthrough"
-            disabled={!streaming}
-            label={t("Passthrough")}
-            checked={passthrough}
-            onChange={(value) => {
-              if (streaming) setPassthrough(value);
-            }}
-            description={t(
-              "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
-            )}
-          />
-          <div className="space-y-2">
-            <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
-              {t("Passthrough hotkey")}
-            </label>
-            <input
-              id="rt-passthrough-hotkey"
-              value={passthroughHotkey}
-              maxLength={80}
-              onChange={(event) => setPassthroughHotkey(event.target.value)}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm"
-            />
-            <p className="text-xs text-neutral-400">
-              {t(
-                "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
-              )}
-            </p>
-            {!hotkeyAvailable && (
-              <p className="text-xs text-amber-300" role="status">
-                {t("Hotkey unavailable. Choose another combination.")}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="space-y-4 pt-3 border-t border-white/5">
+        <div className="space-y-4 pt-3">
           <div className="flex items-center gap-3 flex-wrap">
             {!streaming ? (
               <Button onClick={startStream} disabled={connecting} icon={<Play size={16} />}>
@@ -2376,65 +2386,15 @@ export default function RealtimePage() {
           </div>
 
           {streaming && (
-            <div
-              className="rounded-xl bg-black/30 border border-white/5 p-3 space-y-3"
-              role="status"
-              aria-live="polite"
-              aria-label={t("Live status")}
-            >
-              <div className="flex items-center justify-between gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <Activity size={15} className="text-white shrink-0" aria-hidden="true" />
-                  <p className="text-xs font-medium text-white m-0">{t("Live status")}</p>
-                </div>
-                <Badge
-                  variant={
-                    diagnostics.droppedBlocks > 10 || diagnostics.underrunMs > 500
-                      ? "danger"
-                      : diagnostics.playbackQueuedMs > 300 || diagnostics.underrunMs > 50
-                        ? "warning"
-                        : "success"
-                  }
-                  dot
-                >
-                  {diagnostics.droppedBlocks > 10 || diagnostics.underrunMs > 500
-                    ? t("unstable")
-                    : diagnostics.playbackQueuedMs > 300 || diagnostics.underrunMs > 50
-                      ? t("buffering")
-                      : t("healthy")}
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-2">
-                <StatTile label={t("Processing")} value={`${latency.toFixed(0)} ms`} />
-                <StatTile label={t("Round trip")} value={`${roundTrip.toFixed(0)} ms`} />
-                <StatTile
-                  label={t("Input level")}
-                  value={volume > 0 ? `${(20 * Math.log10(volume)).toFixed(1)} dB` : "−∞ dB"}
-                />
-                <StatTile label={t("Estimated delay")} value={`${diagnostics.estimatedMs.toFixed(0)} ms`} />
-                <StatTile
-                  label={t("Playback queue")}
-                  value={`${diagnostics.playbackQueuedMs.toFixed(0)} ms`}
-                />
-                <StatTile label={t("Waiting blocks")} value={String(diagnostics.queuedBlocks)} />
-                <StatTile label={t("Dropped input")} value={String(diagnostics.droppedBlocks)} />
-                <StatTile
-                  label={t("Dropped playback")}
-                  value={`${diagnostics.playbackDroppedMs.toFixed(0)} ms`}
-                />
-                <StatTile label={t("Underruns")} value={`${diagnostics.underrunMs.toFixed(0)} ms`} />
-                <StatTile
-                  label={t("Chunk")}
-                  value={`${chunkMs} ms`}
-                  subtext={autoChunk ? t("auto") : undefined}
-                />
-              </div>
-              <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
-                {t(
-                  "Delay combines capture, transport and output buffering. If underruns or dropped blocks grow, raise the chunk size or close heavy apps.",
-                )}
-              </p>
-            </div>
+            <RealtimeDiagnostics
+              latency={latency}
+              roundTrip={roundTrip}
+              input={inputLevel}
+              silentThreshold={silent}
+              chunkMs={chunkMs}
+              autoChunk={autoChunk}
+              diagnostics={diagnostics}
+            />
           )}
         </div>
       </Stage>

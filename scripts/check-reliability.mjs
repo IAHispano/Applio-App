@@ -25,6 +25,7 @@ try {
           .map((name) => `export * from ${JSON.stringify(path.join(root, "backend/api/src", `${name}.ts`))};`)
           .join("\n") +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-audio.ts"))};` +
+        `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/realtime-diagnostics.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/web/lib/job-history.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/startup.ts"))};` +
         `\nexport * from ${JSON.stringify(path.join(root, "frontend/desktop/src/passthrough-hotkey.ts"))};`,
@@ -102,6 +103,17 @@ try {
   assert.equal(sender.droppedBlocks, 98);
   sender.acknowledge();
   assert.deepEqual(frames, [1, 100]);
+  assert.equal(api.inputDecibels(null), null, "no reading is not silence");
+  assert.equal(api.inputDecibels(0), -Infinity);
+  assert.equal(api.inputDecibels(1), 0);
+  assert.equal(api.inputDecibels(0.001), -60);
+  assert.equal(api.inputDecibels(-90), null, "reject a dB value in the RMS field");
+  assert.equal(api.inputDecibels(NaN), null);
+  const health = new api.RealtimeHealthWindow();
+  health.push(0, 0, 0);
+  assert.deepEqual(health.push(250, 1, 180), { recentDroppedBlocks: 1, recentUnderrunMs: 180 });
+  assert.deepEqual(health.push(2500, 1, 180), { recentDroppedBlocks: 0, recentUnderrunMs: 0 }, "historical gaps must expire from health");
+  assert.deepEqual(health.push(2750, 0, 0), { recentDroppedBlocks: 0, recentUnderrunMs: 0 }, "new-session counters reset health");
   let Playback;
   const reports = [];
   vm.runInNewContext(api.PLAYBACK_WORKLET, {
