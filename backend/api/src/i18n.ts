@@ -24,65 +24,20 @@ export const SUPPORTED_LANGUAGES = [
 
 // Native display names for locales in Applio settings
 export const LANGUAGE_DISPLAY_NAMES: Record<string, string> = {
-  af_AF: "Afrikaans",
-  am_AM: "አማርኛ",
   ar_AR: "العربية",
-  az_AZ: "Azərbaycan",
-  ba_BA: "Башҡортса",
-  be_BE: "Беларуская",
-  bn_BN: "বাংলা",
-  bs_BS: "Bosanski",
-  ca_CA: "Català",
-  ceb_CEB: "Cebuano",
-  cs_CS: "Čeština",
   de_DE: "Deutsch",
-  el_EL: "Ελληνικά",
   en_US: "English",
   es_ES: "Español",
-  eu_EU: "Euskara",
-  fa_FA: "فارسی",
-  fj_FJ: "Na Vosa Vakaviti",
   fr_FR: "Français",
-  ga_GA: "Gaeilge",
-  gu_GU: "ગુજરાતી",
-  he_HE: "עברית",
   hi_IN: "हिन्दी",
-  hr_HR: "Hrvatski",
-  ht_HT: "Kreyòl Ayisyen",
-  hu_HU: "Magyar",
   id_ID: "Bahasa Indonesia",
   it_IT: "Italiano",
   ja_JA: "日本語",
-  jv_JV: "Basa Jawa",
   ko_KO: "한국어",
-  lt_LT: "Lietuvių",
-  lv_LV: "Latviešu",
-  mg_MG: "Malagasy",
-  ml_IN: "മലയാളം",
-  mr_MR: "मराठी",
-  ms_MS: "Bahasa Melayu",
-  mt_MT: "Malti",
-  nl_NL: "Nederlands",
-  otq_OTQ: "Hñähñu",
-  pa_PA: "ਪੰਜਾਬੀ",
-  pl_PL: "Polski",
   pt_BR: "Português (Brasil)",
-  pt_PT: "Português (Portugal)",
-  ro_RO: "Română",
   ru_RU: "Русский",
-  sk_SK: "Slovenčina",
-  sm_SM: "Gagana Sāmoa",
-  sr_RS: "Српски",
-  sw_SW: "Kiswahili",
-  ta_IN: "தமிழ்",
-  te_TE: "తెలుగు",
-  th_TH: "ไทย",
-  to_TO: "Lea faka-Tonga",
   tr_TR: "Türkçe",
-  uk_UK: "Українська",
-  ur_UR: "اردو",
   vi_VI: "Tiếng Việt",
-  wu_WU: "吴语",
   zh_CN: "简体中文",
 };
 
@@ -117,14 +72,14 @@ export function detectSystemLocale(): string {
   if (cachedSystemLocale) return cachedSystemLocale;
 
   // 1. Explicit environment variable (injected by Electron or launcher)
-  if (process.env.APPLIO_LOCALE && process.env.APPLIO_LOCALE.trim()) {
+  if (process.env.APPLIO_LOCALE?.trim()) {
     cachedSystemLocale = process.env.APPLIO_LOCALE.trim();
     return cachedSystemLocale;
   }
 
   // 2. Standard POSIX environment variables (macOS / Linux)
   const envLocale = process.env.LC_ALL || process.env.LC_MESSAGES || process.env.LANG || process.env.LANGUAGE;
-  if (envLocale && envLocale.trim()) {
+  if (envLocale?.trim()) {
     cachedSystemLocale = envLocale.trim();
     return cachedSystemLocale;
   }
@@ -234,9 +189,8 @@ export function loadLanguageDictionary(code: string): { code: string; dict: Reco
     file = path.join(dir, "en_US.json");
   }
 
-  if (dictCache.has(resolvedCode)) {
-    return { code: resolvedCode, dict: dictCache.get(resolvedCode)! };
-  }
+  const cached = dictCache.get(resolvedCode);
+  if (cached) return { code: resolvedCode, dict: cached };
 
   let dict: Record<string, string> = {};
   try {

@@ -3,10 +3,9 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 
-// Minimal Gradio I18nAuto parity: the API resolves the active language
-// (settings override, else OS locale) and serves its dictionary from
-// assets/i18n/languages/*.json. t(key) falls back to the key itself,
-// which is English by convention — exactly like i18n("...") in app.py.
+// The API resolves the active language from settings or the OS locale and
+// serves desktop dictionaries from assets/i18n/languages/*.json.
+// Missing keys fall back to English.
 export type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
 function interpolate(text: string, vars?: Record<string, string | number>): string {
