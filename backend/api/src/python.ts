@@ -596,8 +596,8 @@ export function getPythonGuiBin(): string {
 }
 
 // Base environment for every spawned Python process. On Apple Silicon,
-// PyTorch MPS needs fallback enabled and the memory high-watermark
-// disabled, otherwise inference crashes on unsupported ops. ??= respects
+// PyTorch MPS needs CPU fallback for unsupported operators. Retain the
+// default memory safety limit. ??= respects
 // values the user already exported.
 //
 // PYTHONUNBUFFERED is critical: piped stdout is block-buffered by default,
@@ -623,7 +623,6 @@ export function pythonEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv
   env.PYTHONUNBUFFERED ??= "1";
   if (process.platform === "darwin") {
     env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
-    env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
     env.OMP_NUM_THREADS ??= "1";
   } else if (process.platform === "win32") {
     if (process.env.HIP_VISIBLE_DEVICES) env.HIP_VISIBLE_DEVICES = process.env.HIP_VISIBLE_DEVICES;

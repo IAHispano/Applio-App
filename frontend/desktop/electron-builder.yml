@@ -120,7 +120,7 @@ nsis:
   uninstallerIcon: ../../assets/ICON.ico
   installerHeaderIcon: ../../assets/ICON.ico
   runAfterFinish: true
-  deleteAppDataOnUninstall: true
+  deleteAppDataOnUninstall: false
   include: installer.nsh
 
 mac:

@@ -16,7 +16,8 @@ import {
   shell,
   Tray,
 } from "electron";
-import { autoUpdater, type UpdateInfo } from "electron-updater";
+import { NsisUpdater, autoUpdater as platformUpdater, type UpdateInfo } from "electron-updater";
+import { copyLegacyUserData, prepareInstallationStorage } from "./local-storage";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
 import { waitFor } from "./startup";
 import {
@@ -36,6 +37,52 @@ import {
 app.setName("Applio");
 if (process.platform === "win32") app.setAppUserModelId("Applio");
 
+const localStorage =
+  app.isPackaged && process.platform === "win32" ? prepareInstallationStorage(process.execPath) : null;
+if (localStorage) {
+  copyLegacyUserData(app.getPath("userData"), process.execPath);
+  app.setPath("userData", localStorage.userData);
+  app.setPath("sessionData", localStorage.session);
+  app.setPath("temp", localStorage.temp);
+  app.setPath("crashDumps", localStorage.crashDumps);
+  app.setAppLogsPath(path.join(localStorage.userData, "app-logs"));
+  Object.assign(process.env, {
+    APPLIO_LOCAL_STORAGE: "1",
+    APPLIO_CONFIG_DIR: localStorage.userData,
+    TEMP: localStorage.temp,
+    TMP: localStorage.temp,
+    XDG_CACHE_HOME: localStorage.cache,
+    HF_HOME: path.join(localStorage.cache, "huggingface"),
+    TORCH_HOME: path.join(localStorage.cache, "torch"),
+    UV_CACHE_DIR: path.join(localStorage.cache, "uv"),
+    UV_PYTHON_INSTALL_DIR: path.join(localStorage.userData, "python"),
+    UV_INSTALL_DIR: path.join(localStorage.userData, "tools"),
+    UV_UNMANAGED_INSTALL: path.join(localStorage.userData, "tools"),
+    UV_PYTHON_BIN_DIR: path.join(localStorage.userData, "tools"),
+    UV_TOOL_DIR: path.join(localStorage.userData, "uv-tools"),
+    UV_TOOL_BIN_DIR: path.join(localStorage.userData, "tools"),
+    UV_NO_MODIFY_PATH: "1",
+    UV_PYTHON_PREFERENCE: "only-managed",
+    PIP_CACHE_DIR: path.join(localStorage.cache, "pip"),
+    NUMBA_CACHE_DIR: path.join(localStorage.cache, "numba"),
+    MPLCONFIGDIR: path.join(localStorage.cache, "matplotlib"),
+    LIBROSA_CACHE_DIR: path.join(localStorage.cache, "librosa"),
+    TORCHINDUCTOR_CACHE_DIR: path.join(localStorage.cache, "torchinductor"),
+    TRITON_CACHE_DIR: path.join(localStorage.cache, "triton"),
+  });
+  process.env.PATH = `${process.env.UV_INSTALL_DIR}${path.delimiter}${process.env.PATH || ""}`;
+}
+
+class InstallationUpdater extends NsisUpdater {
+  constructor(cache: string) {
+    super();
+    // Keep Electron's HTTP executor; customize only the adapter's cache root.
+    Object.defineProperty(this.app, "baseCachePath", { get: () => cache });
+    this.installDirectory = path.dirname(process.execPath);
+  }
+}
+const autoUpdater = localStorage ? new InstallationUpdater(localStorage.cache) : platformUpdater;
+
 // Realtime can stream from a hidden/minimized window (tray start): audio
 // playback and capture must not require a visible page or click gesture.
 app.commandLine.appendSwitch("autoplay-policy", "no-user-gesture-required");
@@ -46,13 +93,12 @@ try {
   /* non-fatal */
 }
 
-// PyTorch on Apple Silicon needs MPS fallback + uncapped memory pressure
-// handling, otherwise inference crashes on unsupported ops. Set early so
+// PyTorch on Apple Silicon needs MPS fallback for unsupported operators. Keep PyTorch’s memory
+// safety limit and respect user-provided values. Set early so
 // every child process (API, engine, setup) inherits it. ??= respects
 // user-provided values.
 if (process.platform === "darwin") {
   process.env.PYTORCH_ENABLE_MPS_FALLBACK ??= "1";
-  process.env.PYTORCH_MPS_HIGH_WATERMARK_RATIO ??= "0.0";
   // Restrict OpenMP to 1 thread to avoid FAISS crashes on Apple Silicon / macOS
   process.env.OMP_NUM_THREADS ??= "1";
 
@@ -101,7 +147,7 @@ function setupWindowsAmdRocmEnv(): void {
     candidatesVenv.push(path.join(process.env.APPLIO_ROOT, ".venv"));
   }
   try {
-    const dataDir = path.join(app.getPath("appData"), "Applio", "data");
+    const dataDir = localStorage?.runtime || path.join(app.getPath("userData"), "data");
     candidatesVenv.push(path.join(dataDir, ".venv"));
   } catch {
     /* app not ready yet */
@@ -286,7 +332,7 @@ function repoRoot(): string {
 function dataRoot(): string {
   if (isDev) return repoRoot();
   try {
-    const dir = path.join(app.getPath("userData"), "data");
+    const dir = localStorage?.runtime || path.join(app.getPath("userData"), "data");
     fs.mkdirSync(dir, { recursive: true });
     return dir;
   } catch {
@@ -1914,7 +1960,7 @@ if (!gotLock) {
   });
   // Required before any getPath('logs') call (throws otherwise).
   try {
-    app.setAppLogsPath();
+    app.setAppLogsPath(localStorage ? path.join(localStorage.userData, "app-logs") : undefined);
   } catch {
     /* launcherLogDir falls back to userData */
   }

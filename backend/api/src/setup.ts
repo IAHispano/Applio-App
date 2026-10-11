@@ -743,8 +743,12 @@ async function refreshUv(uvBin: string, job: Job): Promise<void> {
 }
 
 async function ensureUv(job: Job): Promise<string | null> {
-  const uvCandidates = ["uv", path.join(process.env.HOME || "", ".local", "bin", "uv")];
-  if (process.platform === "win32") {
+  const localOnly = process.env.APPLIO_LOCAL_STORAGE === "1";
+  const managedUv = path.join(process.env.UV_INSTALL_DIR || getRepoRoot(), "uv.exe");
+  const uvCandidates = localOnly
+    ? [managedUv]
+    : [managedUv, "uv", path.join(process.env.HOME || "", ".local", "bin", "uv")];
+  if (process.platform === "win32" && !localOnly) {
     const localApp = process.env.LOCALAPPDATA || "";
     const userProf = process.env.USERPROFILE || "";
     uvCandidates.push(
@@ -757,7 +761,7 @@ async function ensureUv(job: Job): Promise<string | null> {
   for (const c of uvCandidates) {
     if (path.isAbsolute(c) && !exists(c)) continue;
     if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
-      await refreshUv(c, job);
+      if (!localOnly) await refreshUv(c, job);
       return c;
     }
   }
@@ -772,13 +776,16 @@ async function ensureUv(job: Job): Promise<string | null> {
       ]);
       const localApp = process.env.LOCALAPPDATA || "";
       const userProf = process.env.USERPROFILE || "";
-      const freshCandidates = [
-        path.join(localApp, "uv", "uv.exe"),
-        path.join(userProf, ".cargo", "bin", "uv.exe"),
-        path.join(localApp, "Programs", "uv", "uv.exe"),
-        path.join(userProf, ".local", "bin", "uv.exe"),
-        "uv",
-      ];
+      const freshCandidates = localOnly
+        ? [managedUv]
+        : [
+            managedUv,
+            path.join(localApp, "uv", "uv.exe"),
+            path.join(userProf, ".cargo", "bin", "uv.exe"),
+            path.join(localApp, "Programs", "uv", "uv.exe"),
+            path.join(userProf, ".local", "bin", "uv.exe"),
+            "uv",
+          ];
       for (const c of freshCandidates) {
         if (path.isAbsolute(c) && !exists(c)) continue;
         if ((await runCmd(c, ["--version"], { timeoutMs: 15000 })).code === 0) {
@@ -793,6 +800,7 @@ async function ensureUv(job: Job): Promise<string | null> {
       appendLog(job, `uv powershell install note: ${e instanceof Error ? e.message : String(e)}`);
     }
 
+    if (process.env.APPLIO_LOCAL_STORAGE === "1") return null;
     try {
       appendLog(job, "Attempting uv install via winget…");
       await streamRun(job, "winget", [
@@ -844,6 +852,12 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
       } catch (uvErr) {
         appendLog(job, `uv note: ${uvErr instanceof Error ? uvErr.message : String(uvErr)}`);
       }
+    }
+
+    if (process.env.APPLIO_LOCAL_STORAGE === "1") {
+      throw new Error(
+        "Could not install Python in the selected Applio folder using uv. Check the setup log and retry; no system Python was installed.",
+      );
     }
 
     appendLog(job, "Installing Python 3.12 via winget (no admin needed)…");
