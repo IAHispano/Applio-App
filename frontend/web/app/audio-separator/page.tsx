@@ -125,7 +125,11 @@ export default function UvrPage() {
       gpus?: { id: string; name: string }[];
     }>("/api/train/gpus")
       .then((g) => {
-        if (g.devices && g.devices.length > 0) setGpuDevices(g.devices);
+        // The separator resolves a device as a CUDA index (uvr/separate.py sets
+        // CUDA_VISIBLE_DEVICES for a bare digit) and has no Metal path, so an
+        // MPS entry would be selectable here and silently run on CPU.
+        const usable = (d: GpuDevice) => (d as { kind?: string }).kind !== "mps";
+        if (g.devices && g.devices.length > 0) setGpuDevices(g.devices.filter(usable));
         else if (g.gpus && g.gpus.length > 0) {
           setGpuDevices(
             g.gpus
