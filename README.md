@@ -24,14 +24,6 @@
   <a href="https://github.com/IAHispano/Applio-Plugins" target="_blank">🛒 Plugins</a>
   •
   <a href="https://huggingface.co/IAHispano/Applio/tree/main/Compiled" target="_blank">📦 Compiled</a>
-  •
-  <a href="https://applio.org/playground" target="_blank">🎮 Playground</a>
-  •
-  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio.ipynb" target="_blank">🔎 Google Colab</a>
-  •
-  <a href="https://github.com/IAHispano/Applio-app/blob/main/assets/Applio_Kaggle.ipynb" target="_blank">🦅 Kaggle</a>
-  •
-  <a href="https://colab.research.google.com/github/IAHispano/Applio-app/blob/main/assets/Applio_NoUI.ipynb" target="_blank">💻 Colab (No UI)</a>
 </p>
 
 <p align="center">
@@ -47,12 +39,6 @@ Applio App is a voice conversion studio focused on simplicity, quality, and perf
 
 ## Getting Started
 
-### Free Cloud Runtimes (Google Colab & Kaggle)
-
-Run Applio online for free using cloud GPUs without installing anything locally:
-- **[Google Colab](./assets/Applio.ipynb)**: One-click setup with Nvidia T4 GPU, persistent Google Drive model synchronization, and free automatic Cloudflare tunneling (no account or token required).
-- **[Kaggle Notebook](./assets/Applio_Kaggle.ipynb)**: Free T4 x2 / P100 GPU with automatic Cloudflare tunneling (ensure *Settings ➔ Internet: ON* in Kaggle notebook settings).
-
 ### Recommended: desktop installer
 
 1. Download the installer for your OS from the [releases page](https://github.com/IAHispano/Applio-app/releases) (`Applio-<version>-Windows-Setup.exe`, `Applio-<version>-macOS.dmg`, or `Applio-<version>-Linux.AppImage` / `.deb`) and run it.
@@ -67,9 +53,19 @@ In **Settings → Disk & Cache Storage → Logs & Models Folder**, click **Choos
 
 Applio automatically moves the existing folder on restart, including across drives, and updates training file lists to the new paths. It verifies the copied files before removing the original folder to free disk space. Existing destination files are preserved; conflicting files stop the move and leave the original folder in use.
 
+### Batch inference
+
+The batch tab offers one model with multiple files, multiple models with one file, or multiple models with multiple files. Each model uses its matching index. Multi-model runs save results in separate model folders.
+
 ### Realtime latency
 
 Realtime capture begins after the model is ready. Extra conversion context provides past audio history without imposing a startup silence period. The realtime status shows processing time and request round-trip time separately; microphone capture, playback, and audio-device buffering also contribute to the delay you hear.
+
+Automatic chunks retain at least 100 ms of speech context and include processing headroom. The optional FP16 HiFi-GAN decoder applies mixed precision on CUDA; its speedup depends on the GPU and model. Voice Focus c20/c50/c100 cleans microphone audio locally and downloads model assets from AWS when enabled. Realtime settings apply automatically while streaming, including Voice Focus and audio device changes. Model, predictor, and embedder changes may briefly pause audio while loading, without restarting the service. VAD combines speech classification with voiced periodicity so sustained vowels remain audible.
+
+### System tray
+
+The tray groups controls into Realtime, Studio, Window, and Folders. Realtime shows the engine and audio connection state, selected model, processing time, and round-trip time. Start or stop streaming, mute the microphone, or toggle local monitoring from its submenu. Window controls hide Applio or keep it above other windows; folder shortcuts open models, audio outputs, application logs, and preferences. Stop streaming before using Studio shortcuts to switch pages. Tray labels follow the app language.
 
 
 > [!WARNING]
@@ -156,7 +152,7 @@ Preferences are stored separately from the app installation:
 - macOS: `~/Library/Application Support/Applio/config.json`
 - Linux: `$XDG_CONFIG_HOME/Applio/config.json` (defaults to `~/.config/Applio/config.json`)
 
-Desktop, web/API, and Python commands use the same settings. For a separate profile or a persistent cloud/container volume, set `APPLIO_CONFIG_DIR` to your preferred directory before launching Applio.
+Desktop, web/API, and Python commands use the same settings. For a separate profile, set `APPLIO_CONFIG_DIR` to your preferred directory before launching Applio.
 
 `assets/config_template.json` contains shipped defaults. Missing settings are filled from the current template. On first use, existing `assets/config.json` preferences are migrated if the per-user file does not exist; an existing per-user file is never replaced by migration. Only the template belongs in Git or release packages. Settings writes replace the file atomically, and invalid JSON is preserved rather than silently reset.
 
@@ -171,7 +167,9 @@ Desktop, web/API, and Python commands use the same settings. For a separate prof
 | `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `frontend/desktop/dist-installers/`) |
 | `pnpm typecheck` | TypeScript checks across all packages |
 | `pnpm backend:init` / `backend:check` | Initialize or verify the pinned shared engine |
-| `pnpm reliability:check` | Check job recovery, cancellation, scheduling, audio queues, and download recovery |
+| `pnpm backend:check:dev` | Verify and fingerprint local engine edits for development |
+| `pnpm i18n:check` | Check desktop translation coverage and placeholders |
+| `pnpm reliability:check` | Check job recovery, cancellation, scheduling, batch modes, Voice Focus, tray controls, and translations |
 | `pnpm runtime:check` | Verify startup of the built API and frontend |
 | `pnpm release:check` | Check reliability and startup of the packaged app before uploading release artifacts |
 | `pnpm format` | Format/lint-fix the frontend and API with Biome |
@@ -216,7 +214,6 @@ By using the official version of Applio, you accept full responsibility for comp
 
 Applio is made possible thanks to these projects and their references:
 
-- [gradio-screen-recorder](https://huggingface.co/spaces/gstaff/gradio-screen-recorder) by gstaff
 - [rvc-cli](https://github.com/blaisewf/rvc-cli) by blaisewf
 
 ### Contributors
