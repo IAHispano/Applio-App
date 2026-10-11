@@ -353,7 +353,15 @@ export default function ConversionParameters({
       {/* Collapsible Accordions: Advanced Tuning, Formant, Audio FX */}
       <div className="space-y-3 pt-2">
         {/* Advanced Pitch & Tuning Accordion */}
-        <Disclosure title={t("Advanced Pitch & Audio Cleanup")} icon={<Activity size={15} />}>
+        <Disclosure
+          title={t("Advanced Pitch & Audio Cleanup")}
+          icon={<Activity size={15} />}
+          description={
+            <>
+              {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
+            </>
+          }
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <ToggleField
               id={`${idPrefix}-split-audio`}
@@ -429,7 +437,11 @@ export default function ConversionParameters({
         </Disclosure>
 
         {/* Formant Shifting Accordion */}
-        <Disclosure title={t("Formant Shifting")} icon={<Sparkles size={15} />}>
+        <Disclosure
+          title={t("Formant Shifting")}
+          icon={<Sparkles size={15} />}
+          description={t(SETTING_HELP.formant)}
+        >
           <ToggleField
             id={`${idPrefix}-formant-shifting`}
             label={t("Enable Formant Shifting")}

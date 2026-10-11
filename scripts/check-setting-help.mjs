@@ -19,7 +19,7 @@ function scan(folder) {
       function visit(node) {
         if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {
           const name = node.tagName.getText(source);
-          if (["SliderField", "ToggleField", "CustomSelect"].includes(name)) {
+          if (["SliderField", "ToggleField", "CustomSelect", "Disclosure"].includes(name)) {
             checked++;
             const description = node.attributes.properties.find(a => ts.isJsxAttribute(a) && a.name.getText(source) === "description");
             if (!description?.initializer) {

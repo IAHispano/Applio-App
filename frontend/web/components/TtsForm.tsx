@@ -443,7 +443,15 @@ export default function TtsForm() {
             )}
           </div>
 
-          <Disclosure title={t("Advanced Settings")} icon={<Sliders size={15} />}>
+          <Disclosure
+            title={t("Advanced Settings")}
+            icon={<Sliders size={15} />}
+            description={
+              <>
+                {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
+              </>
+            }
+          >
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <ToggleField
                 label={t("Split Audio")}
