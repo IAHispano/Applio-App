@@ -28,10 +28,8 @@ export class RealtimeProcessManager {
     const proc = this.spawn(this.graphsDisabled);
     this.proc = proc;
     this.startedAt = new Date().toISOString();
-    proc.stdout?.on("data", (data: Buffer) => this.append(data.toString().trim().slice(0, 500)));
-    proc.stderr?.on("data", (data: Buffer) =>
-      this.append(`[stderr] ${data.toString().trim().slice(0, 500)}`),
-    );
+    proc.stdout?.on("data", (data: Buffer) => this.append(data.toString()));
+    proc.stderr?.on("data", (data: Buffer) => this.append(`[stderr] ${data.toString()}`));
     proc.on("error", (error) => {
       this.append(`spawn error: ${String(error)}`);
       if (this.proc === proc) this.proc = null;

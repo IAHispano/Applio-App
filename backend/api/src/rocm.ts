@@ -783,6 +783,7 @@ export async function installAmdRocm(venvPy: string, job?: Job): Promise<void> {
         "torch",
         "torchaudio",
         "torchvision",
+        `amd-torchvision-device-${gfxTarget}`,
         "onnxruntime-gpu",
         "nvidia-cublas-cu12",
         "nvidia-cuda-runtime-cu12",
@@ -799,95 +800,30 @@ export async function installAmdRocm(venvPy: string, job?: Job): Promise<void> {
   // 2. Install native ROCm PyTorch packages
   const uvBin = findUvBin();
   const torchPkg = `torch[device-${gfxTarget}]`;
-  const torchvisionPkg = `torchvision[device-${gfxTarget}]`;
-  log(`Installing ${torchPkg}, ${torchvisionPkg}, and torchaudio from AMD ROCm index…`);
-
+  // RVC is audio-only. Optional torchvision ROCm wheels can fail to
+  // register torchvision::nms and prevent Transformers from loading HuBERT.
+  log(`Installing ${torchPkg} and torchaudio from AMD ROCm index…`);
   let installed = false;
   if (uvBin) {
     try {
-      log("Installing via uv…");
       await spawnCommand(
         uvBin,
-        [
-          "pip",
-          "install",
-          "--python",
-          venvPy,
-          "--index-url",
-          indexUrl,
-          torchPkg,
-          torchvisionPkg,
-          "torchaudio",
-        ],
+        ["pip", "install", "--python", venvPy, "--index-url", indexUrl, torchPkg, "torchaudio"],
         root,
         job,
       );
       installed = true;
-    } catch (uvErr) {
-      log(`uv install with ${torchvisionPkg} failed (${uvErr}); trying without torchvision device tag…`);
-      try {
-        await spawnCommand(
-          uvBin,
-          [
-            "pip",
-            "install",
-            "--python",
-            venvPy,
-            "--index-url",
-            indexUrl,
-            torchPkg,
-            "torchvision",
-            "torchaudio",
-          ],
-          root,
-          job,
-        );
-        installed = true;
-      } catch (uvFallbackErr) {
-        log(`uv fallback failed (${uvFallbackErr}); falling back to pip…`);
-      }
+    } catch (error) {
+      log(`uv install failed (${error}); falling back to pip…`);
     }
   }
-
   if (!installed) {
-    try {
-      await spawnCommand(
-        venvPy,
-        [
-          "-m",
-          "pip",
-          "install",
-          "--no-cache-dir",
-          "--index-url",
-          indexUrl,
-          torchPkg,
-          torchvisionPkg,
-          "torchaudio",
-        ],
-        root,
-        job,
-      );
-    } catch (pipErr) {
-      log(
-        `pip install with ${torchvisionPkg} failed (${pipErr}); trying fallback without torchvision device tag…`,
-      );
-      await spawnCommand(
-        venvPy,
-        [
-          "-m",
-          "pip",
-          "install",
-          "--no-cache-dir",
-          "--index-url",
-          indexUrl,
-          torchPkg,
-          "torchvision",
-          "torchaudio",
-        ],
-        root,
-        job,
-      );
-    }
+    await spawnCommand(
+      venvPy,
+      ["-m", "pip", "install", "--no-cache-dir", "--index-url", indexUrl, torchPkg, "torchaudio"],
+      root,
+      job,
+    );
   }
 
   // 3. Mark ROCm as installed
