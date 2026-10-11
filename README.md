@@ -1,223 +1,96 @@
-<h1 align="center">
-  <a href="https://applio.org" target="_blank"><img src="https://github.com/IAHispano/Applio/assets/133521603/78e975d8-b07f-47ba-ab23-5a31592f322a" alt="Applio"></a>
-</h1>
+# Applio App
 
-<p align="center">
-    <img alt="Contributors" src="https://img.shields.io/github/contributors/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
-    <img alt="Release" src="https://img.shields.io/github/v/release/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
-    <img alt="Stars" src="https://img.shields.io/github/stars/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
-    <img alt="Fork" src="https://img.shields.io/github/forks/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
-    <img alt="Issues" src="https://img.shields.io/github/issues/IAHispano/Applio-app?style=for-the-badge&color=FFFFFF" />
-</p>
+A desktop studio for voice conversion, realtime voice changing, speech synthesis, and model training.
 
-<p align="center">A desktop-first, high-quality voice conversion studio built on Applio — convert voices, train models, and synthesize speech from one app.</p>
+[Download](https://github.com/IAHispano/Applio-app/releases) · [Documentation](https://docs.applio.org) · [Discord](https://discord.gg/wY7gmqTyEV) · [Support development](https://ko-fi.com/iahispano)
 
-<p align="center">
-  <a href="https://applio.org" target="_blank">🌐 Website</a>
-  •
-  <a href="https://docs.applio.org" target="_blank">📚 Documentation</a>
-  •
-  <a href="https://discord.gg/wY7gmqTyEV" target="_blank">☎️ Discord</a>
-</p>
+[![Applio walkthrough](assets/demo.gif)](assets/demo.mp4?raw=true)
 
-<p align="center">
-  <a href="https://github.com/IAHispano/Applio-Plugins" target="_blank">🛒 Plugins</a>
-  •
-  <a href="https://huggingface.co/IAHispano/Applio/tree/main/Compiled" target="_blank">📦 Compiled</a>
-</p>
+40-second captioned tour, without audio: [1080p video](assets/demo.mp4?raw=true) · [WebM](assets/demo.webm?raw=true) · [Preview](assets/demo-poster.png)
 
-<p align="center">
-  <img src="assets/demo.gif" alt="Applio App Showcase" width="100%" style="border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);">
-</p>
-<p align="center">
-  <em>🎬 Applio Studio walkthrough showcase (<a href="assets/demo.mp4?raw=true">Watch MP4</a> • <a href="assets/demo.webm?raw=true">WebM</a>)</em>
-</p>
+## Install
 
-## Introduction
+1. Download the Windows installer, macOS DMG for your architecture, or Linux AppImage/DEB from [Releases](https://github.com/IAHispano/Applio-app/releases).
+2. Open Applio and select **Install / Repair** on the setup screen. Initial setup needs internet access to download dependencies and model weights.
+3. Add a voice model in **Models**, then choose **Inference** to convert recordings or **Realtime** to use your microphone.
 
-Applio App is a voice conversion studio focused on simplicity, quality, and performance. Whether you're an artist, developer, or researcher, it gives you a single desktop app for high-quality voice transformations, model training, and speech synthesis — with a plugin system for extending it to your own projects.
+### Windows storage and updates
 
-## Getting Started
+Choose a writable installation folder, such as `D:\Applio`. Packaged Windows builds keep app-owned preferences, models, logs, audio, Python, and caches inside that folder’s `data` directory. Updates replace application files and preserve `data` and any legacy `logs` folder. Uninstalling also leaves these folders for you to review and remove yourself.
 
-### Recommended: desktop installer
+When upgrading from an AppData-based version, Applio copies models, audio, and preferences into local storage without deleting the originals. Setup installs a fresh local Python environment rather than moving the old virtualenv. Explicitly selected external model folders remain in use. Shared operating-system prerequisites, such as Microsoft VC++ runtime, remain system-managed.
 
-1. Download the installer for your OS from the [releases page](https://github.com/IAHispano/Applio-app/releases) (`Applio-<version>-Windows-Setup.exe`, `Applio-<version>-macOS.dmg`, or `Applio-<version>-Linux.AppImage` / `.deb`) and run it.
-2. Launch **Applio**. On first launch the setup screen checks every dependency — press **Install / Repair** and wait.
-3. Every later launch re-runs the checks, so a broken environment is caught before you hit Convert.
+**Settings → Disk & Cache Storage → Logs & Models Folder** lets you choose another model/training folder. Save and restart to apply it. Applio verifies moved files before removing the originals; conflicting destination files stop the move.
 
-Setup automatically downloads the default HiFi-GAN and RefineGAN training pretrains. With **Use pretrained model** enabled, training also downloads a missing pair for the selected vocoder and sample rate before starting. A failed download stops the job with an error; training from scratch requires explicitly disabling this option.
+macOS and Linux use their normal per-user app folders because application bundles and AppImage mounts are unsuitable for writable runtime data.
 
-### Store models and training logs on another drive
+### GPU support
 
-In **Settings → Disk & Cache Storage → Logs & Models Folder**, click **Choose Folder** to select a location on any drive, then **Save Folder** and close and reopen Applio. Downloaded models, training data, checkpoints, and TensorBoard logs use this folder. Click **Use Default**, then save, to restore the default location. In a browser, enter the folder path manually.
+- **NVIDIA:** setup chooses the appropriate PyTorch CUDA runtime.
+- **AMD on Windows:** setup detects the GPU architecture and installs native ROCm PyTorch and torchaudio from AMD’s repository. Availability depends on AMD’s wheels for your GPU. An incompatible optional torchvision installation no longer blocks HuBERT.
+- **Apple Silicon:** training and feature extraction can select **Apple Silicon GPU (MPS)**, with CPU fallback for unsupported operators. Inference and realtime currently use CPU on macOS; the training change does not enable MPS for those paths.
+- **CPU:** supported, with slower processing and training.
 
-Applio automatically moves the existing folder on restart, including across drives, and updates training file lists to the new paths. It verifies the copied files before removing the original folder to free disk space. Existing destination files are preserved; conflicting files stop the move and leave the original folder in use.
+macOS releases are not yet notarized. If Gatekeeper blocks the app, verify that it came from the official release page before removing its quarantine:
 
-### Batch inference
-
-The batch tab offers one model with multiple files, multiple models with one file, or multiple models with multiple files. Each model uses its matching index. Multi-model runs save results in separate model folders.
-
-### Realtime latency
-
-Realtime capture begins after the model is ready. Extra conversion context provides past audio history without imposing a startup silence period. The realtime status shows processing time and request round-trip time separately; microphone capture, playback, and audio-device buffering also contribute to the delay you hear.
-
-Automatic chunks retain at least 100 ms of speech context and include processing headroom. The optional FP16 HiFi-GAN decoder applies mixed precision on CUDA; its speedup depends on the GPU and model. Voice Focus c20/c50/c100 cleans microphone audio locally and downloads model assets from AWS when enabled. Realtime settings apply automatically while streaming, including Voice Focus and audio device changes. Model, predictor, and embedder changes may briefly pause audio while loading, without restarting the service. VAD combines speech classification with voiced periodicity so sustained vowels remain audible.
-
-### System tray
-
-The tray groups controls into Realtime, Studio, Window, and Folders. Realtime shows the engine and audio connection state, selected model, processing time, and round-trip time. Start or stop streaming, mute the microphone, or toggle local monitoring from its submenu. Window controls hide Applio or keep it above other windows; folder shortcuts open models, audio outputs, application logs, and preferences. Stop streaming before using Studio shortcuts to switch pages. Tray labels follow the app language.
-
-
-> [!WARNING]
-> **macOS first launch:** the app is not Apple-notarized yet, so Gatekeeper may claim Applio "is damaged".
-> It isn't — clear the download quarantine and open it again:
-> ```bash
-> xattr -cr /Applications/Applio.app
-> ```
-> On Apple Silicon the app runs via PyTorch MPS with CPU fallback enabled automatically.
-
-### AMD GPU Support (Windows - ROCm)
-
-Applio supports AMD GPUs on Windows out-of-the-box via native **AMD ROCm PyTorch**:
-
-1. **Launch Applio**: Open Applio. On first launch, setup automatically detects your AMD GPU architecture.
-2. **Automatic Configuration**: Press **Install / Repair** — Applio automatically downloads and installs native ROCm-accelerated PyTorch (`torch[device-<target>]`), torchaudio, and torchvision directly from AMD's official repository (`https://stable.repo.amd.com/rocm/whl-next/`).
-3. **Seamless Execution**: Runs natively without translation layers or lengthy pre-compilation delays.
-
-#### Supported AMD GPUs & Architectures
-
-| GPU Model / Family | GFX Target | Wheel Package | Architecture |
-| --- | --- | --- | --- |
-| AMD Radeon RX 9070 / XT | `gfx1201` | `torch[device-gfx1201]` | RDNA 4 (Navi 48) |
-| AMD Radeon RX 9060 / XT | `gfx1200` | `torch[device-gfx1200]` | RDNA 4 (Navi 44) |
-| AMD Radeon 820M iGPU | `gfx1153` | `torch[device-gfx1153]` | RDNA 3.5 (Krackan) |
-| AMD Ryzen AI 7 350 | `gfx1152` | `torch[device-gfx1152]` | RDNA 3.5 (Krackan Point) |
-| AMD Ryzen AI Max+ PRO 395 | `gfx1151` | `torch[device-gfx1151]` | RDNA 3.5 (Strix Halo) |
-| AMD Ryzen AI 9 HX 375 | `gfx1150` | `torch[device-gfx1150]` | RDNA 3.5 (Strix Point) |
-| AMD Ryzen 7 7840U / Phoenix | `gfx1103` | `torch[device-gfx1103]` | RDNA 3 (Phoenix / Hawk Point) |
-| AMD Radeon RX 7600 | `gfx1102` | `torch[device-gfx1102]` | RDNA 3 (Navi 33) |
-| AMD Radeon RX 7800 / 7700 XT | `gfx1101` | `torch[device-gfx1101]` | RDNA 3 (Navi 32) |
-| AMD Radeon RX 7900 XTX / XT | `gfx1100` | `torch[device-gfx1100]` | RDNA 3 (Navi 31) |
-| AMD Radeon RX 6900 / 6800 XT | `gfx1030` | `torch[device-gfx1030]` | RDNA 2 (Navi 21) |
-| AMD Radeon RX 6750 / 6700 XT | `gfx1031` | `torch[device-gfx1031]` | RDNA 2 (Navi 22) |
-| AMD Radeon RX 6600 XT | `gfx1032` | `torch[device-gfx1032]` | RDNA 2 (Navi 23) |
-| AMD Radeon RX 6500 XT | `gfx1034` | `torch[device-gfx1034]` | RDNA 2 (Navi 24) |
-| AMD Radeon 680M iGPU | `gfx1035` | `torch[device-gfx1035]` | RDNA 2 (Rembrandt) |
-| AMD Raphael iGPU | `gfx1036` | `torch[device-gfx1036]` | RDNA 2 (Raphael / Mendocino) |
-| AMD Radeon RX 5700 / XT | `gfx1010` | `torch[device-gfx1010]` | RDNA 1 (Navi 10) |
-
-
-
-
-### Developers (any OS)
-
-Source layout:
-
-```text
-frontend/web/      Web interface
-frontend/desktop/  Electron shell and installers
-backend/api/       App API and job orchestration
-backend/applio/    Pinned shared RVC engine
-uvr/              App-only audio separation
-tools/            App-only audio utilities
-assets/           Shared app resources
+```bash
+xattr -cr /Applications/Applio.app
 ```
 
-Prerequisites: Python 3.10–3.12, Node.js 22+, `pnpm@11`, ffmpeg.
+## Workflows
+
+- **Inference:** convert one recording, or use batch mode for one model with many files, many models with one file, or many models with many files. Multi-model outputs are separated into model folders.
+- **Realtime:** select a voice and audio devices, then start streaming. Settings apply while running; model or predictor changes may briefly pause audio while loading. Processing time and round-trip time help diagnose latency; device buffers also affect the delay you hear.
+- **Training:** preprocess a dataset, extract features, train, and build an index. Missing default pretrained weights download before training when enabled. Disable pretrained weights explicitly to train from scratch.
+- **Models and tools:** download and inspect models, blend checkpoints, synthesize speech, and separate audio. Separation installs optional dependencies when first used.
+- **Tray:** view realtime status, start/stop streaming, mute the microphone, toggle monitoring, and open app folders.
+
+Automatic realtime chunks retain speech context and processing headroom. FP16 decoding is optional and CUDA-only; its benefit depends on the hardware. Voice Focus c20/c50/c100 processes microphone audio locally and downloads assets from AWS when enabled. Settings include inline guidance.
+
+## Development
+
+Prerequisites: Git, Node.js 22+, pnpm 11, Python 3.12, and FFmpeg. The setup screen can create the Python environment.
 
 ```bash
 git clone --recurse-submodules https://github.com/IAHispano/Applio-App.git
 cd Applio-App
 pnpm install
-pnpm backend:init # also initializes the backend in existing checkouts
-pnpm dev          # API :8000 + web :3000 with hot reload
-# open http://localhost:3000/  (setup screen)
-
-pnpm desktop:dev  # full Electron shell instead of just the browser UI
+pnpm backend:init
+pnpm desktop:dev
 ```
 
-First run: open the app, press **Install / Repair** on the setup screen (creates `.venv`, installs torch + requirements, builds the UI).
+For browser development, use `pnpm dev` and open `http://localhost:3000`. The API listens on port 8000.
 
-RVC comes directly from the pinned Applio submodule. UVR stays in this app.
+```text
+frontend/web/      Interface
+frontend/desktop/  Electron shell and installers
+backend/api/       API, setup, and job orchestration
+backend/applio/    Standalone Applio engine (Git submodule)
+uvr/              Optional audio separation
+tools/            Audio utilities
+assets/           App resources and desktop translations
+```
 
-Audio separation installs its optional dependencies when first used, preserving the installed RVC runtime. Model weights stay in user storage rather than the app package.
+The engine remains a standalone repository. Commit engine changes inside `backend/applio`, then update the parent repository’s submodule pin. Development permits uncommitted engine edits; release builds require a committed, matching pin.
 
-Job history survives app restarts; interrupted work is marked so it can be started again. GPU jobs run one at a time, and realtime sessions hold new GPU work in the queue until stopped. Downloads recover from interrupted connections when the server supports resuming. Realtime shows processing time, estimated audio delay, queue depth, and dropped audio to help diagnose device and transport delays.
-
-### User settings
-
-Preferences are stored separately from the app installation:
-
-- Windows: `%APPDATA%\Applio\config.json`
-- macOS: `~/Library/Application Support/Applio/config.json`
-- Linux: `$XDG_CONFIG_HOME/Applio/config.json` (defaults to `~/.config/Applio/config.json`)
-
-Desktop, web/API, and Python commands use the same settings. For a separate profile, set `APPLIO_CONFIG_DIR` to your preferred directory before launching Applio.
-
-`assets/config_template.json` contains shipped defaults. Missing settings are filled from the current template. On first use, existing `assets/config.json` preferences are migrated if the per-user file does not exist; an existing per-user file is never replaced by migration. Only the template belongs in Git or release packages. Settings writes replace the file atomically, and invalid JSON is preserved rather than silently reset.
-
-### Scripts
-
-| Command | What it does |
+| Command | Purpose |
 | --- | --- |
-| `applio` / `pnpm cli` | Interactive Applio CLI & command suite |
-| `pnpm dev` | API + web with hot reload |
-| `pnpm desktop:dev` | API + web + Electron shell |
-| `pnpm build` | Production build of API + web |
-| `pnpm build:win` / `build:mac` / `build:linux` | Full build + platform installer (lands in `frontend/desktop/dist-installers/`) |
-| `pnpm typecheck` | TypeScript checks across all packages |
-| `pnpm backend:init` / `backend:check` | Initialize or verify the pinned shared engine |
-| `pnpm backend:check:dev` | Verify and fingerprint local engine edits for development |
-| `pnpm i18n:check` | Check desktop translation coverage and placeholders |
-| `pnpm reliability:check` | Check job recovery, cancellation, scheduling, batch modes, Voice Focus, tray controls, and translations |
-| `pnpm runtime:check` | Verify startup of the built API and frontend |
-| `pnpm release:check` | Check reliability and startup of the packaged app before uploading release artifacts |
-| `pnpm format` | Format/lint-fix the frontend and API with Biome |
+| `pnpm dev` | API and browser UI with hot reload |
+| `pnpm desktop:dev` | API, UI, and Electron |
+| `pnpm build:all` | Build all three packages |
+| `pnpm build:win` / `build:mac` / `build:linux` | Build platform installers |
+| `pnpm typecheck` | Check TypeScript |
+| `pnpm reliability:check` | App regression and translation checks |
+| `pnpm i18n:check` | Verify desktop translations |
+| `pnpm runtime:check` | Check built API/frontend startup |
+| `pnpm release:check` | Check the packaged app before release |
+| `pnpm format` | Format and lint frontend/API code |
+| `pnpm cli --help` | Show terminal commands |
 
-### CLI Mode
+Installers are written to `frontend/desktop/dist-installers/`. Build macOS releases on macOS and Linux releases on Linux.
 
-You can run Applio directly from your terminal using the `applio` command:
+## License and responsible use
 
-```bash
-# Launch interactive terminal menu
-applio
+Application source is licensed under [MIT](LICENSE). Dependencies and downloaded model weights retain their own licenses. Use voices and recordings with appropriate rights and permissions, and follow the [Terms of Use](TERMS_OF_USE.md). For commercial-use questions, contact [support@applio.org](mailto:support@applio.org).
 
-# Or execute specific commands directly:
-applio infer --input-path input.wav --output-path out.wav --pth-path model.pth
-applio batch-infer --input-folder inputs/ --output-folder outputs/ --pth-path model.pth
-applio tts --tts-text "Hello world" --output-tts-path tts.wav
-applio uvr --input-path song.mp3 --output-dir stems/
-applio train --model-name my_voice
-applio download --model-link <url>
-applio web
-applio --help
-```
-
-
-## Terms of Use and Commercial Usage
-
-Using Applio responsibly is essential.
-
-- Users must respect copyrights, intellectual property, and privacy rights.
-- Applio is intended for lawful and ethical purposes, including personal, academic, and investigative projects.
-- Commercial usage is permitted, provided users adhere to legal and ethical guidelines, secure appropriate rights and permissions, and comply with the [MIT license](./LICENSE).
-
-The source code and model weights in this repository are licensed under the permissive [MIT license](./LICENSE), allowing modification, redistribution, and commercial use.
-
-However, if you choose to use this official version of Applio (as provided in this repository, without significant modification), you must also comply with our [Terms of Use](./TERMS_OF_USE.md). These terms apply to our integrations, configurations, and default project behavior, and are intended to ensure responsible and ethical use without limiting their use in any way.
-
-For commercial use, we recommend contacting us at [support@applio.org](mailto:support@applio.org) to ensure your usage aligns with ethical standards. All audio generated with Applio must comply with applicable copyright laws. If you find Applio helpful, consider supporting its development [through a donation](https://ko-fi.com/iahispano).
-
-By using the official version of Applio, you accept full responsibility for complying with both the MIT license and our Terms of Use. Applio and its contributors are not liable for misuse. For full legal details, see the [Terms of Use](./TERMS_OF_USE.md).
-
-## References
-
-Applio is made possible thanks to these projects and their references:
-
-- [rvc-cli](https://github.com/blaisewf/rvc-cli) by blaisewf
-
-### Contributors
-<a href="https://github.com/IAHispano/Applio-app/graphs/contributors" target="_blank">
-
-  <img src="https://contrib.rocks/image?repo=IAHispano/Applio-app" />
-</a>
+Built on [Applio](https://github.com/IAHispano/Applio) and [rvc-cli](https://github.com/blaisewf/rvc-cli). Thanks to our [contributors](https://github.com/IAHispano/Applio-app/graphs/contributors).
