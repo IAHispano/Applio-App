@@ -5,3 +5,4 @@ allowBuilds:
   electron: true
   esbuild: true
   "@biomejs/biome": true
+  protobufjs: false
