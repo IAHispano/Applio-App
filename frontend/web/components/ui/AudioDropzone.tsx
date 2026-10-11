@@ -6,6 +6,7 @@ import AudioWavePlayer from "@/components/AudioWavePlayer";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import Alert from "./Alert";
@@ -521,6 +522,7 @@ function AudioDropzoneInner({
                       }}
                       placeholder={t("Choose a sample audio…")}
                       className="w-full"
+                      description={t(SETTING_HELP.audioSource)}
                     >
                       <option value="">{t("Select an audio file…")}</option>
                       {localSampleAudios.map((s) => {
@@ -743,6 +745,7 @@ function AudioDropzoneInner({
                   }}
                   placeholder={t("Choose a sample audio…")}
                   className="w-full"
+                  description={t(SETTING_HELP.audioSource)}
                 >
                   <option value="">{t("Select an audio file…")}</option>
                   {localSampleAudios.map((s) => {

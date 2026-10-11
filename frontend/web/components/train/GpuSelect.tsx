@@ -4,7 +4,9 @@ import { Check, ChevronDown, Cpu } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 export interface GpuDevice {
   id: string; // "0", "1", ...
@@ -212,6 +214,7 @@ export default function GpuSelect({
         ref={triggerRef}
         type="button"
         id={id}
+        aria-describedby={`${id}-help`}
         disabled={disabled}
         onClick={() => (open ? handleClose() : handleOpen())}
         onKeyDown={handleKeyDown}
@@ -241,6 +244,7 @@ export default function GpuSelect({
           aria-hidden="true"
         />
       </button>
+      <SettingHelp text={t(SETTING_HELP.gpu)} controlId={id} />
 
       {/* Floating Dropdown Menu in Portal */}
       {mounted &&

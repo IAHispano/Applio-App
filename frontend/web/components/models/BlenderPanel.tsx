@@ -5,9 +5,11 @@ import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
 import { Alert, Badge, Button, Card, CardHeader, FileInput } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
+import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { usePersistentJobId } from "@/lib/useJob";
 
 export default function BlenderPanel() {
@@ -91,7 +93,9 @@ export default function BlenderPanel() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t("my-fusion")}
+                aria-describedby={`${"blend-model-name"}-help`}
               />
+              <SettingHelp text={t(SETTING_HELP.modelName)} controlId={"blend-model-name"} />
             </div>
             <div>
               <SliderField
@@ -102,6 +106,7 @@ export default function BlenderPanel() {
                 max={1}
                 step={0.05}
                 onChange={setRatio}
+                description={t(SETTING_HELP.blend)}
               />
             </div>
           </div>
@@ -116,6 +121,7 @@ export default function BlenderPanel() {
                   onChange={(e) => setP1(e.target.value)}
                   placeholder={t("Select Model 1…")}
                   className="w-full"
+                  description={t(SETTING_HELP.blendModel)}
                 >
                   <option value="">{t("Select Model 1…")}</option>
                   {models.map((m) => (
@@ -125,13 +131,17 @@ export default function BlenderPanel() {
                   ))}
                 </CustomSelect>
               ) : (
-                <input
-                  id="blend-model1-path"
-                  type="text"
-                  value={p1}
-                  onChange={(e) => setP1(e.target.value)}
-                  placeholder="logs/model1.pth"
-                />
+                <>
+                  <input
+                    id="blend-model1-path"
+                    type="text"
+                    value={p1}
+                    onChange={(e) => setP1(e.target.value)}
+                    placeholder="logs/model1.pth"
+                    aria-describedby={`${"blend-model1-path"}-help`}
+                  />
+                  <SettingHelp text={t(SETTING_HELP.blendModel)} controlId={"blend-model1-path"} />
+                </>
               )}
               <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 1 file")}
@@ -148,6 +158,7 @@ export default function BlenderPanel() {
                   onChange={(e) => setP2(e.target.value)}
                   placeholder={t("Select Model 2…")}
                   className="w-full"
+                  description={t(SETTING_HELP.blendModel)}
                 >
                   <option value="">{t("Select Model 2…")}</option>
                   {models.map((m) => (
@@ -157,13 +168,17 @@ export default function BlenderPanel() {
                   ))}
                 </CustomSelect>
               ) : (
-                <input
-                  id="blend-model2-path"
-                  type="text"
-                  value={p2}
-                  onChange={(e) => setP2(e.target.value)}
-                  placeholder="logs/model2.pth"
-                />
+                <>
+                  <input
+                    id="blend-model2-path"
+                    type="text"
+                    value={p2}
+                    onChange={(e) => setP2(e.target.value)}
+                    placeholder="logs/model2.pth"
+                    aria-describedby={`${"blend-model2-path"}-help`}
+                  />
+                  <SettingHelp text={t(SETTING_HELP.blendModel)} controlId={"blend-model2-path"} />
+                </>
               )}
               <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 2 file")}

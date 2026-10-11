@@ -118,7 +118,7 @@ function SliderFieldInner({
       <div className="flex items-center justify-between gap-2">
         <label
           htmlFor={id}
-          className="text-xs font-medium text-neutral-300 m-0 select-none cursor-pointer flex-1 truncate"
+          className="text-xs font-medium text-neutral-300 m-0 select-none cursor-pointer flex-1 min-w-0 leading-relaxed"
         >
           {label}
         </label>
@@ -137,6 +137,7 @@ function SliderFieldInner({
               onChange={handleInputChange}
               onBlur={handleInputBlur}
               onKeyDown={handleInputKeyDown}
+              style={{ width: 64, padding: "2px 6px" }}
               className="w-16 px-1.5 py-0.5 text-xs font-semibold text-center rounded-md bg-white/10 text-neutral-100 border border-white/15 hover:border-white/30 focus:outline-none transition-colors tabular-nums disabled:opacity-40"
             />
           </div>

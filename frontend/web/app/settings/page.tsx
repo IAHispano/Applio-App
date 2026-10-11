@@ -26,6 +26,7 @@ import {
 } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { applyTheme, fontCss, type ThemeFile } from "@/lib/theme";
 
 interface FontOption {
@@ -596,6 +597,7 @@ export default function SettingsPage() {
               set(["model_index_filter"], v);
               save({ model_index_filter: v });
             }}
+            description={t(SETTING_HELP.filterBox)}
           />
 
           <ToggleField
@@ -613,6 +615,7 @@ export default function SettingsPage() {
               set(["discord_presence"], v);
               save({ discord_presence: v });
             }}
+            description={t(SETTING_HELP.discord)}
           />
 
           <div className="max-w-md 2xl:max-w-lg pt-1">
@@ -632,6 +635,7 @@ export default function SettingsPage() {
                   setCfg({ ...cfg, lang: nextLang });
                   save({ lang: nextLang });
                 }}
+                description={t(SETTING_HELP.language)}
               >
                 <option value="">{t("Language automatically detected…")}</option>
                 {langs.map((l) => (
@@ -736,6 +740,7 @@ export default function SettingsPage() {
               onValueChange={handleSelectFont}
               className="w-64 max-w-full"
               options={fontOptions.map((o) => ({ value: o.id, label: o.id === "" ? t(o.label) : o.label }))}
+              description={t(SETTING_HELP.font)}
             />
           </div>
           <p
@@ -760,7 +765,11 @@ export default function SettingsPage() {
         />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
-          <FormField label={t("Model Author Name")} htmlFor="settings-model-author">
+          <FormField
+            label={t("Model Author Name")}
+            htmlFor="settings-model-author"
+            description={t(SETTING_HELP.author)}
+          >
             <input
               id="settings-model-author"
               type="text"
@@ -771,6 +780,7 @@ export default function SettingsPage() {
                 if (e.key === "Enter") (e.target as HTMLInputElement).blur();
               }}
               placeholder={t("None")}
+              aria-describedby={`${"settings-model-author"}-desc`}
             />
           </FormField>
           <FormField label={t("Precision")} htmlFor="settings-precision">
@@ -782,6 +792,7 @@ export default function SettingsPage() {
                 set(["precision"], v);
                 save({ precision: v });
               }}
+              description={t(SETTING_HELP.precision)}
             >
               {["fp32", "fp16", "bf16"].map((p) => (
                 <option key={p} value={p}>
@@ -817,6 +828,7 @@ export default function SettingsPage() {
               set(["rmvpe_high_register"], next);
               save({ rmvpe_high_register: next });
             }}
+            description={t(SETTING_HELP.highRegister)}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
@@ -834,6 +846,7 @@ export default function SettingsPage() {
                   set(["rmvpe_high_register"], next);
                   save({ rmvpe_high_register: next });
                 }}
+                description={t(SETTING_HELP.highMode)}
               >
                 <option value="true_pitch">true_pitch</option>
                 <option value="fold">fold</option>
@@ -857,6 +870,7 @@ export default function SettingsPage() {
                   set(["rmvpe_high_register"], next);
                   save({ rmvpe_high_register: next });
                 }}
+                description={t(SETTING_HELP.ceiling)}
               />
             </div>
           </div>
@@ -991,7 +1005,11 @@ export default function SettingsPage() {
         />
 
         <div className="space-y-3 pb-4 border-b border-white/5">
-          <FormField label={t("Logs & Models Folder")} htmlFor="settings-logs-dir">
+          <FormField
+            label={t("Logs & Models Folder")}
+            htmlFor="settings-logs-dir"
+            description={t(SETTING_HELP.storage)}
+          >
             <div className="flex flex-col sm:flex-row gap-2">
               <input
                 id="settings-logs-dir"

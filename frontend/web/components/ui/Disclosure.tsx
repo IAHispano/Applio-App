@@ -2,11 +2,12 @@
 
 import { ChevronDown } from "lucide-react";
 import type React from "react";
-import { useCallback } from "react";
+import { useCallback, useId } from "react";
 
 export interface DisclosureProps {
   /** Header title text */
   title: React.ReactNode;
+  description?: React.ReactNode;
   /** Optional icon displayed before the title */
   icon?: React.ReactNode;
   /** Collapsible content */
@@ -32,6 +33,7 @@ export interface DisclosureProps {
  */
 export default function Disclosure({
   title,
+  description,
   icon,
   children,
   open,
@@ -41,6 +43,7 @@ export default function Disclosure({
   summaryClassName = "",
   bodyClassName = "",
 }: DisclosureProps) {
+  const helpId = useId();
   // <details> has no `defaultOpen` attribute — apply the initial state imperatively.
   const initialOpenRef = useCallback(
     (el: HTMLDetailsElement | null) => {
@@ -59,11 +62,22 @@ export default function Disclosure({
       onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}
     >
       <summary
+        aria-describedby={description ? helpId : undefined}
         className={`px-4 py-3 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between select-none ${summaryClassName}`}
       >
         <span className="flex items-center gap-2 min-w-0">
           {icon}
-          <span className="truncate">{title}</span>
+          <span className="min-w-0">
+            <span className="block truncate">{title}</span>
+            {description && (
+              <span
+                id={helpId}
+                className="block mt-1 text-[11px] font-normal text-neutral-400 leading-relaxed"
+              >
+                {description}
+              </span>
+            )}
+          </span>
         </span>
         <ChevronDown
           size={16}

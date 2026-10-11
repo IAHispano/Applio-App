@@ -30,6 +30,7 @@ import {
   VoiceModelField,
 } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
+import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -38,6 +39,7 @@ import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/real
 import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { connectVoiceFocus, type VoiceFocusVariant } from "@/lib/voice-focus";
 import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "../../../desktop/src/tray-menu";
@@ -1245,6 +1247,7 @@ export default function RealtimePage() {
               value={inDev}
               onChange={(e) => setInDev(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.inputDevice)}
             >
               <option value="">{t("System default input")}</option>
               {inputs.map((d) => (
@@ -1261,6 +1264,7 @@ export default function RealtimePage() {
               value={outDev}
               onChange={(e) => setOutDev(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.outputDevice)}
             >
               <option value="">{t("System default output")}</option>
               {outputs.map((d) => (
@@ -1300,6 +1304,7 @@ export default function RealtimePage() {
                 setPitch(v);
                 if (streaming) changeConfigDebounced("f0_up_key", v);
               }}
+              description={t(SETTING_HELP.pitch)}
             />
           </div>
           <div>
@@ -1314,6 +1319,7 @@ export default function RealtimePage() {
                 setIndexRate(v);
                 if (streaming) changeConfigDebounced("index_rate", v);
               }}
+              description={t(SETTING_HELP.indexRate)}
             />
           </div>
           <div>
@@ -1328,6 +1334,7 @@ export default function RealtimePage() {
                 setProtect(v);
                 if (streaming) changeConfigDebounced("protect", v);
               }}
+              description={t(SETTING_HELP.protect)}
             />
           </div>
           <div>
@@ -1342,6 +1349,7 @@ export default function RealtimePage() {
                 setVolumeEnvelope(v);
                 if (streaming) changeConfigDebounced("volume_envelope", v);
               }}
+              description={t(SETTING_HELP.envelope)}
             />
           </div>
           {speakers.length > 1 && (
@@ -1355,6 +1363,7 @@ export default function RealtimePage() {
                   if (streaming) changeConfig("sid", Number(e.target.value));
                 }}
                 className="w-full mt-1"
+                description={t(SETTING_HELP.speaker)}
               >
                 {speakers.map((s) => (
                   <option key={s} value={String(s)}>
@@ -1386,48 +1395,62 @@ export default function RealtimePage() {
                 value={embedderCustom}
                 onChange={(e) => setEmbedderCustom(e.target.value)}
                 placeholder="rvc/models/embedders/embedders_custom/my-embedder"
+                aria-describedby={`${"rt-custom-embedder"}-help`}
               />
+              <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"rt-custom-embedder"} />
             </div>
           )}
         </div>
         <Disclosure title={t("Voice cleanup (autotune / proposed pitch / clean)")} icon={<Wand2 size={15} />}>
           <div className="row">
-            <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="rt-autotune"
-                type="checkbox"
-                checked={autotune}
-                onChange={(e) => {
-                  setAutotune(e.target.checked);
-                  if (streaming) changeConfig("autotune", e.target.checked);
-                }}
-              />{" "}
-              {t("Autotune")}
-            </label>
-            <label htmlFor="rt-proposed-pitch" className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="rt-proposed-pitch"
-                type="checkbox"
-                checked={proposedPitch}
-                onChange={(e) => {
-                  setProposedPitch(e.target.checked);
-                  if (streaming) changeConfig("proposed_pitch", e.target.checked);
-                }}
-              />{" "}
-              {t("Proposed Pitch")}
-            </label>
-            <label htmlFor="rt-clean-audio" className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="rt-clean-audio"
-                type="checkbox"
-                checked={cleanAudio}
-                onChange={(e) => {
-                  setCleanAudio(e.target.checked);
-                  if (streaming) changeConfig("clean_audio", e.target.checked);
-                }}
-              />{" "}
-              {t("Clean Audio")}
-            </label>
+            <div className="min-w-0 flex-1">
+              <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
+                <input
+                  id="rt-autotune"
+                  type="checkbox"
+                  checked={autotune}
+                  onChange={(e) => {
+                    setAutotune(e.target.checked);
+                    if (streaming) changeConfig("autotune", e.target.checked);
+                  }}
+                  aria-describedby={`${"rt-autotune"}-help`}
+                />{" "}
+                {t("Autotune")}
+              </label>
+              <SettingHelp text={t(SETTING_HELP.autotune)} controlId={"rt-autotune"} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <label htmlFor="rt-proposed-pitch" className="flex items-center gap-2 cursor-pointer">
+                <input
+                  id="rt-proposed-pitch"
+                  type="checkbox"
+                  checked={proposedPitch}
+                  onChange={(e) => {
+                    setProposedPitch(e.target.checked);
+                    if (streaming) changeConfig("proposed_pitch", e.target.checked);
+                  }}
+                  aria-describedby={`${"rt-proposed-pitch"}-help`}
+                />{" "}
+                {t("Proposed Pitch")}
+              </label>
+              <SettingHelp text={t(SETTING_HELP.proposed)} controlId={"rt-proposed-pitch"} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <label htmlFor="rt-clean-audio" className="flex items-center gap-2 cursor-pointer">
+                <input
+                  id="rt-clean-audio"
+                  type="checkbox"
+                  checked={cleanAudio}
+                  onChange={(e) => {
+                    setCleanAudio(e.target.checked);
+                    if (streaming) changeConfig("clean_audio", e.target.checked);
+                  }}
+                  aria-describedby={`${"rt-clean-audio"}-help`}
+                />{" "}
+                {t("Clean Audio")}
+              </label>
+              <SettingHelp text={t(SETTING_HELP.clean)} controlId={"rt-clean-audio"} />
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginTop: 8 }}>
             <div>
@@ -1442,6 +1465,7 @@ export default function RealtimePage() {
                   setAutotuneStrength(v);
                   if (streaming) changeConfigDebounced("autotune_strength", v);
                 }}
+                description={t(SETTING_HELP.autotuneStrength)}
               />
             </div>
             <div>
@@ -1457,6 +1481,7 @@ export default function RealtimePage() {
                   setProposedPitchThreshold(v);
                   if (streaming) changeConfigDebounced("proposed_pitch_threshold", v);
                 }}
+                description={t(SETTING_HELP.proposedThreshold)}
               />
             </div>
             <div>
@@ -1471,6 +1496,7 @@ export default function RealtimePage() {
                   setCleanStrength(v);
                   if (streaming) changeConfigDebounced("clean_strength", v);
                 }}
+                description={t(SETTING_HELP.cleanStrength)}
               />
             </div>
           </div>
@@ -1485,6 +1511,7 @@ export default function RealtimePage() {
                 setDecoderFp16(checked);
                 if (streaming) changeConfig("decoder_fp16", checked);
               }}
+              description={t(SETTING_HELP.fp16)}
             />
             <label htmlFor="rt-voice-focus" className="text-xs text-neutral-300">
               {t("Voice Focus")}
@@ -1499,6 +1526,7 @@ export default function RealtimePage() {
                 { value: "c50", label: "Voice Focus c50" },
                 { value: "c100", label: "Voice Focus c100" },
               ]}
+              description={t(SETTING_HELP.voiceFocus)}
             />
             <p className="text-xs text-neutral-400">
               {t(
@@ -1520,8 +1548,14 @@ export default function RealtimePage() {
                   setChunkMs(value);
                   setAutoChunk(false);
                 }}
+                description={t(SETTING_HELP.chunk)}
               />
-              <ToggleField label={t("Auto chunk size")} checked={autoChunk} onChange={setAutoChunk} />
+              <ToggleField
+                label={t("Auto chunk size")}
+                checked={autoChunk}
+                onChange={setAutoChunk}
+                description={t(SETTING_HELP.autoChunk)}
+              />
             </div>
             <div>
               <SliderField
@@ -1536,6 +1570,7 @@ export default function RealtimePage() {
                   setCrossfade(v);
                   if (streaming) changeConfigDebounced("cross_fade_overlap_size", v);
                 }}
+                description={t(SETTING_HELP.crossfade)}
               />
             </div>
             <div>
@@ -1551,6 +1586,7 @@ export default function RealtimePage() {
                   setExtraSize(v);
                   if (streaming) changeConfigDebounced("extra_convert_size", v);
                 }}
+                description={t(SETTING_HELP.context)}
               />
             </div>
             <div>
@@ -1566,6 +1602,7 @@ export default function RealtimePage() {
                   setSilent(v);
                   if (streaming) changeConfigDebounced("silent_threshold", v);
                 }}
+                description={t(SETTING_HELP.silence)}
               />
             </div>
             <div>
@@ -1581,6 +1618,7 @@ export default function RealtimePage() {
                   setInGain(v);
                   if (streaming) changeConfigDebounced("input_audio_gain", v);
                 }}
+                description={t(SETTING_HELP.inputGain)}
               />
             </div>
             <div>
@@ -1593,6 +1631,7 @@ export default function RealtimePage() {
                 step={1}
                 unit="%"
                 onChange={setOutGain}
+                description={t(SETTING_HELP.outputGain)}
               />
             </div>
           </div>
@@ -1605,6 +1644,7 @@ export default function RealtimePage() {
               if (streaming) changeConfig("vad_enabled", checked);
             }}
             className="mt-3"
+            description={t(SETTING_HELP.vad)}
           />
         </Disclosure>
         <Disclosure title={t("Monitor")} icon={<Headphones size={15} />}>
@@ -1659,6 +1699,7 @@ export default function RealtimePage() {
             setPostProcess(open);
             if (streaming) changeConfig("post_process", open);
           }}
+          description={t(SETTING_HELP.postProcess)}
         >
           {postProcess && (
             <div className="space-y-4 pt-2">
@@ -1672,9 +1713,12 @@ export default function RealtimePage() {
                       setReverb(e.target.checked);
                       if (streaming) changeConfig("reverb", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-reverb"}-help`}
+                    id="setting-realtime-reverb"
                   />
                   <span>{t("Reverb")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.reverb)} controlId={"setting-realtime-reverb"} />
                 {reverb && (
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <SliderField
@@ -1688,6 +1732,7 @@ export default function RealtimePage() {
                         setReverbRoomSize(v);
                         if (streaming) changeConfigDebounced("reverb_room_size", v, true);
                       }}
+                      description={t(SETTING_HELP.room)}
                     />
                     <SliderField
                       id="rt-reverb-damping"
@@ -1700,6 +1745,7 @@ export default function RealtimePage() {
                         setReverbDamping(v);
                         if (streaming) changeConfigDebounced("reverb_damping", v, true);
                       }}
+                      description={t(SETTING_HELP.damping)}
                     />
                     <SliderField
                       id="rt-reverb-wet"
@@ -1712,6 +1758,7 @@ export default function RealtimePage() {
                         setReverbWetGain(v);
                         if (streaming) changeConfigDebounced("reverb_wet_level", v, true);
                       }}
+                      description={t(SETTING_HELP.wet)}
                     />
                     <SliderField
                       id="rt-reverb-dry"
@@ -1724,6 +1771,7 @@ export default function RealtimePage() {
                         setReverbDryGain(v);
                         if (streaming) changeConfigDebounced("reverb_dry_level", v, true);
                       }}
+                      description={t(SETTING_HELP.dry)}
                     />
                     <SliderField
                       id="rt-reverb-width"
@@ -1736,6 +1784,7 @@ export default function RealtimePage() {
                         setReverbWidth(v);
                         if (streaming) changeConfigDebounced("reverb_width", v, true);
                       }}
+                      description={t(SETTING_HELP.width)}
                     />
                     <SliderField
                       id="rt-reverb-freeze"
@@ -1748,6 +1797,7 @@ export default function RealtimePage() {
                         setReverbFreezeMode(v);
                         if (streaming) changeConfigDebounced("reverb_freeze_mode", v, true);
                       }}
+                      description={t(SETTING_HELP.freeze)}
                     />
                   </div>
                 )}
@@ -1763,9 +1813,12 @@ export default function RealtimePage() {
                       setPitchShiftFx(e.target.checked);
                       if (streaming) changeConfig("pitch_shift", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-pitchShift"}-help`}
+                    id="setting-realtime-pitchShift"
                   />
                   <span>{t("Pitch Shift")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.pitchShift)} controlId={"setting-realtime-pitchShift"} />
                 {pitchShiftFx && (
                   <SliderField
                     id="rt-fx-pitch-semi"
@@ -1778,6 +1831,7 @@ export default function RealtimePage() {
                       setPitchShiftSemitones(v);
                       if (streaming) changeConfigDebounced("pitch_shift_semitones", v, true);
                     }}
+                    description={t(SETTING_HELP.pitchShiftAmount)}
                   />
                 )}
               </div>
@@ -1792,9 +1846,12 @@ export default function RealtimePage() {
                       setDelayFx(e.target.checked);
                       if (streaming) changeConfig("delay", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-delay"}-help`}
+                    id="setting-realtime-delay"
                   />
                   <span>{t("Delay")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.delay)} controlId={"setting-realtime-delay"} />
                 {delayFx && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <SliderField
@@ -1809,6 +1866,7 @@ export default function RealtimePage() {
                         setDelaySeconds(v);
                         if (streaming) changeConfigDebounced("delay_seconds", v, true);
                       }}
+                      description={t(SETTING_HELP.delayTime)}
                     />
                     <SliderField
                       id="rt-fx-delay-fb"
@@ -1821,6 +1879,7 @@ export default function RealtimePage() {
                         setDelayFeedback(v);
                         if (streaming) changeConfigDebounced("delay_feedback", v, true);
                       }}
+                      description={t(SETTING_HELP.feedback)}
                     />
                     <SliderField
                       id="rt-fx-delay-mix"
@@ -1833,6 +1892,7 @@ export default function RealtimePage() {
                         setDelayMix(v);
                         if (streaming) changeConfigDebounced("delay_mix", v, true);
                       }}
+                      description={t(SETTING_HELP.mix)}
                     />
                   </div>
                 )}
@@ -1848,9 +1908,12 @@ export default function RealtimePage() {
                       setLimiter(e.target.checked);
                       if (streaming) changeConfig("limiter", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-limiter"}-help`}
+                    id="setting-realtime-limiter"
                   />
                   <span>{t("Limiter")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.limiter)} controlId={"setting-realtime-limiter"} />
                 {limiter && (
                   <div className="space-y-2">
                     <SliderField
@@ -1865,6 +1928,7 @@ export default function RealtimePage() {
                         setLimiterThreshold(v);
                         if (streaming) changeConfigDebounced("limiter_threshold", v, true);
                       }}
+                      description={t(SETTING_HELP.limiterThreshold)}
                     />
                     <SliderField
                       id="rt-fx-lim-rel"
@@ -1878,6 +1942,7 @@ export default function RealtimePage() {
                         setLimiterReleaseTime(v);
                         if (streaming) changeConfigDebounced("limiter_release", v, true);
                       }}
+                      description={t(SETTING_HELP.limiterRelease)}
                     />
                   </div>
                 )}
@@ -1893,9 +1958,12 @@ export default function RealtimePage() {
                       setGainFx(e.target.checked);
                       if (streaming) changeConfig("gain", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-gain"}-help`}
+                    id="setting-realtime-gain"
                   />
                   <span>{t("Gain")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.gain)} controlId={"setting-realtime-gain"} />
                 {gainFx && (
                   <SliderField
                     id="rt-fx-gain-db"
@@ -1909,6 +1977,7 @@ export default function RealtimePage() {
                       setGainDb(v);
                       if (streaming) changeConfigDebounced("gain_db", v, true);
                     }}
+                    description={t(SETTING_HELP.gainAmount)}
                   />
                 )}
               </div>
@@ -1923,9 +1992,12 @@ export default function RealtimePage() {
                       setDistortion(e.target.checked);
                       if (streaming) changeConfig("distortion", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-distortion"}-help`}
+                    id="setting-realtime-distortion"
                   />
                   <span>{t("Distortion")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.distortion)} controlId={"setting-realtime-distortion"} />
                 {distortion && (
                   <SliderField
                     id="rt-fx-dist"
@@ -1939,6 +2011,7 @@ export default function RealtimePage() {
                       setDistortionGain(v);
                       if (streaming) changeConfigDebounced("distortion_gain", v, true);
                     }}
+                    description={t(SETTING_HELP.distortionGain)}
                   />
                 )}
               </div>
@@ -1953,9 +2026,12 @@ export default function RealtimePage() {
                       setChorus(e.target.checked);
                       if (streaming) changeConfig("chorus", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-chorus"}-help`}
+                    id="setting-realtime-chorus"
                   />
                   <span>{t("Chorus")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.chorus)} controlId={"setting-realtime-chorus"} />
                 {chorus && (
                   <div className="space-y-2">
                     <SliderField
@@ -1970,6 +2046,7 @@ export default function RealtimePage() {
                         setChorusRate(v);
                         if (streaming) changeConfigDebounced("chorus_rate", v, true);
                       }}
+                      description={t(SETTING_HELP.chorusRate)}
                     />
                     <SliderField
                       id="rt-fx-ch-depth"
@@ -1982,6 +2059,7 @@ export default function RealtimePage() {
                         setChorusDepth(v);
                         if (streaming) changeConfigDebounced("chorus_depth", v, true);
                       }}
+                      description={t(SETTING_HELP.chorusDepth)}
                     />
                     <SliderField
                       id="rt-fx-ch-delay"
@@ -1995,6 +2073,7 @@ export default function RealtimePage() {
                         setChorusCenterDelay(v);
                         if (streaming) changeConfigDebounced("chorus_delay", v, true);
                       }}
+                      description={t(SETTING_HELP.chorusDelay)}
                     />
                     <SliderField
                       id="rt-fx-ch-fb"
@@ -2007,6 +2086,7 @@ export default function RealtimePage() {
                         setChorusFeedback(v);
                         if (streaming) changeConfigDebounced("chorus_feedback", v, true);
                       }}
+                      description={t(SETTING_HELP.feedback)}
                     />
                     <SliderField
                       id="rt-fx-ch-mix"
@@ -2019,6 +2099,7 @@ export default function RealtimePage() {
                         setChorusMix(v);
                         if (streaming) changeConfigDebounced("chorus_mix", v, true);
                       }}
+                      description={t(SETTING_HELP.mix)}
                     />
                   </div>
                 )}
@@ -2034,9 +2115,12 @@ export default function RealtimePage() {
                       setCompressor(e.target.checked);
                       if (streaming) changeConfig("compressor", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-compressor"}-help`}
+                    id="setting-realtime-compressor"
                   />
                   <span>{t("Compressor")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.compressor)} controlId={"setting-realtime-compressor"} />
                 {compressor && (
                   <div className="space-y-2">
                     <SliderField
@@ -2051,6 +2135,7 @@ export default function RealtimePage() {
                         setCompressorThreshold(v);
                         if (streaming) changeConfigDebounced("compressor_threshold", v, true);
                       }}
+                      description={t(SETTING_HELP.compressorThreshold)}
                     />
                     <SliderField
                       id="rt-fx-comp-ratio"
@@ -2064,6 +2149,7 @@ export default function RealtimePage() {
                         setCompressorRatio(v);
                         if (streaming) changeConfigDebounced("compressor_ratio", v, true);
                       }}
+                      description={t(SETTING_HELP.compressorRatio)}
                     />
                     <SliderField
                       id="rt-fx-comp-atk"
@@ -2077,6 +2163,7 @@ export default function RealtimePage() {
                         setCompressorAttack(v);
                         if (streaming) changeConfigDebounced("compressor_attack", v, true);
                       }}
+                      description={t(SETTING_HELP.compressorAttack)}
                     />
                     <SliderField
                       id="rt-fx-comp-rel"
@@ -2090,6 +2177,7 @@ export default function RealtimePage() {
                         setCompressorRelease(v);
                         if (streaming) changeConfigDebounced("compressor_release", v, true);
                       }}
+                      description={t(SETTING_HELP.compressorRelease)}
                     />
                   </div>
                 )}
@@ -2105,9 +2193,12 @@ export default function RealtimePage() {
                       setBitcrush(e.target.checked);
                       if (streaming) changeConfig("bitcrush", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-bitcrush"}-help`}
+                    id="setting-realtime-bitcrush"
                   />
                   <span>{t("Bitcrush")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.bitcrush)} controlId={"setting-realtime-bitcrush"} />
                 {bitcrush && (
                   <SliderField
                     id="rt-fx-bit"
@@ -2120,6 +2211,7 @@ export default function RealtimePage() {
                       setBitcrushBitDepth(v);
                       if (streaming) changeConfigDebounced("bitcrush_bit_depth", v, true);
                     }}
+                    description={t(SETTING_HELP.bitDepth)}
                   />
                 )}
               </div>
@@ -2134,9 +2226,12 @@ export default function RealtimePage() {
                       setClipping(e.target.checked);
                       if (streaming) changeConfig("clipping", e.target.checked, true);
                     }}
+                    aria-describedby={`${"setting-realtime-clipping"}-help`}
+                    id="setting-realtime-clipping"
                   />
                   <span>{t("Clipping")}</span>
                 </label>
+                <SettingHelp text={t(SETTING_HELP.clipping)} controlId={"setting-realtime-clipping"} />
                 {clipping && (
                   <SliderField
                     id="rt-fx-clip"
@@ -2150,6 +2245,7 @@ export default function RealtimePage() {
                       setClippingThreshold(v);
                       if (streaming) changeConfigDebounced("clipping_threshold", v, true);
                     }}
+                    description={t(SETTING_HELP.clippingThreshold)}
                   />
                 )}
               </div>
@@ -2259,7 +2355,9 @@ export default function RealtimePage() {
               type="text"
               value={recPath}
               onChange={(e) => setRecPath(e.target.value)}
+              aria-describedby={`${"rt-rec-path"}-help`}
             />
+            <SettingHelp text={t(SETTING_HELP.recordPath)} controlId={"rt-rec-path"} />
           </div>
           <div>
             <label htmlFor="rt-rec-format">{t("Export Format")}</label>
@@ -2268,6 +2366,7 @@ export default function RealtimePage() {
               value={recFormat}
               onChange={(e) => setRecFormat(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.export)}
             >
               {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
                 <option key={m} value={m}>

@@ -33,8 +33,10 @@ import {
   Modal,
   SegmentedControl,
 } from "@/components/ui";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 interface ModelItem {
   id: string;
@@ -529,14 +531,18 @@ export default function ModelsPage() {
               <label htmlFor="custom-pth-input" className="sr-only">
                 {t("Path to .pth checkpoint")}
               </label>
-              <input
-                id="custom-pth-input"
-                type="text"
-                value={customPth}
-                onChange={(e) => setCustomPth(e.target.value)}
-                placeholder="logs/my-model/my-model.pth"
-                className="flex-1 h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
-              />
+              <div className="flex-1 min-w-0">
+                <input
+                  id="custom-pth-input"
+                  type="text"
+                  value={customPth}
+                  onChange={(e) => setCustomPth(e.target.value)}
+                  placeholder="logs/my-model/my-model.pth"
+                  className="w-full h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
+                  aria-describedby={`${"custom-pth-input"}-help`}
+                />
+                <SettingHelp text={t(SETTING_HELP.modelInspect)} controlId={"custom-pth-input"} />
+              </div>
               <Button onClick={inspectCustom} icon={<Info size={16} />}>
                 {t("Inspect File")}
               </Button>
@@ -579,6 +585,7 @@ export default function ModelsPage() {
                   value={expModel}
                   onChange={(e) => setExpModel(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.modelExport)}
                 >
                   <option value="">—</option>
                   {expModels.map((m) => (
@@ -595,6 +602,7 @@ export default function ModelsPage() {
                   value={expIndex}
                   onChange={(e) => setExpIndex(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.indexExport)}
                 >
                   <option value="">—</option>
                   {expIndexes.map((m) => (

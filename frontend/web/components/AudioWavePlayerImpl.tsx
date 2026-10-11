@@ -16,10 +16,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import type React from "react";
-import { memo, useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useRef, useState } from "react";
 import WaveSurfer from "wavesurfer.js";
 import Hover from "wavesurfer.js/plugins/hover";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 export interface AudioWavePlayerProps {
   src: string;
@@ -54,6 +55,7 @@ function AudioWavePlayerInner({
   compact = false,
 }: AudioWavePlayerProps) {
   const { t } = useI18n();
+  const volumeHelpId = useId();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
@@ -600,9 +602,14 @@ function AudioWavePlayerInner({
               value={isMuted ? 0 : volume}
               onChange={handleVolumeChange}
               aria-label={t("Volume")}
+              aria-describedby={volumeHelpId}
+              title={t(SETTING_HELP.outputGain)}
               aria-valuetext={`${Math.round((isMuted ? 0 : volume) * 100)}%`}
               className="w-14 sm:w-20 h-1.5 bg-white/15 rounded-full accent-white cursor-pointer hover:bg-white/25 transition-colors"
             />
+            <span id={volumeHelpId} className="sr-only">
+              {t(SETTING_HELP.outputGain)}
+            </span>
           </div>
 
           {/* Download button */}

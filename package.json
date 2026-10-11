@@ -31,7 +31,7 @@
     "backend:init": "git submodule update --init --recursive",
     "backend:check": "node scripts/check-backend.mjs",
     "backend:check:dev": "node scripts/check-backend.mjs --dev",
-    "reliability:check": "node scripts/check-reliability.mjs && node scripts/check-batch.mjs && node scripts/check-voice-focus.mjs && node scripts/check-realtime-settings.mjs && node scripts/check-tray.mjs && node scripts/check-i18n.mjs --check",
+    "reliability:check": "node scripts/check-reliability.mjs && node scripts/check-batch.mjs && node scripts/check-voice-focus.mjs && node scripts/check-realtime-settings.mjs && node scripts/check-tray.mjs && node scripts/check-setting-help.mjs && node scripts/check-i18n.mjs --check",
     "i18n:check": "node scripts/check-i18n.mjs --check",
     "runtime:check": "node scripts/check-runtime.mjs",
     "release:check": "pnpm reliability:check && node scripts/check-runtime.mjs --packaged"

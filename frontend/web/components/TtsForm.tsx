@@ -23,6 +23,7 @@ import {
 import { apiGet, apiSend, errMsg, fetchModels, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
@@ -207,7 +208,11 @@ export default function TtsForm() {
           />
 
           <div className="space-y-3">
-            <FormField label={t("Text to Synthesize")} htmlFor="tts-text-input">
+            <FormField
+              label={t("Text to Synthesize")}
+              htmlFor="tts-text-input"
+              description={t(SETTING_HELP.ttsText)}
+            >
               <textarea
                 id="tts-text-input"
                 rows={3}
@@ -215,21 +220,31 @@ export default function TtsForm() {
                 onChange={(e) => setText(e.target.value)}
                 placeholder={t("Hello, this is Applio.")}
                 className="w-full resize-y"
+                aria-describedby={`${"tts-text-input"}-desc`}
               />
             </FormField>
 
-            <FormField label={t("Or upload a .txt file")} htmlFor="tts-file-input">
+            <FormField
+              label={t("Or upload a .txt file")}
+              htmlFor="tts-file-input"
+              description={t(SETTING_HELP.textFile)}
+            >
               <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
             </FormField>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <FormField label={t("Voice filter")} htmlFor="tts-voice-filter">
+              <FormField
+                label={t("Voice filter")}
+                htmlFor="tts-voice-filter"
+                description={t(SETTING_HELP.voiceFilter)}
+              >
                 <input
                   id="tts-voice-filter"
                   type="text"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                   placeholder={t("e.g. en-US, Aria, Guy…")}
+                  aria-describedby={`${"tts-voice-filter"}-desc`}
                 />
               </FormField>
 
@@ -240,6 +255,7 @@ export default function TtsForm() {
                   onChange={(e) => setVoice(e.target.value)}
                   className="w-full mt-1"
                   searchable
+                  description={t(SETTING_HELP.ttsVoice)}
                 >
                   {shown.slice(0, 400).map((v) => (
                     <option key={v.shortName} value={v.shortName}>
@@ -259,6 +275,7 @@ export default function TtsForm() {
                   step={1}
                   unit="%"
                   onChange={setRate}
+                  description={t(SETTING_HELP.ttsSpeed)}
                 />
               </div>
             </div>
@@ -301,6 +318,7 @@ export default function TtsForm() {
                     value={String(sid)}
                     onChange={(e) => setSid(Number(e.target.value))}
                     className="w-full mt-1"
+                    description={t(SETTING_HELP.speaker)}
                   >
                     {speakers.map((s) => (
                       <option key={s} value={String(s)}>
@@ -317,6 +335,7 @@ export default function TtsForm() {
                   value={exportFormat}
                   onChange={(e) => setExportFormat(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.export)}
                 >
                   {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
                     <option key={m} value={m}>
@@ -357,6 +376,7 @@ export default function TtsForm() {
               step={1}
               unit="st"
               onChange={setPitch}
+              description={t(SETTING_HELP.pitch)}
             />
             <SliderField
               id="tts-index-rate"
@@ -366,6 +386,7 @@ export default function TtsForm() {
               max={1}
               step={0.05}
               onChange={setIndexRate}
+              description={t(SETTING_HELP.indexRate)}
             />
             <SliderField
               id="tts-volume-envelope"
@@ -375,6 +396,7 @@ export default function TtsForm() {
               max={1}
               step={0.05}
               onChange={setVolumeEnvelope}
+              description={t(SETTING_HELP.envelope)}
             />
             <SliderField
               id="tts-protect"
@@ -384,6 +406,7 @@ export default function TtsForm() {
               max={0.5}
               step={0.01}
               onChange={setProtect}
+              description={t(SETTING_HELP.protect)}
             />
           </div>
 
@@ -403,13 +426,18 @@ export default function TtsForm() {
             />
 
             {embedderModel === "custom" && (
-              <FormField label={t("Select Custom Embedder")} htmlFor="tts-custom-embedder">
+              <FormField
+                label={t("Select Custom Embedder")}
+                htmlFor="tts-custom-embedder"
+                description={t(SETTING_HELP.customEmbedder)}
+              >
                 <input
                   id="tts-custom-embedder"
                   type="text"
                   value={embedderModelCustom}
                   onChange={(e) => setEmbedderModelCustom(e.target.value)}
                   placeholder="rvc/models/embedders/embedders_custom/my-embedder"
+                  aria-describedby={`${"tts-custom-embedder"}-desc`}
                 />
               </FormField>
             )}
@@ -417,10 +445,30 @@ export default function TtsForm() {
 
           <Disclosure title={t("Advanced Settings")} icon={<Sliders size={15} />}>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <ToggleField label={t("Split Audio")} checked={splitAudio} onChange={setSplitAudio} />
-              <ToggleField label={t("Autotune")} checked={f0Autotune} onChange={setF0Autotune} />
-              <ToggleField label={t("Proposed Pitch")} checked={proposedPitch} onChange={setProposedPitch} />
-              <ToggleField label={t("Clean Audio")} checked={cleanAudio} onChange={setCleanAudio} />
+              <ToggleField
+                label={t("Split Audio")}
+                checked={splitAudio}
+                onChange={setSplitAudio}
+                description={t(SETTING_HELP.split)}
+              />
+              <ToggleField
+                label={t("Autotune")}
+                checked={f0Autotune}
+                onChange={setF0Autotune}
+                description={t(SETTING_HELP.autotune)}
+              />
+              <ToggleField
+                label={t("Proposed Pitch")}
+                checked={proposedPitch}
+                onChange={setProposedPitch}
+                description={t(SETTING_HELP.proposed)}
+              />
+              <ToggleField
+                label={t("Clean Audio")}
+                checked={cleanAudio}
+                onChange={setCleanAudio}
+                description={t(SETTING_HELP.clean)}
+              />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -432,6 +480,7 @@ export default function TtsForm() {
                 max={1}
                 step={0.05}
                 onChange={setF0AutotuneStrength}
+                description={t(SETTING_HELP.autotuneStrength)}
               />
               <SliderField
                 id="tts-proposed-threshold"
@@ -442,6 +491,7 @@ export default function TtsForm() {
                 step={1}
                 unit="Hz"
                 onChange={setProposedPitchThreshold}
+                description={t(SETTING_HELP.proposedThreshold)}
               />
               <SliderField
                 id="tts-clean-strength"
@@ -451,6 +501,7 @@ export default function TtsForm() {
                 max={1}
                 step={0.05}
                 onChange={setCleanStrength}
+                description={t(SETTING_HELP.cleanStrength)}
               />
             </div>
           </Disclosure>

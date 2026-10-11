@@ -1,6 +1,8 @@
 "use client";
 
 import type React from "react";
+import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import CustomSelect from "./CustomSelect";
 
 /** Pitch extraction algorithms (mirrors the backend F0_METHODS validation). */
@@ -47,12 +49,20 @@ export function PitchMethodSelect({
   disabled = false,
   className = "w-full mt-1",
 }: MethodSelectProps) {
+  const { t } = useI18n();
   return (
     <div>
       <label htmlFor={id} className="text-xs font-medium text-neutral-300">
         {label}
       </label>
-      <CustomSelect id={id} value={value} onValueChange={onChange} disabled={disabled} className={className}>
+      <CustomSelect
+        id={id}
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        className={className}
+        description={t(SETTING_HELP.pitchMethod)}
+      >
         {methods.map((m) => (
           <option key={m} value={m}>
             {m}
@@ -73,12 +83,20 @@ export function EmbedderSelect({
   disabled = false,
   className = "w-full mt-1",
 }: MethodSelectProps) {
+  const { t } = useI18n();
   return (
     <div>
       <label htmlFor={id} className="text-xs font-medium text-neutral-300">
         {label}
       </label>
-      <CustomSelect id={id} value={value} onValueChange={onChange} disabled={disabled} className={className}>
+      <CustomSelect
+        id={id}
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        className={className}
+        description={t(SETTING_HELP.embedder)}
+      >
         {methods.map((m) => (
           <option key={m} value={m}>
             {m}

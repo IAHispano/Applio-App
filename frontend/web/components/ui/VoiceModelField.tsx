@@ -4,8 +4,10 @@ import type React from "react";
 import { useId } from "react";
 import { fileBasename } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import CustomSelect from "./CustomSelect";
 import ModelDropdown from "./ModelDropdown";
+import SettingHelp from "./SettingHelp";
 
 export interface VoiceModelFieldProps {
   /** Optional label rendered above the dropdown */
@@ -60,6 +62,7 @@ export default function VoiceModelField({
       )}
       <ModelDropdown
         id={dropdownId}
+        aria-describedby={`${dropdownId}-help`}
         models={models}
         selectedModel={selectedModel}
         indexes={indexes}
@@ -67,11 +70,13 @@ export default function VoiceModelField({
         onUnload={onUnload}
         onRefresh={onRefresh}
       />
+      <SettingHelp text={t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
       {selectedModel && (
         <div className="space-y-2">
           <label htmlFor={indexSelectId}>{indexLabel ?? t("Index File")}</label>
           <CustomSelect
             id={indexSelectId}
+            description={t(SETTING_HELP.index)}
             value={indexPath}
             onOpen={onRefresh}
             onChange={(e) => onIndexChange(e.target.value)}

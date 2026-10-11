@@ -32,7 +32,7 @@ function scan(folder) {
           strings(node.initializer, required);
         if (
           ts.isVariableDeclaration(node) &&
-          ["historyStateLabels", "names"].includes(node.name.getText(source)) &&
+          ["historyStateLabels", "names", "SETTING_HELP"].includes(node.name.getText(source)) &&
           node.initializer
         )
           strings(node.initializer, required);
@@ -76,6 +76,11 @@ for (const name of fs.readdirSync(directory).filter((name) => name.endsWith(".js
       .sort()
       .join("|");
   for (const key of keys) {
+    // Common UTF-8 text accidentally decoded through Windows ANSI/Latin-1.
+    if (typeof dictionary[key] === "string" && /\uFFFD|[ÃÂ][\u0080-\u00BF]|â[€„™œ“”–—]/u.test(dictionary[key])) {
+      errors++;
+      console.log(`${name}: invalid text encoding in ${JSON.stringify(key)}`);
+    }
     if (typeof dictionary[key] === "string" && tokens(key) !== tokens(dictionary[key])) {
       errors++;
       console.log(`${name}: mismatched placeholders in ${JSON.stringify(key)}`);

@@ -17,8 +17,10 @@ import {
   ToggleField,
 } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 
 interface UvrModel {
@@ -265,6 +267,7 @@ export default function UvrPage() {
                 description: `${m.type} · ${(m.stems ?? []).join(" / ") || "stems"}`,
                 badge: m.type,
               }))}
+              description={t(SETTING_HELP.separation)}
             />
           </div>
           <div className="space-y-1.5">
@@ -275,6 +278,7 @@ export default function UvrPage() {
               onValueChange={setFormat}
               className="w-full"
               options={["WAV", "MP3", "FLAC"]}
+              description={t(SETTING_HELP.export)}
             />
           </div>
           <div className="space-y-1.5">
@@ -288,6 +292,7 @@ export default function UvrPage() {
                 { value: "all", label: t("All stems") },
                 ...modelStems.map((s) => ({ value: s, label: `${s} · ${t("only")}` })),
               ]}
+              description={t(SETTING_HELP.stems)}
             />
           </div>
         </div>
@@ -320,6 +325,7 @@ export default function UvrPage() {
                 { value: "cpu", label: t("CPU (saves VRAM)") },
                 ...gpuDevices.map((g) => ({ value: g.id, label: g.name })),
               ]}
+              description={t(SETTING_HELP.gpu)}
             />
           </div>
           <Button
@@ -529,7 +535,9 @@ export default function UvrPage() {
                   onChange={(e) => setDemucsSegment(e.target.value)}
                   placeholder={t("Default (optimal size)")}
                   className="w-full mt-1"
+                  aria-describedby={`${"uvr-demucs-seg"}-help`}
                 />
+                <SettingHelp text={t(SETTING_HELP.demucsSegment)} controlId={"uvr-demucs-seg"} />
               </div>
               <SliderField
                 id="uvr-demucs-shifts"
@@ -573,7 +581,9 @@ export default function UvrPage() {
                   onChange={(e) => setRoformerChunk(e.target.value)}
                   placeholder={t("Model default (from config)")}
                   className="w-full mt-1"
+                  aria-describedby={`${"uvr-roformer-chunk"}-help`}
                 />
+                <SettingHelp text={t(SETTING_HELP.roformerChunk)} controlId={"uvr-roformer-chunk"} />
                 <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
                   {t(
                     "Higher than the training value can help until quality degrades; lower it if you run out of VRAM.",

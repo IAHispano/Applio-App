@@ -4,6 +4,8 @@ import { Check, ChevronDown, Search } from "lucide-react";
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
+import { PITCH_METHOD_HELP } from "@/lib/setting-help";
+import SettingHelp from "./SettingHelp";
 
 export interface CustomSelectOption {
   value: string;
@@ -39,6 +41,8 @@ export interface CustomSelectProps {
   className?: string;
   size?: "sm" | "md" | "lg";
   children?: React.ReactNode;
+  description?: React.ReactNode;
+  "aria-describedby"?: string;
 }
 
 interface MenuPosition {
@@ -64,6 +68,8 @@ export default function CustomSelect({
   className = "",
   size = "md",
   children,
+  description,
+  "aria-describedby": externalDescription,
 }: CustomSelectProps) {
   const { t } = useI18n();
   const placeholder = customPlaceholder ?? t("Select…");
@@ -119,7 +125,12 @@ export default function CustomSelect({
       });
     }
 
-    return list;
+    return list.map((option) => ({
+      ...option,
+      description:
+        option.description ??
+        (PITCH_METHOD_HELP[option.value] ? t(PITCH_METHOD_HELP[option.value]) : undefined),
+    }));
   }, [propOptions, children, t]);
 
   // Internal state for uncontrolled or fallback
@@ -371,6 +382,9 @@ export default function CustomSelect({
         onClick={() => (open ? handleClose() : handleOpen())}
         onKeyDown={handleKeyDown}
         role="combobox"
+        aria-describedby={
+          [externalDescription, description ? `${id}-help` : undefined].filter(Boolean).join(" ") || undefined
+        }
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
@@ -402,6 +416,7 @@ export default function CustomSelect({
           aria-hidden="true"
         />
       </button>
+      <SettingHelp text={description} controlId={id} />
 
       {/* Floating Menu in Portal */}
       {mounted &&
@@ -534,7 +549,9 @@ export default function CustomSelect({
                       <div className="min-w-0 flex-1 flex flex-col">
                         <span className="truncate">{opt.label}</span>
                         {opt.description && (
-                          <span className="text-[10px] truncate text-neutral-500">{opt.description}</span>
+                          <span className="text-[11px] whitespace-normal leading-relaxed text-neutral-400">
+                            {opt.description}
+                          </span>
                         )}
                       </div>
 

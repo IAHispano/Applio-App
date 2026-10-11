@@ -6,8 +6,10 @@ import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
 import { Button, Card, CardHeader, CustomSelect, FileInput } from "@/components/ui";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 
 const NativeAnalyzer = dynamic(() => import("@/components/extra/NativeAnalyzer"), {
@@ -91,6 +93,7 @@ export default function ExtraPage() {
               }}
               placeholder={t("Choose from assets/audios…")}
               className="w-full mt-1"
+              description={t(SETTING_HELP.audioSource)}
             >
               <option value="">{t("None (use uploaded file)")}</option>
               {audios.map((a) => (
@@ -214,15 +217,19 @@ function UploadBox({
       <p className="text-xs font-medium text-neutral-300 mb-2">{label}</p>
       <div className="row flex-wrap gap-2">
         {fields.map((f) => (
-          <input
-            key={f.name}
-            type="text"
-            placeholder={f.label}
-            aria-label={f.label}
-            value={vals[f.name] || ""}
-            onChange={(e) => setVals({ ...vals, [f.name]: e.target.value })}
-            style={{ maxWidth: 200 }}
-          />
+          <div key={f.name} className="max-w-xs">
+            <input
+              id={`upload-${files}-${f.name}`}
+              type="text"
+              placeholder={f.label}
+              aria-label={f.label}
+              aria-describedby={`upload-${files}-${f.name}-help`}
+              value={vals[f.name] || ""}
+              onChange={(e) => setVals({ ...vals, [f.name]: e.target.value })}
+              style={{ maxWidth: 200 }}
+            />
+            <SettingHelp text={t(SETTING_HELP.uploadName)} controlId={`upload-${files}-${f.name}`} />
+          </div>
         ))}
         <FileInput ariaLabel={label} multiple={multiple} onChange={setPicked} />
         {extra && <FileInput ariaLabel={`${label} (${t("extra config")})`} onChange={setPicked2} />}

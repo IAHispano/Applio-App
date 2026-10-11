@@ -5,8 +5,10 @@ import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
 import { Alert, Button, Card, CardHeader, FileInput, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { apiGet, apiSend, errMsg, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 
 export default function DownloadPanel() {
   const { t } = useI18n();
@@ -164,6 +166,7 @@ export default function DownloadPanel() {
                   if (m?.sampleRates[0]) setSr(m.sampleRates[0]);
                 }}
                 className="w-full mt-1"
+                description={t(SETTING_HELP.pretrainedDownload)}
               >
                 {pretrained.map((p) => (
                   <option key={p.name} value={p.name}>
@@ -179,6 +182,7 @@ export default function DownloadPanel() {
                 value={sr}
                 onChange={(e) => setSr(e.target.value)}
                 className="w-full mt-1"
+                description={t(SETTING_HELP.sampleRate)}
               >
                 {(pretrained.find((p) => p.name === model)?.sampleRates || [sr]).map((s) => (
                   <option key={s} value={s}>
@@ -192,11 +196,25 @@ export default function DownloadPanel() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
             <div>
               <label htmlFor="dl-url-g">{t("Pretrained G")}</label>
-              <input id="dl-url-g" type="text" value={urlG} onChange={(e) => setUrlG(e.target.value)} />
+              <input
+                id="dl-url-g"
+                type="text"
+                value={urlG}
+                onChange={(e) => setUrlG(e.target.value)}
+                aria-describedby={`${"dl-url-g"}-help`}
+              />
+              <SettingHelp text={t(SETTING_HELP.pretrainedURL)} controlId={"dl-url-g"} />
             </div>
             <div>
               <label htmlFor="dl-url-d">{t("Pretrained D")}</label>
-              <input id="dl-url-d" type="text" value={urlD} onChange={(e) => setUrlD(e.target.value)} />
+              <input
+                id="dl-url-d"
+                type="text"
+                value={urlD}
+                onChange={(e) => setUrlD(e.target.value)}
+                aria-describedby={`${"dl-url-d"}-help`}
+              />
+              <SettingHelp text={t(SETTING_HELP.pretrainedURL)} controlId={"dl-url-d"} />
             </div>
           </div>
         )}
@@ -207,6 +225,7 @@ export default function DownloadPanel() {
           checked={custom}
           onChange={setCustom}
           className="mt-3"
+          description={t(SETTING_HELP.customURLs)}
         />
 
         <div className="pt-3.5 border-t border-white/5 flex justify-end">

@@ -15,6 +15,7 @@ export interface ModelDropdownProps {
   disabled?: boolean;
   /** DOM id for the trigger, so an external <label htmlFor> can name it. */
   id?: string;
+  "aria-describedby"?: string;
 }
 
 function modelDisplayName(path: string): string {
@@ -48,6 +49,7 @@ export default function ModelDropdown({
   indexes = [],
   disabled = false,
   id,
+  "aria-describedby": descriptionId,
 }: ModelDropdownProps) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
@@ -376,6 +378,7 @@ export default function ModelDropdown({
         ref={triggerRef}
         type="button"
         id={id}
+        aria-describedby={descriptionId}
         disabled={disabled}
         onClick={() => {
           if (open) setOpen(false);

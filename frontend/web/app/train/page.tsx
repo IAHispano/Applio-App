@@ -21,9 +21,11 @@ import TrainingConsole from "@/components/train/TrainingConsole";
 import { Alert, Badge, Button, Card, CardHeader, Modal, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SegmentedControl from "@/components/ui/SegmentedControl";
+import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
 import { usePersistentJobId } from "@/lib/useJob";
 
@@ -409,7 +411,9 @@ export default function TrainPage() {
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
               placeholder={t("e.g. vocal-model")}
+              aria-describedby={`${"train-model-name"}-help`}
             />
+            <SettingHelp text={t(SETTING_HELP.modelName)} controlId={"train-model-name"} />
           </div>
           <div>
             <label htmlFor="train-gpu">{t("GPU")}</label>
@@ -431,7 +435,9 @@ export default function TrainPage() {
               value={cpuCores}
               onChange={(e) => setCpuCores(e.target.value)}
               placeholder={t("auto")}
+              aria-describedby={`${"train-cpu-cores"}-help`}
             />
+            <SettingHelp text={t(SETTING_HELP.cpu)} controlId={"train-cpu-cores"} />
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-neutral-400 mt-3 pt-3 border-t border-white/10">
@@ -529,7 +535,9 @@ export default function TrainPage() {
                   value={datasetPath}
                   onChange={(e) => setDatasetPath(e.target.value)}
                   placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
+                  aria-describedby={`${"auto-dataset-path"}-help`}
                 />
+                <SettingHelp text={t(SETTING_HELP.dataset)} controlId={"auto-dataset-path"} />
                 <datalist id="auto-dataset-list">
                   {datasets.map((d) => (
                     <option key={d} value={d} />
@@ -543,6 +551,7 @@ export default function TrainPage() {
                   value={sampleRate}
                   onChange={(e) => setSampleRate(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.sampleRate)}
                 >
                   {srOptions.map((s) => (
                     <option key={s} value={s}>
@@ -558,6 +567,7 @@ export default function TrainPage() {
                   value={f0Method}
                   onChange={(e) => setF0Method(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.pitchMethod)}
                 >
                   {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
                     <option key={s} value={s}>
@@ -573,6 +583,7 @@ export default function TrainPage() {
                   value={vocoder}
                   onChange={(e) => pickVocoder(e.target.value)}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.vocoder)}
                 >
                   {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
                     <option key={s} value={s}>
@@ -590,6 +601,7 @@ export default function TrainPage() {
                   max={1000}
                   step={10}
                   onChange={setTotalEpoch}
+                  description={t(SETTING_HELP.epochs)}
                 />
               </div>
               <div>
@@ -601,6 +613,7 @@ export default function TrainPage() {
                   max={32}
                   step={1}
                   onChange={setBatchSize}
+                  description={t(SETTING_HELP.batchSize)}
                 />
               </div>
             </div>
@@ -611,6 +624,7 @@ export default function TrainPage() {
                 label={t("Noise Reduction")}
                 checked={noiseReduction}
                 onChange={setNoiseReduction}
+                description={t(SETTING_HELP.clean)}
               />
               <button
                 type="button"
@@ -735,7 +749,9 @@ export default function TrainPage() {
               value={datasetPath}
               onChange={(e) => setDatasetPath(e.target.value)}
               placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
+              aria-describedby={`${"modal-prep-dataset-path"}-help`}
             />
+            <SettingHelp text={t(SETTING_HELP.dataset)} controlId={"modal-prep-dataset-path"} />
             <datalist id="modal-prep-dataset-list">
               {datasets.map((d) => (
                 <option key={d} value={d} />
@@ -749,6 +765,7 @@ export default function TrainPage() {
               value={sampleRate}
               onChange={(e) => setSampleRate(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.sampleRate)}
             >
               {srOptions.map((s) => (
                 <option key={s} value={s}>
@@ -764,6 +781,7 @@ export default function TrainPage() {
               value={normalizationMode}
               onChange={(e) => setNormalizationMode(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.normalize)}
             >
               {["none", "pre", "post"].map((s) => (
                 <option key={s} value={s}>
@@ -782,6 +800,7 @@ export default function TrainPage() {
               value={cut}
               onChange={(e) => setCut(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.cutting)}
             >
               {["Skip", "Simple", "Automatic"].map((s) => (
                 <option key={s} value={s}>
@@ -800,6 +819,7 @@ export default function TrainPage() {
               step={0.1}
               unit="s"
               onChange={setChunk}
+              description={t(SETTING_HELP.trainChunk)}
             />
           </div>
           <div>
@@ -812,6 +832,7 @@ export default function TrainPage() {
               step={0.1}
               unit="s"
               onChange={setOverlap}
+              description={t(SETTING_HELP.trainOverlap)}
             />
           </div>
         </div>
@@ -822,6 +843,7 @@ export default function TrainPage() {
             label={t("Noise Reduction")}
             checked={noiseReduction}
             onChange={setNoiseReduction}
+            description={t(SETTING_HELP.clean)}
           />
           {noiseReduction && (
             <SliderField
@@ -832,6 +854,7 @@ export default function TrainPage() {
               max={1}
               step={0.05}
               onChange={setCleanStrength}
+              description={t(SETTING_HELP.cleanStrength)}
             />
           )}
           <ToggleField
@@ -839,6 +862,7 @@ export default function TrainPage() {
             label={t("Noise filter")}
             checked={processEffects}
             onChange={setProcessEffects}
+            description={t(SETTING_HELP.noiseFilter)}
           />
         </div>
         <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-white/10">
@@ -875,6 +899,7 @@ export default function TrainPage() {
               value={f0Method}
               onChange={(e) => setF0Method(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.pitchMethod)}
             >
               {["rmvpe", "fcpe", "swift", "crepe", "crepe-tiny"].map((s) => (
                 <option key={s} value={s}>
@@ -890,6 +915,7 @@ export default function TrainPage() {
               value={embedder}
               onChange={(e) => setEmbedder(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.embedder)}
             >
               {["contentvec", "spin-v2", "custom"].map((s) => (
                 <option key={s} value={s}>
@@ -907,7 +933,9 @@ export default function TrainPage() {
                 value={embedderCustom}
                 onChange={(e) => setEmbedderCustom(e.target.value)}
                 placeholder="rvc/models/embedders/embedders_custom/my-embedder"
+                aria-describedby={`${"modal-ext-custom-embedder"}-help`}
               />
+              <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"modal-ext-custom-embedder"} />
             </div>
           )}
           <div>
@@ -919,6 +947,7 @@ export default function TrainPage() {
               max={10}
               step={1}
               onChange={setIncludeMutes}
+              description={t(SETTING_HELP.mutes)}
             />
           </div>
           <div>
@@ -928,6 +957,7 @@ export default function TrainPage() {
               value={sampleRate}
               onChange={(e) => setSampleRate(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.sampleRate)}
             >
               {srOptions.map((s) => (
                 <option key={s} value={s}>
@@ -972,6 +1002,7 @@ export default function TrainPage() {
               value={vocoder}
               onChange={(e) => pickVocoder(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.vocoder)}
             >
               {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
                 <option key={s} value={s}>
@@ -987,6 +1018,7 @@ export default function TrainPage() {
               value={indexAlgo}
               onChange={(e) => setIndexAlgo(e.target.value)}
               className="w-full mt-1"
+              description={t(SETTING_HELP.indexAlgorithm)}
             >
               {["Auto", "Faiss", "KMeans"].map((s) => (
                 <option key={s} value={s}>
@@ -1004,6 +1036,7 @@ export default function TrainPage() {
               max={10000}
               step={1}
               onChange={setTotalEpoch}
+              description={t(SETTING_HELP.epochs)}
             />
           </div>
           <div>
@@ -1015,6 +1048,7 @@ export default function TrainPage() {
               max={64}
               step={1}
               onChange={setBatchSize}
+              description={t(SETTING_HELP.batchSize)}
             />
           </div>
           <div className="sm:col-span-2">
@@ -1026,6 +1060,7 @@ export default function TrainPage() {
               max={100}
               step={1}
               onChange={setSaveEvery}
+              description={t(SETTING_HELP.saveEvery)}
             />
           </div>
         </div>
@@ -1035,7 +1070,7 @@ export default function TrainPage() {
           <ToggleField
             id="modal-train-pretrained"
             label={t("Use pretrained model")}
-            description={t("Missing default pretrains download automatically before training.")}
+            description={t(SETTING_HELP.pretrained)}
             checked={pretrained}
             onChange={setPretrained}
           />
@@ -1044,36 +1079,42 @@ export default function TrainPage() {
             label={t("Save Only Latest")}
             checked={saveOnlyLatest}
             onChange={setSaveOnlyLatest}
+            description={t(SETTING_HELP.saveLatest)}
           />
           <ToggleField
             id="modal-train-save-weights"
             label={t("Save Every Weights")}
             checked={saveEveryWeights}
             onChange={setSaveEveryWeights}
+            description={t(SETTING_HELP.saveWeights)}
           />
           <ToggleField
             id="modal-train-cleanup"
             label={t("Fresh Training")}
             checked={cleanup}
             onChange={setCleanup}
+            description={t(SETTING_HELP.fresh)}
           />
           <ToggleField
             id="modal-train-cache-gpu"
             label={t("Cache Dataset in GPU")}
             checked={cacheGpu}
             onChange={setCacheGpu}
+            description={t(SETTING_HELP.cacheGPU)}
           />
           <ToggleField
             id="modal-train-checkpointing"
             label={t("Checkpointing")}
             checked={checkpointing}
             onChange={setCheckpointing}
+            description={t(SETTING_HELP.checkpointing)}
           />
           <ToggleField
             id="modal-train-custom-pre"
             label={t("Custom Pretrained")}
             checked={customPre}
             onChange={setCustomPre}
+            description={t(SETTING_HELP.customPretrained)}
           />
         </div>
         {customPre && (
@@ -1087,6 +1128,7 @@ export default function TrainPage() {
                   onChange={(e) => setGPath(e.target.value)}
                   placeholder={t("Select pretrained G…")}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.pretrainedG)}
                 >
                   <option value="">{t("Select pretrained G model…")}</option>
                   {pretG.map((p) => (
@@ -1096,13 +1138,17 @@ export default function TrainPage() {
                   ))}
                 </CustomSelect>
               ) : (
-                <input
-                  id="modal-train-gpath"
-                  type="text"
-                  value={gPath}
-                  onChange={(e) => setGPath(e.target.value)}
-                  placeholder="assets/pretrained_v2/f0G40k.pth"
-                />
+                <>
+                  <input
+                    id="modal-train-gpath"
+                    type="text"
+                    value={gPath}
+                    onChange={(e) => setGPath(e.target.value)}
+                    placeholder="assets/pretrained_v2/f0G40k.pth"
+                    aria-describedby={`${"modal-train-gpath"}-help`}
+                  />
+                  <SettingHelp text={t(SETTING_HELP.pretrainedG)} controlId={"modal-train-gpath"} />
+                </>
               )}
             </div>
             <div>
@@ -1114,6 +1160,7 @@ export default function TrainPage() {
                   onChange={(e) => setDPath(e.target.value)}
                   placeholder={t("Select pretrained D…")}
                   className="w-full mt-1"
+                  description={t(SETTING_HELP.pretrainedD)}
                 >
                   <option value="">{t("Select pretrained D model…")}</option>
                   {pretD.map((p) => (
@@ -1123,13 +1170,17 @@ export default function TrainPage() {
                   ))}
                 </CustomSelect>
               ) : (
-                <input
-                  id="modal-train-dpath"
-                  type="text"
-                  value={dPath}
-                  onChange={(e) => setDPath(e.target.value)}
-                  placeholder="assets/pretrained_v2/f0D40k.pth"
-                />
+                <>
+                  <input
+                    id="modal-train-dpath"
+                    type="text"
+                    value={dPath}
+                    onChange={(e) => setDPath(e.target.value)}
+                    placeholder="assets/pretrained_v2/f0D40k.pth"
+                    aria-describedby={`${"modal-train-dpath"}-help`}
+                  />
+                  <SettingHelp text={t(SETTING_HELP.pretrainedD)} controlId={"modal-train-dpath"} />
+                </>
               )}
             </div>
           </div>
@@ -1165,6 +1216,7 @@ export default function TrainPage() {
             value={indexAlgo}
             onChange={(e) => setIndexAlgo(e.target.value)}
             className="w-full mt-1"
+            description={t(SETTING_HELP.indexAlgorithm)}
           >
             {["Auto", "Faiss", "KMeans"].map((s) => (
               <option key={s} value={s}>

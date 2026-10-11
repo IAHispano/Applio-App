@@ -4,8 +4,10 @@ import { Download, FileText, LineChart, Loader2, RefreshCw, StopCircle } from "l
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JobError } from "@/components/JobStatus";
 import { Button, IconButton, SegmentedControl, StatTile } from "@/components/ui";
+import SettingHelp from "@/components/ui/SettingHelp";
 import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob } from "@/lib/useJob";
 
 interface F0CurveExtractorProps {
@@ -125,6 +127,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
             onChange={(val) => setMethod(val as MethodType)}
             ariaLabel={t("Pitch extraction method")}
           />
+          <SettingHelp text={t(SETTING_HELP.pitchMethod)} />
           {isRunning && (
             <span className="badge running text-[10px]" role="status">
               {t("Extracting…")}
