@@ -36,8 +36,11 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
 import { connectRealtimeOutput } from "@/lib/realtime-output";
+import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { useSpeakers } from "@/lib/useSpeakers";
+import { connectVoiceFocus, type VoiceFocusVariant } from "@/lib/voice-focus";
+import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "../../../desktop/src/tray-menu";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
@@ -90,6 +93,9 @@ export default function RealtimePage() {
   const [embedder, setEmbedder] = useState("contentvec");
   const [embedderCustom, setEmbedderCustom] = useState("");
   const [autotune, setAutotune] = useState(false);
+  const [decoderFp16, setDecoderFp16] = useState(false);
+  const [voiceFocus, setVoiceFocus] = useState<VoiceFocusVariant>("off");
+  const voiceFocusCleanupRef = useRef<(() => Promise<void>) | null>(null);
   const [autotuneStrength, setAutotuneStrength] = useState(1);
   const [proposedPitch, setProposedPitch] = useState(false);
   const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
@@ -173,8 +179,16 @@ export default function RealtimePage() {
     stream: MediaStream;
     nodes: AudioNode[];
     els: HTMLAudioElement[];
+    settings: RealtimeSettingsSender;
+    inputBridge?: AudioNode;
+    outputBridge?: AudioNode;
+    inputLatencyMs: number;
   } | null>(null);
   const streamEpochRef = useRef(0);
+  const [applyingSettings, setApplyingSettings] = useState(false);
+  const [applyingAudio, setApplyingAudio] = useState(false);
+  const audioApplyCountRef = useRef(0);
+  const audioRoutingRef = useRef({ input: "", output: "", focus: "off" as VoiceFocusVariant });
   const outGainNodeRef = useRef<GainNode | null>(null);
   const monitorGainNodeRef = useRef<GainNode | null>(null);
   const outAnalyserRef = useRef<AnalyserNode | null>(null);
@@ -311,6 +325,9 @@ export default function RealtimePage() {
       setEmbedder(rt.embedder_model);
     setEmbedderCustom(str(rt.embedder_model_custom));
     setAutotune(bool(rt.autotune, false));
+    setDecoderFp16(bool(rt.decoder_fp16, false));
+    if (["off", "c20", "c50", "c100"].includes(String(rt.voice_focus)))
+      setVoiceFocus(rt.voice_focus as VoiceFocusVariant);
     setAutotuneStrength(num(rt.autotune_strength, 0, 1, 1));
     setProposedPitch(bool(rt.proposed_pitch, false));
     setProposedPitchThreshold(num(rt.proposed_pitch_threshold, 50, 1200, 155));
@@ -402,6 +419,7 @@ export default function RealtimePage() {
   }
 
   function handleUnloadModel() {
+    if (streaming) stopStream(false);
     setModel("");
     setIndex("");
     setSid(0);
@@ -421,7 +439,10 @@ export default function RealtimePage() {
 
   async function enumDevices() {
     try {
-      await navigator.mediaDevices.getUserMedia({ audio: true });
+      const permissionStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      permissionStream.getTracks().forEach((track) => {
+        track.stop();
+      });
       const devs = await navigator.mediaDevices.enumerateDevices();
       const ins = dedupeDevices(
         devs
@@ -451,16 +472,19 @@ export default function RealtimePage() {
       return;
     }
     setConnecting(true);
-    ++streamEpochRef.current;
+    const openingEpoch = ++streamEpochRef.current;
     // Start the backend engine on demand so there is no separate step.
     if (!engine?.running) {
       setMsg(t("Starting real-time audio service…"));
       try {
         await apiSend("/api/realtime/start", "POST");
+        if (openingEpoch !== streamEpochRef.current) return;
         const st = await apiGet<RtStatus>("/api/realtime/status", { ttlMs: 0 });
+        if (openingEpoch !== streamEpochRef.current) return;
         setEngine(st);
         if (!st.running) throw new Error(t("Real-time audio service did not start."));
       } catch (e) {
+        if (openingEpoch !== streamEpochRef.current) return;
         setConnecting(false);
         setMsg(errMsg(e));
         return;
@@ -468,16 +492,21 @@ export default function RealtimePage() {
     }
     let openingStream: MediaStream | undefined;
     let openingContext: AudioContext | undefined;
+    let openingVoiceFocusCleanup: (() => Promise<void>) | undefined;
     try {
-      let block = Math.round(((autoChunk ? 30 : chunkMs) * 48000) / 1000);
+      let block = Math.round(((autoChunk ? 100 : chunkMs) * 48000) / 1000);
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           ...(inDev ? { deviceId: { exact: inDev } } : {}),
           channelCount: { exact: 1 },
           sampleRate: { exact: 48000 },
+          ...(voiceFocus !== "off"
+            ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
+            : {}),
         },
       });
       openingStream = stream;
+      if (openingEpoch !== streamEpochRef.current) throw new Error("Stream start cancelled");
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
       openingContext = ctx;
       const inputBlob = new Blob([INPUT_WORKLET], { type: "application/javascript" });
@@ -497,12 +526,23 @@ export default function RealtimePage() {
       }
       const src = ctx.createMediaStreamSource(stream);
       const inNode = new AudioWorkletNode(ctx, "input-processor");
-      src.connect(inNode);
+      if (voiceFocus === "off") src.connect(inNode);
+      else {
+        openingVoiceFocusCleanup = await connectVoiceFocus(ctx, src, inNode, stream, voiceFocus);
+        if (openingEpoch !== streamEpochRef.current) throw new Error("Stream start cancelled");
+        voiceFocusCleanupRef.current = openingVoiceFocusCleanup;
+      }
       const playNode = new AudioWorkletNode(ctx, "playback-processor", { outputChannelCount: [2] });
       const gain = ctx.createGain();
       gain.gain.value = outGain / 100;
       playNode.connect(gain);
       const outputElements = await connectRealtimeOutput(ctx, gain, outDev);
+      if (openingEpoch !== streamEpochRef.current) {
+        outputElements.forEach((element) => {
+          element.pause();
+        });
+        throw new Error("Stream start cancelled");
+      }
       // Local monitor: converted output -> monitor gain -> default playback
       // device, independent of the selected output device (e.g. a virtual
       // cable feeding a voice call). Keep muted until enabled to avoid feedback.
@@ -536,6 +576,24 @@ export default function RealtimePage() {
         sentAt = performance.now();
         ws.send(chunk);
       });
+      const liveSettings = new RealtimeSettingsSender(
+        sender,
+        (message) => ws.send(message),
+        (frames) => {
+          if (frames !== block) {
+            block = frames;
+            setChunkMs(frames / 48);
+            inNode.port.postMessage({ block_frame: frames, reset: true });
+          }
+        },
+        (applying, error, fatal) => {
+          if (sessRef.current?.ws !== ws) return;
+          setApplyingSettings(applying);
+          if (fatal) stopStream(true);
+          if (error) setMsg(t("Could not apply settings: {message}", { message: error }));
+          else if (!applying) setMsg(t("Settings applied"));
+        },
+      );
       setDiagnostics({
         estimatedMs: 0,
         queuedBlocks: 0,
@@ -554,7 +612,7 @@ export default function RealtimePage() {
           estimatedMs:
             (block / ctx.sampleRate) * 1000 +
             crossfade * 1000 +
-            inputLatency * 1000 +
+            (sessRef.current?.inputLatencyMs ?? inputLatency * 1000) +
             lastCaptureQueueMs +
             lastRoundTrip +
             stats.queuedMs +
@@ -572,7 +630,10 @@ export default function RealtimePage() {
         stream,
         nodes: [src, inNode, playNode, gain, monitorGain, monitorDest, outAnalyser],
         els: outputElements,
+        settings: liveSettings,
+        inputLatencyMs: inputLatency * 1000,
       };
+      audioRoutingRef.current = { input: inDev, output: outDev, focus: voiceFocus };
       ws.onopen = () => {
         ws.send(
           JSON.stringify({
@@ -595,6 +656,7 @@ export default function RealtimePage() {
             protect,
             volume_envelope: volumeEnvelope,
             autotune,
+            decoder_fp16: decoderFp16,
             autotune_strength: autotuneStrength,
             proposed_pitch: proposedPitch,
             proposed_pitch_threshold: proposedPitchThreshold,
@@ -645,13 +707,14 @@ export default function RealtimePage() {
       };
       inNode.port.onmessage = (e) => {
         const chunk: Float32Array = e.data.chunk;
-        if (ws.readyState === WebSocket.OPEN) sender.capture(chunk);
+        if (ws.readyState === WebSocket.OPEN && chunk.length === block) sender.capture(chunk);
       };
       ws.onmessage = (ev) => {
         if (sessRef.current?.ws !== ws) return;
         if (typeof ev.data === "string") {
           try {
             const m = JSON.parse(ev.data);
+            if (liveSettings.receive(m)) return;
             if (m.type === "retry_eager") retryEager = true;
             if (m.type === "error") setMsg(String(m.message));
             if (m.type === "ready") {
@@ -694,9 +757,12 @@ export default function RealtimePage() {
         if (sessRef.current?.ws === ws) setMsg(t("WebSocket error — is the engine running?"));
       };
     } catch (e) {
-      setConnecting(false);
-      setMsg(errMsg(e));
-      stopStream(true);
+      if (openingEpoch === streamEpochRef.current) {
+        setConnecting(false);
+        setMsg(t(errMsg(e)));
+        stopStream(true);
+      }
+      await openingVoiceFocusCleanup?.().catch(() => {});
       openingStream?.getTracks().forEach((track) => {
         track.stop();
       });
@@ -706,6 +772,31 @@ export default function RealtimePage() {
 
   const reconnectRef = useRef(startStream);
   reconnectRef.current = startStream;
+  const beforeMuteGainRef = useRef(100);
+  const traySnapshotRef = useRef<RealtimeTraySnapshot | null>(null);
+  traySnapshotRef.current = {
+    connecting,
+    streaming,
+    model,
+    processingMs: latency,
+    roundTripMs: roundTrip,
+    muted: inGain === 0,
+    monitor: monitorSelf,
+  };
+  const trayCommandRef = useRef((_action: RealtimeTrayCommand) => {});
+  trayCommandRef.current = (action) => {
+    if (action === "start") void startStream();
+    else if (action === "stop") stopStream(false);
+    else if (streaming) {
+      if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
+      else {
+        if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
+        const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
+        setInGain(gain);
+        void changeConfig("input_audio_gain", gain);
+      }
+    }
+  };
 
   // Latest controls for tray-driven start/stop (Electron) and autostart.
   const controlRef = useRef({ start: () => {}, stop: (_silent?: boolean) => {} });
@@ -719,14 +810,22 @@ export default function RealtimePage() {
   useEffect(() => {
     const bridge = (
       window as unknown as {
-        applio?: { onRealtimeCommand?: (cb: (action: "start" | "stop") => void) => () => void };
+        applio?: {
+          onRealtimeCommand?: (cb: (action: RealtimeTrayCommand) => void) => () => void;
+          reportRealtimeState?: (state: RealtimeTraySnapshot | null) => void;
+        };
       }
     ).applio;
     const off = bridge?.onRealtimeCommand?.((action) => {
-      if (action === "stop") controlRef.current.stop(false);
-      else controlRef.current.start();
+      trayCommandRef.current(action);
     });
-    return () => off?.();
+    bridge?.reportRealtimeState?.(traySnapshotRef.current);
+    const timer = setInterval(() => bridge?.reportRealtimeState?.(traySnapshotRef.current), 1000);
+    return () => {
+      clearInterval(timer);
+      off?.();
+      bridge?.reportRealtimeState?.(null);
+    };
   }, []);
 
   // Tray "Start Realtime" navigates here with #autostart when the tab is not
@@ -741,6 +840,9 @@ export default function RealtimePage() {
   });
 
   function stopStream(silentStop = false) {
+    const cleanup = voiceFocusCleanupRef.current;
+    voiceFocusCleanupRef.current = null;
+    void cleanup?.().catch(() => {});
     ++streamEpochRef.current;
     setConnecting(false);
     stopOutMeter();
@@ -759,6 +861,8 @@ export default function RealtimePage() {
       /* noop */
     }
     const s = sessRef.current;
+    s?.settings.dispose();
+    setApplyingSettings(false);
     sessRef.current = null;
     try {
       s?.ws.close();
@@ -801,21 +905,8 @@ export default function RealtimePage() {
     if (!silentStop) setMsg(t("Stopped."));
   }
 
-  async function changeConfig(key: string, value: number | string | boolean, ifKwargs = false) {
-    // Output gain is applied to the local GainNode instead.
-    if (key === "output_audio_gain") return;
-    try {
-      const ws = new WebSocket(apiWs("/api/realtime/change-config"));
-      await new Promise<void>((resolve, reject) => {
-        ws.onopen = () => resolve();
-        ws.onerror = () => reject(new Error("change-config unreachable"));
-        setTimeout(() => reject(new Error("change-config timeout")), 5000);
-      });
-      ws.send(JSON.stringify({ type: "init", key, value, if_kwargs: ifKwargs }));
-      setTimeout(() => ws.close(), 500);
-    } catch (e) {
-      setMsg(errMsg(e));
-    }
+  function changeConfig(key: string, value: number | string | boolean, ifKwargs = false) {
+    if (key !== "output_audio_gain") sessRef.current?.settings.update(key, value, ifKwargs);
   }
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: debounced config wrapper
@@ -868,6 +959,8 @@ export default function RealtimePage() {
     embedder_model: embedder,
     embedder_model_custom: embedderCustom,
     autotune,
+    decoder_fp16: decoderFp16,
+    voice_focus: voiceFocus,
     autotune_strength: autotuneStrength,
     proposed_pitch: proposedPitch,
     proposed_pitch_threshold: proposedPitchThreshold,
@@ -941,6 +1034,166 @@ export default function RealtimePage() {
     }, 800);
   }, [settingsKey]);
 
+  useEffect(() => {
+    const session = sessRef.current;
+    if (!streaming || !session) return;
+    const previous = { ...audioRoutingRef.current };
+    if (previous.input === inDev && previous.focus === voiceFocus) return;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      audioApplyCountRef.current++;
+      setApplyingAudio(true);
+      void (async () => {
+        let stream: MediaStream | undefined;
+        let source: MediaStreamAudioSourceNode | undefined;
+        let bridge: GainNode | undefined;
+        let cleanup: (() => Promise<void>) | undefined;
+        let committed = false;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              ...(inDev ? { deviceId: { exact: inDev } } : {}),
+              channelCount: { exact: 1 },
+              sampleRate: { exact: 48000 },
+              ...(voiceFocus !== "off"
+                ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
+                : {}),
+            },
+          });
+          if (cancelled || sessRef.current !== session) return;
+          source = session.ctx.createMediaStreamSource(stream);
+          bridge = session.ctx.createGain();
+          if (voiceFocus === "off") source.connect(bridge);
+          else cleanup = await connectVoiceFocus(session.ctx, source, bridge, stream, voiceFocus);
+          if (cancelled || sessRef.current !== session) return;
+          const oldStream = session.stream;
+          const oldSource = session.nodes[0];
+          const oldBridge = session.inputBridge;
+          const oldCleanup = voiceFocusCleanupRef.current;
+          bridge.connect(session.nodes[1]);
+          oldSource.disconnect();
+          oldBridge?.disconnect();
+          session.stream = stream;
+          session.nodes[0] = source;
+          session.nodes = session.nodes.filter((node) => node !== oldBridge);
+          session.nodes.push(bridge);
+          session.inputBridge = bridge;
+          session.inputLatencyMs =
+            ((stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })
+              ?.latency || 0) * 1000;
+          voiceFocusCleanupRef.current = cleanup || null;
+          audioRoutingRef.current.input = inDev;
+          audioRoutingRef.current.focus = voiceFocus;
+          committed = true;
+          oldStream.getTracks().forEach((track) => {
+            track.stop();
+          });
+          void oldCleanup?.().catch(() => {});
+          setMsg(t("Settings applied"));
+        } catch (error) {
+          if (!cancelled && sessRef.current === session) {
+            setInDev(previous.input);
+            setVoiceFocus(previous.focus);
+            setMsg(t("Could not apply settings: {message}", { message: t(errMsg(error)) }));
+          }
+        } finally {
+          if (!committed) {
+            stream?.getTracks().forEach((track) => {
+              track.stop();
+            });
+            source?.disconnect();
+            bridge?.disconnect();
+            await cleanup?.().catch(() => {});
+          }
+          audioApplyCountRef.current--;
+          setApplyingAudio(audioApplyCountRef.current > 0);
+        }
+      })();
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [inDev, voiceFocus, streaming, t]);
+
+  useEffect(() => {
+    const session = sessRef.current;
+    if (!streaming || !session || audioRoutingRef.current.output === outDev) return;
+    const previous = audioRoutingRef.current.output;
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      audioApplyCountRef.current++;
+      setApplyingAudio(true);
+      void (async () => {
+        const bridge = session.ctx.createGain();
+        let elements: HTMLAudioElement[] = [];
+        let committed = false;
+        try {
+          elements = await connectRealtimeOutput(session.ctx, bridge, outDev);
+          if (cancelled || sessRef.current !== session) return;
+          const gain = outGainNodeRef.current;
+          if (!gain) return;
+          gain.disconnect();
+          gain.connect(bridge);
+          session.outputBridge?.disconnect();
+          session.nodes = session.nodes.filter((node) => node !== session.outputBridge);
+          session.nodes.push(bridge);
+          session.outputBridge = bridge;
+          session.els.forEach((element) => {
+            element.pause();
+            element.srcObject = null;
+          });
+          session.els = elements;
+          audioRoutingRef.current.output = outDev;
+          committed = true;
+          setMsg(t("Settings applied"));
+        } catch (error) {
+          if (!cancelled && sessRef.current === session) {
+            setOutDev(previous);
+            setMsg(t("Could not apply settings: {message}", { message: t(errMsg(error)) }));
+          }
+        } finally {
+          if (!committed) {
+            bridge.disconnect();
+            elements.forEach((element) => {
+              element.pause();
+              element.srcObject = null;
+            });
+          }
+          audioApplyCountRef.current--;
+          setApplyingAudio(audioApplyCountRef.current > 0);
+        }
+      })();
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [outDev, streaming, t]);
+
+  const selectedLiveSettings = {
+    model_path: model,
+    index_path: index,
+    sid,
+    f0_method: f0Method,
+    embedder_model: embedder,
+    embedder_model_custom: embedderCustom,
+    automatic_block_size: autoChunk,
+    block_frame: Math.round(chunkMs * 48),
+  };
+  const selectedLiveKey = JSON.stringify(selectedLiveSettings);
+  const previousLiveSettingsRef = useRef(selectedLiveSettings);
+  useEffect(() => {
+    const current = JSON.parse(selectedLiveKey) as typeof selectedLiveSettings;
+    const previous = previousLiveSettingsRef.current;
+    previousLiveSettingsRef.current = current;
+    if (!streaming || !sessRef.current) return;
+    for (const [key, value] of Object.entries(current)) {
+      if (key === "block_frame" && current.automatic_block_size) continue;
+      if (value !== previous[key as keyof typeof previous]) sessRef.current.settings.update(key, value);
+    }
+  }, [selectedLiveKey, streaming]);
+
   return (
     <div className="w-full max-w-[1920px] mx-auto space-y-6">
       <PageHeader
@@ -953,6 +1206,9 @@ export default function RealtimePage() {
           {engine?.running ? t("active") : t("stopped")}
         </Badge>
       </PageHeader>
+      <p className="text-xs text-neutral-400" role="status" aria-live="polite">
+        {applyingSettings || applyingAudio ? t("Applying settings…") : t("Settings apply while streaming.")}
+      </p>
       <div>
         {msg && (
           <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
@@ -1123,7 +1379,7 @@ export default function RealtimePage() {
           />
           {embedder === "custom" && (
             <div>
-              <label htmlFor="rt-custom-embedder">{t("Custom embedder path (reconnect to apply)")}</label>
+              <label htmlFor="rt-custom-embedder">{t("Custom embedder path")}</label>
               <input
                 id="rt-custom-embedder"
                 type="text"
@@ -1220,11 +1476,41 @@ export default function RealtimePage() {
           </div>
         </Disclosure>
         <Disclosure title={t("Latency / VAD / gains")} icon={<Gauge size={15} />}>
+          <div className="mb-4 space-y-3">
+            <ToggleField
+              id="rt-decoder-fp16"
+              label={t("FP16 HiFi-GAN decoder (CUDA)")}
+              checked={decoderFp16}
+              onChange={(checked) => {
+                setDecoderFp16(checked);
+                if (streaming) changeConfig("decoder_fp16", checked);
+              }}
+            />
+            <label htmlFor="rt-voice-focus" className="text-xs text-neutral-300">
+              {t("Voice Focus")}
+            </label>
+            <CustomSelect
+              id="rt-voice-focus"
+              value={voiceFocus}
+              onChange={(e) => setVoiceFocus(e.target.value as VoiceFocusVariant)}
+              options={[
+                { value: "off", label: t("Off") },
+                { value: "c20", label: "Voice Focus c20" },
+                { value: "c50", label: "Voice Focus c50" },
+                { value: "c100", label: "Voice Focus c100" },
+              ]}
+            />
+            <p className="text-xs text-neutral-400">
+              {t(
+                "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
+              )}
+            </p>
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
             <div>
               <SliderField
                 id="rt-chunk-ms"
-                label={`${t("Chunk Size (ms)")} ${t("(reconnect to apply)")}`}
+                label={t("Chunk Size (ms)")}
                 value={chunkMs}
                 min={20}
                 max={1000}

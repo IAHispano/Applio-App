@@ -7,7 +7,7 @@ export async function connectRealtimeOutput(
 ): Promise<HTMLAudioElement[]> {
   const routable = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
   if (!deviceId || routable.setSinkId) {
-    if (deviceId) await routable.setSinkId?.(deviceId);
+    await routable.setSinkId?.(deviceId);
     source.connect(ctx.destination);
     await ctx.resume();
     return [];
@@ -17,9 +17,20 @@ export async function connectRealtimeOutput(
   const element = new Audio();
   element.srcObject = destination.stream;
   const selectable = element as HTMLAudioElement & { setSinkId?: (id: string) => Promise<void> };
-  if (!selectable.setSinkId) throw new Error("Audio output device selection is unavailable in this browser.");
-  await selectable.setSinkId(deviceId);
-  await element.play();
-  await ctx.resume();
-  return [element];
+  try {
+    if (!selectable.setSinkId)
+      throw new Error("Audio output device selection is unavailable in this browser.");
+    await selectable.setSinkId(deviceId);
+    await element.play();
+    await ctx.resume();
+    return [element];
+  } catch (error) {
+    source.disconnect(destination);
+    element.pause();
+    element.srcObject = null;
+    destination.stream.getTracks().forEach((track) => {
+      track.stop();
+    });
+    throw error;
+  }
 }

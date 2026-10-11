@@ -5,6 +5,7 @@ export class RealtimeAudioSender {
   private inFlight = false;
   private latest: Float32Array | null = null;
   private latestAt = 0;
+  private idleWaiters: Array<() => void> = [];
   droppedBlocks = 0;
   queueDelayMs = 0;
   get queuedBlocks(): number {
@@ -32,10 +33,17 @@ export class RealtimeAudioSender {
 
   acknowledge(): void {
     this.inFlight = false;
+    for (const resolve of this.idleWaiters.splice(0)) resolve();
     const latest = this.latest;
     this.queueDelayMs = latest ? performance.now() - this.latestAt : 0;
     this.latest = null;
     if (latest) this.capture(latest);
+  }
+
+  suspend(): Promise<void> {
+    this.ready = false;
+    this.latest = null;
+    return this.inFlight ? new Promise((resolve) => this.idleWaiters.push(resolve)) : Promise.resolve();
   }
 }
 
