@@ -701,6 +701,9 @@ export default function ModelsPage() {
           })()}
 
         <div className="flex justify-end gap-2 mt-4">
+          <Button variant="ghost" onClick={() => setInspectModal(null)}>
+            {t("Cancel")}
+          </Button>
           <Button
             onClick={() => {
               const m = inspectModal;

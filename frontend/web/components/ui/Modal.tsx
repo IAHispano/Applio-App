@@ -1,9 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useI18n } from "@/lib/i18n";
 
 interface ModalProps {
   isOpen: boolean;
@@ -28,7 +26,6 @@ export default function Modal({
   danger = false,
   icon,
 }: ModalProps) {
-  const { t } = useI18n();
   const generatedId = useId();
   const titleId = `modal-title-${generatedId}`;
   const descId = `modal-desc-${generatedId}`;
@@ -142,14 +139,6 @@ export default function Modal({
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={t("Close dialog")}
-            className="text-[var(--muted)] hover:text-[var(--heading)] rounded-lg p-1.5 transition-colors hover:bg-[var(--surface)] shrink-0 cursor-pointer -mr-1 -mt-1"
-          >
-            <X size={18} aria-hidden="true" />
-          </button>
         </div>
 
         {/* Modal Content */}
