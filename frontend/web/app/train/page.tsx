@@ -739,140 +739,146 @@ export default function TrainPage() {
         size="lg"
         icon={<Sliders size={18} className="text-white" />}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="modal-context">
           <Badge variant="neutral">{modelName || "…"}</Badge>
           <Badge variant={isCpu ? "warning" : "success"} dot>
             {isCpu ? t("CPU") : `${t("GPU")} ${gpuCount}`}
           </Badge>
         </div>
-        <h3 className="text-xs text-neutral-400 m-0">{t("Source")}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
-          <div className="sm:col-span-2">
-            <label htmlFor="modal-prep-dataset-path">{t("Dataset Path")}</label>
-            <input
-              id="modal-prep-dataset-path"
-              type="text"
-              list="modal-prep-dataset-list"
-              value={datasetPath}
-              onChange={(e) => setDatasetPath(e.target.value)}
-              placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
-              aria-describedby={`${"modal-prep-dataset-path"}-help`}
+        <section className="modal-section" aria-label={t("Source")}>
+          <h3 className="modal-section-title">{t("Source")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
+            <div className="sm:col-span-2">
+              <label htmlFor="modal-prep-dataset-path">{t("Dataset Path")}</label>
+              <input
+                id="modal-prep-dataset-path"
+                type="text"
+                list="modal-prep-dataset-list"
+                value={datasetPath}
+                onChange={(e) => setDatasetPath(e.target.value)}
+                placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
+                aria-describedby={`${"modal-prep-dataset-path"}-help`}
+              />
+              <SettingHelp text={t(SETTING_HELP.dataset)} controlId={"modal-prep-dataset-path"} />
+              <datalist id="modal-prep-dataset-list">
+                {datasets.map((d) => (
+                  <option key={d} value={d} />
+                ))}
+              </datalist>
+            </div>
+            <div>
+              <label htmlFor="modal-prep-sample-rate">{t("Sampling Rate")}</label>
+              <CustomSelect
+                id="modal-prep-sample-rate"
+                value={sampleRate}
+                onChange={(e) => setSampleRate(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.sampleRate)}
+              >
+                {srOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s} Hz
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+            <div>
+              <label htmlFor="modal-prep-norm-mode">{t("Normalization mode")}</label>
+              <CustomSelect
+                id="modal-prep-norm-mode"
+                value={normalizationMode}
+                onChange={(e) => setNormalizationMode(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.normalize)}
+              >
+                {["none", "pre", "post"].map((s) => (
+                  <option key={s} value={s}>
+                    {s === "none" ? t("None") : t(s)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+          </div>
+        </section>
+        <section className="modal-section" aria-label={t("Slicing")}>
+          <h3 className="modal-section-title">{t("Slicing")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
+            <div>
+              <label htmlFor="modal-prep-cut-method">{t("Audio cutting")}</label>
+              <CustomSelect
+                id="modal-prep-cut-method"
+                value={cut}
+                onChange={(e) => setCut(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.cutting)}
+              >
+                {["Skip", "Simple", "Automatic"].map((s) => (
+                  <option key={s} value={s}>
+                    {t(s)}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+            <div>
+              <SliderField
+                id="modal-prep-chunk"
+                label={t("Chunk length")}
+                value={chunk}
+                min={0.5}
+                max={5}
+                step={0.1}
+                unit="s"
+                onChange={setChunk}
+                description={t(SETTING_HELP.trainChunk)}
+              />
+            </div>
+            <div>
+              <SliderField
+                id="modal-prep-overlap"
+                label={t("Overlap length")}
+                value={overlap}
+                min={0}
+                max={0.4}
+                step={0.1}
+                unit="s"
+                onChange={setOverlap}
+                description={t(SETTING_HELP.trainOverlap)}
+              />
+            </div>
+          </div>
+        </section>
+        <section className="modal-section" aria-label={t("Cleanup")}>
+          <h3 className="modal-section-title">{t("Cleanup")}</h3>
+          <div className="modal-option-grid">
+            <ToggleField
+              id="modal-prep-noise-reduction"
+              label={t("Noise Reduction")}
+              checked={noiseReduction}
+              onChange={setNoiseReduction}
+              description={t(SETTING_HELP.clean)}
             />
-            <SettingHelp text={t(SETTING_HELP.dataset)} controlId={"modal-prep-dataset-path"} />
-            <datalist id="modal-prep-dataset-list">
-              {datasets.map((d) => (
-                <option key={d} value={d} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label htmlFor="modal-prep-sample-rate">{t("Sampling Rate")}</label>
-            <CustomSelect
-              id="modal-prep-sample-rate"
-              value={sampleRate}
-              onChange={(e) => setSampleRate(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.sampleRate)}
-            >
-              {srOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s} Hz
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <label htmlFor="modal-prep-norm-mode">{t("Normalization mode")}</label>
-            <CustomSelect
-              id="modal-prep-norm-mode"
-              value={normalizationMode}
-              onChange={(e) => setNormalizationMode(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.normalize)}
-            >
-              {["none", "pre", "post"].map((s) => (
-                <option key={s} value={s}>
-                  {s === "none" ? t("None") : t(s)}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-        </div>
-        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Slicing")}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
-          <div>
-            <label htmlFor="modal-prep-cut-method">{t("Audio cutting")}</label>
-            <CustomSelect
-              id="modal-prep-cut-method"
-              value={cut}
-              onChange={(e) => setCut(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.cutting)}
-            >
-              {["Skip", "Simple", "Automatic"].map((s) => (
-                <option key={s} value={s}>
-                  {t(s)}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <SliderField
-              id="modal-prep-chunk"
-              label={t("Chunk length")}
-              value={chunk}
-              min={0.5}
-              max={5}
-              step={0.1}
-              unit="s"
-              onChange={setChunk}
-              description={t(SETTING_HELP.trainChunk)}
+            {noiseReduction && (
+              <SliderField
+                id="modal-prep-clean-strength"
+                label={t("Clean strength")}
+                value={cleanStrength}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setCleanStrength}
+                description={t(SETTING_HELP.cleanStrength)}
+              />
+            )}
+            <ToggleField
+              id="modal-prep-process-effects"
+              label={t("Noise filter")}
+              checked={processEffects}
+              onChange={setProcessEffects}
+              description={t(SETTING_HELP.noiseFilter)}
             />
           </div>
-          <div>
-            <SliderField
-              id="modal-prep-overlap"
-              label={t("Overlap length")}
-              value={overlap}
-              min={0}
-              max={0.4}
-              step={0.1}
-              unit="s"
-              onChange={setOverlap}
-              description={t(SETTING_HELP.trainOverlap)}
-            />
-          </div>
-        </div>
-        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Cleanup")}</h3>
-        <div className="space-y-1">
-          <ToggleField
-            id="modal-prep-noise-reduction"
-            label={t("Noise Reduction")}
-            checked={noiseReduction}
-            onChange={setNoiseReduction}
-            description={t(SETTING_HELP.clean)}
-          />
-          {noiseReduction && (
-            <SliderField
-              id="modal-prep-clean-strength"
-              label={t("Clean strength")}
-              value={cleanStrength}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setCleanStrength}
-              description={t(SETTING_HELP.cleanStrength)}
-            />
-          )}
-          <ToggleField
-            id="modal-prep-process-effects"
-            label={t("Noise filter")}
-            checked={processEffects}
-            onChange={setProcessEffects}
-            description={t(SETTING_HELP.noiseFilter)}
-          />
-        </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap">
+        </section>
+        <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -891,61 +897,67 @@ export default function TrainPage() {
         size="lg"
         icon={<Activity size={18} className="text-white" />}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="modal-context">
           <Badge variant="neutral">{modelName || "…"}</Badge>
           <Badge variant={isCpu ? "warning" : "success"} dot>
             {isCpu ? t("CPU") : `${t("GPU")} ${gpuCount}`}
           </Badge>
           <Badge variant="outline">{sampleRate} Hz</Badge>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
-          <div>
-            <label htmlFor="modal-ext-pitch-method">{t("Pitch extraction algorithm")}</label>
-            <CustomSelect
-              id="modal-ext-pitch-method"
-              value={f0Method}
-              onChange={(e) => setF0Method(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.pitchMethod)}
-            >
-              {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <label htmlFor="modal-ext-embedder-model">{t("Embedder Model")}</label>
-            <CustomSelect
-              id="modal-ext-embedder-model"
-              value={embedder}
-              onChange={(e) => setEmbedder(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.embedder)}
-            >
-              {["contentvec", "spin-v2", "custom"].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          {embedder === "custom" && (
-            <div className="sm:col-span-2">
-              <label htmlFor="modal-ext-custom-embedder">{t("Select Custom Embedder")}</label>
-              <input
-                id="modal-ext-custom-embedder"
-                type="text"
-                value={embedderCustom}
-                onChange={(e) => setEmbedderCustom(e.target.value)}
-                placeholder="rvc/models/embedders/embedders_custom/my-embedder"
-                aria-describedby={`${"modal-ext-custom-embedder"}-help`}
-              />
-              <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"modal-ext-custom-embedder"} />
+        <section className="modal-section" aria-label={t("Analysis models")}>
+          <h3 className="modal-section-title">{t("Analysis models")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
+            <div>
+              <label htmlFor="modal-ext-pitch-method">{t("Pitch extraction algorithm")}</label>
+              <CustomSelect
+                id="modal-ext-pitch-method"
+                value={f0Method}
+                onChange={(e) => setF0Method(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.pitchMethod)}
+              >
+                {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </CustomSelect>
             </div>
-          )}
-          <div>
+            <div>
+              <label htmlFor="modal-ext-embedder-model">{t("Embedder Model")}</label>
+              <CustomSelect
+                id="modal-ext-embedder-model"
+                value={embedder}
+                onChange={(e) => setEmbedder(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.embedder)}
+              >
+                {["contentvec", "spin-v2", "custom"].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+            {embedder === "custom" && (
+              <div className="sm:col-span-2">
+                <label htmlFor="modal-ext-custom-embedder">{t("Select Custom Embedder")}</label>
+                <input
+                  id="modal-ext-custom-embedder"
+                  type="text"
+                  value={embedderCustom}
+                  onChange={(e) => setEmbedderCustom(e.target.value)}
+                  placeholder="rvc/models/embedders/embedders_custom/my-embedder"
+                  aria-describedby={`${"modal-ext-custom-embedder"}-help`}
+                />
+                <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"modal-ext-custom-embedder"} />
+              </div>
+            )}
+          </div>
+        </section>
+        <section className="modal-section" aria-label={t("Dataset")}>
+          <h3 className="modal-section-title">{t("Dataset")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
             <SliderField
               id="modal-ext-include-mutes"
               label={t("Silent training files")}
@@ -956,25 +968,25 @@ export default function TrainPage() {
               onChange={setIncludeMutes}
               description={t(SETTING_HELP.mutes)}
             />
+            <div>
+              <label htmlFor="modal-ext-sample-rate">{t("Sampling Rate")}</label>
+              <CustomSelect
+                id="modal-ext-sample-rate"
+                value={sampleRate}
+                onChange={(e) => setSampleRate(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.sampleRate)}
+              >
+                {srOptions.map((s) => (
+                  <option key={s} value={s}>
+                    {s} Hz
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
           </div>
-          <div>
-            <label htmlFor="modal-ext-sample-rate">{t("Sampling Rate")}</label>
-            <CustomSelect
-              id="modal-ext-sample-rate"
-              value={sampleRate}
-              onChange={(e) => setSampleRate(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.sampleRate)}
-            >
-              {srOptions.map((s) => (
-                <option key={s} value={s}>
-                  {s} Hz
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-        </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap">
+        </section>
+        <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -993,207 +1005,214 @@ export default function TrainPage() {
         size="xl"
         icon={<Flame size={18} className="text-white" />}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="modal-context">
           <Badge variant="neutral">{modelName || "…"}</Badge>
           <Badge variant={isCpu ? "warning" : "success"} dot>
             {isCpu ? t("CPU") : `${t("GPU")} ${gpuCount}`}
           </Badge>
           <Badge variant="outline">{vocoder}</Badge>
         </div>
-        <h3 className="text-xs text-neutral-400 m-0">{t("Architecture")}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
-          <div>
-            <label htmlFor="modal-train-vocoder">{t("Vocoder")}</label>
-            <CustomSelect
-              id="modal-train-vocoder"
-              value={vocoder}
-              onChange={(e) => pickVocoder(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.vocoder)}
-            >
-              {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <label htmlFor="modal-train-index-algo">{t("Index Algorithm")}</label>
-            <CustomSelect
-              id="modal-train-index-algo"
-              value={indexAlgo}
-              onChange={(e) => setIndexAlgo(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.indexAlgorithm)}
-            >
-              {["Auto", "Faiss", "KMeans"].map((s) => (
-                <option key={s} value={s}>
-                  {s === "Auto" ? t("Auto") : s}
-                </option>
-              ))}
-            </CustomSelect>
-          </div>
-          <div>
-            <SliderField
-              id="modal-train-total-epoch"
-              label={t("Total Epoch")}
-              value={totalEpoch}
-              min={1}
-              max={10000}
-              step={1}
-              onChange={setTotalEpoch}
-              description={t(SETTING_HELP.epochs)}
-            />
-          </div>
-          <div>
-            <SliderField
-              id="modal-train-batch-size"
-              label={t("Batch Size")}
-              value={batchSize}
-              min={1}
-              max={64}
-              step={1}
-              onChange={setBatchSize}
-              description={t(SETTING_HELP.batchSize)}
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <SliderField
-              id="modal-train-save-every"
-              label={t("Save Every Epoch")}
-              value={saveEvery}
-              min={1}
-              max={100}
-              step={1}
-              onChange={setSaveEvery}
-              description={t(SETTING_HELP.saveEvery)}
-            />
-          </div>
-        </div>
-
-        <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Checkpoints & performance")}</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 rounded-xl border border-white/10 bg-black/20 p-3 [&>*]:min-w-0">
-          <ToggleField
-            id="modal-train-pretrained"
-            label={t("Use pretrained model")}
-            description={t(SETTING_HELP.pretrained)}
-            checked={pretrained}
-            onChange={setPretrained}
-          />
-          <ToggleField
-            id="modal-train-save-latest"
-            label={t("Save Only Latest")}
-            checked={saveOnlyLatest}
-            onChange={setSaveOnlyLatest}
-            description={t(SETTING_HELP.saveLatest)}
-          />
-          <ToggleField
-            id="modal-train-save-weights"
-            label={t("Save Every Weights")}
-            checked={saveEveryWeights}
-            onChange={setSaveEveryWeights}
-            description={t(SETTING_HELP.saveWeights)}
-          />
-          <ToggleField
-            id="modal-train-cleanup"
-            label={t("Fresh Training")}
-            checked={cleanup}
-            onChange={setCleanup}
-            description={t(SETTING_HELP.fresh)}
-          />
-          <ToggleField
-            id="modal-train-cache-gpu"
-            label={t("Cache Dataset in GPU")}
-            checked={cacheGpu}
-            onChange={setCacheGpu}
-            description={t(SETTING_HELP.cacheGPU)}
-          />
-          <ToggleField
-            id="modal-train-checkpointing"
-            label={t("Checkpointing")}
-            checked={checkpointing}
-            onChange={setCheckpointing}
-            description={t(SETTING_HELP.checkpointing)}
-          />
-          <ToggleField
-            id="modal-train-custom-pre"
-            label={t("Custom Pretrained")}
-            checked={customPre}
-            onChange={setCustomPre}
-            description={t(SETTING_HELP.customPretrained)}
-          />
-        </div>
-        {customPre && (
-          <div className="grid2">
+        <section className="modal-section" aria-label={t("Architecture")}>
+          <h3 className="modal-section-title">{t("Architecture")}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 [&>*]:min-w-0">
             <div>
-              <label htmlFor="modal-train-gpath">{t("Custom Pretrained G")}</label>
-              {pretG.length > 0 ? (
-                <CustomSelect
-                  id="modal-train-gpath"
-                  value={gPath}
-                  onChange={(e) => setGPath(e.target.value)}
-                  placeholder={t("Select pretrained G…")}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.pretrainedG)}
-                >
-                  <option value="">{t("Select pretrained G model…")}</option>
-                  {pretG.map((p) => (
-                    <option key={p} value={p}>
-                      {p.split(/[\\/]/).pop() || p}
-                    </option>
-                  ))}
-                </CustomSelect>
-              ) : (
-                <>
-                  <input
+              <label htmlFor="modal-train-vocoder">{t("Vocoder")}</label>
+              <CustomSelect
+                id="modal-train-vocoder"
+                value={vocoder}
+                onChange={(e) => pickVocoder(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.vocoder)}
+              >
+                {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+            <div>
+              <label htmlFor="modal-train-index-algo">{t("Index Algorithm")}</label>
+              <CustomSelect
+                id="modal-train-index-algo"
+                value={indexAlgo}
+                onChange={(e) => setIndexAlgo(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.indexAlgorithm)}
+              >
+                {["Auto", "Faiss", "KMeans"].map((s) => (
+                  <option key={s} value={s}>
+                    {s === "Auto" ? t("Auto") : s}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
+            <div>
+              <SliderField
+                id="modal-train-total-epoch"
+                label={t("Total Epoch")}
+                value={totalEpoch}
+                min={1}
+                max={10000}
+                step={1}
+                onChange={setTotalEpoch}
+                description={t(SETTING_HELP.epochs)}
+              />
+            </div>
+            <div>
+              <SliderField
+                id="modal-train-batch-size"
+                label={t("Batch Size")}
+                value={batchSize}
+                min={1}
+                max={64}
+                step={1}
+                onChange={setBatchSize}
+                description={t(SETTING_HELP.batchSize)}
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <SliderField
+                id="modal-train-save-every"
+                label={t("Save Every Epoch")}
+                value={saveEvery}
+                min={1}
+                max={100}
+                step={1}
+                onChange={setSaveEvery}
+                description={t(SETTING_HELP.saveEvery)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="modal-section" aria-label={t("Checkpoints & performance")}>
+          <h3 className="modal-section-title">{t("Checkpoints & performance")}</h3>
+          <div className="modal-option-grid">
+            <ToggleField
+              id="modal-train-pretrained"
+              label={t("Use pretrained model")}
+              description={t(SETTING_HELP.pretrained)}
+              checked={pretrained}
+              onChange={setPretrained}
+            />
+            <ToggleField
+              id="modal-train-save-latest"
+              label={t("Save Only Latest")}
+              checked={saveOnlyLatest}
+              onChange={setSaveOnlyLatest}
+              description={t(SETTING_HELP.saveLatest)}
+            />
+            <ToggleField
+              id="modal-train-save-weights"
+              label={t("Save Every Weights")}
+              checked={saveEveryWeights}
+              onChange={setSaveEveryWeights}
+              description={t(SETTING_HELP.saveWeights)}
+            />
+            <ToggleField
+              id="modal-train-cleanup"
+              label={t("Fresh Training")}
+              checked={cleanup}
+              onChange={setCleanup}
+              description={t(SETTING_HELP.fresh)}
+            />
+            <ToggleField
+              id="modal-train-cache-gpu"
+              label={t("Cache Dataset in GPU")}
+              checked={cacheGpu}
+              onChange={setCacheGpu}
+              description={t(SETTING_HELP.cacheGPU)}
+            />
+            <ToggleField
+              id="modal-train-checkpointing"
+              label={t("Checkpointing")}
+              checked={checkpointing}
+              onChange={setCheckpointing}
+              description={t(SETTING_HELP.checkpointing)}
+            />
+            <ToggleField
+              id="modal-train-custom-pre"
+              label={t("Custom Pretrained")}
+              checked={customPre}
+              onChange={setCustomPre}
+              description={t(SETTING_HELP.customPretrained)}
+            />
+          </div>
+        </section>
+        {customPre && (
+          <section className="modal-section" aria-label={t("Custom pretrained weights")}>
+            <h3 className="modal-section-title">{t("Custom pretrained weights")}</h3>
+            <div className="grid2">
+              <div>
+                <label htmlFor="modal-train-gpath">{t("Custom Pretrained G")}</label>
+                {pretG.length > 0 ? (
+                  <CustomSelect
                     id="modal-train-gpath"
-                    type="text"
                     value={gPath}
                     onChange={(e) => setGPath(e.target.value)}
-                    placeholder="assets/pretrained_v2/f0G40k.pth"
-                    aria-describedby={`${"modal-train-gpath"}-help`}
-                  />
-                  <SettingHelp text={t(SETTING_HELP.pretrainedG)} controlId={"modal-train-gpath"} />
-                </>
-              )}
-            </div>
-            <div>
-              <label htmlFor="modal-train-dpath">{t("Custom Pretrained D")}</label>
-              {pretD.length > 0 ? (
-                <CustomSelect
-                  id="modal-train-dpath"
-                  value={dPath}
-                  onChange={(e) => setDPath(e.target.value)}
-                  placeholder={t("Select pretrained D…")}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.pretrainedD)}
-                >
-                  <option value="">{t("Select pretrained D model…")}</option>
-                  {pretD.map((p) => (
-                    <option key={p} value={p}>
-                      {p.split(/[\\/]/).pop() || p}
-                    </option>
-                  ))}
-                </CustomSelect>
-              ) : (
-                <>
-                  <input
+                    placeholder={t("Select pretrained G…")}
+                    className="w-full mt-1"
+                    description={t(SETTING_HELP.pretrainedG)}
+                  >
+                    <option value="">{t("Select pretrained G model…")}</option>
+                    {pretG.map((p) => (
+                      <option key={p} value={p}>
+                        {p.split(/[\\/]/).pop() || p}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                ) : (
+                  <>
+                    <input
+                      id="modal-train-gpath"
+                      type="text"
+                      value={gPath}
+                      onChange={(e) => setGPath(e.target.value)}
+                      placeholder="assets/pretrained_v2/f0G40k.pth"
+                      aria-describedby={`${"modal-train-gpath"}-help`}
+                    />
+                    <SettingHelp text={t(SETTING_HELP.pretrainedG)} controlId={"modal-train-gpath"} />
+                  </>
+                )}
+              </div>
+              <div>
+                <label htmlFor="modal-train-dpath">{t("Custom Pretrained D")}</label>
+                {pretD.length > 0 ? (
+                  <CustomSelect
                     id="modal-train-dpath"
-                    type="text"
                     value={dPath}
                     onChange={(e) => setDPath(e.target.value)}
-                    placeholder="assets/pretrained_v2/f0D40k.pth"
-                    aria-describedby={`${"modal-train-dpath"}-help`}
-                  />
-                  <SettingHelp text={t(SETTING_HELP.pretrainedD)} controlId={"modal-train-dpath"} />
-                </>
-              )}
+                    placeholder={t("Select pretrained D…")}
+                    className="w-full mt-1"
+                    description={t(SETTING_HELP.pretrainedD)}
+                  >
+                    <option value="">{t("Select pretrained D model…")}</option>
+                    {pretD.map((p) => (
+                      <option key={p} value={p}>
+                        {p.split(/[\\/]/).pop() || p}
+                      </option>
+                    ))}
+                  </CustomSelect>
+                ) : (
+                  <>
+                    <input
+                      id="modal-train-dpath"
+                      type="text"
+                      value={dPath}
+                      onChange={(e) => setDPath(e.target.value)}
+                      placeholder="assets/pretrained_v2/f0D40k.pth"
+                      aria-describedby={`${"modal-train-dpath"}-help`}
+                    />
+                    <SettingHelp text={t(SETTING_HELP.pretrainedD)} controlId={"modal-train-dpath"} />
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          </section>
         )}
 
-        <div className="flex items-center justify-end gap-2 flex-wrap">
+        <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -1212,7 +1231,7 @@ export default function TrainPage() {
         size="md"
         icon={<Database size={18} className="text-white" />}
       >
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="modal-context">
           <Badge variant="neutral">{modelName || "…"}</Badge>
           <Badge variant="outline">{indexAlgo}</Badge>
         </div>
@@ -1232,7 +1251,7 @@ export default function TrainPage() {
             ))}
           </CustomSelect>
         </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap">
+        <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>

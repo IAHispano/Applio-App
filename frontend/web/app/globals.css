@@ -1233,6 +1233,7 @@ svg {
     animation: none;
   }
 }
+
 /* ---------- App motion system (pure CSS, no JS library) ----------
    Tab switches replay .page-transition (keyed by pathname). Accordions,
    menus, modals and pills animate on mount/class change. Everything
@@ -1436,6 +1437,73 @@ button.segmented-item.is-active {
   transform: scale(0.97);
 }
 
+/* Search dropdowns opt out of the global focus-visible ring — their
+   open/hover/selected states already communicate state. Scoped to these
+   triggers and search fields only, not global controls. */
+.no-focus-ring:focus-visible {
+  outline: none;
+}
+
+/* ---------- Modal content hierarchy ----------
+   Context strip → labeled sections → separated footer. Used by the
+   manual training step modals (and any future multi-section dialog). */
+.modal-context {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.modal-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  user-select: none;
+}
+.modal-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+/* Boxed grid for toggle/option groups */
+.modal-option-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-input);
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+}
+@media (min-width: 640px) {
+  .modal-option-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .page-transition > * > *,
   .animate-in,
@@ -1457,11 +1525,3 @@ button.segmented-item.is-active {
     transform: none;
   }
 }
-
-/* Search dropdowns opt out of the global focus-visible ring — their
-   open/hover/selected states already communicate state. Scoped to these
-   triggers and search fields only, not global controls. */
-.no-focus-ring:focus-visible {
-  outline: none;
-}
-
