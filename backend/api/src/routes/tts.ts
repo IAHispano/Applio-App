@@ -4,7 +4,7 @@ import { type Request, type Response, Router } from "express";
 import { trackPid } from "@/cli";
 import { errMsg } from "@/errors";
 import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunning } from "@/jobs";
-import { buildTtsInferArgs } from "@/lib/inferArgs";
+import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { txtUpload } from "@/lib/upload";
 import {
   getBackendRoot,
@@ -66,7 +66,7 @@ function loadVoicesCached(): TtsVoice[] {
   return voices;
 }
 
-function toCliArgs(p: TtsParams, ttsFile: string, outTts: string, outRvc: string): string[] {
+function toCliArgs(p: TtsParams, ttsFile: string, outTts: string): string[] {
   return [
     path.join("rvc", "lib", "tools", "tts.py"),
     "--tts-file",
@@ -79,13 +79,6 @@ function toCliArgs(p: TtsParams, ttsFile: string, outTts: string, outRvc: string
     String(p.ttsRate),
     "--output-tts-path",
     outTts,
-    "--output-rvc-path",
-    outRvc,
-    "--pth-path",
-    p.pthPath,
-    "--index-path",
-    p.indexPath || "",
-    ...buildTtsInferArgs(p),
   ];
 }
 
@@ -169,32 +162,52 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
       } catch (workerErr) {
         if (job.status !== "running") return;
         appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
-        const args = toCliArgs(params, ttsFile, outTts, outRvc);
-        const result = await runPythonModule(args, {
-          onData: (chunk) => {
-            const trimmed = chunk.trim().slice(0, 1000);
-            if (trimmed) {
-              appendLog(job, trimmed);
-              runStdout += `${trimmed}\n`;
-              if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
-            }
-          },
-          onSpawn: (pid) => trackPid(job.id, pid),
-        });
-        trackPid(job.id, undefined);
-        if (result.code !== 0) {
-          throw new Error(result.stderr.slice(-3000) || `TTS failed with code ${result.code}`);
+        const stages = [
+          toCliArgs(params, ttsFile, outTts),
+          [
+            path.join("rvc", "infer", "infer.py"),
+            "--input-path",
+            outTts,
+            "--output-path",
+            outRvc,
+            "--pth-path",
+            params.pthPath,
+            "--index-path",
+            params.indexPath || "",
+            ...buildCommonInferArgs(params),
+          ],
+        ];
+        for (const [stage, args] of stages.entries()) {
+          if (job.status !== "running") return;
+          const result = await runPythonModule(args, {
+            onData: (chunk) => {
+              const trimmed = chunk.trim().slice(0, 1000);
+              if (trimmed) {
+                appendLog(job, trimmed);
+                runStdout += `${trimmed}\n`;
+                if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
+              }
+            },
+            onSpawn: (pid) => trackPid(job.id, pid),
+          });
+          trackPid(job.id, undefined);
+          if (result.code !== 0) {
+            throw new Error(result.stderr.slice(-3000) || `TTS failed with code ${result.code}`);
+          }
+          if (job.status !== "running") return;
+          runStdout += result.stdout;
+          setProgress(job, stage === 0 ? 40 : 95);
         }
-        runStdout += result.stdout;
       }
 
+      if (job.status !== "running") return;
       const finalAbs = outRvc.replace(/\.wav$/i, `.${ext}`);
       const served =
         finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outRvc;
 
       if (!fs.existsSync(served)) throw new Error("TTS finished but no output file was found.");
       const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
-      appendLog(job, `Done -> ${rel}`);
+      appendLog(job, `Done: ${rel}`);
       setProgress(job, 100);
       setDone(
         job,

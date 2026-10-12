@@ -116,9 +116,30 @@ export class InferenceWorkerManager {
   private restarting = false;
   private warmedUp = false;
   private warmupTimer?: NodeJS.Timeout;
+  private idleTimer?: NodeJS.Timeout;
+  private idlePing?: string;
 
-  constructor() {
+  constructor(private readonly idleMs = 5 * 60_000) {
     process.on("exit", () => this.stop());
+  }
+
+  private touchActivity(): void {
+    clearTimeout(this.idleTimer);
+    this.idlePing = undefined;
+    if (!this.child || !this.isReady || this.activeJob || this.queue.length) return;
+    const child = this.child;
+    this.idleTimer = setTimeout(() => {
+      if (this.child !== child || this.activeJob || this.queue.length || !this.isReady) return;
+      // A reply proves that warmup/preload commands have also finished: they
+      // share the same serial Python command queue but are not active jobs.
+      this.idlePing = randomUUID();
+      try {
+        child.stdin?.write(`${JSON.stringify({ command: "ping", id: this.idlePing })}\n`);
+      } catch {
+        this.idlePing = undefined;
+      }
+    }, this.idleMs);
+    this.idleTimer.unref();
   }
 
   public getPid(): number | undefined {
@@ -193,6 +214,11 @@ export class InferenceWorkerManager {
       this.readyFailures = [];
       for (const cb of cbs) cb();
       this.processNext();
+      this.touchActivity();
+    } else if (msg.type === "pong") {
+      if (this.idlePing && msg.id === this.idlePing && this.child && !this.activeJob && !this.queue.length) {
+        this.stop();
+      }
     } else if (msg.type === "log") {
       if (this.activeJob && (!msg.id || this.activeJob.id === msg.id) && msg.message) {
         this.activeJob.onLog(msg.message);
@@ -221,6 +247,7 @@ export class InferenceWorkerManager {
           job.resolve(msg.metadata || {});
         }
         this.processNext();
+        this.touchActivity();
       }
     } else if (msg.type === "error") {
       if (this.activeJob && this.activeJob.id === msg.id) {
@@ -229,11 +256,14 @@ export class InferenceWorkerManager {
         this.removeCancellation(job.id);
         job.reject(new Error(msg.error || "Worker task failed"));
         this.processNext();
+        this.touchActivity();
       }
     }
   }
 
   private handleProcessExit(err: Error) {
+    clearTimeout(this.idleTimer);
+    this.idlePing = undefined;
     this.isReady = false;
     this.child = null;
     for (const reject of this.readyFailures) reject(err);
@@ -295,6 +325,7 @@ export class InferenceWorkerManager {
     if (gpuJobRunning() || schedulerStatus().realtime) return;
     this.warmedUp = true;
     try {
+      this.touchActivity();
       this.child.stdin?.write(`${JSON.stringify({ command: "warmup" })}\n`);
     } catch {
       this.warmedUp = false;
@@ -307,6 +338,7 @@ export class InferenceWorkerManager {
     if (gpuJobRunning() || schedulerStatus().realtime || this.activeJob || this.queue.length) return;
     if (!this.child) return;
     try {
+      this.touchActivity();
       this.child.stdin?.write(`${JSON.stringify({ command: "preload_model", pthPath, sid })}\n`);
     } catch {
       /* ignore */
@@ -484,6 +516,8 @@ export class InferenceWorkerManager {
 
   private processNext() {
     if (this.activeJob || this.queue.length === 0 || !this.isReady || !this.child) return;
+    clearTimeout(this.idleTimer);
+    this.idlePing = undefined;
     const req = this.queue.shift();
     if (!req) return;
     this.activeJob = req;
@@ -562,6 +596,7 @@ export class InferenceWorkerManager {
 
   private enqueue(request: WorkerRequest): void {
     this.queue.push(request);
+    this.touchActivity();
     this.cancellation.set(
       request.id,
       registerJobCancellation(request.id, () => this.cancel(request.id)),
@@ -574,6 +609,7 @@ export class InferenceWorkerManager {
       const [request] = this.queue.splice(index, 1);
       this.removeCancellation(id);
       request.reject(new Error("Stopped by user"));
+      this.touchActivity();
     } else if (this.activeJob?.id === id) {
       this.stop();
       if (this.queue.length)
@@ -600,6 +636,8 @@ export class InferenceWorkerManager {
 
   public stop() {
     clearTimeout(this.warmupTimer);
+    clearTimeout(this.idleTimer);
+    this.idlePing = undefined;
     const child = this.child;
     this.child = null;
     this.isReady = false;

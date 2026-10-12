@@ -14,6 +14,7 @@ import {
   resolveSupportedLanguage,
 } from "@/i18n";
 import { validateLogsMove } from "@/logs-storage";
+import { readModelPresets, saveModelPreset } from "@/model-presets";
 import {
   getAppVersion,
   getLogsDir,
@@ -45,6 +46,31 @@ const settingsSchema = z.object({
     .optional(),
   realtime: z.record(z.unknown()).optional(),
   theme: z.object({ file: z.string(), font: z.array(z.string()).optional() }).optional(),
+});
+
+const presetSchema = z.object({
+  model: z.string().min(1).max(4096),
+  scope: z.enum(["conversion", "realtime"]),
+  values: z.record(z.union([z.string().max(4096), z.number().finite(), z.boolean()])),
+});
+
+router.get("/model-presets", (_req, res) => {
+  try {
+    res.json({ presets: readModelPresets() });
+  } catch (err) {
+    res.status(500).json({ error: errMsg(err) });
+  }
+});
+router.put("/model-presets", (req, res) => {
+  const parsed = presetSchema.safeParse(req.body);
+  if (!parsed.success || Object.keys(parsed.data.values).length > 100)
+    return res.status(400).json({ error: "Invalid model preset" });
+  try {
+    saveModelPreset(parsed.data.scope, parsed.data.model, parsed.data.values);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: errMsg(err) });
+  }
 });
 
 router.get("/", (_req: Request, res: Response) => {

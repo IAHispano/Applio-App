@@ -30,7 +30,7 @@ import realtimeRouter, { attachRealtimeProxy, stopRealtime } from "@/routes/real
 import reportRouter from "@/routes/report";
 import settingsRouter, { autoStartPresence, stopPresence } from "@/routes/settings";
 import setupRouter from "@/routes/setup";
-import tensorboardRouter, { autoStartTensorboard, stopTensorboard } from "@/routes/tensorboard";
+import tensorboardRouter, { stopTensorboard } from "@/routes/tensorboard";
 import trainRouter from "@/routes/train";
 import ttsRouter from "@/routes/tts";
 import uvrRouter from "@/routes/uvr";
@@ -188,8 +188,7 @@ const server = app.listen(PORT, "127.0.0.1", () => {
   console.log(`[applio-api] repoRoot=${getRepoRoot()} outputs=${outputsDir}`);
   // Gradio app.py parity: start Discord presence at boot when enabled.
   autoStartPresence();
-  // Start TensorBoard in background so it is ready immediately when user opens tab.
-  autoStartTensorboard();
+  // TensorBoard starts when its page opens, avoiding an unused Python process.
   // Warm the setup-status cache in the background so the first home load
   // after app start doesn't pay the cold torch-import cost on demand.
   void getStatus(false).catch(() => {});

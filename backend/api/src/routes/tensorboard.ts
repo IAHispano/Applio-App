@@ -3,7 +3,7 @@ import fs from "node:fs";
 import net from "node:net";
 import { type Request, type Response, Router } from "express";
 import { errMsg } from "@/errors";
-import { getLogsDir, getPythonGuiBin, getRepoRoot, noEnv, pythonEnv } from "@/python";
+import { getLogsDir, getPythonGuiBin, getRepoRoot, pythonEnv } from "@/python";
 
 const router = Router();
 const TB_PORT = Number(process.env.TB_PORT || 6007);
@@ -11,6 +11,7 @@ const TB_PORT = Number(process.env.TB_PORT || 6007);
 let tbProc: ChildProcess | null = null;
 let tbStartedAt: string | null = null;
 let startingPromise: Promise<{ ok: boolean; url: string; error?: string }> | null = null;
+let generation = 0;
 
 function tbUrl(): string {
   return `http://127.0.0.1:${TB_PORT}`;
@@ -67,6 +68,7 @@ function killProcess(proc: ChildProcess | null): void {
 }
 
 export function stopTensorboard(): void {
+  generation++;
   killProcess(tbProc);
   tbProc = null;
   tbStartedAt = null;
@@ -79,22 +81,26 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
     return startingPromise;
   }
 
-  // If process is alive and port is responding, return ok immediately
-  const isReachable = await portOpen(TB_PORT);
-  if (tbProc && tbProc.exitCode === null && isReachable) {
-    return { ok: true, url: tbUrl() };
-  }
-
-  // Clear any dead/stale process references before launching
-  if (tbProc) {
-    killProcess(tbProc);
-    tbProc = null;
-    tbStartedAt = null;
-    await waitForPortClose(TB_PORT, 2000);
-  }
-
+  const requestedGeneration = generation;
   const p = (async () => {
     try {
+      // If process is alive and port is responding, return ok immediately
+      const isReachable = await portOpen(TB_PORT);
+      if (requestedGeneration !== generation)
+        return { ok: false, url: tbUrl(), error: "TensorBoard start cancelled" };
+      if (tbProc && tbProc.exitCode === null && isReachable) {
+        return { ok: true, url: tbUrl() };
+      }
+
+      // Clear any dead/stale process references before launching
+      if (tbProc) {
+        killProcess(tbProc);
+        tbProc = null;
+        tbStartedAt = null;
+        await waitForPortClose(TB_PORT, 2000);
+      }
+      if (requestedGeneration !== generation)
+        return { ok: false, url: tbUrl(), error: "TensorBoard start cancelled" };
       const root = getRepoRoot();
       const logsDir = getLogsDir();
       if (!fs.existsSync(logsDir)) {
@@ -134,6 +140,8 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
       // Poll until port becomes reachable or process exits
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 1000));
+        if (requestedGeneration !== generation)
+          return { ok: false, url: tbUrl(), error: "TensorBoard start cancelled" };
         if (proc.exitCode !== null && proc.exitCode !== undefined) {
           const err =
             exitError || "TensorBoard process exited immediately. Check logs or pip install tensorboard.";
@@ -149,12 +157,14 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
 
       return { ok: false, url: tbUrl(), error: "TensorBoard did not come up in time." };
     } catch (err) {
-      killProcess(tbProc);
-      tbProc = null;
-      tbStartedAt = null;
+      if (requestedGeneration === generation) {
+        killProcess(tbProc);
+        tbProc = null;
+        tbStartedAt = null;
+      }
       return { ok: false, url: tbUrl(), error: errMsg(err) || "Could not start TensorBoard" };
     } finally {
-      startingPromise = null;
+      if (requestedGeneration === generation) startingPromise = null;
     }
   })();
 
@@ -163,24 +173,13 @@ export async function startTensorboard(): Promise<{ ok: boolean; url: string; er
 }
 
 export async function restartTensorboard(): Promise<{ ok: boolean; url: string; error?: string }> {
-  // Stop existing instance and invalidate starting state
-  killProcess(tbProc);
-  tbProc = null;
-  tbStartedAt = null;
-  startingPromise = null;
+  // Stop existing instance and invalidate pending startup before replacing it.
+  stopTensorboard();
 
   // Ensure port is completely released before spawning anew
   await waitForPortClose(TB_PORT, 3000);
 
   return startTensorboard();
-}
-
-export function autoStartTensorboard(): void {
-  if (noEnv()) return;
-  // Asynchronously launch in the background at startup without blocking
-  void startTensorboard().catch((err) => {
-    console.warn("[tensorboard] auto-start failed:", err);
-  });
 }
 
 router.get("/status", async (_req: Request, res: Response) => {

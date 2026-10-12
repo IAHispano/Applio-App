@@ -5,6 +5,7 @@ import type { NextFunction, Request, Response } from "express";
 import { trackPid } from "@/cli";
 import { errDetails, errMsg } from "@/errors";
 import { appendLog, createJob, getJob, type Job, jobIsActive, setDone, setError, setRunning } from "@/jobs";
+import { hasOnnxRuntimeConflict, onnxRuntimeDistribution, resolveOnnxRequirements } from "@/onnx-runtime";
 import { missingDefaultPretraineds } from "@/pretraineds";
 import {
   ensureWindowsRealPythonSync,
@@ -1286,7 +1287,31 @@ export function startInstall(): Job {
           }
         }
 
-        const resolvedReqContent = readPythonRequirements(shippedReq);
+        const runtimeDistribution = onnxRuntimeDistribution(process.platform, isAmdGpu);
+        const resolvedReqContent = resolveOnnxRequirements(
+          readPythonRequirements(shippedReq),
+          runtimeDistribution,
+        );
+        const runtimePackages = await runCmd(venvPy, [
+          "-c",
+          "import importlib.metadata as m,json; print(json.dumps([(d.metadata.get('Name') or '').lower() for d in m.distributions() if (d.metadata.get('Name') or '').lower() in ('onnxruntime','onnxruntime-gpu','swift-f0')]))",
+        ]);
+        if (runtimePackages.code !== 0)
+          throw new Error(`Could not inspect ONNX Runtime packages: ${runtimePackages.stderr}`);
+        const installedRuntimePackages: string[] = JSON.parse(runtimePackages.stdout.trim());
+        if (installedRuntimePackages.includes("swift-f0")) {
+          appendLog(
+            job,
+            "Removing the unused Swift package; the engine has its own predictor and downloads its model.",
+          );
+          await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", "swift-f0"]);
+        }
+        if (hasOnnxRuntimeConflict(installedRuntimePackages, runtimeDistribution)) {
+          appendLog(job, `Replacing conflicting ONNX Runtime wheels with ${runtimeDistribution}…`);
+          // Uninstall both BEFORE installing requirements: removing one wheel
+          // after installing the other can delete the shared module again.
+          await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", "onnxruntime", "onnxruntime-gpu"]);
+        }
         let effectiveReqFile = path.join(root, ".requirements-resolved.txt");
         fs.writeFileSync(effectiveReqFile, resolvedReqContent, "utf-8");
         if (isAmdGpu && exists(reqFile)) {

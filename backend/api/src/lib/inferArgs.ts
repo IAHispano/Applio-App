@@ -64,6 +64,10 @@ export function buildCoreInferArgs(p: CoreInferParams): string[] {
 export function buildCommonInferArgs(p: InferenceParams): string[] {
   return [
     ...buildCoreInferArgs(p),
+    "--inference-engine",
+    p.inferenceEngine,
+    "--onnx-precision",
+    p.onnxPrecision,
     ...flag("formant-shifting", p.formantShifting),
     "--formant-qfrency",
     String(p.formantQfrency),
@@ -132,6 +136,3 @@ export function buildCommonInferArgs(p: InferenceParams): string[] {
     String(p.delayMix),
   ];
 }
-
-// TTS shares the core inference subset (no post-process FX rack).
-export const buildTtsInferArgs = buildCoreInferArgs;
