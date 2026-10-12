@@ -36,6 +36,7 @@ export interface CustomSelectProps {
   onOpen?: () => void;
   placeholder?: string;
   disabled?: boolean;
+  /** Show the search field. Defaults to true for every dropdown. */
   searchable?: boolean;
   searchPlaceholder?: string;
   className?: string;
@@ -157,8 +158,9 @@ export default function CustomSelect({
     setMounted(true);
   }, []);
 
-  // Filter options if searchable
-  const isSearchable = explicitSearchable ?? parsedOptions.length > 10;
+  // Filter options if searchable (on by default: every dropdown is searchable;
+  // pass searchable={false} to opt out for tiny fixed lists).
+  const isSearchable = explicitSearchable ?? true;
 
   const filteredOptions = useMemo(() => {
     if (!isSearchable || !search.trim()) return parsedOptions;

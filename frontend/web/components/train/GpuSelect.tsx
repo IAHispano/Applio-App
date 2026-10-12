@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Cpu } from "lucide-react";
+import { Check, ChevronDown, Cpu, Search, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -46,9 +46,11 @@ export default function GpuSelect({
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
+  const [search, setSearch] = useState("");
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -94,6 +96,7 @@ export default function GpuSelect({
     if (disabled) return;
     updatePosition();
     setOpen(true);
+    setSearch("");
   };
 
   const handleClose = () => {
@@ -104,6 +107,7 @@ export default function GpuSelect({
   // Click outside listener
   useEffect(() => {
     if (!open) return;
+    setTimeout(() => searchInputRef.current?.focus(), 40);
     const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) {
@@ -181,6 +185,15 @@ export default function GpuSelect({
       .join("-");
     onChange(all);
   };
+
+  // Filter devices by name or id; the CPU fallback stays visible on empty
+  // queries and when it matches.
+  const filteredDevices = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) => d.name.toLowerCase().includes(q) || d.id.toLowerCase().includes(q));
+  }, [devices, search]);
+  const showCpu = !search.trim() || "cpu".includes(search.trim().toLowerCase());
 
   // Label to show inside trigger button
   const displayLabel = useMemo(() => {
@@ -266,6 +279,30 @@ export default function GpuSelect({
             }}
             className="menu-pop z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl select-none"
           >
+            {/* Search */}
+            <div className="flex items-center gap-2 px-3.5 py-2">
+              <Search size={13} className="text-neutral-500 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t("Search options…")}
+                aria-label={t("Search GPUs")}
+                className="no-focus-ring w-full !bg-transparent !border-0 text-xs text-neutral-200 focus:outline-hidden !p-0"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label={t("Clear search")}
+                  className="p-1.5 -m-0.5 rounded text-neutral-400 transition-colors hover:text-white"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             {/* Header when multiple GPUs available */}
             {devices.length > 1 && (
               <div className="flex items-center justify-between px-3.5 py-2 text-[11px] text-neutral-400">
@@ -298,8 +335,12 @@ export default function GpuSelect({
                 <div className="py-2.5 px-3.5 text-xs text-neutral-400 italic">
                   {t("No CUDA GPU detected")}
                 </div>
+              ) : filteredDevices.length === 0 && !showCpu ? (
+                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">
+                  {t("No matching options")}
+                </div>
               ) : (
-                devices.map((device) => {
+                filteredDevices.map((device) => {
                   const isSelected = selectedIds.includes(device.id);
 
                   return (
@@ -329,28 +370,30 @@ export default function GpuSelect({
               )}
 
               {/* CPU Option */}
-              <div className="mt-1">
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={isCpu}
-                  onClick={selectCpu}
-                  className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
-                    isCpu ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
-                  }`}
-                >
-                  <div className="min-w-0 flex-1 flex flex-col">
-                    <span className="truncate">{t("CPU")}</span>
-                    <span className="text-[10px] truncate text-neutral-500">
-                      {t("CPU mode (no GPU acceleration)")}
-                    </span>
-                  </div>
+              {showCpu && (
+                <div className="mt-1">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={isCpu}
+                    onClick={selectCpu}
+                    className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
+                      isCpu ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 flex flex-col">
+                      <span className="truncate">{t("CPU")}</span>
+                      <span className="text-[10px] truncate text-neutral-500">
+                        {t("CPU mode (no GPU acceleration)")}
+                      </span>
+                    </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    {isCpu && <Check size={14} className="text-white shrink-0" />}
-                  </div>
-                </button>
-              </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      {isCpu && <Check size={14} className="text-white shrink-0" />}
+                    </div>
+                  </button>
+                </div>
+              )}
             </div>
           </div>,
           document.body,

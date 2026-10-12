@@ -37,7 +37,6 @@ export default function TtsForm() {
   const [voices, setVoices] = useState<Voice[]>([]);
   const [models, setModels] = useState<string[]>([]);
   const { t } = useI18n();
-  const [filter, setFilter] = useState("");
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [voice, setVoice] = useState("");
@@ -102,13 +101,6 @@ export default function TtsForm() {
     return () => window.removeEventListener("focus", onFocus);
   }, [loadModels]);
 
-  const shown = voices.filter(
-    (v) =>
-      !filter ||
-      v.shortName.toLowerCase().includes(filter.toLowerCase()) ||
-      v.friendlyName.toLowerCase().includes(filter.toLowerCase()),
-  );
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!conversion.loaded) {
@@ -159,7 +151,7 @@ export default function TtsForm() {
             description={t("Enter text or upload a text file to synthesize speech before voice conversion.")}
             action={
               <Badge variant="neutral" size="sm">
-                {shown.length} {t("voices available")}
+                {voices.length} {t("voices available")}
               </Badge>
             }
           />
@@ -189,22 +181,7 @@ export default function TtsForm() {
               <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
             </FormField>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-              <FormField
-                label={t("Voice filter")}
-                htmlFor="tts-voice-filter"
-                description={t(SETTING_HELP.voiceFilter)}
-              >
-                <input
-                  id="tts-voice-filter"
-                  type="text"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                  placeholder={t("e.g. en-US, Aria, Guy…")}
-                  aria-describedby={`${"tts-voice-filter"}-desc`}
-                />
-              </FormField>
-
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
                 <CustomSelect
                   id="tts-voice-select"
@@ -214,7 +191,7 @@ export default function TtsForm() {
                   searchable
                   description={t(SETTING_HELP.ttsVoice)}
                 >
-                  {shown.slice(0, 400).map((v) => (
+                  {voices.slice(0, 400).map((v) => (
                     <option key={v.shortName} value={v.shortName}>
                       {v.friendlyName} ({v.gender})
                     </option>

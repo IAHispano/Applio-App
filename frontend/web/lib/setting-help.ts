@@ -113,7 +113,6 @@ export const SETTING_HELP = {
   batchOutput: "Choose where converted files are saved. Multi-model batches create a folder for each model.",
   ttsText: "Enter the words to speak before optional voice conversion.",
   textFile: "Load spoken text from a UTF-8 text file instead of typing it.",
-  voiceFilter: "Filter speech voices by name, language or locale.",
   ttsVoice: "Choose the speech voice and language used to read your text.",
   ttsSpeed: "Change speech speed. Positive values speak faster; negative values speak slower.",
   blend: "Mix model weights: 0 uses only Model 1, 1 uses only Model 2. Both models must be compatible.",
