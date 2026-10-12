@@ -13,7 +13,6 @@
 *.txt
 *.zip
 *.png
-!assets/demo-poster.png
 *.safetensors
 *.log
 .cache
