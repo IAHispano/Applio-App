@@ -1,6 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
 import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "./tray-menu";
 
+// Mark the native surface before the UI mounts, including development error screens.
+window.addEventListener("DOMContentLoaded", () => {
+  document.documentElement.dataset.applioDesktop = "true";
+});
+
 export interface WindowControls {
   minimize: () => void;
   toggleMaximize: () => void;

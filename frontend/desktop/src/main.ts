@@ -33,6 +33,13 @@ import {
   trayMenu,
   trayStatus,
 } from "./tray-menu";
+import { APP_WEB_PREFERENCES, restrictBrowserControls } from "./window-policy";
+
+app.on("web-contents-created", (_event, contents) => {
+  restrictBrowserControls(contents, (url) => {
+    void shell.openExternal(url).catch(() => {});
+  });
+});
 
 // User data, logs and caches live under a clean app-scoped dir
 // (~/.config/Applio on Linux) instead of the npm package name.
@@ -789,14 +796,20 @@ async function reportBootFailure(): Promise<"retry" | "quit"> {
 }
 
 function getSplashHtml(_version: string): string {
+  const fontPath = path.join(isDev ? repoRoot() : app.getAppPath(), "assets", "fonts", "Syne-Variable.ttf");
+  const fontData = fs.readFileSync(fontPath).toString("base64");
   const html = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
+@font-face {
+  font-family: "Syne";
+  src: url("data:font/ttf;base64,${fontData}") format("truetype");
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: block;
+}
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html, body {
   margin: 0;
@@ -804,7 +817,7 @@ html, body {
   width: 100%;
   background: #060606;
   overflow: hidden;
-  font-family: 'Syne', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: "Syne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   user-select: none;
   -webkit-user-select: none;
   display: flex;
@@ -854,7 +867,7 @@ html, body {
   width: max-content;
 }
 .brand {
-  font-family: 'Syne', sans-serif;
+  font-family: inherit;
   font-size: 82px;
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -992,8 +1005,7 @@ function showSplash(): void {
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
+      ...APP_WEB_PREFERENCES,
     },
   });
   void splash.loadURL(getSplashHtml(version));
@@ -1736,16 +1748,10 @@ async function createWindow(): Promise<void> {
     ...(icon ? { icon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
-      contextIsolation: true,
-      nodeIntegration: false,
+      ...APP_WEB_PREFERENCES,
       // Realtime keeps streaming while minimized/hidden to the tray.
       backgroundThrottling: false,
     },
-  });
-
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url)) void shell.openExternal(url).catch(() => {});
-    return { action: "deny" };
   });
 
   // Set macOS dock icon if supported
@@ -1793,15 +1799,6 @@ async function createWindow(): Promise<void> {
       }, 1500);
     }
   });
-
-  if (isDev) {
-    mainWindow.webContents.on("before-input-event", (event, input) => {
-      if (input.key === "F12" || (input.control && input.shift && input.key.toLowerCase() === "i")) {
-        mainWindow?.webContents.toggleDevTools();
-        event.preventDefault();
-      }
-    });
-  }
 
   void mainWindow.loadURL(target).catch((err) => {
     console.error("[electron] loadURL error:", err);
@@ -1991,6 +1988,12 @@ if (!gotLock) {
     /* launcherLogDir falls back to userData */
   }
   app.whenReady().then(() => {
+    // Keep native editing and window controls on macOS without browser menu roles.
+    Menu.setApplicationMenu(
+      process.platform === "darwin"
+        ? Menu.buildFromTemplate([{ role: "appMenu" }, { role: "editMenu" }, { role: "windowMenu" }])
+        : null,
+    );
     initAutoUpdater();
     // Explicit mic grant for our local UI so background (tray-driven)
     // streaming is never stuck on a permission prompt.
