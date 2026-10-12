@@ -1,5 +1,5 @@
 // Syncs package versions + app config to the release input.
-// Usage (from repo root): RELEASE_VERSION=3.7.0 node scripts/sync-version.mjs
+// Usage (from repo root): RELEASE_VERSION=3.7.0 node bin/sync-version.mjs
 // Installer filenames embed the package.json version, so it must match
 // the release tag (a leading "v" is stripped if given).
 import fs from "node:fs";
