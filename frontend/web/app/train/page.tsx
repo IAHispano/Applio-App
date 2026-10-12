@@ -14,7 +14,7 @@ import {
   StopCircle,
   Zap,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
 import TrainingConsole from "@/components/train/TrainingConsole";
@@ -48,6 +48,8 @@ export default function TrainPage() {
   const [datasetPath, setDatasetPath] = useState("");
   const [sampleRate, setSampleRate] = useState("40000");
   const [cpuCores, setCpuCores] = useState("");
+  const [hostCores, setHostCores] = useState(16);
+  const cpuTouchedRef = useRef(false);
   const [cut, setCut] = useState("Automatic");
   const [chunk, setChunk] = useState(3.0);
   const [overlap, setOverlap] = useState(0.3);
@@ -149,6 +151,19 @@ export default function TrainPage() {
         setGpuInfo(t("GPU query failed (CPU-only host)"));
         setGpuDevices([]);
         setGpuCount("-");
+      });
+    apiGet<{ cpus: number }>("/api/report/info")
+      .then((r) => {
+        const cores = r.cpus > 0 ? r.cpus : 16;
+        setHostCores(cores);
+        // Default to the maximum; clamp a pre-load choice that exceeds it.
+        setCpuCores((prev) => {
+          if (!cpuTouchedRef.current || prev === "") return String(cores);
+          return Number(prev) > cores ? String(cores) : prev;
+        });
+      })
+      .catch(() => {
+        setCpuCores((prev) => (!cpuTouchedRef.current || prev === "" ? "16" : prev));
       });
   }, []);
 
@@ -426,18 +441,19 @@ export default function TrainPage() {
             />
           </div>
           <div>
-            <label htmlFor="train-cpu-cores">{t("CPU Cores")}</label>
-            <input
+            <SliderField
               id="train-cpu-cores"
-              type="number"
+              label={t("CPU Cores")}
+              value={cpuCores === "" ? hostCores : Math.min(Number(cpuCores), hostCores)}
               min={1}
-              max={64}
-              value={cpuCores}
-              onChange={(e) => setCpuCores(e.target.value)}
-              placeholder={t("auto")}
-              aria-describedby={`${"train-cpu-cores"}-help`}
+              max={hostCores}
+              step={1}
+              onChange={(v) => {
+                cpuTouchedRef.current = true;
+                setCpuCores(String(v));
+              }}
+              description={t(SETTING_HELP.cpu)}
             />
-            <SettingHelp text={t(SETTING_HELP.cpu)} controlId={"train-cpu-cores"} />
           </div>
         </div>
         <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-neutral-400 mt-3">
