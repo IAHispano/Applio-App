@@ -33,6 +33,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isGuardedRoute = !UNGUARDED_ROUTES.has(pathname) && !pathname.startsWith("/jobs/");
   const showBarrier = !isReady && !loading && isGuardedRoute;
 
+  const hidePage = pathname === "/realtime" && isReady;
+
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
       <Sidebar />
@@ -42,7 +44,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           tabIndex={-1}
           className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4 outline-none flex flex-col"
         >
-          <div hidden={pathname === "/realtime" && isReady}>
+          <div
+            hidden={hidePage}
+            className={hidePage ? undefined : "flex min-h-full w-full min-w-0 flex-[1_0_auto] flex-col"}
+          >
             <PageTransition>
               {showBarrier ? (
                 <SetupBarrier />
