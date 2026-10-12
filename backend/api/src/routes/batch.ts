@@ -122,7 +122,8 @@ async function runBatchJob(
         }
         trackPid(job.id, undefined);
         if (job.status !== "running") return;
-        const expected = output.replace(/\.wav$/i, `.${params.exportFormat.toLowerCase()}`);
+        const exportExt = String(selected.exportFormat || params.exportFormat).toLowerCase();
+        const expected = output.replace(/\.wav$/i, `.${exportExt}`);
         if (!fs.existsSync(served || expected))
           throw new Error(`No output found for ${path.basename(input)}`);
         setProgress(job, Math.round((++done * 100) / total));
