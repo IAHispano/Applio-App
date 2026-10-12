@@ -264,7 +264,7 @@ export default function GpuSelect({
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
               ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
-            className="z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none"
+            className="menu-pop z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl select-none"
           >
             {/* Header when multiple GPUs available */}
             {devices.length > 1 && (

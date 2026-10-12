@@ -107,7 +107,7 @@ export default function Modal({
   return createPortal(
     // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click closes modal
     <div
-      className="app-modal fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-in fade-in duration-150"
+      className="app-modal fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm modal-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -120,7 +120,7 @@ export default function Modal({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={`w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-[var(--panel)] text-[var(--text)] border ${
+        className={`modal-panel w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-[var(--panel)] text-[var(--text)] border ${
           danger ? "border-red-500/30 shadow-red-500/10" : "border-[var(--border)]"
         } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
       >

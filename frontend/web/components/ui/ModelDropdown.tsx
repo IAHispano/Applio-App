@@ -240,7 +240,7 @@ export default function ModelDropdown({
               border: "1px solid var(--border)",
               borderRadius: "var(--radius-card)",
             }}
-            className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
+            className="menu-pop shadow-2xl overflow-hidden flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
             tabIndex={0}
           >
             <div className="px-3.5 py-2 flex items-center gap-2 shrink-0">

@@ -80,7 +80,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                       href={item.to}
                       onClick={onNavigate}
                       aria-current={active ? "page" : undefined}
-                      className={`flex items-center gap-2.5 px-3 py-2.5 lg:py-1.5 rounded-lg text-[13px] transition-colors duration-150 relative min-h-[44px] lg:min-h-8 ${
+                      className={`nav-press flex items-center gap-2.5 px-3 py-2.5 lg:py-1.5 rounded-lg text-[13px] transition-colors duration-150 relative min-h-[44px] lg:min-h-8 ${
                         active
                           ? "bg-[var(--accent-soft)] text-[var(--accent)] font-semibold"
                           : itemNeedsSetup
@@ -90,7 +90,8 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                     >
                       {active && (
                         <span
-                          className="absolute left-1 w-1 h-3.5 bg-[var(--accent)] rounded-full"
+                          key={item.to}
+                          className="nav-pill absolute left-1 w-1 h-3.5 bg-[var(--accent)] rounded-full"
                           aria-hidden="true"
                         />
                       )}

@@ -85,7 +85,7 @@ export default function Disclosure({
           className="transition-transform duration-200 group-open:rotate-180 text-[var(--muted)] shrink-0"
         />
       </summary>
-      <div className={`px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>{children}</div>
+      <div className={`disclosure-body px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>{children}</div>
     </details>
   );
 }

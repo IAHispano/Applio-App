@@ -317,13 +317,45 @@ hr {
   height: auto;
   display: flex;
   flex-direction: column;
-  animation: pageEnter 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: pageEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Staggered rise for the page's top-level sections on every tab switch.
+   Delays stay tiny so the whole page settles in ~350ms. */
+.page-transition > * > * {
+  animation: pageChildIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.page-transition > * > *:nth-child(2) {
+  animation-delay: 25ms;
+}
+.page-transition > * > *:nth-child(3) {
+  animation-delay: 50ms;
+}
+.page-transition > * > *:nth-child(4) {
+  animation-delay: 75ms;
+}
+.page-transition > * > *:nth-child(5) {
+  animation-delay: 100ms;
+}
+.page-transition > * > *:nth-child(n + 6) {
+  animation-delay: 120ms;
 }
 
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px) scale(0.998);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pageChildIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -1199,5 +1231,229 @@ svg {
 @media (prefers-reduced-motion: reduce) {
   .page-transition {
     animation: none;
+  }
+}
+/* ---------- App motion system (pure CSS, no JS library) ----------
+   Tab switches replay .page-transition (keyed by pathname). Accordions,
+   menus, modals and pills animate on mount/class change. Everything
+   collapses under prefers-reduced-motion below. */
+:root {
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+
+/* Legacy shims: `animate-in fade-in[/zoom-in-95]` is used across the app
+   but tailwindcss-animate is not installed, so these were no-ops. Define
+   them here so every existing usage animates. */
+.animate-in {
+  animation-duration: var(--motion-base);
+  animation-timing-function: var(--motion-ease);
+  animation-fill-mode: both;
+}
+.animate-in.duration-100 {
+  animation-duration: 100ms;
+}
+.animate-in.duration-150 {
+  animation-duration: 150ms;
+}
+.animate-in.duration-200 {
+  animation-duration: 200ms;
+}
+.animate-in.duration-300 {
+  animation-duration: 300ms;
+}
+.animate-in.fade-in {
+  animation-name: fadeIn;
+}
+.animate-in.fade-in.zoom-in-95 {
+  animation-name: popIn;
+}
+.animate-in.fade-in.slide-in-from-top-2 {
+  animation-name: dropIn;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dropIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Floating menus / dropdowns */
+.menu-pop {
+  animation: popIn var(--motion-fast) var(--motion-ease) both;
+  transform-origin: top center;
+}
+
+/* Modals */
+.modal-backdrop {
+  animation: fadeIn var(--motion-base) ease-out both;
+}
+.modal-panel {
+  animation: modalPanelIn var(--motion-slow) var(--motion-ease) both;
+}
+@keyframes modalPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Accordions: Disclosure ([data-disclosure]), details.card, job log <details>.
+   <details> toggles instantly, so the opening body fades/slides in and the
+   chevron (group-open:rotate-180) covers the affordance. Where supported,
+   ::details-content also animates the height. */
+details[data-disclosure][open] > .disclosure-body,
+details.card[open] > *:not(summary):last-child,
+details.job-details[open] > div:last-child {
+  animation: disclosureIn var(--motion-slow) var(--motion-ease) both;
+  transform-origin: top center;
+}
+@keyframes disclosureIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+  details[data-disclosure]::details-content,
+  details.card::details-content {
+    height: 0;
+    overflow: clip;
+    transition:
+      height var(--motion-slow) var(--motion-ease),
+      content-visibility var(--motion-slow) var(--motion-ease) allow-discrete;
+  }
+  details[data-disclosure][open]::details-content,
+  details.card[open]::details-content {
+    height: auto;
+  }
+}
+
+/* Segmented control: the newly-selected tab pops in. The animation runs
+   when the button gains .is-active (the class moves between buttons). */
+button.segmented-item.is-active {
+  animation: segPop var(--motion-base) var(--motion-spring) both;
+}
+@keyframes segPop {
+  0% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Sidebar / bottom-nav active pills mount on navigation: pop the indicator
+   and nudge the icon. */
+.nav-pill {
+  animation: navPillIn var(--motion-base) var(--motion-spring) both;
+  transform-origin: center;
+}
+@keyframes navPillIn {
+  from {
+    opacity: 0;
+    transform: scaleY(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+.nav-tab-active svg {
+  animation: tabIconNudge var(--motion-base) var(--motion-ease) both;
+}
+@keyframes tabIconNudge {
+  0% {
+    transform: translateY(2px) scale(0.9);
+  }
+  60% {
+    transform: translateY(-1px) scale(1.05);
+  }
+  100% {
+    transform: none;
+  }
+}
+
+/* Tab panels wired by SegmentedControl (role=tabpanel) */
+[role="tabpanel"].tab-panel,
+.tab-panel {
+  animation: tabPanelIn var(--motion-base) var(--motion-ease) both;
+}
+@keyframes tabPanelIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Press feedback for nav / tab / option rows (subtle, keeps layout stable) */
+.segmented-item:active,
+.nav-press:active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-transition > * > *,
+  .animate-in,
+  .menu-pop,
+  .modal-backdrop,
+  .modal-panel,
+  details[data-disclosure][open] > .disclosure-body,
+  details.card[open] > *:not(summary):last-child,
+  details.job-details[open] > div:last-child,
+  button.segmented-item.is-active,
+  .nav-pill,
+  .nav-tab-active svg,
+  [role="tabpanel"].tab-panel,
+  .tab-panel {
+    animation: none;
+  }
+  .segmented-item:active,
+  .nav-press:active {
+    transform: none;
   }
 }

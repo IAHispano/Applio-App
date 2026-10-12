@@ -72,12 +72,16 @@ export function BottomNav() {
         <Link
           href={tab.to}
           aria-current={currentPage ? "page" : undefined}
-          className={`relative flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 min-h-[52px] text-[10px] font-medium leading-none transition-colors focus-visible:outline-none ${
-            active ? "text-[var(--accent)] bg-[var(--accent-soft)]" : "text-[var(--muted)]"
+          className={`nav-press relative flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 min-h-[52px] text-[10px] font-medium leading-none transition-colors focus-visible:outline-none ${
+            active ? "nav-tab-active text-[var(--accent)] bg-[var(--accent-soft)]" : "text-[var(--muted)]"
           }`}
         >
           {active && (
-            <span className="absolute top-1 w-6 h-1 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+            <span
+              key={tab.to}
+              className="nav-pill absolute top-1 w-6 h-1 rounded-full bg-[var(--accent)]"
+              aria-hidden="true"
+            />
           )}
           <Icon size={19} aria-hidden="true" className="shrink-0" />
           <span className="truncate max-w-full">{t(tab.label)}</span>
@@ -154,7 +158,11 @@ export function BottomNav() {
               }`}
             >
               {moreActive && (
-                <span className="absolute top-1 w-6 h-1 rounded-full bg-[var(--accent)]" aria-hidden="true" />
+                <span
+                  key={expanded ? "more-open" : pathname}
+                  className="nav-pill absolute top-1 w-6 h-1 rounded-full bg-[var(--accent)]"
+                  aria-hidden="true"
+                />
               )}
               <LayoutGrid size={19} aria-hidden="true" className="shrink-0" />
               <span className="truncate max-w-full">{t("More")}</span>

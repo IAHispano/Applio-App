@@ -149,7 +149,7 @@ export function JobPanelContent({
       ))}
 
       {(showLogs || job.status === "error") && !compact && cleanedLogs.length > 0 && (
-        <details className="text-xs text-neutral-400 group" open={job.status === "error"}>
+        <details className="job-details text-xs text-neutral-400 group" open={job.status === "error"}>
           <summary className="cursor-pointer hover:text-white transition-colors py-1 flex items-center gap-1.5 select-none font-medium">
             <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
             <span>{t("Activity Details")}</span>

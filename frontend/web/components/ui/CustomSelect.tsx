@@ -435,7 +435,7 @@ export default function CustomSelect({
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
               ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
-            className="z-[99999] bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 select-none"
+            className="menu-pop z-[99999] bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden select-none"
           >
             {isSearchable && (
               <div className="flex items-center gap-2 px-3.5 py-2">
