@@ -251,7 +251,7 @@ export default function ModelDropdown({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("Search models…")}
-                className="w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0 placeholder:text-neutral-600"
+                className="no-focus-ring w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0 placeholder:text-neutral-600"
                 style={{ color: "var(--text)" }}
               />
               {search && (
@@ -394,7 +394,7 @@ export default function ModelDropdown({
           borderColor: "var(--border)",
           borderRadius: "var(--radius-input)",
         }}
-        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
+        className={`no-focus-ring w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
           disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

@@ -391,7 +391,7 @@ export default function CustomSelect({
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-activedescendant={open ? activeOptionId : undefined}
-        className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
+        className={`no-focus-ring w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
           open ? "border-[var(--focus-border)]" : "border-[var(--border)] hover:border-[var(--focus-border)]"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-[var(--surface)]"}`}
       >
@@ -451,7 +451,7 @@ export default function CustomSelect({
                   aria-controls={menuId}
                   aria-activedescendant={activeOptionId}
                   placeholder={searchPlaceholder}
-                  className="w-full !bg-transparent !border-0 text-xs text-[var(--text)] focus:outline-hidden !p-0"
+                  className="no-focus-ring w-full !bg-transparent !border-0 text-xs text-[var(--text)] focus:outline-hidden !p-0"
                 />
               </div>
             )}

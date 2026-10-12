@@ -235,7 +235,7 @@ export default function GpuSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={displayLabel}
-        className={`form-control w-full flex items-center justify-between gap-2 transition-all select-none cursor-pointer text-left ${
+        className={`no-focus-ring form-control w-full flex items-center justify-between gap-2 transition-all select-none cursor-pointer text-left ${
           open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
       >

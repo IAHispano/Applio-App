@@ -1457,3 +1457,11 @@ button.segmented-item.is-active {
     transform: none;
   }
 }
+
+/* Search dropdowns opt out of the global focus-visible ring — their
+   open/hover/selected states already communicate state. Scoped to these
+   triggers and search fields only, not global controls. */
+.no-focus-ring:focus-visible {
+  outline: none;
+}
+
