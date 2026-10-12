@@ -222,17 +222,17 @@ export default function GpuSelect({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={displayLabel}
-        className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left h-10 px-3 text-xs sm:text-sm rounded-xl ${
+        className={`form-control w-full flex items-center justify-between gap-2 transition-all select-none cursor-pointer text-left ${
           open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Cpu size={14} className="text-neutral-400 shrink-0" />
-          <span className="truncate text-[var(--text)] font-semibold">{displayLabel}</span>
+          <span className="truncate text-[var(--text)]">{displayLabel}</span>
         </div>
 
         {badgeLabel && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-mono shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-sans shrink-0">
             {badgeLabel}
           </span>
         )}
@@ -268,7 +268,7 @@ export default function GpuSelect({
           >
             {/* Header when multiple GPUs available */}
             {devices.length > 1 && (
-              <div className="flex items-center justify-between px-3.5 py-2 border-b border-white/10 text-[11px] text-neutral-400">
+              <div className="flex items-center justify-between px-3.5 py-2 text-[11px] text-neutral-400">
                 <span className="font-semibold uppercase tracking-wider text-[10px] text-neutral-500">
                   {t("Select GPUs")}
                 </span>
@@ -319,7 +319,7 @@ export default function GpuSelect({
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {devices.length > 1 && (
-                          <span className="text-[10px] font-mono text-neutral-500">ID: {device.id}</span>
+                          <span className="text-[10px] font-sans text-neutral-500">ID: {device.id}</span>
                         )}
                         {isSelected && <Check size={14} className="text-white shrink-0" />}
                       </div>
@@ -329,7 +329,7 @@ export default function GpuSelect({
               )}
 
               {/* CPU Option */}
-              <div className="border-t border-white/10 mt-1 pt-1">
+              <div className="mt-1">
                 <button
                   type="button"
                   role="option"

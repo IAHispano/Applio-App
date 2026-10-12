@@ -2,16 +2,19 @@
 
 import { ArrowRight, CheckCircle2, Layers, StopCircle, Wand2 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import ConversionParameters, { type ConversionParameterValues } from "@/components/ConversionParameters";
 import { JobError } from "@/components/JobStatus";
+import ModelPresetStatus from "@/components/ModelPresetStatus";
 import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SettingHelp from "@/components/ui/SettingHelp";
 import { errMsg, fetchModels, fileBasename, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { getModelPreset, saveModelPreset } from "@/lib/model-presets";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { CONVERSION_DEFAULTS, useConversionParameters } from "@/lib/useConversionParameters";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
@@ -51,129 +54,19 @@ export default function BatchForm() {
   const [selectedModels, setSelectedModels] = useState<string[]>([]);
   const [modelQuery, setModelQuery] = useState("");
   const [modelIndexes, setModelIndexes] = useState<Record<string, string>>(() => loadBatchConfig().indexes);
-  const [paramOverrides, setParamOverrides] = useState<Record<string, Partial<ConversionParameterValues>>>(
-    () => loadBatchConfig().overrides,
-  );
+  const [legacyOverrides] = useState(() => loadBatchConfig().overrides);
+  const migratedPresets = useRef(false);
   const [editingTarget, setEditingTarget] = useState<string>("global");
   const [outputFolder, setOutputFolder] = useState("assets/audios/batch_output");
-  const [pitch, setPitch] = useState(0);
-  const [indexRate, setIndexRate] = useState(0.75);
-  const [volumeEnvelope, setVolumeEnvelope] = useState(1);
-  const [protect, setProtect] = useState(0.5);
-  const [f0Method, setF0Method] = useState("rmvpe");
-  const [embedderModel, setEmbedderModel] = useState("contentvec");
-  const [embedderModelCustom, setEmbedderModelCustom] = useState("");
-  const [exportFormat, setExportFormat] = useState("WAV");
-  const [splitAudio, setSplitAudio] = useState(false);
-  const [f0Autotune, setF0Autotune] = useState(false);
-  const [f0AutotuneStrength, setF0AutotuneStrength] = useState(1);
-  const [proposedPitch, setProposedPitch] = useState(false);
-  const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
-  const [cleanAudio, setCleanAudio] = useState(false);
-  const [cleanStrength, setCleanStrength] = useState(0.5);
-  // Formant shifting
-  const [formantShifting, setFormantShifting] = useState(false);
-  const [formantQfrency, setFormantQfrency] = useState(1.0);
-  const [formantTimbre, setFormantTimbre] = useState(1.0);
-  // Post-process FX rack
-  const [postProcess, setPostProcess] = useState(false);
-  const [reverb, setReverb] = useState(false);
-  const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
-  const [reverbDamping, setReverbDamping] = useState(0.5);
-  const [reverbWetGain, setReverbWetGain] = useState(0.33);
-  const [reverbDryGain, setReverbDryGain] = useState(0.4);
-  const [reverbWidth, setReverbWidth] = useState(1.0);
-  const [reverbFreezeMode, setReverbFreezeMode] = useState(0.0);
-  const [pitchShift, setPitchShift] = useState(false);
-  const [pitchShiftSemitones, setPitchShiftSemitones] = useState(0);
-  const [limiter, setLimiter] = useState(false);
-  const [limiterThreshold, setLimiterThreshold] = useState(-6);
-  const [limiterReleaseTime, setLimiterReleaseTime] = useState(0.05);
-  const [gain, setGain] = useState(false);
-  const [gainDb, setGainDb] = useState(0);
-  const [distortion, setDistortion] = useState(false);
-  const [distortionGain, setDistortionGain] = useState(25);
-  const [chorus, setChorus] = useState(false);
-  const [chorusRate, setChorusRate] = useState(1.0);
-  const [chorusDepth, setChorusDepth] = useState(0.25);
-  const [chorusCenterDelay, setChorusCenterDelay] = useState(7);
-  const [chorusFeedback, setChorusFeedback] = useState(0.0);
-  const [chorusMix, setChorusMix] = useState(0.5);
-  const [bitcrush, setBitcrush] = useState(false);
-  const [bitcrushBitDepth, setBitcrushBitDepth] = useState(8);
-  const [clipping, setClipping] = useState(false);
-  const [clippingThreshold, setClippingThreshold] = useState(-6);
-  const [compressor, setCompressor] = useState(false);
-  const [compressorThreshold, setCompressorThreshold] = useState(0);
-  const [compressorRatio, setCompressorRatio] = useState(1);
-  const [compressorAttack, setCompressorAttack] = useState(1.0);
-  const [compressorRelease, setCompressorRelease] = useState(100);
-  const [delay, setDelay] = useState(false);
-  const [delaySeconds, setDelaySeconds] = useState(0.5);
-  const [delayFeedback, setDelayFeedback] = useState(0.0);
-  const [delayMix, setDelayMix] = useState(0.5);
-  const [sid, setSid] = useState(0);
-  const [jobId, setJobId] = usePersistentJobId("batch");
-  const { job, error, setError } = useJob(jobId);
-  const [busy, setBusy] = useState(false);
-
-  const speakers = useSpeakers(selectedModels[0] ?? "");
-
-  const filteredModels = modelQuery.trim()
-    ? models.filter((m) => m.toLowerCase().includes(modelQuery.trim().toLowerCase()))
-    : models;
-
-  useEffect(() => {
-    if (!speakers.includes(sid)) setSid(0);
-  }, [speakers, sid]);
-
-  const loadAvailableModels = useCallback((force = true) => {
-    fetchModels(force)
-      .then((m) => {
-        setModels(m.models);
-        setIndexes(m.indexes);
-        if (m.models[0]) {
-          setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    loadAvailableModels(true);
-    const onFocus = () => loadAvailableModels(true);
-    window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [loadAvailableModels]);
-
-  function resetDefaults() {
-    setPitch(0);
-    setIndexRate(0.75);
-    setVolumeEnvelope(1);
-    setProtect(0.5);
-    setF0Method("rmvpe");
-    setEmbedderModel("contentvec");
-    setEmbedderModelCustom("");
-    setExportFormat("WAV");
-    setSplitAudio(false);
-    setF0Autotune(false);
-    setF0AutotuneStrength(1);
-    setProposedPitch(false);
-    setProposedPitchThreshold(155);
-    setCleanAudio(false);
-    setCleanStrength(0.5);
-    setFormantShifting(false);
-    setFormantQfrency(1.0);
-    setFormantTimbre(1.0);
-    setPostProcess(false);
-  }
-
-  const globalValues: ConversionParameterValues = {
+  const conversion = useConversionParameters(selectedModels.length === 1 ? selectedModels[0] : "");
+  const {
     pitch,
     indexRate,
     volumeEnvelope,
     protect,
     f0Method,
+    inferenceEngine,
+    onnxPrecision,
     embedderModel,
     embedderModelCustom,
     exportFormat,
@@ -223,87 +116,76 @@ export default function BatchForm() {
     distortionGain,
     gain,
     gainDb,
-  };
+  } = conversion.values;
+  const [sid, setSid] = useState(0);
+  const [jobId, setJobId] = usePersistentJobId("batch");
+  const { job, error, setError } = useJob(jobId);
+  const [busy, setBusy] = useState(false);
 
-  const globalSetters: ConversionParameterSetters = {
-    pitch: setPitch,
-    indexRate: setIndexRate,
-    volumeEnvelope: setVolumeEnvelope,
-    protect: setProtect,
-    f0Method: setF0Method,
-    embedderModel: setEmbedderModel,
-    embedderModelCustom: setEmbedderModelCustom,
-    exportFormat: setExportFormat,
-    splitAudio: setSplitAudio,
-    f0Autotune: setF0Autotune,
-    f0AutotuneStrength: setF0AutotuneStrength,
-    proposedPitch: setProposedPitch,
-    proposedPitchThreshold: setProposedPitchThreshold,
-    cleanAudio: setCleanAudio,
-    cleanStrength: setCleanStrength,
-    formantShifting: setFormantShifting,
-    formantQfrency: setFormantQfrency,
-    formantTimbre: setFormantTimbre,
-    postProcess: setPostProcess,
-    reverb: setReverb,
-    reverbRoomSize: setReverbRoomSize,
-    reverbDamping: setReverbDamping,
-    reverbWetGain: setReverbWetGain,
-    reverbDryGain: setReverbDryGain,
-    reverbWidth: setReverbWidth,
-    reverbFreezeMode: setReverbFreezeMode,
-    pitchShift: setPitchShift,
-    pitchShiftSemitones: setPitchShiftSemitones,
-    delay: setDelay,
-    delaySeconds: setDelaySeconds,
-    delayFeedback: setDelayFeedback,
-    delayMix: setDelayMix,
-    compressor: setCompressor,
-    compressorThreshold: setCompressorThreshold,
-    compressorRatio: setCompressorRatio,
-    compressorAttack: setCompressorAttack,
-    compressorRelease: setCompressorRelease,
-    limiter: setLimiter,
-    limiterThreshold: setLimiterThreshold,
-    limiterReleaseTime: setLimiterReleaseTime,
-    chorus: setChorus,
-    chorusRate: setChorusRate,
-    chorusDepth: setChorusDepth,
-    chorusCenterDelay: setChorusCenterDelay,
-    chorusFeedback: setChorusFeedback,
-    chorusMix: setChorusMix,
-    bitcrush: setBitcrush,
-    bitcrushBitDepth: setBitcrushBitDepth,
-    clipping: setClipping,
-    clippingThreshold: setClippingThreshold,
-    distortion: setDistortion,
-    distortionGain: setDistortionGain,
-    gain: setGain,
-    gainDb: setGainDb,
-  };
+  const speakers = useSpeakers(selectedModels[0] ?? "");
 
-  // Per-model index + parameter overrides, kept for the session only.
+  const filteredModels = modelQuery.trim()
+    ? models.filter((m) => m.toLowerCase().includes(modelQuery.trim().toLowerCase()))
+    : models;
+
   useEffect(() => {
-    try {
-      sessionStorage.setItem(
-        BATCH_CONFIG_KEY,
-        JSON.stringify({ indexes: modelIndexes, overrides: paramOverrides }),
-      );
-    } catch {
-      /* session storage unavailable: config stays in memory */
+    if (!speakers.includes(sid)) setSid(0);
+  }, [speakers, sid]);
+
+  const loadAvailableModels = useCallback((force = true) => {
+    fetchModels(force)
+      .then((m) => {
+        setModels(m.models);
+        setIndexes(m.indexes);
+        if (m.models[0]) {
+          setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    loadAvailableModels(true);
+    const onFocus = () => loadAvailableModels(true);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [loadAvailableModels]);
+
+  const resetDefaults = conversion.reset;
+
+  const globalValues = conversion.values;
+
+  const globalSetters = conversion.setters;
+
+  // Preserve existing session overrides once, then use the shared durable presets.
+  useEffect(() => {
+    if (!conversion.loaded || conversion.error || migratedPresets.current) return;
+    migratedPresets.current = true;
+    for (const [model, values] of Object.entries(legacyOverrides)) {
+      if (!getModelPreset("conversion", model)) saveModelPreset("conversion", model, values);
     }
-  }, [modelIndexes, paramOverrides]);
+  }, [conversion.loaded, conversion.error, legacyOverrides]);
+  useEffect(() => {
+    if (!conversion.loaded || !migratedPresets.current) return;
+    try {
+      sessionStorage.setItem(BATCH_CONFIG_KEY, JSON.stringify({ indexes: modelIndexes }));
+    } catch {
+      /* index choices remain in memory */
+    }
+  }, [modelIndexes, conversion.loaded]);
 
   const indexFor = (model: string) => modelIndexes[model] ?? matchIndex(model, indexes);
 
-  const overrideCount = (model: string) => Object.keys(paramOverrides[model] ?? {}).length;
+  const overridesFor = (model: string) =>
+    (getModelPreset("conversion", model) ?? {}) as Partial<ConversionParameterValues>;
+  const overrideCount = (model: string) => Object.keys(overridesFor(model)).length;
 
   const setModelOverride = <K extends keyof ConversionParameterValues>(
     model: string,
     key: K,
     value: ConversionParameterValues[K],
   ) => {
-    setParamOverrides((prev) => ({ ...prev, [model]: { ...prev[model], [key]: value } }));
+    saveModelPreset("conversion", model, { [key]: value });
   };
 
   // Editing target for the shared Conversion Parameters card: global defaults
@@ -319,7 +201,7 @@ export default function BatchForm() {
   const editingModel = editingTarget !== "global" ? editingTarget : null;
 
   const paramsValues: ConversionParameterValues = editingModel
-    ? { ...globalValues, ...paramOverrides[editingModel] }
+    ? { ...globalValues, ...overridesFor(editingModel) }
     : globalValues;
 
   const paramsSetters: ConversionParameterSetters = editingModel
@@ -332,17 +214,16 @@ export default function BatchForm() {
     : globalSetters;
 
   const paramsReset = editingModel
-    ? () =>
-        setParamOverrides((prev) => {
-          const next = { ...prev };
-          delete next[editingModel];
-          return next;
-        })
+    ? () => saveModelPreset("conversion", editingModel, { ...CONVERSION_DEFAULTS })
     : resetDefaults;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (!conversion.loaded) {
+      setError(t("Loading model settings…"));
+      return;
+    }
     if (!selectedModels.length) {
       setError(t("Select a voice model."));
       return;
@@ -362,7 +243,7 @@ export default function BatchForm() {
         models: selectedModels.map((model) => ({
           pthPath: model,
           indexPath: indexFor(model),
-          ...(overrideCount(model) > 0 ? { overrides: paramOverrides[model] } : {}),
+          ...(overrideCount(model) > 0 ? { overrides: overridesFor(model) } : {}),
         })),
         indexPath: indexFor(selectedModels[0]),
         inputFolder,
@@ -372,6 +253,8 @@ export default function BatchForm() {
         volumeEnvelope,
         protect,
         f0Method,
+        inferenceEngine,
+        onnxPrecision,
         exportFormat,
         embedderModel,
         ...(embedderModel === "custom" && embedderModelCustom ? { embedderModelCustom } : {}),
@@ -432,7 +315,8 @@ export default function BatchForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={onSubmit} className="card-stack">
+      <ModelPresetStatus />
       {/* 1. Models & Audio Source Card */}
       <Card>
         <CardHeader
@@ -624,7 +508,12 @@ export default function BatchForm() {
           <div className="flex items-center gap-3">
             <Button
               type="submit"
-              disabled={busy || !selectedModels.length || (!inputPath.trim() && !inputFolder.trim())}
+              disabled={
+                !conversion.loaded ||
+                busy ||
+                !selectedModels.length ||
+                (!inputPath.trim() && !inputFolder.trim())
+              }
               icon={<Wand2 size={16} />}
             >
               {busy ? t("Converting Batch…") : t("Convert Batch")}
@@ -711,8 +600,8 @@ export default function BatchForm() {
         )}
 
         {job && job.status === "done" && (
-          <div className="space-y-4 pt-3 border-t border-white/5 animate-in fade-in duration-200">
-            <div className="flex items-center gap-3 border-b border-white/10 pb-3">
+          <div className="space-y-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
                 <CheckCircle2 size={18} className="text-white" />
               </div>

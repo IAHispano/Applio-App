@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
 import { JobError } from "@/components/JobStatus";
+import ModelPresetStatus from "@/components/ModelPresetStatus";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
 import { Alert, Badge, Button, Card, CardHeader, EMBEDDER_MODELS, VoiceModelField } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
@@ -26,7 +27,9 @@ import {
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { getModelPreset, loadModelPresets } from "@/lib/model-presets";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { useConversionParameters } from "@/lib/useConversionParameters";
 import { usePersistentJobId } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import { useSpeakers } from "@/lib/useSpeakers";
@@ -62,74 +65,66 @@ export default function InferenceForm() {
   const [inputPath, setInputPath] = useState("");
 
   // Core conversion settings
-  const [pitch, setPitch] = useState(0);
-  const [indexRate, setIndexRate] = useState(0.75);
-  const [volumeEnvelope, setVolumeEnvelope] = useState(1.0);
-  const [protect, setProtect] = useState(0.5);
-
-  // Algorithm & Export
-  const [f0Method, setF0Method] = useState("rmvpe");
-  const [embedderModel, setEmbedderModel] = useState("contentvec");
-  const [embedderModelCustom, setEmbedderModelCustom] = useState("");
-  const [exportFormat, setExportFormat] = useState("WAV");
-
-  // Advanced settings
-  const [splitAudio, setSplitAudio] = useState(false);
-  const [f0Autotune, setF0Autotune] = useState(false);
-  const [f0AutotuneStrength, setF0AutotuneStrength] = useState(1.0);
-  const [proposedPitch, setProposedPitch] = useState(false);
-  const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
-  const [cleanAudio, setCleanAudio] = useState(false);
-  const [cleanStrength, setCleanStrength] = useState(0.5);
-
-  // Formant Shifting
-  const [formantShifting, setFormantShifting] = useState(false);
-  const [formantQfrency, setFormantQfrency] = useState(1.0);
-  const [formantTimbre, setFormantTimbre] = useState(1.0);
-
-  // FX Rack
-  const [postProcess, setPostProcess] = useState(false);
-  const [reverb, setReverb] = useState(false);
-  const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
-  const [reverbDamping, setReverbDamping] = useState(0.5);
-  const [reverbWetGain, setReverbWetGain] = useState(0.33);
-  const [reverbDryGain, setReverbDryGain] = useState(0.4);
-  const [reverbWidth, setReverbWidth] = useState(1.0);
-  const [reverbFreezeMode, setReverbFreezeMode] = useState(0.0);
-  const [pitchShift, setPitchShift] = useState(false);
-  const [pitchShiftSemitones, setPitchShiftSemitones] = useState(0);
-
-  const [delay, setDelay] = useState(false);
-  const [delaySeconds, setDelaySeconds] = useState(0.5);
-  const [delayFeedback, setDelayFeedback] = useState(0.0);
-  const [delayMix, setDelayMix] = useState(0.5);
-
-  const [compressor, setCompressor] = useState(false);
-  const [compressorThreshold, setCompressorThreshold] = useState(0);
-  const [compressorRatio, setCompressorRatio] = useState(1);
-  const [compressorAttack, setCompressorAttack] = useState(1.0);
-  const [compressorRelease, setCompressorRelease] = useState(100);
-
-  const [limiter, setLimiter] = useState(false);
-  const [limiterThreshold, setLimiterThreshold] = useState(-6);
-  const [limiterReleaseTime, setLimiterReleaseTime] = useState(0.05);
-
-  const [chorus, setChorus] = useState(false);
-  const [chorusRate, setChorusRate] = useState(1.0);
-  const [chorusDepth, setChorusDepth] = useState(0.25);
-  const [chorusCenterDelay, setChorusCenterDelay] = useState(7);
-  const [chorusFeedback, setChorusFeedback] = useState(0.0);
-  const [chorusMix, setChorusMix] = useState(0.5);
-  const [bitcrush, setBitcrush] = useState(false);
-  const [bitcrushBitDepth, setBitcrushBitDepth] = useState(8);
-  const [clipping, setClipping] = useState(false);
-  const [clippingThreshold, setClippingThreshold] = useState(-6);
-
-  const [distortion, setDistortion] = useState(false);
-  const [distortionGain, setDistortionGain] = useState(25);
-
-  const [gain, setGain] = useState(false);
-  const [gainDb, setGainDb] = useState(0);
+  const conversion = useConversionParameters(pthPath);
+  const {
+    pitch,
+    indexRate,
+    volumeEnvelope,
+    protect,
+    f0Method,
+    inferenceEngine,
+    onnxPrecision,
+    embedderModel,
+    embedderModelCustom,
+    exportFormat,
+    splitAudio,
+    f0Autotune,
+    f0AutotuneStrength,
+    proposedPitch,
+    proposedPitchThreshold,
+    cleanAudio,
+    cleanStrength,
+    formantShifting,
+    formantQfrency,
+    formantTimbre,
+    postProcess,
+    reverb,
+    reverbRoomSize,
+    reverbDamping,
+    reverbWetGain,
+    reverbDryGain,
+    reverbWidth,
+    reverbFreezeMode,
+    pitchShift,
+    pitchShiftSemitones,
+    delay,
+    delaySeconds,
+    delayFeedback,
+    delayMix,
+    compressor,
+    compressorThreshold,
+    compressorRatio,
+    compressorAttack,
+    compressorRelease,
+    limiter,
+    limiterThreshold,
+    limiterReleaseTime,
+    chorus,
+    chorusRate,
+    chorusDepth,
+    chorusCenterDelay,
+    chorusFeedback,
+    chorusMix,
+    bitcrush,
+    bitcrushBitDepth,
+    clipping,
+    clippingThreshold,
+    distortion,
+    distortionGain,
+    gain,
+    gainDb,
+  } = conversion.values;
+  const { embedderModel: setEmbedderModel } = conversion.setters;
 
   // Job submission & status
   const [job, setJob] = useState<Job | null>(null);
@@ -172,14 +167,15 @@ export default function InferenceForm() {
     setInspectError("");
 
     apiSend<{ ok: boolean; metadata: ModelMetadata }>("/api/models/inspect", "POST", { pthPath })
-      .then((res) => {
+      .then(async (res) => {
+        await loadModelPresets();
         if (cancelled) return;
         if (res?.metadata) {
           setInspectMeta(res.metadata);
           // Auto-sync embedder model if detected in checkpoint metadata
           if (res.metadata.embedder_model && res.metadata.embedder_model !== "None") {
             const emb = res.metadata.embedder_model.toLowerCase();
-            if (EMBEDDER_MODELS.includes(emb)) {
+            if (EMBEDDER_MODELS.includes(emb) && !getModelPreset("conversion", pthPath)?.embedderModel) {
               setEmbedderModel(emb);
             }
           }
@@ -199,7 +195,7 @@ export default function InferenceForm() {
     return () => {
       cancelled = true;
     };
-  }, [pthPath]);
+  }, [pthPath, setEmbedderModel]);
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
@@ -296,6 +292,10 @@ export default function InferenceForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!conversion.loaded) {
+      setSubmitError(t("Loading model settings…"));
+      return;
+    }
     setSubmitError("");
     if (!pthPath) {
       setSubmitError(t("Please select a voice model."));
@@ -316,6 +316,8 @@ export default function InferenceForm() {
     fd.append("volumeEnvelope", String(volumeEnvelope));
     fd.append("protect", String(protect));
     fd.append("f0Method", f0Method);
+    fd.append("inferenceEngine", inferenceEngine);
+    fd.append("onnxPrecision", onnxPrecision);
     fd.append("embedderModel", embedderModel);
     if (embedderModel === "custom" && embedderModelCustom) {
       fd.append("embedderModelCustom", embedderModelCustom);
@@ -411,7 +413,7 @@ export default function InferenceForm() {
   const isConverting = Boolean(submitting || (job && job.status !== "done" && job.status !== "error"));
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 w-full max-w-[1920px] mx-auto">
+    <form onSubmit={onSubmit} className="card-stack w-full max-w-[1920px] mx-auto">
       {loadError && (
         <Alert variant="warning" className="mb-4">
           <strong className="text-white">{t("API offline.")}</strong>{" "}
@@ -422,7 +424,7 @@ export default function InferenceForm() {
       )}
 
       {/* Top Grid: Model & Audio Input */}
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch">
+      <div className="grid grid-cols-1 xl:grid-cols-12 card-grid items-stretch">
         {/* Voice Model Selector (5 cols, 4 on 2xl) */}
         <div className="xl:col-span-5 2xl:col-span-4 space-y-4 h-full">
           <Card className="h-full flex flex-col">
@@ -451,10 +453,11 @@ export default function InferenceForm() {
               onRefresh={loadAvailableModels}
               onIndexChange={setIndexPath}
             />
+            <ModelPresetStatus />
 
             {/* Enriched Model Metadata with deep inspection extraction */}
             {pthPath && (
-              <div className="space-y-2 pt-2 border-t border-white/10">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs text-neutral-400 px-0.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="font-semibold text-neutral-300">{t("Model Architecture")}</span>
@@ -465,7 +468,7 @@ export default function InferenceForm() {
                       </span>
                     )}
                     {inspectMeta?.version && inspectMeta.version !== "None" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white font-mono uppercase border border-white/10">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white font-sans uppercase border border-white/10">
                         {inspectMeta.version}
                       </span>
                     )}
@@ -652,124 +655,9 @@ export default function InferenceForm() {
 
       <ConversionParameters
         idPrefix="infer"
-        onReset={() => {
-          setPitch(0);
-          setIndexRate(0.75);
-          setVolumeEnvelope(1);
-          setProtect(0.5);
-        }}
-        values={{
-          pitch,
-          indexRate,
-          volumeEnvelope,
-          protect,
-          f0Method,
-          embedderModel,
-          embedderModelCustom,
-          exportFormat,
-          splitAudio,
-          f0Autotune,
-          f0AutotuneStrength,
-          proposedPitch,
-          proposedPitchThreshold,
-          cleanAudio,
-          cleanStrength,
-          formantShifting,
-          formantQfrency,
-          formantTimbre,
-          postProcess,
-          reverb,
-          reverbRoomSize,
-          reverbDamping,
-          reverbWetGain,
-          reverbDryGain,
-          reverbWidth,
-          reverbFreezeMode,
-          pitchShift,
-          pitchShiftSemitones,
-          delay,
-          delaySeconds,
-          delayFeedback,
-          delayMix,
-          compressor,
-          compressorThreshold,
-          compressorRatio,
-          compressorAttack,
-          compressorRelease,
-          limiter,
-          limiterThreshold,
-          limiterReleaseTime,
-          chorus,
-          chorusRate,
-          chorusDepth,
-          chorusCenterDelay,
-          chorusFeedback,
-          chorusMix,
-          bitcrush,
-          bitcrushBitDepth,
-          clipping,
-          clippingThreshold,
-          distortion,
-          distortionGain,
-          gain,
-          gainDb,
-        }}
-        setters={{
-          pitch: setPitch,
-          indexRate: setIndexRate,
-          volumeEnvelope: setVolumeEnvelope,
-          protect: setProtect,
-          f0Method: setF0Method,
-          embedderModel: setEmbedderModel,
-          embedderModelCustom: setEmbedderModelCustom,
-          exportFormat: setExportFormat,
-          splitAudio: setSplitAudio,
-          f0Autotune: setF0Autotune,
-          f0AutotuneStrength: setF0AutotuneStrength,
-          proposedPitch: setProposedPitch,
-          proposedPitchThreshold: setProposedPitchThreshold,
-          cleanAudio: setCleanAudio,
-          cleanStrength: setCleanStrength,
-          formantShifting: setFormantShifting,
-          formantQfrency: setFormantQfrency,
-          formantTimbre: setFormantTimbre,
-          postProcess: setPostProcess,
-          reverb: setReverb,
-          reverbRoomSize: setReverbRoomSize,
-          reverbDamping: setReverbDamping,
-          reverbWetGain: setReverbWetGain,
-          reverbDryGain: setReverbDryGain,
-          reverbWidth: setReverbWidth,
-          reverbFreezeMode: setReverbFreezeMode,
-          pitchShift: setPitchShift,
-          pitchShiftSemitones: setPitchShiftSemitones,
-          delay: setDelay,
-          delaySeconds: setDelaySeconds,
-          delayFeedback: setDelayFeedback,
-          delayMix: setDelayMix,
-          compressor: setCompressor,
-          compressorThreshold: setCompressorThreshold,
-          compressorRatio: setCompressorRatio,
-          compressorAttack: setCompressorAttack,
-          compressorRelease: setCompressorRelease,
-          limiter: setLimiter,
-          limiterThreshold: setLimiterThreshold,
-          limiterReleaseTime: setLimiterReleaseTime,
-          chorus: setChorus,
-          chorusRate: setChorusRate,
-          chorusDepth: setChorusDepth,
-          chorusCenterDelay: setChorusCenterDelay,
-          chorusFeedback: setChorusFeedback,
-          chorusMix: setChorusMix,
-          bitcrush: setBitcrush,
-          bitcrushBitDepth: setBitcrushBitDepth,
-          clipping: setClipping,
-          clippingThreshold: setClippingThreshold,
-          distortion: setDistortion,
-          distortionGain: setDistortionGain,
-          gain: setGain,
-          gainDb: setGainDb,
-        }}
+        onReset={conversion.reset}
+        values={conversion.values}
+        setters={conversion.setters}
       />
 
       {/* Convert Action, Live Progress & WavePlayer Result Card */}
@@ -779,7 +667,7 @@ export default function InferenceForm() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <Button
               type="submit"
-              disabled={isConverting || !pthPath || (!audioFile && !inputPath)}
+              disabled={!conversion.loaded || isConverting || !pthPath || (!audioFile && !inputPath)}
               icon={<Wand2 size={16} />}
               className="w-full sm:w-auto"
             >

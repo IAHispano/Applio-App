@@ -58,22 +58,22 @@ export default function Disclosure({
     <details
       data-disclosure
       ref={initialOpenRef}
-      className={`group mt-2 p-0 border border-white/10 rounded-lg overflow-hidden bg-white/[0.02] ${className}`}
+      className={`group mt-2 p-0 border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--input-bg)] transition-colors ${className}`}
       open={open}
       onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}
     >
       <summary
         aria-describedby={description ? helpId : undefined}
-        className={`min-h-11 px-3 py-2.5 cursor-pointer text-xs font-semibold text-neutral-300 hover:text-white flex items-center justify-between gap-3 select-none ${summaryClassName}`}
+        className={`min-h-11 px-3.5 py-2.5 cursor-pointer text-sm font-semibold text-[var(--text)] hover:bg-[var(--surface)] flex items-center justify-between gap-3 select-none transition-colors ${summaryClassName}`}
       >
         <span className="flex items-center gap-2 min-w-0">
           {icon && <span className="flex shrink-0 items-center justify-center">{icon}</span>}
           <span className="min-w-0">
-            <span className="block truncate">{title}</span>
+            <span className="block break-words">{title}</span>
             {description && (
               <span
                 id={helpId}
-                className="block mt-0.5 text-[11px] font-normal text-neutral-400 leading-snug"
+                className="block mt-1 text-xs font-normal text-[var(--muted)] leading-relaxed"
               >
                 {description}
               </span>
@@ -82,10 +82,10 @@ export default function Disclosure({
         </span>
         <ChevronDown
           size={16}
-          className="transition-transform duration-200 group-open:rotate-180 text-neutral-400 shrink-0"
+          className="transition-transform duration-200 group-open:rotate-180 text-[var(--muted)] shrink-0"
         />
       </summary>
-      <div className={`p-3 border-t border-white/10 space-y-3 bg-black/20 ${bodyClassName}`}>{children}</div>
+      <div className={`px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>{children}</div>
     </details>
   );
 }

@@ -23,6 +23,8 @@ export interface ConversionParameterValues {
   volumeEnvelope: number;
   protect: number;
   f0Method: string;
+  inferenceEngine: string;
+  onnxPrecision: string;
   embedderModel: string;
   embedderModelCustom: string;
   exportFormat: string;
@@ -74,7 +76,7 @@ export interface ConversionParameterValues {
   gainDb: number;
 }
 
-type ConversionParameterSetters = {
+export type ConversionParameterSetters = {
   [K in keyof ConversionParameterValues]: (value: ConversionParameterValues[K]) => void;
 };
 
@@ -101,6 +103,8 @@ export default function ConversionParameters({
     volumeEnvelope,
     protect,
     f0Method,
+    inferenceEngine,
+    onnxPrecision,
     embedderModel,
     embedderModelCustom,
     exportFormat,
@@ -157,6 +161,8 @@ export default function ConversionParameters({
     volumeEnvelope: setVolumeEnvelope,
     protect: setProtect,
     f0Method: setF0Method,
+    inferenceEngine: setInferenceEngine,
+    onnxPrecision: setOnnxPrecision,
     embedderModel: setEmbedderModel,
     embedderModelCustom: setEmbedderModelCustom,
     exportFormat: setExportFormat,
@@ -294,7 +300,7 @@ export default function ConversionParameters({
       </div>
 
       {/* Algorithm, Embedder & Export Format Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-white/10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <PitchMethodSelect
           id={`${idPrefix}-f0-method-select`}
           label={t("Pitch Extraction Algorithm")}
@@ -355,6 +361,42 @@ export default function ConversionParameters({
           />
         </div>
       )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label htmlFor={`${idPrefix}-inference-engine`} className="text-xs font-medium text-neutral-300">
+            {t("Inference engine")}
+          </label>
+          <CustomSelect
+            id={`${idPrefix}-inference-engine`}
+            value={inferenceEngine}
+            onChange={(e) => setInferenceEngine(e.target.value)}
+            className="w-full mt-1"
+            description={t(SETTING_HELP.inferenceEngine)}
+          >
+            <option value="torch">PyTorch</option>
+            <option value="onnx">{t("ONNX (experimental)")}</option>
+          </CustomSelect>
+        </div>
+        {inferenceEngine === "onnx" && (
+          <div>
+            <label htmlFor={`${idPrefix}-onnx-precision`} className="text-xs font-medium text-neutral-300">
+              {t("ONNX precision")}
+            </label>
+            <CustomSelect
+              id={`${idPrefix}-onnx-precision`}
+              value={onnxPrecision}
+              onChange={(e) => setOnnxPrecision(e.target.value)}
+              className="w-full mt-1"
+              description={t(SETTING_HELP.onnxPrecision)}
+            >
+              <option value="auto">{t("Auto")}</option>
+              <option value="float32">FP32</option>
+              <option value="float16">FP16</option>
+            </CustomSelect>
+          </div>
+        )}
+      </div>
 
       {/* Collapsible Accordions: Advanced Tuning, Formant, Audio FX */}
       <div className="space-y-3 pt-2">

@@ -71,7 +71,7 @@ export default function BlenderPanel() {
     <div className="space-y-4">
       {error && <Alert variant="error">{error}</Alert>}
 
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="card-stack">
         <Card>
           <CardHeader
             icon={<Layers size={18} className="text-white" />}
@@ -111,7 +111,7 @@ export default function BlenderPanel() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <label htmlFor="blend-model1-path">{t("Path to first model")}</label>
               {models.length > 0 ? (

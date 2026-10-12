@@ -44,7 +44,7 @@ const BASE_FONT_OPTIONS: FontOption[] = [
     label: "System UI",
     families: ["system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
   },
-  { id: "syne", label: "Syne (Applio default)", families: ["google:Syne", "system-ui", "sans-serif"] },
+  { id: "syne", label: "Syne", families: ["google:Syne", "system-ui", "sans-serif"] },
   {
     id: "georgia",
     label: "Georgia (serif)",
@@ -468,7 +468,7 @@ export default function SettingsPage() {
 
   if (!cfg)
     return (
-      <div className="w-full max-w-[1920px] mx-auto space-y-6">
+      <div className="w-full max-w-[1920px] mx-auto page-stack">
         <div className="card">
           <p className="text-neutral-400">{t("Loading settings…")}</p>
           {error && <p className="text-neutral-300">{error}</p>}
@@ -554,7 +554,7 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Settings")}
         description={t("Configure application preferences, audio engine settings, precision, and language.")}
@@ -731,7 +731,7 @@ export default function SettingsPage() {
           })}
         </fieldset>
 
-        <div className="flex flex-col sm:flex-row sm:items-end gap-3 pt-4 border-t border-white/5">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
           <div className="space-y-1.5">
             <label htmlFor="theme-font">{t("Interface font")}</label>
             <CustomSelect
@@ -1004,7 +1004,7 @@ export default function SettingsPage() {
           )}
         />
 
-        <div className="space-y-3 pb-4 border-b border-white/5">
+        <div className="space-y-3">
           <FormField
             label={t("Logs & Models Folder")}
             htmlFor="settings-logs-dir"

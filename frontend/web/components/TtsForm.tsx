@@ -1,9 +1,11 @@
 "use client";
 
-import { FileText, Music, RotateCcw, Sliders, Wand2 } from "lucide-react";
+import { FileText, Music, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
+import ConversionParameters from "@/components/ConversionParameters";
 import { JobError } from "@/components/JobStatus";
+import ModelPresetStatus from "@/components/ModelPresetStatus";
 import {
   Alert,
   Badge,
@@ -11,19 +13,16 @@ import {
   Card,
   CardHeader,
   CustomSelect,
-  Disclosure,
-  EmbedderSelect,
   FileInput,
   FormField,
-  PitchMethodSelect,
   SliderField,
-  ToggleField,
   VoiceModelField,
 } from "@/components/ui";
 import { apiGet, apiSend, errMsg, fetchModels, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { useConversionParameters } from "@/lib/useConversionParameters";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 
@@ -46,21 +45,7 @@ export default function TtsForm() {
   const [pthPath, setPthPath] = useState("");
   const [indexes, setIndexes] = useState<string[]>([]);
   const [indexPath, setIndexPath] = useState("");
-  const [pitch, setPitch] = useState(0);
-  const [indexRate, setIndexRate] = useState(0.75);
-  const [volumeEnvelope, setVolumeEnvelope] = useState(1);
-  const [protect, setProtect] = useState(0.5);
-  const [f0Method, setF0Method] = useState("rmvpe");
-  const [embedderModel, setEmbedderModel] = useState("contentvec");
-  const [embedderModelCustom, setEmbedderModelCustom] = useState("");
-  const [exportFormat, setExportFormat] = useState("WAV");
-  const [splitAudio, setSplitAudio] = useState(false);
-  const [f0Autotune, setF0Autotune] = useState(false);
-  const [f0AutotuneStrength, setF0AutotuneStrength] = useState(1);
-  const [proposedPitch, setProposedPitch] = useState(false);
-  const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
-  const [cleanAudio, setCleanAudio] = useState(false);
-  const [cleanStrength, setCleanStrength] = useState(0.5);
+  const conversion = useConversionParameters(pthPath);
   const [sid, setSid] = useState(0);
   const [jobId, setJobId] = usePersistentJobId("tts");
   const { job, error, setError } = useJob(jobId);
@@ -117,24 +102,6 @@ export default function TtsForm() {
     return () => window.removeEventListener("focus", onFocus);
   }, [loadModels]);
 
-  const resetDefaults = () => {
-    setPitch(0);
-    setIndexRate(0.75);
-    setVolumeEnvelope(1);
-    setProtect(0.5);
-    setF0Method("rmvpe");
-    setEmbedderModel("contentvec");
-    setEmbedderModelCustom("");
-    setRate(0);
-    setSplitAudio(false);
-    setF0Autotune(false);
-    setF0AutotuneStrength(1);
-    setProposedPitch(false);
-    setProposedPitchThreshold(155);
-    setCleanAudio(false);
-    setCleanStrength(0.5);
-  };
-
   const shown = voices.filter(
     (v) =>
       !filter ||
@@ -144,6 +111,10 @@ export default function TtsForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!conversion.loaded) {
+      setError(t("Loading model settings…"));
+      return;
+    }
     setError("");
     if (!text && !file) {
       setError(t("Enter text or upload a .txt file."));
@@ -158,23 +129,9 @@ export default function TtsForm() {
       fd.append("ttsRate", String(rate));
       fd.append("pthPath", pthPath);
       fd.append("indexPath", indexPath);
-      fd.append("pitch", String(pitch));
-      fd.append("indexRate", String(indexRate));
-      fd.append("volumeEnvelope", String(volumeEnvelope));
-      fd.append("protect", String(protect));
-      fd.append("f0Method", f0Method);
-      fd.append("embedderModel", embedderModel);
-      if (embedderModel === "custom" && embedderModelCustom) {
-        fd.append("embedderModelCustom", embedderModelCustom);
+      for (const [key, value] of Object.entries(conversion.values)) {
+        fd.append(key, String(value));
       }
-      fd.append("exportFormat", exportFormat);
-      fd.append("splitAudio", String(splitAudio));
-      fd.append("f0Autotune", String(f0Autotune));
-      fd.append("f0AutotuneStrength", String(f0AutotuneStrength));
-      fd.append("proposedPitch", String(proposedPitch));
-      fd.append("proposedPitchThreshold", String(proposedPitchThreshold));
-      fd.append("cleanAudio", String(cleanAudio));
-      fd.append("cleanStrength", String(cleanStrength));
       fd.append("sid", String(sid));
       const { jobId: id } = await postForm<{ jobId: string }>("/api/tts", fd);
       setJobId(id);
@@ -193,7 +150,7 @@ export default function TtsForm() {
         </Alert>
       )}
 
-      <form onSubmit={onSubmit} className="space-y-4">
+      <form onSubmit={onSubmit} className="card-stack">
         {/* Card 1: Speech Synthesis Source */}
         <Card as="section" className="space-y-4">
           <CardHeader
@@ -309,9 +266,10 @@ export default function TtsForm() {
               onRefresh={loadModels}
               onIndexChange={setIndexPath}
             />
+            <ModelPresetStatus />
 
-            <div className={`grid grid-cols-1 gap-4 pt-1 ${speakers.length > 1 ? "md:grid-cols-2" : ""}`}>
-              {speakers.length > 1 && (
+            {speakers.length > 1 && (
+              <div className="max-w-md">
                 <FormField label={t("Speaker ID (Multi-Speaker Model)")} htmlFor="tts-speaker-id">
                   <CustomSelect
                     id="tts-speaker-id"
@@ -327,193 +285,17 @@ export default function TtsForm() {
                     ))}
                   </CustomSelect>
                 </FormField>
-              )}
-
-              <FormField label={t("Export Format")} htmlFor="tts-export-format">
-                <CustomSelect
-                  id="tts-export-format"
-                  value={exportFormat}
-                  onChange={(e) => setExportFormat(e.target.value)}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.export)}
-                >
-                  {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </FormField>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 3: Conversion Parameters */}
-        <Card as="section" className="space-y-4">
-          <CardHeader
-            icon={<Sliders size={18} className="text-white" />}
-            title={t("Conversion Parameters")}
-            description={t("Adjust pitch shifting, feature index retrieval, and acoustic post-processing.")}
-            action={
-              <button
-                type="button"
-                onClick={resetDefaults}
-                className="text-xs text-neutral-400 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RotateCcw size={12} className="text-white" />
-                <span>{t("Reset Defaults")}</span>
-              </button>
-            }
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <SliderField
-              id="tts-pitch"
-              label={t("Pitch")}
-              value={pitch}
-              min={-24}
-              max={24}
-              step={1}
-              unit="st"
-              onChange={setPitch}
-              description={t(SETTING_HELP.pitch)}
-            />
-            <SliderField
-              id="tts-index-rate"
-              label={t("Search Feature Ratio")}
-              value={indexRate}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setIndexRate}
-              description={t(SETTING_HELP.indexRate)}
-            />
-            <SliderField
-              id="tts-volume-envelope"
-              label={t("Volume Envelope")}
-              value={volumeEnvelope}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={setVolumeEnvelope}
-              description={t(SETTING_HELP.envelope)}
-            />
-            <SliderField
-              id="tts-protect"
-              label={t("Protect Voiceless Consonants")}
-              value={protect}
-              min={0}
-              max={0.5}
-              step={0.01}
-              onChange={setProtect}
-              description={t(SETTING_HELP.protect)}
-            />
-          </div>
-
-          <div className="space-y-4 pt-2 border-t border-white/5">
-            <PitchMethodSelect
-              id="tts-f0-method"
-              label={t("Pitch extraction algorithm")}
-              value={f0Method}
-              onChange={setF0Method}
-            />
-
-            <EmbedderSelect
-              id="tts-embedder-model"
-              label={t("Embedder Model")}
-              value={embedderModel}
-              onChange={setEmbedderModel}
-            />
-
-            {embedderModel === "custom" && (
-              <FormField
-                label={t("Select Custom Embedder")}
-                htmlFor="tts-custom-embedder"
-                description={t(SETTING_HELP.customEmbedder)}
-              >
-                <input
-                  id="tts-custom-embedder"
-                  type="text"
-                  value={embedderModelCustom}
-                  onChange={(e) => setEmbedderModelCustom(e.target.value)}
-                  placeholder="rvc/models/embedders/embedders_custom/my-embedder"
-                  aria-describedby={`${"tts-custom-embedder"}-desc`}
-                />
-              </FormField>
+              </div>
             )}
           </div>
-
-          <Disclosure
-            title={t("Advanced Settings")}
-            icon={<Sliders size={15} />}
-            description={
-              <>
-                {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
-              </>
-            }
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              <ToggleField
-                label={t("Split Audio")}
-                checked={splitAudio}
-                onChange={setSplitAudio}
-                description={t(SETTING_HELP.split)}
-              />
-              <ToggleField
-                label={t("Autotune")}
-                checked={f0Autotune}
-                onChange={setF0Autotune}
-                description={t(SETTING_HELP.autotune)}
-              />
-              <ToggleField
-                label={t("Proposed Pitch")}
-                checked={proposedPitch}
-                onChange={setProposedPitch}
-                description={t(SETTING_HELP.proposed)}
-              />
-              <ToggleField
-                label={t("Clean Audio")}
-                checked={cleanAudio}
-                onChange={setCleanAudio}
-                description={t(SETTING_HELP.clean)}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <SliderField
-                id="tts-autotune-strength"
-                label={t("Autotune Strength")}
-                value={f0AutotuneStrength}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={setF0AutotuneStrength}
-                description={t(SETTING_HELP.autotuneStrength)}
-              />
-              <SliderField
-                id="tts-proposed-threshold"
-                label={t("Proposed Pitch Threshold")}
-                value={proposedPitchThreshold}
-                min={50}
-                max={1200}
-                step={1}
-                unit="Hz"
-                onChange={setProposedPitchThreshold}
-                description={t(SETTING_HELP.proposedThreshold)}
-              />
-              <SliderField
-                id="tts-clean-strength"
-                label={t("Clean Strength")}
-                value={cleanStrength}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={setCleanStrength}
-                description={t(SETTING_HELP.cleanStrength)}
-              />
-            </div>
-          </Disclosure>
         </Card>
+
+        <ConversionParameters
+          idPrefix="tts"
+          values={conversion.values}
+          setters={conversion.setters}
+          onReset={conversion.reset}
+        />
 
         {/* Card 4: Action & Output Card */}
         <Card as="section" className="space-y-4">
@@ -522,6 +304,7 @@ export default function TtsForm() {
               <Button
                 type="submit"
                 disabled={
+                  !conversion.loaded ||
                   busy ||
                   job?.status === "running" ||
                   job?.status === "queued" ||
@@ -602,7 +385,7 @@ export default function TtsForm() {
 
           {/* Synthesized Output Waveform Player */}
           {job?.outputFile && job.status === "done" && (
-            <div className="space-y-2 pt-2 border-t border-white/5 animate-in fade-in duration-200">
+            <div className="space-y-2 animate-in fade-in duration-200">
               <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
                 <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>
                 <Badge variant="success" size="sm" dot>

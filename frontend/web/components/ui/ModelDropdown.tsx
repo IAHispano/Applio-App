@@ -243,10 +243,7 @@ export default function ModelDropdown({
             className="shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
             tabIndex={0}
           >
-            <div
-              className="px-3.5 py-2 flex items-center gap-2 shrink-0"
-              style={{ borderBottom: "1px solid var(--border)" }}
-            >
+            <div className="px-3.5 py-2 flex items-center gap-2 shrink-0">
               <Search size={13} className="shrink-0" style={{ color: "var(--muted)", opacity: 0.7 }} />
               <input
                 ref={searchInputRef}
@@ -313,7 +310,7 @@ export default function ModelDropdown({
                           >
                             {modelDisplayName(m)}
                           </span>
-                          <span className="text-[10px] font-mono text-neutral-500 shrink-0">
+                          <span className="text-[10px] font-sans text-neutral-500 shrink-0">
                             {m.endsWith(".onnx") ? "ONNX" : "PTH"}
                           </span>
                         </div>
@@ -332,7 +329,7 @@ export default function ModelDropdown({
             {/* Actions Footer */}
             <div
               className="p-2 flex items-center justify-between gap-2 text-xs shrink-0"
-              style={{ borderTop: "1px solid var(--border)", background: "var(--input-bg)" }}
+              style={{ background: "var(--input-bg)" }}
             >
               <span className="text-[11px]" style={{ color: "var(--muted)" }}>
                 {models.length} {t("models available")}

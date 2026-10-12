@@ -69,7 +69,7 @@ export default function JobsPage() {
   );
   const now = Date.now();
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader
         title={t("Job history")}
         description={t("Track progress, inspect settings and results, and revisit previous work.")}
@@ -106,7 +106,7 @@ export default function JobsPage() {
           </p>
         </Card>
       ) : (
-        <ul className="list-none m-0 p-0 space-y-3">
+        <ul className="list-none m-0 p-0 card-stack">
           {filtered.map((job) => {
             const jobState = historyState(job);
             const active = job.status === "running" || job.status === "queued";
@@ -203,7 +203,7 @@ export default function JobsPage() {
                       {t("Copy job details")}
                     </Button>
                   </div>
-                  <details className="border-t border-[var(--border)] pt-3">
+                  <details className="">
                     <summary className="cursor-pointer text-xs text-[var(--muted)] hover:text-[var(--text)]">
                       {t("Settings, results and recent logs")}
                     </summary>

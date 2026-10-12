@@ -37,7 +37,7 @@ function ToggleFieldInner({
   const descId = description ? `${id}-desc` : undefined;
 
   return (
-    <div className={`space-y-1 ${className}`}>
+    <div className={`toggle-field space-y-1.5 min-w-0 ${className}`}>
       <label
         htmlFor={id}
         className={`flex items-center gap-2.5 select-none ${
@@ -52,11 +52,11 @@ function ToggleFieldInner({
           aria-describedby={descId}
           onChange={(e) => onChange(e.target.checked)}
         />
-        <span className="text-xs font-medium text-neutral-200">{label}</span>
+        <span className="field-label">{label}</span>
         {badge && <span className="ml-1">{badge}</span>}
       </label>
       {description && (
-        <p id={descId} className="text-[11px] text-neutral-400 m-0 pl-6 leading-relaxed">
+        <p id={descId} className="field-help m-0 pl-[26px]">
           {description}
         </p>
       )}

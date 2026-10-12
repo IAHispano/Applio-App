@@ -121,7 +121,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
     ctx.lineWidth = 1;
-    ctx.font = "10px ui-monospace, monospace";
+    ctx.font = `10px ${getComputedStyle(cv).fontFamily}`;
     ctx.textBaseline = "top";
     const first = Math.ceil(start / step) * step;
     for (let i = 0; ; i++) {
@@ -174,7 +174,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     ctx.fillStyle = "rgba(255,255,255,0.55)";
     ctx.strokeStyle = "rgba(255,255,255,0.25)";
     ctx.lineWidth = 1;
-    ctx.font = "9px ui-monospace, monospace";
+    ctx.font = `9px ${getComputedStyle(cv).fontFamily}`;
     ctx.textBaseline = "middle";
     ctx.textAlign = "right";
     for (let f = 0; f <= nyquist + 1; f += step) {
@@ -440,7 +440,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
               />
               <div className="flex flex-col justify-between py-0.5">
                 {DB_TICKS.map((db) => (
-                  <span key={db} className="text-[9px] font-mono text-neutral-500 leading-none tabular-nums">
+                  <span key={db} className="text-[9px] font-sans text-neutral-500 leading-none tabular-nums">
                     {db === 0 ? "0 dB" : `${db} dB`}
                   </span>
                 ))}

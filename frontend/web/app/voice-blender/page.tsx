@@ -7,7 +7,7 @@ import { useI18n } from "@/lib/i18n";
 export default function VoiceBlenderPage() {
   const { t } = useI18n();
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Voice Blender")}
         description={t("Fuse two voice models together with a configurable interpolation ratio.")}

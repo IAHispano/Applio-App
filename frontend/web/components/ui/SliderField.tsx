@@ -118,7 +118,7 @@ function SliderFieldInner({
       <div className="flex items-center justify-between gap-2">
         <label
           htmlFor={id}
-          className="text-xs font-medium text-neutral-300 m-0 select-none cursor-pointer flex-1 min-w-0 leading-relaxed"
+          className="text-xs font-medium text-[var(--text)] m-0 select-none cursor-pointer flex-1 min-w-0 leading-relaxed"
         >
           {label}
         </label>
@@ -290,7 +290,7 @@ function SliderFieldInner({
       </div>
 
       {description && (
-        <p id={descId} className="text-[11px] text-neutral-400 m-0 leading-tight">
+        <p id={descId} className="field-help m-0">
           {description}
         </p>
       )}
@@ -300,6 +300,8 @@ function SliderFieldInner({
 
 function areSliderPropsEqual(prev: SliderFieldProps, next: SliderFieldProps) {
   return (
+    prev.onChange === next.onChange &&
+    prev.formatValue === next.formatValue &&
     prev.id === next.id &&
     prev.value === next.value &&
     prev.min === next.min &&

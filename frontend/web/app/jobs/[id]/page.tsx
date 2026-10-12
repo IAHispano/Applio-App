@@ -13,7 +13,7 @@ export default function JobPage() {
   const { t } = useI18n();
   const activity = useJob(id);
   return (
-    <div className="space-y-5">
+    <div className="page-stack">
       <PageHeader title={t(activity.job?.label || "Job activity")}>
         <Link href="/jobs" className="ghost-link">
           {t("Back to job history")}

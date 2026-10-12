@@ -38,10 +38,10 @@ function FormFieldInner({
   const errorId = error ? `${htmlFor}-error` : undefined;
 
   return (
-    <div className={`space-y-1.5 ${className}`}>
+    <div className={`form-field space-y-2 min-w-0 ${className}`}>
       {label && (
         <div className="flex items-center justify-between gap-2">
-          <label htmlFor={htmlFor} className="block text-xs font-medium text-neutral-300 select-none">
+          <label htmlFor={htmlFor} className="block text-xs font-medium text-[var(--text)] select-none">
             {label}
             {required && <span className="text-red-400 ml-0.5">*</span>}
           </label>
@@ -50,7 +50,7 @@ function FormFieldInner({
       )}
       <div>{children}</div>
       {description && !error && (
-        <p id={descId} className="text-[11px] text-neutral-400 m-0 leading-relaxed">
+        <p id={descId} className="field-help m-0">
           {description}
         </p>
       )}

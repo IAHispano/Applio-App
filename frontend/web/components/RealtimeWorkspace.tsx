@@ -3,6 +3,7 @@
 import { Disc, Gauge, Headphones, Layers, ListMusic, Play, RefreshCw, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
+import ModelPresetStatus from "@/components/ModelPresetStatus";
 import RealtimeDiagnostics from "@/components/RealtimeDiagnostics";
 import {
   Badge,
@@ -12,6 +13,7 @@ import {
   Disclosure,
   EMBEDDER_MODELS,
   EmbedderSelect,
+  FormField,
   IconButton,
   PitchMethodSelect,
   REALTIME_F0_METHODS,
@@ -24,6 +26,7 @@ import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
+import { getModelPreset, loadModelPresets, saveModelPreset, useModelPresets } from "@/lib/model-presets";
 import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
 import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
 import { connectRealtimeOutput } from "@/lib/realtime-output";
@@ -65,6 +68,64 @@ function Stage({
   );
 }
 
+const REALTIME_PRESET_DEFAULTS = {
+  pitch: 0,
+  index_rate: 0,
+  protect: 0.5,
+  volume_envelope: 1,
+  autotune: false,
+  autotune_strength: 1,
+  proposed_pitch: false,
+  proposed_pitch_threshold: 155,
+  clean_audio: false,
+  clean_strength: 0.5,
+  post_process: false,
+  reverb: false,
+  reverb_room_size: 0.5,
+  reverb_damping: 0.5,
+  reverb_wet_level: 0.5,
+  reverb_dry_level: 0.5,
+  reverb_width: 0.5,
+  reverb_freeze_mode: 0.5,
+  pitch_shift: false,
+  pitch_shift_semitones: 0,
+  limiter: false,
+  limiter_threshold: -6,
+  limiter_release: 0.01,
+  gain: false,
+  gain_db: 0,
+  distortion: false,
+  distortion_gain: 25,
+  chorus: false,
+  chorus_rate: 1.0,
+  chorus_depth: 0.25,
+  chorus_delay: 7,
+  chorus_feedback: 0.0,
+  chorus_mix: 0.5,
+  bitcrush: false,
+  clipping: false,
+  clipping_threshold: -6,
+  compressor: false,
+  compressor_threshold: 0,
+  compressor_ratio: 1,
+  compressor_attack: 1.0,
+  compressor_release: 100,
+  delay: false,
+  delay_seconds: 0.5,
+  delay_feedback: 0.0,
+  delay_mix: 0.5,
+  sid: 0,
+  bitcrush_bit_depth: 8,
+  f0_method: "fcpe",
+  embedder_model: "contentvec",
+  embedder_model_custom: "",
+};
+
+function realtimePreset(values: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(REALTIME_PRESET_DEFAULTS).map(([key, fallback]) => [key, values[key] ?? fallback]),
+  ) as Record<string, string | number | boolean>;
+}
 export default function RealtimeWorkspace() {
   const { t } = useI18n();
   const [engine, setEngine] = useState<RtStatus | null>(null);
@@ -286,12 +347,74 @@ export default function RealtimeWorkspace() {
         }
         setModel(keep);
         setIndex(idx);
-        if (keep !== model) setSid(0);
+        if (keep !== model && (getModelPreset("realtime", keep) || keep !== saved))
+          restoreRealtimePreset(keep);
       })
       .catch(() => {})
       .finally(() => {
         settingsLoadedRef.current = true;
       });
+  }
+
+  const modelPresets = useModelPresets();
+  function restoreRealtimePreset(selected: string) {
+    const values = { ...REALTIME_PRESET_DEFAULTS, ...getModelPreset("realtime", selected) };
+    const num = (v: unknown, min: number, max: number, fallback: number) =>
+      typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fallback;
+    const bool = (v: unknown, fallback: boolean) => (typeof v === "boolean" ? v : fallback);
+    const str = (v: unknown, fallback = "") => (typeof v === "string" ? v : fallback);
+    setPitch(num(values.pitch, -24, 24, 0));
+    setIndexRate(num(values.index_rate, 0, 1, 0));
+    setProtect(num(values.protect, 0, 0.5, 0.5));
+    setVolumeEnvelope(num(values.volume_envelope, 0, 1, 1));
+    setAutotune(bool(values.autotune, false));
+    setAutotuneStrength(num(values.autotune_strength, 0, 1, 1));
+    setProposedPitch(bool(values.proposed_pitch, false));
+    setProposedPitchThreshold(num(values.proposed_pitch_threshold, 50, 1200, 155));
+    setCleanAudio(bool(values.clean_audio, false));
+    setCleanStrength(num(values.clean_strength, 0, 1, 0.5));
+    setPostProcess(bool(values.post_process, false));
+    setReverb(bool(values.reverb, false));
+    setReverbRoomSize(num(values.reverb_room_size, 0, 1, 0.5));
+    setReverbDamping(num(values.reverb_damping, 0, 1, 0.5));
+    setReverbWetGain(num(values.reverb_wet_level, 0, 1, 0.5));
+    setReverbDryGain(num(values.reverb_dry_level, 0, 1, 0.5));
+    setReverbWidth(num(values.reverb_width, 0, 1, 0.5));
+    setReverbFreezeMode(num(values.reverb_freeze_mode, 0, 1, 0.5));
+    setPitchShiftFx(bool(values.pitch_shift, false));
+    setPitchShiftSemitones(num(values.pitch_shift_semitones, -12, 12, 0));
+    setLimiter(bool(values.limiter, false));
+    setLimiterThreshold(num(values.limiter_threshold, -60, 0, -6));
+    setLimiterReleaseTime(num(values.limiter_release, 0.01, 1, 0.01));
+    setGainFx(bool(values.gain, false));
+    setGainDb(num(values.gain_db, -60, 60, 0));
+    setDistortion(bool(values.distortion, false));
+    setDistortionGain(num(values.distortion_gain, -60, 60, 25));
+    setChorus(bool(values.chorus, false));
+    setChorusRate(num(values.chorus_rate, 0, 100, 1.0));
+    setChorusDepth(num(values.chorus_depth, 0, 1, 0.25));
+    setChorusCenterDelay(num(values.chorus_delay, 7, 8, 7));
+    setChorusFeedback(num(values.chorus_feedback, 0, 1, 0.0));
+    setChorusMix(num(values.chorus_mix, 0, 1, 0.5));
+    setBitcrush(bool(values.bitcrush, false));
+    setClipping(bool(values.clipping, false));
+    setClippingThreshold(num(values.clipping_threshold, -60, 0, -6));
+    setCompressor(bool(values.compressor, false));
+    setCompressorThreshold(num(values.compressor_threshold, -60, 0, 0));
+    setCompressorRatio(num(values.compressor_ratio, 1, 20, 1));
+    setCompressorAttack(num(values.compressor_attack, 0, 100, 1.0));
+    setCompressorRelease(num(values.compressor_release, 0.01, 100, 100));
+    setDelayFx(bool(values.delay, false));
+    setDelaySeconds(num(values.delay_seconds, 0, 5, 0.5));
+    setDelayFeedback(num(values.delay_feedback, 0, 1, 0.0));
+    setDelayMix(num(values.delay_mix, 0, 1, 0.5));
+    setSid(num(values.sid, 0, 63, 0));
+    setBitcrushBitDepth(num(values.bitcrush_bit_depth, 1, 32, 8));
+    const method = str(values.f0_method, "fcpe");
+    setF0Method(REALTIME_F0_METHODS.includes(method) ? method : "fcpe");
+    const embedder = str(values.embedder_model, "contentvec");
+    setEmbedder(EMBEDDER_MODELS.includes(embedder) ? embedder : "contentvec");
+    setEmbedderCustom(str(values.embedder_model_custom));
   }
 
   const configDebounceRef = useRef<Record<string, NodeJS.Timeout>>({});
@@ -395,7 +518,9 @@ export default function RealtimeWorkspace() {
         if (cfg?.realtime) applyRealtimeSettings(cfg.realtime);
       })
       .catch(() => {})
-      .finally(() => loadModels());
+      .finally(() => {
+        void loadModelPresets().then(() => loadModels());
+      });
     void apiSend("/api/realtime/prewarm", "POST").catch(() => {});
     void enumDevices();
     const t = setInterval(refreshEngine, 5000);
@@ -412,9 +537,15 @@ export default function RealtimeWorkspace() {
   }, []);
 
   function handleModelSelect(selected: string, idxList = indexes) {
+    if (selected === model) return;
+    if (model && settingsLoadedRef.current)
+      saveModelPreset("realtime", model, realtimePreset(settingsRef.current));
+    // Cancel pending slider updates from the previous voice before restoring.
+    for (const timer of Object.values(configDebounceRef.current)) clearTimeout(timer);
+    configDebounceRef.current = {};
+    restoreRealtimePreset(selected);
     setModel(selected);
     setIndex(matchIndex(selected, idxList));
-    setSid(0);
   }
 
   function handleUnloadModel() {
@@ -465,6 +596,10 @@ export default function RealtimeWorkspace() {
 
   async function startStream() {
     if (connecting || sessRef.current) return;
+    if (!modelPresets.loaded || !settingsLoadedRef.current) {
+      setMsg(t("Loading model settings…"));
+      return;
+    }
     setMsg("");
     if (!model) {
       setMsg(t("Select a voice model."));
@@ -981,7 +1116,7 @@ export default function RealtimeWorkspace() {
         },
       );
       setRecOn(r.button === "Stop");
-      setMsg(r.value + (r.path ? ` → ${r.path}` : ""));
+      setMsg(r.value + (r.path ? `: ${r.path}` : ""));
     } catch (e) {
       setMsg(errMsg(e));
     }
@@ -1062,6 +1197,17 @@ export default function RealtimeWorkspace() {
   };
   settingsRef.current = settingsSnapshot;
   const settingsKey = JSON.stringify(settingsSnapshot);
+
+  useEffect(() => {
+    if (!model || !settingsLoadedRef.current || !modelPresets.loaded) return;
+    const values = realtimePreset(JSON.parse(settingsKey));
+    const timer = setTimeout(() => saveModelPreset("realtime", model, values), 500);
+    return () => {
+      clearTimeout(timer);
+      saveModelPreset("realtime", model, values);
+    };
+    // Snapshot includes every model parameter; global changes are deduplicated below.
+  }, [model, settingsKey, modelPresets.loaded]);
 
   useEffect(() => {
     if (!settingsLoadedRef.current) return;
@@ -1218,6 +1364,8 @@ export default function RealtimeWorkspace() {
   }, [outDev, streaming, t]);
 
   const selectedLiveSettings = {
+    ...realtimePreset(settingsSnapshot),
+    f0_up_key: pitch,
     model_path: model,
     index_path: index,
     sid,
@@ -1236,12 +1384,36 @@ export default function RealtimeWorkspace() {
     if (!streaming || !sessRef.current) return;
     for (const [key, value] of Object.entries(current)) {
       if (key === "block_frame" && current.automatic_block_size) continue;
-      if (value !== previous[key as keyof typeof previous]) sessRef.current.settings.update(key, value);
+      if (key === "pitch") continue;
+      if (value !== previous[key as keyof typeof previous]) {
+        const effect = ![
+          "sid",
+          "f0_method",
+          "embedder_model",
+          "embedder_model_custom",
+          "f0_up_key",
+          "index_rate",
+          "protect",
+          "volume_envelope",
+          "autotune",
+          "autotune_strength",
+          "proposed_pitch",
+          "proposed_pitch_threshold",
+          "clean_audio",
+          "clean_strength",
+          "post_process",
+          "model_path",
+          "index_path",
+          "automatic_block_size",
+          "block_frame",
+        ].includes(key);
+        sessRef.current.settings.update(key, value, effect);
+      }
     }
   }, [selectedLiveKey, streaming]);
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Realtime")}
         description={t(
@@ -1255,13 +1427,11 @@ export default function RealtimeWorkspace() {
       <p className="text-xs text-neutral-400" role="status" aria-live="polite">
         {applyingSettings || applyingAudio ? t("Applying settings…") : t("Settings apply while streaming.")}
       </p>
-      <div>
-        {msg && (
-          <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
-            {msg}
-          </p>
-        )}
-      </div>
+      {msg && (
+        <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
+          {msg}
+        </p>
+      )}
 
       <Stage
         step={1}
@@ -1269,8 +1439,8 @@ export default function RealtimeWorkspace() {
         description={t("Pick the target voice model and your input/output devices.")}
         icon={<ListMusic size={18} className="text-white" />}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div className="sm:col-span-2 xl:col-span-4 space-y-2">
+        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
+          <div className="col-span-full space-y-2">
             <VoiceModelField
               label={t("Voice Model")}
               models={models}
@@ -1283,14 +1453,14 @@ export default function RealtimeWorkspace() {
               onRefresh={loadModels}
               onIndexChange={setIndex}
             />
+            <ModelPresetStatus />
           </div>
-          <div>
-            <label htmlFor="rt-in-dev">{t("Input Device")}</label>
+          <FormField label={t("Input Device")} htmlFor="rt-in-dev">
             <CustomSelect
               id="rt-in-dev"
               value={inDev}
               onChange={(e) => setInDev(e.target.value)}
-              className="w-full mt-1"
+              className="w-full"
               description={t(SETTING_HELP.inputDevice)}
             >
               <option value="">{t("System default input")}</option>
@@ -1300,14 +1470,13 @@ export default function RealtimeWorkspace() {
                 </option>
               ))}
             </CustomSelect>
-          </div>
-          <div>
-            <label htmlFor="rt-out-dev">{t("Output Device")}</label>
+          </FormField>
+          <FormField label={t("Output Device")} htmlFor="rt-out-dev">
             <CustomSelect
               id="rt-out-dev"
               value={outDev}
               onChange={(e) => setOutDev(e.target.value)}
-              className="w-full mt-1"
+              className="w-full"
               description={t(SETTING_HELP.outputDevice)}
             >
               <option value="">{t("System default output")}</option>
@@ -1317,11 +1486,12 @@ export default function RealtimeWorkspace() {
                 </option>
               ))}
             </CustomSelect>
-          </div>
-          <div className="flex items-end pb-1">
+          </FormField>
+          <div className="flex items-start sm:pt-[30px]">
             <IconButton
               label={t("Refresh audio devices")}
               icon={<RefreshCw size={14} />}
+              size="md"
               onClick={() => void enumDevices()}
             />
           </div>
@@ -1755,7 +1925,7 @@ export default function RealtimeWorkspace() {
                 </div>
               </div>
             )}
-            <div className="space-y-4 border-t border-white/5 pt-4">
+            <div className="space-y-4">
               <ToggleField
                 id="rt-passthrough"
                 disabled={!streaming}
@@ -1780,7 +1950,7 @@ export default function RealtimeWorkspace() {
                   aria-describedby="rt-passthrough-hotkey-help"
                   autoComplete="off"
                   spellCheck={false}
-                  className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-mono focus:border-white/25 focus:outline-none"
+                  className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-sans focus:border-white/25 focus:outline-none"
                 />
                 <p
                   id="rt-passthrough-hotkey-help"
@@ -2434,7 +2604,7 @@ export default function RealtimeWorkspace() {
             </CustomSelect>
           </div>
         </div>
-        <div className="pt-3.5 border-t border-white/5 flex justify-end">
+        <div className="flex justify-end">
           <Button
             variant={recOn ? "ghost" : "primary"}
             onClick={toggleRecord}

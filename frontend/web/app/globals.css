@@ -1,10 +1,15 @@
 @import "tailwindcss";
 
+/* Next's development overlay contains source/editor controls. Keep it outside the native UI. */
+html[data-applio-desktop="true"] nextjs-portal {
+  display: none !important;
+}
+
 :root {
   color-scheme: dark;
-  --bg: #060606;
-  --panel: #141414;
-  --border: rgba(255, 255, 255, 0.1);
+  --bg: #09090b;
+  --panel: #121214;
+  --border: rgba(255, 255, 255, 0.09);
   --text: #e7e5e4;
   --muted: #a3a3a3;
   --accent: #ffffff;
@@ -14,8 +19,8 @@
   --err: #f87171;
 
   /* Themeable surface tokens (overridden by assets/themes/*.json) */
-  --surface: rgba(255, 255, 255, 0.05);
-  --input-bg: rgba(0, 0, 0, 0.4);
+  --surface: #151517;
+  --input-bg: rgba(0, 0, 0, 0.25);
   --heading: #f5f5f5;
   --cta-bg: #ffffff;
   --cta-text: #060606;
@@ -45,13 +50,15 @@
   --danger-bg-hover: rgba(239, 68, 68, 0.22);
   --danger-border-hover: rgba(239, 68, 68, 0.5);
   --danger-text-hover: #ffffff;
-  --font-display: var(--font-sans), "Syne", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: ui-monospace, monospace;
+  --font-sans: var(--font-syne), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-sans);
+  --font-mono: var(--font-sans);
   --radius-card: 12px;
   --radius-input: 8px;
   --radius-button: 10px;
   --radius-pill: 999px;
-  --shadow-card: none;
+  --space-section: 16px;
+  --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
@@ -65,8 +72,11 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family:
-    var(--font-sans), "Syne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
 }
@@ -97,10 +107,90 @@ summary {
 }
 
 .title {
-  font-family:
-    var(--font-display), var(--font-sans), "Syne", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
   letter-spacing: -0.025em;
+  font-weight: 700;
+}
+
+/* One gap for page sections and cards, including nested forms and grids. */
+.page-stack,
+.card-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-section);
+}
+.page-stack > *,
+.card-stack > * {
+  margin-block: 0;
+}
+.card-grid {
+  gap: var(--space-section);
+}
+
+pre,
+code,
+kbd,
+samp {
+  font-family: var(--font-sans);
+}
+
+/* Shared legible sizing for settings, help, navigation and status captions. */
+.text-xs,
+.text-\[12px\] {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.text-sm,
+.text-\[13px\] {
+  font-size: 15px;
+  line-height: 1.5;
+}
+.text-\[11px\] {
+  font-size: 13px;
+  line-height: 1.5;
+}
+.text-\[10px\],
+.text-\[9px\] {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* Typography roles stay distinct while sharing one font. */
+.field-help {
+  font-size: 14px;
+  line-height: 1.65;
+  font-weight: 400;
+  color: var(--muted);
+}
+.card label:not(:has(input[type="checkbox"])),
+.field-label {
+  font-size: 14px;
   font-weight: 600;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+/* Use spacing and surface contrast to separate sections instead of divider rules. */
+.border-b {
+  border-bottom-width: 0 !important;
+}
+.border-t {
+  border-top-width: 0 !important;
+}
+.border-l {
+  border-left-width: 0 !important;
+}
+.border-r {
+  border-right-width: 0 !important;
+}
+.divide-y > * {
+  border-block-width: 0 !important;
+}
+.divide-x > * {
+  border-inline-width: 0 !important;
+}
+hr {
+  display: none;
 }
 
 /* Accessibility: Screen Reader Only utility */
@@ -327,12 +417,9 @@ a:active {
 .card {
   background: var(--surface);
   color: var(--text);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
   padding: 20px;
-  margin-bottom: 16px;
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -380,23 +467,50 @@ details.card > * + * {
 }
 .card h2 {
   margin-top: 0;
-  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
-  font-weight: 600;
-  font-size: 1.05rem;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.25rem;
   color: var(--heading);
   letter-spacing: -0.01em;
 }
 
-label {
-  display: block;
-  font-size: 13px;
+/* Keep workspaces readable on large desktop displays, with a shared page gutter. */
+#main-content > div {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+
+.form-field > div > label,
+.toggle-field > label {
+  margin: 0;
+}
+
+input[type="text"]:not(:disabled):hover,
+input[type="number"]:not(:disabled):hover,
+select:not(:disabled):hover {
+  border-color: var(--focus-border);
+}
+
+input::placeholder,
+textarea::placeholder {
   color: var(--muted);
-  margin: 12px 0 4px;
+  opacity: 0.65;
+}
+
+@layer base {
+  label {
+    display: block;
+    font-size: 14px;
+    color: var(--muted);
+    margin: 0 0 6px;
+  }
 }
 
 input[type="text"],
 input[type="number"],
-select {
+select,
+.form-control {
   width: 100%;
   padding: 10px;
   border-radius: var(--radius-input);
@@ -406,6 +520,9 @@ select {
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+}
+.form-control {
+  font: inherit;
 }
 select {
   appearance: none;
@@ -631,52 +748,66 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-wrap: wrap;
 }
 
-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: var(--button-bg);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 16px;
-  border-radius: var(--radius-button);
-  cursor: pointer;
-  transition:
-    background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
-    border-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
-    color 120ms cubic-bezier(0.4, 0, 0.2, 1),
-    filter 120ms cubic-bezier(0.4, 0, 0.2, 1);
-  line-height: 1.3;
-  white-space: nowrap;
+/* Baseline styles must yield to explicit component sizes and layouts. */
+@layer base {
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: var(--button-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 8px 16px;
+    border-radius: var(--radius-button);
+    cursor: pointer;
+    transition:
+      background-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+      color 120ms cubic-bezier(0.4, 0, 0.2, 1),
+      filter 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    line-height: 1.3;
+    white-space: nowrap;
+  }
+  button:hover {
+    background: var(--button-bg-hover);
+    border-color: var(--focus-border);
+    color: var(--button-text-hover);
+  }
+  button:active {
+    filter: brightness(0.95);
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+  }
 }
-button:hover {
-  background: var(--button-bg-hover);
-  border-color: var(--focus-border);
-  color: var(--button-text-hover);
-}
-button:active {
-  filter: brightness(0.95);
-}
-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-/* Dropdown menu options: plain text rows, no hover box — only the
-   selected option is highlighted (via text color + check icon). */
+/* Give pointer and keyboard navigation the same visible option feedback. */
 button.menu-option,
 button.menu-option:hover,
 button.menu-option:active {
   background: transparent;
   border-color: transparent;
   filter: none;
+  color: var(--muted);
+  padding: 8px 14px;
+  text-align: left;
 }
 
 button.menu-option[aria-selected="true"] {
-  font-weight: 700;
+  font-weight: 600;
+  color: var(--heading);
+}
+button.menu-option:not(:disabled):hover,
+button.menu-option[data-active="true"] {
+  background: var(--surface);
+  color: var(--heading);
+}
+button.menu-option svg {
+  color: var(--accent);
 }
 button.slider-step-btn {
   width: 28px;
@@ -848,6 +979,7 @@ button.segmented-item {
   border: 1px solid transparent;
   border-radius: calc(var(--radius-button) - 4px);
   padding: 6px 14px;
+  font-size: 14px;
   color: var(--muted);
   box-shadow: none;
 }
@@ -860,7 +992,7 @@ button.segmented-item.is-active {
   background: var(--cta-bg);
   border-color: var(--cta-bg);
   color: var(--cta-text);
-  font-weight: 700;
+  font-weight: 600;
 }
 button.segmented-item.is-active:hover {
   background: var(--cta-bg);
@@ -1011,6 +1143,7 @@ svg {
   input[type="number"],
   input[type="search"],
   select,
+  .form-control,
   textarea {
     font-size: 16px;
   }
@@ -1060,14 +1193,6 @@ svg {
   /* Model meta rows stay readable on 320px screens */
   .model-meta > div {
     gap: 8px;
-  }
-}
-
-@media (max-width: 1023.98px) {
-  /* Bottom floating nav reserves space via main pb-24; keep the last card
-     flush with that padding instead of adding its own margin. */
-  .card {
-    margin-bottom: 12px;
   }
 }
 

@@ -260,7 +260,7 @@ export default function TrainingConsole({
       className="space-y-5 animate-in fade-in duration-200"
       aria-label={t("Training Activity Console")}
     >
-      <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4 flex-wrap">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
             <Cpu size={20} className="text-white" />
@@ -509,7 +509,7 @@ export default function TrainingConsole({
                 ))}
               </div>
 
-              <div className="relative flex items-center gap-1.5 border-b border-white/10 px-1">
+              <div className="relative flex items-center gap-1.5 px-1">
                 <Search size={12} className="text-neutral-500 shrink-0" aria-hidden="true" />
                 <input
                   type="text"

@@ -12,10 +12,10 @@ interface PageHeaderProps {
 export default function PageHeader({ title, description, children, className = "" }: PageHeaderProps) {
   return (
     <div
-      className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-start sm:justify-between gap-3 sm:gap-4 pb-4 border-b border-[var(--border)] ${className}`}
+      className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 sm:gap-4 ${className}`}
     >
       <div className="space-y-1 min-w-0 sm:flex-1 sm:basis-64">
-        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-[var(--heading)] m-0 break-words">
+        <h1 className="title text-2xl sm:text-[28px] leading-tight text-[var(--heading)] m-0 break-words">
           {title}
         </h1>
         {description && (

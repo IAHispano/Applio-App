@@ -42,7 +42,7 @@ export function JobPanelContent({
   }
   if (!job) {
     return embedded ? (
-      <div className="pt-3 mt-3 border-t border-white/10">
+      <div className="mt-3">
         <p className="text-xs text-neutral-400 m-0">{t("Loading activity…")}</p>
       </div>
     ) : (
@@ -149,10 +149,7 @@ export function JobPanelContent({
       ))}
 
       {(showLogs || job.status === "error") && !compact && cleanedLogs.length > 0 && (
-        <details
-          className="pt-2 text-xs text-neutral-400 group border-t border-white/5"
-          open={job.status === "error"}
-        >
+        <details className="text-xs text-neutral-400 group" open={job.status === "error"}>
           <summary className="cursor-pointer hover:text-white transition-colors py-1 flex items-center gap-1.5 select-none font-medium">
             <ChevronDown size={14} className="transition-transform group-open:rotate-180 shrink-0" />
             <span>{t("Activity Details")}</span>
@@ -177,10 +174,7 @@ export function JobPanelContent({
   );
 
   return embedded ? (
-    <section
-      className="space-y-3 pt-3.5 mt-3.5 border-t border-white/10 animate-in fade-in duration-200"
-      aria-label={t("Task Activity")}
-    >
+    <section className="space-y-3 mt-3.5 animate-in fade-in duration-200" aria-label={t("Task Activity")}>
       {content}
     </section>
   ) : (

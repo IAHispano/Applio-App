@@ -80,6 +80,7 @@ function fontStack(families: string[] | undefined): { css: string; google: strin
   const google: string[] = [];
   const stack = families
     .map((f) => {
+      if (f === "google:Syne" || f === "Syne") return "var(--font-syne)";
       if (f.startsWith("google:")) {
         const name = f.slice("google:".length);
         google.push(name);
@@ -138,16 +139,13 @@ export function applyTheme(theme: ThemeFile): void {
     root.style.colorScheme = theme.mode === "light" ? "light" : "dark";
   }
   const fonts = theme.fonts || {};
-  const display = fontStack(fonts.display);
-  const body = fontStack(fonts.body);
-  const mono = fontStack(fonts.mono);
-  for (const f of [...display.google, ...body.google, ...mono.google]) ensureGoogleFont(f);
-  if (display.css) root.style.setProperty("--font-display", display.css);
+  // A theme chooses one interface font for headings, controls and log output.
+  const body = fontStack(fonts.body || fonts.display);
+  for (const f of body.google) ensureGoogleFont(f);
   if (body.css) {
     root.style.setProperty("--font-sans", body.css);
     document.body.style.fontFamily = body.css;
   }
-  if (mono.css) root.style.setProperty("--font-mono", mono.css);
   for (const [key, value] of Object.entries(theme.radius || {})) {
     const v = RADIUS_TO_VAR[key];
     if (v && typeof value === "string") root.style.setProperty(v, value);

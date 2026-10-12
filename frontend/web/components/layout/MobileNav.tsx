@@ -21,6 +21,7 @@ export function BottomNav() {
   const [expanded, setExpanded] = useState(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
+  const moreActive = expanded || !PRIMARY_TABS.some((tab) => pathname === tab.to);
 
   const close = useCallback(() => {
     setExpanded(false);
@@ -64,12 +65,13 @@ export function BottomNav() {
 
   const renderTab = (tab: (typeof PRIMARY_TABS)[number]) => {
     const Icon = tab.icon;
-    const active = pathname === tab.to;
+    const currentPage = pathname === tab.to;
+    const active = currentPage && !expanded;
     return (
       <li key={tab.to} className="min-w-0">
         <Link
           href={tab.to}
-          aria-current={active ? "page" : undefined}
+          aria-current={currentPage ? "page" : undefined}
           className={`relative flex flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 min-h-[52px] text-[10px] font-medium leading-none transition-colors focus-visible:outline-none ${
             active ? "text-[var(--accent)] bg-[var(--accent-soft)]" : "text-[var(--muted)]"
           }`}
@@ -91,6 +93,7 @@ export function BottomNav() {
         type="button"
         onClick={close}
         aria-label={t("Close menu")}
+        aria-hidden={!expanded}
         tabIndex={expanded ? 0 : -1}
         className={`lg:hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-[2px] cursor-default transition-opacity duration-200 border-transparent rounded-none p-0 hover:bg-black/60 active:bg-black/60 ${
           expanded ? "opacity-100" : "pointer-events-none opacity-0"
@@ -142,12 +145,15 @@ export function BottomNav() {
               aria-expanded={expanded}
               aria-controls="mobile-menu-sheet"
               aria-label={t("More")}
-              style={{ backgroundColor: "transparent", borderColor: "transparent" }}
+              style={{
+                borderColor: "transparent",
+                backgroundColor: moreActive ? "var(--accent-soft)" : "transparent",
+              }}
               className={`relative w-full flex flex-col items-center justify-center gap-1 px-1 py-2 min-h-[52px] text-[10px] font-medium leading-none transition-colors duration-200 focus-visible:outline-none bg-transparent border-transparent hover:bg-transparent active:bg-transparent ${
-                expanded ? "text-[var(--accent)]" : "text-[var(--muted)]"
+                moreActive ? "text-[var(--accent)] rounded-xl" : "text-[var(--muted)]"
               }`}
             >
-              {expanded && (
+              {moreActive && (
                 <span className="absolute top-1 w-6 h-1 rounded-full bg-[var(--accent)]" aria-hidden="true" />
               )}
               <LayoutGrid size={19} aria-hidden="true" className="shrink-0" />

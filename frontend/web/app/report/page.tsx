@@ -65,7 +65,7 @@ export default function ReportPage() {
             dataUrl,
           });
           setClip(r.file);
-          setMsg(t("Clip saved → {file}. Attach it to your GitHub issue.", { file: r.file }));
+          setMsg(t("Clip saved: {file}. Attach it to your GitHub issue.", { file: r.file }));
         } catch (e) {
           setMsg(errMsg(e));
         }
@@ -83,7 +83,7 @@ export default function ReportPage() {
     : "";
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Report a Bug")}
         description={t("Collect system diagnostics, record screen logs, and submit issue reports to GitHub.")}
@@ -115,7 +115,7 @@ export default function ReportPage() {
           </li>
         </ol>
 
-        <div className="flex items-center gap-3 pt-3.5 border-t border-white/5 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <Button
             variant={recording ? "ghost" : "primary"}
             onClick={toggleRecord}

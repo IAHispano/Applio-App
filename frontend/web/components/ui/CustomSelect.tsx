@@ -365,10 +365,10 @@ export default function CustomSelect({
   // Size styling tokens
   const sizeClasses =
     size === "sm"
-      ? "h-8 px-2.5 text-xs rounded-lg"
+      ? "h-9 px-3 text-xs rounded-lg"
       : size === "lg"
-        ? "h-11 px-3.5 text-sm rounded-xl"
-        : "h-10 px-3 text-xs sm:text-sm rounded-xl";
+        ? "h-12 px-4 text-sm rounded-xl"
+        : "h-11 px-3.5 text-sm rounded-xl";
 
   return (
     <div className={`relative inline-block w-full text-left ${className}`}>
@@ -390,20 +390,20 @@ export default function CustomSelect({
         aria-controls={open ? menuId : undefined}
         aria-activedescendant={open ? activeOptionId : undefined}
         className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
-          open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
-        } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
+          open ? "border-[var(--focus-border)]" : "border-[var(--border)] hover:border-[var(--focus-border)]"
+        } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-[var(--surface)]"}`}
       >
         <span
           id={`${id}-val`}
           className={`truncate flex-1 ${
-            selectedOption || selectedValue ? "text-[var(--text)] font-bold" : "text-neutral-500"
+            selectedOption || selectedValue ? "text-[var(--text)] font-semibold" : "text-[var(--muted)]"
           }`}
         >
           {displayLabel}
         </span>
 
         {selectedOption?.badge && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-mono shrink-0">
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-sans shrink-0">
             {selectedOption.badge}
           </span>
         )}
@@ -435,10 +435,10 @@ export default function CustomSelect({
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
               ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
-            className="z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100 select-none"
+            className="z-[99999] bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-100 select-none"
           >
             {isSearchable && (
-              <div className="flex items-center gap-2 px-3.5 py-2 border-b border-white/10">
+              <div className="flex items-center gap-2 px-3.5 py-2">
                 <Search size={13} className="text-neutral-500 shrink-0" />
                 <input
                   ref={searchInputRef}
@@ -449,7 +449,7 @@ export default function CustomSelect({
                   aria-controls={menuId}
                   aria-activedescendant={activeOptionId}
                   placeholder={searchPlaceholder}
-                  className="w-full bg-transparent border-0 text-xs text-white placeholder-neutral-600 focus:outline-hidden p-0"
+                  className="w-full !bg-transparent !border-0 text-xs text-[var(--text)] focus:outline-hidden !p-0"
                 />
               </div>
             )}
@@ -483,7 +483,7 @@ export default function CustomSelect({
                       return (
                         <div key={`${opt.value}-${idx}`}>
                           {header && (
-                            <div className="sticky top-0 z-10 bg-[#121212] px-3.5 py-1 text-[10px] font-bold tracking-wider text-neutral-400 uppercase select-none">
+                            <div className="sticky top-0 z-10 bg-[var(--panel)] px-3.5 py-1 text-[10px] font-semibold tracking-wider text-[var(--muted)] uppercase select-none">
                               {header}
                             </div>
                           )}
@@ -493,6 +493,7 @@ export default function CustomSelect({
                             id={`${id}-opt-${idx}`}
                             tabIndex={-1}
                             aria-selected={isSelected}
+                            data-active={highlightedIndex === idx || undefined}
                             aria-setsize={filteredOptions.length}
                             aria-posinset={idx + 1}
                             disabled={opt.disabled}
@@ -512,7 +513,7 @@ export default function CustomSelect({
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0 ml-2">
                               {opt.badge && (
-                                <span className="text-[10px] font-mono text-neutral-500">{opt.badge}</span>
+                                <span className="text-[10px] font-sans text-neutral-500">{opt.badge}</span>
                               )}
                               {isSelected && <Check size={14} className="text-white shrink-0" />}
                             </div>
@@ -522,7 +523,7 @@ export default function CustomSelect({
                     });
                   })()}
                   {remainingRows > 0 && (
-                    <div className="py-2 px-3.5 text-center text-[11px] text-neutral-500 border-t border-white/5">
+                    <div className="py-2 px-3.5 text-center text-[11px] text-neutral-500">
                       {t("+{remaining} more — scroll for more", { remaining: remainingRows })}
                     </div>
                   )}
@@ -539,6 +540,7 @@ export default function CustomSelect({
                       id={`${id}-opt-${idx}`}
                       tabIndex={-1}
                       aria-selected={isSelected}
+                      data-active={highlightedIndex === idx || undefined}
                       disabled={opt.disabled}
                       onClick={() => !opt.disabled && handleSelect(opt.value)}
                       onMouseEnter={() => setHighlightedIndex(idx)}
@@ -557,7 +559,7 @@ export default function CustomSelect({
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {opt.badge && (
-                          <span className="text-[10px] font-mono text-neutral-500">{opt.badge}</span>
+                          <span className="text-[10px] font-sans text-neutral-500">{opt.badge}</span>
                         )}
                         {isSelected && <Check size={14} className="text-white shrink-0" />}
                       </div>

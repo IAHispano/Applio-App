@@ -3,7 +3,6 @@
 import {
   Activity,
   AlertCircle,
-  ArrowRight,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -68,56 +67,24 @@ function ActionCard({
   icon,
   title,
   description,
-  meta,
-  featured = false,
 }: {
   href: string;
   icon: React.ReactNode;
   title: string;
   description: string;
-  meta?: React.ReactNode;
-  featured?: boolean;
 }) {
-  const Heading = featured ? "h2" : "h3";
   return (
     <Link
       href={href}
-      className={`group relative overflow-hidden flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)] hover:border-[var(--focus-border)] hover:bg-[var(--surface)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--accent)] ${featured ? "p-6 sm:p-7 min-h-60" : "p-4 gap-3"}`}
+      className="group flex flex-row sm:flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 hover:border-[var(--focus-border)] hover:bg-[var(--surface)] transition-colors"
     >
-      <div className="flex items-center justify-between">
-        <div
-          className={`${featured ? "w-11 h-11" : "w-9 h-9"} rounded-xl bg-[var(--surface)] flex items-center justify-center text-[var(--heading)]`}
-        >
-          {icon}
-        </div>
-        <ArrowRight
-          size={14}
-          className="text-neutral-600 group-hover:text-white group-hover:translate-x-0.5 transition-all"
-        />
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        {icon}
+      </span>
+      <div className="space-y-1.5">
+        <h3 className="text-base font-semibold text-[var(--heading)] m-0">{title}</h3>
+        <p className="text-sm text-[var(--muted)] m-0 leading-relaxed">{description}</p>
       </div>
-      {featured && (
-        <div
-          aria-hidden="true"
-          className="absolute top-7 right-12 flex items-center gap-1.5 h-12 opacity-20 group-hover:opacity-40 transition-opacity"
-        >
-          {[12, 24, 18, 38, 48, 30, 42, 22, 34, 16, 26, 10].map((height) => (
-            <span key={height} className="w-1 rounded-full bg-[var(--accent)]" style={{ height }} />
-          ))}
-        </div>
-      )}
-      <div className={featured ? "mt-6 flex-1" : ""}>
-        <Heading
-          className={`${featured ? "text-xl sm:text-2xl" : "text-sm"} font-semibold text-[var(--heading)] m-0`}
-        >
-          {title}
-        </Heading>
-        <p
-          className={`${featured ? "text-sm max-w-md mt-2" : "text-xs mt-1"} text-[var(--muted)] m-0 leading-relaxed`}
-        >
-          {description}
-        </p>
-      </div>
-      {meta && <div className={featured ? "mt-6" : ""}>{meta}</div>}
     </Link>
   );
 }
@@ -235,13 +202,13 @@ export default function Home() {
       );
     }
     return (
-      <div className="w-full max-w-[1920px] mx-auto flex flex-col gap-6 animate-pulse">
-        <div className="h-28 rounded-2xl border border-white/5 bg-white/[0.02]" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-24 rounded-xl border border-white/5 bg-white/[0.02]" />
+      <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack animate-pulse">
+        <div className="h-52 sm:h-56 rounded-xl border border-white/5 bg-white/[0.02]" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
+          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
         </div>
       </div>
     );
@@ -259,32 +226,44 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto flex flex-col gap-6">
-      <header className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div className="space-y-3 min-w-0">
-          <div className="flex items-center gap-2">
+    <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack">
+      <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 sm:p-7">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2.5">
             <Badge variant="success" dot>
               {t("Ready")}
             </Badge>
             {currentVersion && <span className="text-xs text-[var(--muted)]">Applio {currentVersion}</span>}
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--heading)] m-0">
-            {t("Your voice workspace")}
-          </h1>
-          <p className="text-sm text-[var(--muted)] leading-relaxed m-0 max-w-2xl">
-            {t("High-performance AI voice cloning, real-time conversion, and model training.")}
-          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            loading={refreshing}
+            onClick={() => refresh(true)}
+            icon={<RefreshCw size={14} />}
+          >
+            {t("Refresh")}
+          </Button>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          loading={refreshing}
-          onClick={() => refresh(true)}
-          icon={<RefreshCw size={14} />}
-        >
-          {t("Refresh")}
-        </Button>
-      </header>
+        <div className="pt-5">
+          <div className="space-y-5">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-[var(--heading)] m-0">
+              {t("Your voice workspace")}
+            </h1>
+            <p className="text-base text-[var(--muted)] leading-relaxed m-0">
+              {t("High-performance AI voice cloning, real-time conversion, and model training.")}
+            </p>
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <Button href="/inference" icon={<Wand2 size={18} />}>
+                {t("Open Inference")}
+              </Button>
+              <Button href="/realtime" variant="ghost" icon={<Radio size={18} />}>
+                {t("Realtime")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Update banner */}
       {updateAvailable && (
@@ -295,7 +274,7 @@ export default function Home() {
         >
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <span>
-              {displayVersion(versionInfo.local)} → {displayVersion(versionInfo.latest)}
+              {displayVersion(versionInfo.latest)}
               {versionInfo.versionsBehind ? ` (${versionInfo.versionsBehind} ${t("updates behind")})` : ""}
             </span>
             <Button size="sm" variant="ghost" onClick={() => router.push("/settings")}>
@@ -305,38 +284,39 @@ export default function Home() {
         </Alert>
       )}
 
-      <section aria-label={t("Quick Actions")} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <ActionCard
-          featured
-          href="/inference"
-          icon={<Wand2 size={22} />}
-          title={t("Single Inference")}
-          description={t("Convert voice recordings with any installed model.")}
-          meta={
-            <span className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold bg-[var(--cta-bg)] text-[var(--cta-text)]">
-              {t("Open Inference")}
-              <ArrowRight size={14} />
-            </span>
-          }
-        />
-        <ActionCard
-          featured
-          href="/realtime"
-          icon={<Radio size={22} />}
-          title={t("Realtime Conversion")}
-          description={t("Stream live voice conversion with low latency.")}
-          meta={
-            <span className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-xs font-semibold border border-[var(--border)] text-[var(--heading)]">
-              {t("Realtime")}
-              <ArrowRight size={14} />
-            </span>
-          }
-        />
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold text-[var(--heading)] m-0">{t("Quick Actions")}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
+          <ActionCard
+            href="/train"
+            icon={<Flame size={18} />}
+            title={t("Train a Voice")}
+            description={t("Preprocess datasets, extract features, and train.")}
+          />
+          <ActionCard
+            href="/tts"
+            icon={<Volume2 size={18} />}
+            title={t("Text to Speech")}
+            description={t("Synthesize speech from text with RVC voices.")}
+          />
+          <ActionCard
+            href="/voice-blender"
+            icon={<Layers size={18} />}
+            title={t("Voice Blender")}
+            description={t("Interpolate weights between two checkpoints.")}
+          />
+          <ActionCard
+            href="/audio-separator"
+            icon={<Layers size={18} />}
+            title={t("Audio Separator")}
+            description={t("Separate vocals and instruments from audio.")}
+          />
+        </div>
       </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 card-grid">
         <Card className="lg:col-span-2 !mb-0 !space-y-0 !p-0 overflow-hidden">
-          <div className="grid grid-cols-2 border-b border-[var(--border)]">
+          <div className="grid grid-cols-2">
             <Link
               href="/models"
               className="p-5 flex items-center gap-3 hover:bg-[var(--surface)] transition-colors border-r border-[var(--border)]"
@@ -373,7 +353,6 @@ export default function Home() {
                   className="text-xs text-[var(--muted)] hover:text-[var(--heading)] inline-flex items-center gap-1.5"
                 >
                   {t("View all")}
-                  <ArrowRight size={13} />
                 </Link>
               }
             />
@@ -401,10 +380,6 @@ export default function Home() {
                           {model.indexPath ? ` · ${t("Index paired")}` : ""}
                         </p>
                       </div>
-                      <ArrowRight
-                        size={16}
-                        className="shrink-0 text-[var(--muted)] group-hover:text-[var(--heading)] group-hover:translate-x-1 transition-all"
-                      />
                     </Link>
                   </li>
                 ))}
@@ -463,42 +438,11 @@ export default function Home() {
                 className="inline-flex items-center gap-2 text-xs text-[var(--heading)] mt-2"
               >
                 {t("Job history")}
-                <ArrowRight size={13} />
               </Link>
             </div>
           )}
         </Card>
       </div>
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-[var(--heading)] m-0">{t("More tools")}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-          <ActionCard
-            href="/train"
-            icon={<Flame size={18} />}
-            title={t("Train a Voice")}
-            description={t("Preprocess datasets, extract features, and train.")}
-          />
-          <ActionCard
-            href="/tts"
-            icon={<Volume2 size={18} />}
-            title={t("Text to Speech")}
-            description={t("Synthesize speech from text with RVC voices.")}
-          />
-          <ActionCard
-            href="/voice-blender"
-            icon={<Layers size={18} />}
-            title={t("Voice Blender")}
-            description={t("Interpolate weights between two checkpoints.")}
-          />
-          <ActionCard
-            href="/audio-separator"
-            icon={<Layers size={18} />}
-            title={t("Audio Separator")}
-            description={t("Separate vocals and instruments from audio.")}
-          />
-        </div>
-      </section>
 
       {/* Diagnostics */}
       <section className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
@@ -569,7 +513,7 @@ export default function Home() {
         {showDetails && (
           <div
             id="home-diagnostics-details"
-            className="border-t border-white/5 p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5"
+            className="p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5"
           >
             {status.checks.map((c) => {
               const isOk = c.status === "ok";

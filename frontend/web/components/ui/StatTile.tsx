@@ -33,15 +33,20 @@ function StatTileInner({
   children,
 }: StatTileProps) {
   return (
-    <div className={`rounded-xl bg-black/30 border border-white/5 px-3 py-2 ${className}`} title={title}>
+    <div
+      className={`rounded-lg bg-[var(--input-bg)] border border-[var(--border)] px-3 py-2.5 ${className}`}
+      title={title}
+    >
       <div className="flex items-center justify-between gap-1 mb-0.5">
-        <p className="text-[10px] text-neutral-400 m-0 font-medium truncate">{label}</p>
-        {icon && <span className="text-neutral-500 shrink-0">{icon}</span>}
+        <p className="text-[11px] text-[var(--muted)] m-0 font-medium truncate">{label}</p>
+        {icon && <span className="text-[var(--muted)] shrink-0">{icon}</span>}
       </div>
-      <p className={`text-xs text-white font-medium m-0 truncate ${tabular ? "tabular-nums" : ""}`}>
+      <p
+        className={`text-[13px] text-[var(--heading)] font-semibold m-0 truncate ${tabular ? "tabular-nums" : ""}`}
+      >
         {value}
       </p>
-      {subtext && <p className="text-[10px] text-neutral-500 m-0 mt-0.5 truncate">{subtext}</p>}
+      {subtext && <p className="text-[11px] text-[var(--muted)] m-0 mt-1 leading-relaxed">{subtext}</p>}
       {children}
     </div>
   );

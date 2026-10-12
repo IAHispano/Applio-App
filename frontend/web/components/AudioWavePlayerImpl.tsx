@@ -566,7 +566,7 @@ function AudioWavePlayerInner({
 
           {/* Time display */}
           <div
-            className={`${pillContainer} px-3 bg-white/5 border border-white/10 text-xs font-mono font-medium text-neutral-300 tabular-nums select-none flex items-center shrink-0 shadow-xs`}
+            className={`${pillContainer} px-3 bg-white/5 border border-white/10 text-xs font-sans font-medium text-neutral-300 tabular-nums select-none flex items-center shrink-0 shadow-xs`}
           >
             <span className="text-white font-semibold">{formatTime(currentTime)}</span>
             <span className="mx-1 text-neutral-500">/</span>

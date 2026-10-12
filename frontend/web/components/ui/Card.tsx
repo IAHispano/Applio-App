@@ -14,30 +14,22 @@ export interface CardHeaderProps {
   step?: number | string;
   /** Optional action slot aligned to the right (button, badge, controls) */
   action?: React.ReactNode;
-  /** Whether to render a bottom border separating header from content (default: true) */
+  /** Retained for existing callers; headers now use the card's spacing instead of a divider. */
   border?: boolean;
   /** Extra CSS classes for the header container */
   className?: string;
 }
 
-function CardHeaderInner({
-  icon,
-  title,
-  description,
-  step,
-  action,
-  border = true,
-  className = "",
-}: CardHeaderProps) {
+function CardHeaderInner({ icon, title, description, step, action, className = "" }: CardHeaderProps) {
   return (
-    <div className={`${border ? "border-b border-white/10 pb-3.5" : ""} space-y-1 ${className}`}>
+    <div className={`space-y-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-wrap sm:flex-nowrap">
           {step !== undefined && (
             <>
               <span className="sr-only">Step {step}: </span>
               <span
-                className="w-5 h-5 rounded-full bg-white/10 text-xs font-bold text-white flex items-center justify-center shrink-0"
+                className="w-6 h-6 rounded-lg bg-[var(--accent-soft)] text-[11px] font-semibold tabular-nums text-[var(--accent)] flex items-center justify-center shrink-0"
                 aria-hidden="true"
               >
                 {step}
@@ -45,19 +37,19 @@ function CardHeaderInner({
             </>
           )}
           {icon && (
-            <span className="text-white shrink-0 flex items-center" aria-hidden="true">
+            <span className="text-[var(--muted)] shrink-0 flex items-center" aria-hidden="true">
               {icon}
             </span>
           )}
           {typeof title === "string" ? (
-            <h2 className="text-base font-bold text-white m-0 truncate">{title}</h2>
+            <h2 className="text-xl font-bold text-[var(--heading)] m-0 break-words">{title}</h2>
           ) : (
             title
           )}
         </div>
         {action && <div className="flex items-center gap-2 flex-wrap sm:shrink-0">{action}</div>}
       </div>
-      {description && <p className="text-xs text-neutral-400 m-0 leading-relaxed">{description}</p>}
+      {description && <p className="field-help m-0 max-w-3xl">{description}</p>}
     </div>
   );
 }

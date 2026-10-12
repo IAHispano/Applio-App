@@ -56,7 +56,7 @@ export default function DownloadPanel() {
     setDropping(true);
     try {
       const r = await postForm<{ file: string; modelDir: string }>("/api/download/drop", fd);
-      setDropMsg(`Saved ${r.file} → ${r.modelDir} ✓`);
+      setDropMsg(`${t("Saved")}: ${r.file} (${r.modelDir})`);
       setDropFile(null);
     } catch (e) {
       setDropMsg(errMsg(e));
@@ -77,7 +77,7 @@ export default function DownloadPanel() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="card-stack">
       {error && <Alert variant="error">{error}</Alert>}
 
       {/* Card 1: Download from URL */}
@@ -228,7 +228,7 @@ export default function DownloadPanel() {
           description={t(SETTING_HELP.customURLs)}
         />
 
-        <div className="pt-3.5 border-t border-white/5 flex justify-end">
+        <div className="flex justify-end">
           <Button
             variant="ghost"
             onClick={downloadPretrained}

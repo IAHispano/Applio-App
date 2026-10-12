@@ -1,5 +1,9 @@
 /** Shared explanations for settings; callers translate the English source text. */
 export const SETTING_HELP = {
+  inferenceEngine:
+    "ONNX converts the HiFi-GAN NSF decoder and reuses it for single or batch files. First use exports the model; other stages stay in PyTorch.",
+  onnxPrecision:
+    "Auto uses FP16 on NVIDIA CUDA and FP32 elsewhere. FP16 uses less memory but can slightly change audio. Export requires the ONNX package.",
   voiceModel: "Choose the trained voice that will replace the original voice.",
   index: "Use the index paired with this voice model to refine its timbre. None uses only the model.",
   pitch: "Shift the voice in semitones: negative lowers it, positive raises it.",

@@ -88,7 +88,7 @@ export default function TensorboardPage() {
   const isStarting = restarting || (status?.starting ?? false);
 
   return (
-    <div className="w-full max-w-[2400px] mx-auto flex-1 h-full flex flex-col min-h-0 space-y-3 pb-1">
+    <div className="w-full max-w-[2400px] mx-auto flex-1 h-full flex flex-col min-h-0 page-stack pb-1">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
         <PageHeader
           title={t("TensorBoard")}

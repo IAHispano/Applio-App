@@ -251,7 +251,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
-      <div className="w-full space-y-6">
+      <div className="w-full page-stack">
         {/* Brand Header */}
         <div className="text-center space-y-3">
           <div className="relative inline-flex items-center justify-center">
@@ -445,7 +445,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             role="log"
             aria-live="polite"
             aria-label={t("Live console output")}
-            className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-mono select-text scrollbar-thin"
+            className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-sans select-text scrollbar-thin"
           >
             {processedLogs.length ? (
               processedLogs.map((entry, idx) => (
@@ -496,7 +496,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 function renderLogLine(text: string) {
   // Separator lines
   if (/^={5,}|^-{5,}/.test(text)) {
-    return <div className="my-1.5 border-t border-white/10" />;
+    return null;
   }
 
   // Shell command line ($ cmd ...)

@@ -10,7 +10,7 @@ export type ButtonSize = "xs" | "sm" | "md" | "lg";
 export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> {
   /** Visual style variant */
   variant?: ButtonVariant;
-  /** Size preset: xs = h-7, sm = h-8, md = h-9, lg = h-10 */
+  /** Size preset: xs = h-8, sm = h-9, md = h-10, lg = h-11 */
   size?: ButtonSize;
   /** Click handler (works for both `<button>` and `<a>` rendering) */
   onClick?: React.MouseEventHandler<HTMLElement>;
@@ -33,10 +33,10 @@ export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonE
 }
 
 const sizeClasses: Record<ButtonSize, string> = {
-  xs: "h-7 px-2.5 text-xs rounded-lg gap-1.5",
-  sm: "h-8 px-3 text-xs rounded-lg gap-1.5",
-  md: "h-9 px-4 text-xs rounded-xl gap-2",
-  lg: "h-10 px-5 text-sm rounded-xl gap-2",
+  xs: "h-8 px-3 text-xs rounded-lg gap-1.5",
+  sm: "h-9 px-3.5 text-xs rounded-lg gap-1.5",
+  md: "h-10 px-4 text-sm rounded-xl gap-2",
+  lg: "h-11 px-5 text-sm rounded-xl gap-2",
 };
 
 const variantClasses: Record<ButtonVariant, string> = {

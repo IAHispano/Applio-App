@@ -72,8 +72,10 @@ export default function VoiceModelField({
       />
       <SettingHelp text={t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
       {selectedModel && (
-        <div className="space-y-2">
-          <label htmlFor={indexSelectId}>{indexLabel ?? t("Index File")}</label>
+        <div className="space-y-2 pt-3">
+          <label className="field-label block" htmlFor={indexSelectId}>
+            {indexLabel ?? t("Index File")}
+          </label>
           <CustomSelect
             id={indexSelectId}
             description={t(SETTING_HELP.index)}

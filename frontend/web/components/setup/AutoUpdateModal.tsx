@@ -322,7 +322,7 @@ export default function AutoUpdateModal() {
           } pointer-events-none`}
         />
 
-        <div className="p-5 sm:p-6 border-b border-white/10 bg-white/[0.02] flex items-start justify-between gap-3">
+        <div className="p-5 sm:p-6 bg-white/[0.02] flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div
               className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
@@ -348,8 +348,8 @@ export default function AutoUpdateModal() {
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
                     isOutdated
-                      ? "bg-red-500/15 border-red-500/30 text-red-300 font-mono"
-                      : "bg-white/10 border-white/15 text-neutral-200 font-mono"
+                      ? "bg-red-500/15 border-red-500/30 text-red-300 font-sans"
+                      : "bg-white/10 border-white/15 text-neutral-200 font-sans"
                   }`}
                 >
                   {displayVersion(versionData.latest)}
@@ -407,7 +407,7 @@ export default function AutoUpdateModal() {
                   <span>{statusMessage || t("Processing update…")}</span>
                 </span>
                 {updateStep === "downloading" && updateProgress > 0 && (
-                  <span className="font-mono text-neutral-400">{updateProgress}%</span>
+                  <span className="font-sans text-neutral-400">{updateProgress}%</span>
                 )}
               </div>
 
@@ -453,7 +453,7 @@ export default function AutoUpdateModal() {
                   </a>
                 )}
               </div>
-              <div className="max-h-36 overflow-y-auto p-3 rounded-xl bg-black/40 border border-white/5 text-xs text-neutral-400 font-mono space-y-1 scrollbar-thin">
+              <div className="max-h-36 overflow-y-auto p-3 rounded-xl bg-black/40 border border-white/5 text-xs text-neutral-400 font-sans space-y-1 scrollbar-thin">
                 {versionData.releaseNotes
                   .split("\n")
                   .filter((line) => line.trim().length > 0)
@@ -469,7 +469,7 @@ export default function AutoUpdateModal() {
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:p-5 border-t border-white/10 bg-black/40 backdrop-blur-md flex items-center justify-between gap-3">
+        <div className="p-4 sm:p-5 bg-black/40 backdrop-blur-md flex items-center justify-between gap-3">
           <div className="text-[11px] text-neutral-500 min-w-0 truncate">
             {isOutdated
               ? t("Automatic security update in progress…")

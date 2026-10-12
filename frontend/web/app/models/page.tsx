@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ArrowRight,
   Database,
   Download,
   FileCheck,
@@ -265,7 +264,7 @@ export default function ModelsPage() {
   }
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Voice Models")}
         description={t(
@@ -403,7 +402,7 @@ export default function ModelsPage() {
               />
             </Card>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-4 items-stretch">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 card-grid items-stretch">
               {filteredModels.map((m) => {
                 const isSelected = selected.has(m.id);
                 return (
@@ -458,7 +457,7 @@ export default function ModelsPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex justify-between text-neutral-500 pt-1 border-t border-white/5">
+                        <div className="flex justify-between text-neutral-500">
                           <span>{t("Modified:")}</span>
                           <span>{new Date(m.modifiedAt).toLocaleDateString()}</span>
                         </div>
@@ -468,7 +467,7 @@ export default function ModelsPage() {
                     {/* Actions Footer (clicks here don't toggle selection) */}
                     {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction */}
                     <div
-                      className="flex items-center justify-between gap-2 pt-3 border-t border-white/10 mt-2"
+                      className="flex items-center justify-between gap-2 mt-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
@@ -701,17 +700,13 @@ export default function ModelsPage() {
             );
           })()}
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-white/10 mt-4">
-          <Button variant="ghost" onClick={() => setInspectModal(null)}>
-            {t("Close")}
-          </Button>
+        <div className="flex justify-end gap-2 mt-4">
           <Button
             onClick={() => {
               const m = inspectModal;
               setInspectModal(null);
               if (m) openInInference(m);
             }}
-            iconAfter={<ArrowRight size={14} />}
           >
             {t("Use in Inference")}
           </Button>
@@ -749,7 +744,7 @@ export default function ModelsPage() {
             {t("from disk? This will remove its .pth and .index files.")}
           </p>
         )}
-        <div className="flex justify-end gap-2 pt-4 border-t border-white/10 mt-4">
+        <div className="flex justify-end gap-2 mt-4">
           <Button variant="ghost" onClick={() => setDeleteTargets([])} disabled={deleting}>
             {t("Cancel")}
           </Button>

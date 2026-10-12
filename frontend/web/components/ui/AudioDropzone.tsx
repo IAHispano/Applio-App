@@ -398,7 +398,7 @@ function AudioDropzoneInner({
               <div
                 role="tablist"
                 aria-label={t("Audio source selection")}
-                className="flex items-center gap-1.5 border-b border-white/10 pb-2 overflow-x-auto hide-scrollbar max-w-full"
+                className="flex flex-wrap items-center gap-1.5 max-w-full"
               >
                 <button
                   type="button"
@@ -593,11 +593,11 @@ function AudioDropzoneInner({
         /* When no audio is selected, render tab switcher and picker contents */
         <div className="space-y-3">
           {/* Tab Switcher: Upload / Samples / Mic */}
-          <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2 max-w-full">
+          <div className="flex items-center justify-between gap-2 max-w-full">
             <div
               role="tablist"
               aria-label={t("Audio source selection")}
-              className="flex items-center gap-1.5 overflow-x-auto hide-scrollbar max-w-full min-w-0"
+              className="flex flex-wrap items-center gap-1.5 max-w-full min-w-0"
             >
               <button
                 type="button"
@@ -687,7 +687,7 @@ function AudioDropzoneInner({
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled}
-                className={`relative w-full py-9 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center select-none ${
+                className={`relative w-full py-9 px-6 rounded-2xl border-2 border-dashed transition-all cursor-pointer flex flex-col items-center justify-center text-center whitespace-normal select-none ${
                   isDragging
                     ? "border-white bg-white/15 scale-[1.01] shadow-2xl"
                     : "border-white/15 bg-white/[0.03] hover:border-white/30 hover:bg-white/[0.06]"

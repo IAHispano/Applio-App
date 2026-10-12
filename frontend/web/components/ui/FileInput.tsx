@@ -100,7 +100,7 @@ export default function FileInput({
 
       <span
         title={selectedNames.join(", ")}
-        className={`text-xs truncate flex-1 min-w-0 font-mono ${
+        className={`text-xs truncate flex-1 min-w-0 font-sans ${
           selectedNames.length > 0 ? "text-neutral-200 font-medium" : "text-neutral-500"
         }`}
       >

@@ -96,7 +96,7 @@ export default function TermsModal() {
         {/* Top ambient highlight line */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
 
-        <div className="p-5 sm:p-6 border-b border-white/10 bg-white/[0.02] flex items-center justify-between gap-4">
+        <div className="p-5 sm:p-6 bg-white/[0.02] flex items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 min-w-0">
             <div className="w-11 h-11 rounded-xl bg-white/[0.08] border border-white/15 flex items-center justify-center text-white shrink-0 shadow-inner">
               <FileText className="w-5 h-5 text-white" />
@@ -439,7 +439,7 @@ export default function TermsModal() {
         </div>
 
         {/* Modal Footer with Agreement Controls */}
-        <div className="p-4 sm:p-5 border-t border-white/10 bg-black/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="p-4 sm:p-5 bg-black/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
             <label
               className={`flex items-center gap-3 select-none text-xs transition-opacity ${

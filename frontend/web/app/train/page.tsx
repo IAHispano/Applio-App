@@ -383,7 +383,7 @@ export default function TrainPage() {
   ];
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto space-y-6">
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Training")}
         description={t("First set up your project below, then choose Automatic or Manual training.")}
@@ -440,7 +440,7 @@ export default function TrainPage() {
             <SettingHelp text={t(SETTING_HELP.cpu)} controlId={"train-cpu-cores"} />
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-neutral-400 mt-3 pt-3 border-t border-white/10">
+        <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-neutral-400 mt-3">
           <span className="truncate">{gpuInfo || t("Detecting GPU acceleration…")}</span>
           <span className="text-neutral-500 shrink-0">
             {t("Output saved to")} <code>logs/{modelName || "…"}/</code>
@@ -474,15 +474,9 @@ export default function TrainPage() {
               { value: "manual", label: t("Manual"), icon: Layers },
             ]}
           />
-          {!modelName.trim() ? (
+          {!modelName.trim() && (
             <p className="text-xs text-amber-400 m-0">
               {t("Set a model name in Step 1 first — every training run needs a project identity.")}
-            </p>
-          ) : (
-            <p className="text-xs text-neutral-400 m-0">
-              {trainMode === "auto"
-                ? t("1-click pipeline: preprocess → extract → train → index.")
-                : t("Configure and run steps 1 → 4 individually with custom parameters.")}
             </p>
           )}
         </div>
@@ -496,7 +490,6 @@ export default function TrainPage() {
               step={3}
               icon={<Zap size={18} className="text-white" />}
               title={t("Automatic Training")}
-              description={t("1-click pipeline with the essentials. Advanced options live in Manual.")}
               action={
                 <Button
                   variant="ghost"
@@ -618,7 +611,7 @@ export default function TrainPage() {
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <ToggleField
                 id="auto-noise-reduction"
                 label={t("Noise Reduction")}
@@ -631,11 +624,11 @@ export default function TrainPage() {
                 onClick={() => setTrainMode("manual")}
                 className="bg-transparent border-0 p-0 text-xs text-neutral-400 hover:text-white cursor-pointer text-left sm:text-right"
               >
-                {t("Need slicing, embedder, or checkpoint options? Open Manual →")}
+                {t("Advanced training options")}
               </button>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-3 border-t border-white/10">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <Button
                 loading={busy}
                 onClick={runPipeline}
@@ -668,9 +661,7 @@ export default function TrainPage() {
               step={3}
               icon={<Layers size={18} className="text-white" />}
               title={t("Manual Training Setup")}
-              description={t(
-                "Run steps in order 1 → 4. Each step opens a dialog with its custom parameters.",
-              )}
+              description={t("Run steps 1–4 in order. Each step opens a dialog with its settings.")}
               action={
                 <Button
                   variant="ghost"
@@ -865,7 +856,7 @@ export default function TrainPage() {
             description={t(SETTING_HELP.noiseFilter)}
           />
         </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-white/10">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -967,7 +958,7 @@ export default function TrainPage() {
             </CustomSelect>
           </div>
         </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-white/10">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -1186,7 +1177,7 @@ export default function TrainPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-white/10">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
@@ -1225,7 +1216,7 @@ export default function TrainPage() {
             ))}
           </CustomSelect>
         </div>
-        <div className="flex items-center justify-end gap-2 flex-wrap pt-3 border-t border-white/10">
+        <div className="flex items-center justify-end gap-2 flex-wrap">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>

@@ -131,14 +131,14 @@ function AlertInner({
         {title && <p className={`font-semibold m-0 ${styles.text}`}>{title}</p>}
         <div className="leading-relaxed break-words whitespace-pre-wrap">{displayChildren}</div>
         {effectiveDetails && (
-          <details className="mt-2 text-xs group pt-1 border-t border-white/10">
+          <details className="mt-2 text-xs group">
             <summary className="cursor-pointer hover:text-white transition-colors py-0.5 flex items-center gap-1.5 select-none font-medium text-[11px] text-neutral-400">
               <ChevronDown size={12} className="transition-transform group-open:rotate-180 shrink-0" />
               <span>{t("Technical Details & Logs")}</span>
             </summary>
             <div className="mt-1.5">
               {typeof effectiveDetails === "string" ? (
-                <pre className="p-2.5 rounded-lg bg-black/60 border border-white/10 font-mono text-[11px] leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap break-all select-text text-neutral-300">
+                <pre className="p-2.5 rounded-lg bg-black/60 border border-white/10 font-sans text-[11px] leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap break-all select-text text-neutral-300">
                   {effectiveDetails}
                 </pre>
               ) : (
