@@ -701,7 +701,7 @@ export default function TrainPage() {
                           <Check size={14} strokeWidth={3} />
                         </span>
                       ) : (
-                        <span className="w-7 h-7 rounded-full bg-white text-black text-xs font-bold flex items-center justify-center">
+                        <span className="w-7 h-7 rounded-full bg-white text-black text-xs font-bold flex items-center justify-center leading-none tabular-nums">
                           {i + 1}
                         </span>
                       )}

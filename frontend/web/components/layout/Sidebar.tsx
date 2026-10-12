@@ -63,7 +63,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
         {NAV_SECTIONS.map((section, sIdx) => (
           <div key={section.title || `sec-${sIdx}`} className="space-y-1">
             {section.title && (
-              <h2 className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-widest text-[var(--muted)] select-none m-0">
+              <h2 className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] select-none m-0">
                 {t(section.title)}
               </h2>
             )}

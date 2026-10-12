@@ -29,7 +29,7 @@ function CardHeaderInner({ icon, title, description, step, action, className = "
             <>
               <span className="sr-only">Step {step}: </span>
               <span
-                className="w-6 h-6 rounded-lg bg-[var(--accent-soft)] text-[11px] font-semibold tabular-nums text-[var(--accent)] flex items-center justify-center shrink-0"
+                className="w-6 h-6 rounded-lg bg-[var(--accent-soft)] text-[11px] font-semibold tabular-nums leading-none text-[var(--accent)] flex items-center justify-center shrink-0"
                 aria-hidden="true"
               >
                 {step}
