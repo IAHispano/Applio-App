@@ -53,9 +53,24 @@
     "pill": "999px"
   },
   "fonts": {
-    "display": ["google:Orbitron", "ui-sans-serif", "system-ui", "sans-serif"],
-    "body": ["ui-sans-serif", "system-ui", "sans-serif"],
-    "mono": ["ui-monospace", "monospace"]
+    "display": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ],
+    "body": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ],
+    "mono": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ]
   },
   "titlebar": {
     "bg": "#080512",

@@ -47,9 +47,24 @@
     "dangerTextHover": "#ffffff"
   },
   "fonts": {
-    "display": ["google:Syne", "ui-sans-serif", "system-ui", "sans-serif"],
-    "body": ["google:Syne", "ui-sans-serif", "system-ui", "sans-serif"],
-    "mono": ["ui-monospace", "google:Nunito Sans", "monospace"]
+    "display": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ],
+    "body": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ],
+    "mono": [
+      "google:Syne",
+      "ui-sans-serif",
+      "system-ui",
+      "sans-serif"
+    ]
   },
   "radius": {
     "card": "8px",
