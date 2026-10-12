@@ -6,7 +6,7 @@ A desktop studio for voice conversion, realtime voice changing, speech synthesis
 
 [![Applio walkthrough](assets/demo.gif)](assets/demo.mp4?raw=true)
 
-40-second captioned tour, without audio: [1080p video](assets/demo.mp4?raw=true) · [WebM](assets/demo.webm?raw=true) · [Preview](assets/demo-poster.png)
+40-second app walkthrough, without audio: [720p video](assets/demo.mp4?raw=true) · [WebM](assets/demo.webm?raw=true) · [Preview](assets/demo-poster.png)
 
 ## Install
 
@@ -80,8 +80,6 @@ The engine remains a standalone repository. Commit engine changes inside `backen
 | `pnpm build:all` | Build all three packages |
 | `pnpm build:win` / `build:mac` / `build:linux` | Build platform installers |
 | `pnpm typecheck` | Check TypeScript |
-| `pnpm reliability:check` | App regression and translation checks |
-| `pnpm i18n:check` | Verify desktop translations |
 | `pnpm runtime:check` | Check built API/frontend startup |
 | `pnpm release:check` | Check the packaged app before release |
 | `pnpm format` | Format and lint frontend/API code |

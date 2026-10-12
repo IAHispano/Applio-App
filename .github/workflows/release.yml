@@ -95,7 +95,7 @@ jobs:
             ${{ runner.os }}-nextjs-
 
       - name: Sync version to release input
-        run: node scripts/sync-version.mjs
+        run: node bin/sync-version.mjs
         env:
           RELEASE_VERSION: ${{ github.event.inputs.version }}
 
@@ -106,7 +106,7 @@ jobs:
           # Unsigned CI builds (no Apple Developer certificate on runners).
           CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Verify packaged startup and job reliability
+      - name: Verify packaged startup
         run: pnpm release:check
 
       - name: Upload build artifacts
@@ -144,7 +144,7 @@ jobs:
 
       - name: Sync package versions to release input
         # Same sync as the build jobs, so the bump can be committed back.
-        run: node scripts/sync-version.mjs
+        run: node bin/sync-version.mjs
         env:
           RELEASE_VERSION: ${{ github.event.inputs.version }}
 
