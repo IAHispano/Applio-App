@@ -35,10 +35,10 @@ function SegmentedControlInner<T extends string>({
     itemRefs.current[nextIdx]?.focus();
   };
   const handleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
-    if (e.key === "ArrowRight") {
+    if (e.key === "ArrowRight" || (!tabPanels && e.key === "ArrowDown")) {
       e.preventDefault();
       move(index + 1);
-    } else if (e.key === "ArrowLeft") {
+    } else if (e.key === "ArrowLeft" || (!tabPanels && e.key === "ArrowUp")) {
       e.preventDefault();
       move(index - 1);
     } else if (e.key === "Home") {
@@ -81,7 +81,7 @@ function SegmentedControlInner<T extends string>({
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
           >
-            {Icon && <Icon size={14} />}
+            {Icon && <Icon size={14} aria-hidden="true" />}
             {option.label}
           </button>
         );

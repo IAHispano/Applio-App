@@ -1,9 +1,10 @@
 "use client";
 
 import { Check, ChevronDown, Mic2, RefreshCw, Search, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
+import { useDialogPortalTarget } from "./Dialog";
 
 export interface ModelDropdownProps {
   models: string[];
@@ -48,10 +49,14 @@ export default function ModelDropdown({
   onUnload,
   indexes = [],
   disabled = false,
-  id,
+  id: customId,
   "aria-describedby": descriptionId,
 }: ModelDropdownProps) {
   const { t } = useI18n();
+  const generatedId = useId();
+  const id = customId || `model-${generatedId}`;
+  const listId = `${id}-options`;
+  const portalTarget = useDialogPortalTarget();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -129,6 +134,7 @@ export default function ModelDropdown({
       if (!modelPath) return;
       onSelect(modelPath);
       setOpen(false);
+      triggerRef.current?.focus();
     },
     [onSelect],
   );
@@ -147,6 +153,12 @@ export default function ModelDropdown({
   // Reset highlight whenever the menu opens or the list changes.
   useEffect(() => {
     if (!open) return;
+    const timer = setTimeout(() => searchInputRef.current?.focus(), 0);
+    return () => clearTimeout(timer);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const selected = filteredModels.indexOf(selectedModel);
     setHighlighted(selected >= 0 ? selected : filteredModels.length > 0 ? 0 : -1);
   }, [open, selectedModel, filteredModels]);
@@ -163,7 +175,6 @@ export default function ModelDropdown({
       return;
     }
     updatePosition();
-    setTimeout(() => searchInputRef.current?.focus(), 50);
 
     function handlePointerDown(e: MouseEvent) {
       const target = e.target as Node;
@@ -172,10 +183,27 @@ export default function ModelDropdown({
       setOpen(false);
     }
     function handleKeyDown(e: KeyboardEvent) {
+      if (!menuRef.current?.contains(e.target as Node) && e.target !== triggerRef.current) return;
       if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
         setOpen(false);
+        triggerRef.current?.focus();
         return;
       }
+      if (e.key === "Tab") {
+        const controls = Array.from(
+          menuRef.current?.querySelectorAll<HTMLElement>(
+            'input, button:not([disabled]):not([tabindex="-1"])',
+          ) || [],
+        );
+        if ((e.shiftKey && e.target === controls[0]) || (!e.shiftKey && e.target === controls.at(-1))) {
+          setOpen(false);
+          triggerRef.current?.focus();
+        }
+        return;
+      }
+      if (e.target !== searchInputRef.current && e.target !== triggerRef.current) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
         moveHighlight(1);
@@ -187,11 +215,13 @@ export default function ModelDropdown({
         return;
       }
       if (e.key === "Home") {
+        if (e.target === searchInputRef.current) return;
         e.preventDefault();
         setHighlighted(filteredModels.length > 0 ? 0 : -1);
         return;
       }
       if (e.key === "End") {
+        if (e.target === searchInputRef.current) return;
         e.preventDefault();
         setHighlighted(filteredModels.length > 0 ? filteredModels.length - 1 : -1);
         return;
@@ -223,12 +253,10 @@ export default function ModelDropdown({
   const currentDisplayName = selectedModel ? modelDisplayName(selectedModel) : t("Select a voice model…");
 
   const menu =
-    open && mounted && menuPos && typeof document !== "undefined"
+    open && mounted && menuPos && portalTarget
       ? createPortal(
           <div
             ref={menuRef}
-            role="listbox"
-            aria-activedescendant={highlighted >= 0 ? `model-option-${highlighted}` : undefined}
             style={{
               position: "fixed",
               zIndex: 9999,
@@ -241,17 +269,26 @@ export default function ModelDropdown({
               borderRadius: "var(--radius-card)",
             }}
             className="menu-pop shadow-2xl overflow-hidden flex flex-col max-h-[min(24rem,calc(100vh-120px))]"
-            tabIndex={0}
           >
             <div className="px-3.5 py-2 flex items-center gap-2 shrink-0">
-              <Search size={13} className="shrink-0" style={{ color: "var(--muted)", opacity: 0.7 }} />
+              <Search size={13} aria-hidden="true" className="shrink-0" style={{ color: "var(--muted)" }} />
               <input
                 ref={searchInputRef}
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                role="combobox"
+                aria-label={t("Search models")}
+                aria-expanded="true"
+                aria-autocomplete="list"
+                aria-controls={listId}
+                aria-activedescendant={
+                  highlighted >= 0 && highlighted < filteredModels.length
+                    ? `${id}-option-${highlighted}`
+                    : undefined
+                }
                 placeholder={t("Search models…")}
-                className="no-focus-ring w-full bg-transparent text-xs border-none outline-none py-1 focus:ring-0 placeholder:text-neutral-600"
+                className="w-full bg-transparent text-xs border-none py-1 placeholder:text-[var(--muted)]"
                 style={{ color: "var(--text)" }}
               />
               {search && (
@@ -268,9 +305,20 @@ export default function ModelDropdown({
             </div>
 
             {/* Model Items List */}
-            <div className="max-h-64 overflow-y-auto py-1 grow">
+            <div
+              id={listId}
+              role="listbox"
+              aria-label={t("Voice models")}
+              className="max-h-64 overflow-y-auto py-1 grow"
+            >
               {filteredModels.length === 0 ? (
-                <div className="p-4 text-center">
+                <div
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected="false"
+                  aria-disabled="true"
+                  className="p-4 text-center"
+                >
                   <p className="text-xs m-0" style={{ color: "var(--muted)" }}>
                     {search ? t("No models matching search query") : t("No models found in logs/")}
                   </p>
@@ -282,12 +330,14 @@ export default function ModelDropdown({
                   return (
                     <button
                       key={m}
-                      id={`model-option-${i}`}
+                      id={`${id}-option-${i}`}
                       ref={(el) => {
                         itemRefs.current.set(i, el);
                       }}
                       type="button"
                       role="option"
+                      tabIndex={-1}
+                      data-active={highlighted === i || undefined}
                       aria-selected={isSelected}
                       onMouseEnter={() => setHighlighted(i)}
                       onClick={() => chooseModel(m)}
@@ -310,11 +360,11 @@ export default function ModelDropdown({
                           >
                             {modelDisplayName(m)}
                           </span>
-                          <span className="text-[10px] font-sans text-neutral-500 shrink-0">
+                          <span className="text-[10px] font-sans text-[var(--muted)] shrink-0">
                             {m.endsWith(".onnx") ? "ONNX" : "PTH"}
                           </span>
                         </div>
-                        <p className="text-[10px] truncate m-0 leading-tight mt-0.5 text-neutral-500">
+                        <p className="text-[10px] truncate m-0 leading-tight mt-0.5 text-[var(--muted)]">
                           {m} {hasIndex ? `• ${t("Index paired")}` : ""}
                         </p>
                       </div>
@@ -341,6 +391,7 @@ export default function ModelDropdown({
                     onClick={() => {
                       onUnload();
                       setOpen(false);
+                      triggerRef.current?.focus();
                     }}
                     className="text-xs transition-colors hover:text-red-400"
                     style={{ color: "var(--muted)" }}
@@ -364,7 +415,7 @@ export default function ModelDropdown({
               </div>
             </div>
           </div>,
-          document.body,
+          portalTarget,
         )
       : null;
 
@@ -389,12 +440,13 @@ export default function ModelDropdown({
         }}
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         style={{
           background: "var(--input-bg)",
           borderColor: "var(--border)",
           borderRadius: "var(--radius-input)",
         }}
-        className={`no-focus-ring w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
+        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
           disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

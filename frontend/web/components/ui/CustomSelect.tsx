@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
 import { PITCH_METHOD_HELP } from "@/lib/setting-help";
+import { useDialogPortalTarget } from "./Dialog";
 import SettingHelp from "./SettingHelp";
 
 export interface CustomSelectOption {
@@ -44,6 +45,8 @@ export interface CustomSelectProps {
   children?: React.ReactNode;
   description?: React.ReactNode;
   "aria-describedby"?: string;
+  "aria-invalid"?: React.AriaAttributes["aria-invalid"];
+  required?: boolean;
 }
 
 interface MenuPosition {
@@ -71,8 +74,11 @@ export default function CustomSelect({
   children,
   description,
   "aria-describedby": externalDescription,
+  "aria-invalid": invalid,
+  required,
 }: CustomSelectProps) {
   const { t } = useI18n();
+  const portalTarget = useDialogPortalTarget();
   const placeholder = customPlaceholder ?? t("Select…");
   const searchPlaceholder = customSearchPlaceholder ?? t("Search options…");
   const generatedId = useId();
@@ -148,7 +154,6 @@ export default function CustomSelect({
   const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
-  const activeOptionId = highlightedIndex >= 0 ? `${id}-opt-${highlightedIndex}` : undefined;
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -200,6 +205,8 @@ export default function CustomSelect({
 
   // Keyboard navigation + Enter always follow the actually rendered rows.
   const navRows = groupedMode ? visibleSlice : filteredOptions;
+  const activeOptionId =
+    highlightedIndex >= 0 && highlightedIndex < navRows.length ? `${id}-opt-${highlightedIndex}` : undefined;
 
   function showMoreRows() {
     setVisibleCount((c) => c + LOAD_MORE_ROWS);
@@ -249,8 +256,8 @@ export default function CustomSelect({
     setSearch("");
     setVisibleCount(INITIAL_ROW_BUDGET);
     const freshRows = groupedMode ? filteredOptions.slice(0, INITIAL_ROW_BUDGET) : filteredOptions;
-    const curIdx = freshRows.findIndex((o) => o.value === selectedValue);
-    setHighlightedIndex(curIdx >= 0 ? curIdx : 0);
+    const curIdx = freshRows.findIndex((o) => o.value === selectedValue && !o.disabled);
+    setHighlightedIndex(curIdx >= 0 ? curIdx : freshRows.findIndex((option) => !option.disabled));
     onOpen?.();
   };
 
@@ -287,7 +294,8 @@ export default function CustomSelect({
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) {
         return;
       }
-      handleClose();
+      setOpen(false);
+      setSearch("");
     };
     const handleScrollOrResize = () => {
       updatePosition();
@@ -302,7 +310,7 @@ export default function CustomSelect({
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
     };
-  }, [open, updatePosition, handleClose]);
+  }, [open, updatePosition]);
 
   // An explicit aria-label would override an external <label htmlFor>
   // (verified in Chromium: the visible label drops out of the accessible
@@ -325,7 +333,8 @@ export default function CustomSelect({
   // Focus search input when opened
   useEffect(() => {
     if (open && isSearchable) {
-      setTimeout(() => searchInputRef.current?.focus(), 40);
+      const timer = setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => clearTimeout(timer);
     }
   }, [open, isSearchable]);
 
@@ -334,7 +343,7 @@ export default function CustomSelect({
     if (disabled) return;
 
     if (!open) {
-      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown") {
+      if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         handleOpen();
       }
@@ -343,19 +352,25 @@ export default function CustomSelect({
 
     if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
+      handleClose();
+    } else if (e.key === "Tab") {
+      // Return to the trigger before the browser advances to the next field.
       handleClose();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      if (highlightedIndex >= navRows.length - 1 && remainingRows > 0) {
-        showMoreRows();
-        setHighlightedIndex(navRows.length);
-      } else {
-        setHighlightedIndex((prev) => (prev < navRows.length - 1 ? prev + 1 : 0));
-      }
+      moveHighlight(1);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : navRows.length - 1));
-    } else if (e.key === "Enter") {
+      moveHighlight(-1);
+    } else if ((e.key === "Home" || e.key === "End") && e.target !== searchInputRef.current) {
+      e.preventDefault();
+      const indices = filteredOptions
+        .map((option, index) => (option.disabled ? -1 : index))
+        .filter((index) => index >= 0);
+      const next = e.key === "Home" ? indices[0] : indices.at(-1);
+      if (next !== undefined) revealOption(next);
+    } else if (e.key === "Enter" || (!isSearchable && e.key === " ")) {
       e.preventDefault();
       if (highlightedIndex >= 0 && highlightedIndex < navRows.length) {
         const target = navRows[highlightedIndex];
@@ -363,6 +378,22 @@ export default function CustomSelect({
       }
     }
   };
+
+  function revealOption(index: number) {
+    if (groupedMode && index >= visibleCount) setVisibleCount(index + LOAD_MORE_ROWS);
+    setHighlightedIndex(index);
+  }
+  function moveHighlight(direction: number) {
+    if (!filteredOptions.length) return;
+    const origin = highlightedIndex < 0 ? (direction > 0 ? -1 : 0) : highlightedIndex;
+    for (let offset = 1; offset <= filteredOptions.length; offset++) {
+      const next = (origin + direction * offset + filteredOptions.length) % filteredOptions.length;
+      if (!filteredOptions[next].disabled) {
+        revealOption(next);
+        return;
+      }
+    }
+  }
 
   // Size styling tokens
   const sizeClasses =
@@ -388,10 +419,12 @@ export default function CustomSelect({
           [externalDescription, description ? `${id}-help` : undefined].filter(Boolean).join(" ") || undefined
         }
         aria-haspopup="listbox"
+        aria-invalid={invalid}
+        aria-required={required || undefined}
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
-        aria-activedescendant={open ? activeOptionId : undefined}
-        className={`no-focus-ring w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
+        aria-activedescendant={open && !isSearchable ? activeOptionId : undefined}
+        className={`w-full flex items-center justify-between gap-2 bg-[var(--input-bg)] border transition-all select-none cursor-pointer text-left ${sizeClasses} ${
           open ? "border-[var(--focus-border)]" : "border-[var(--border)] hover:border-[var(--focus-border)]"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-[var(--surface)]"}`}
       >
@@ -424,12 +457,10 @@ export default function CustomSelect({
       {mounted &&
         open &&
         menuPos &&
+        portalTarget &&
         createPortal(
           <div
             ref={menuRef}
-            id={menuId}
-            role="listbox"
-            aria-label={placeholder}
             style={{
               position: "fixed",
               left: menuPos.left,
@@ -441,23 +472,30 @@ export default function CustomSelect({
           >
             {isSearchable && (
               <div className="flex items-center gap-2 px-3.5 py-2">
-                <Search size={13} className="text-neutral-500 shrink-0" />
+                <Search size={13} className="text-[var(--muted)] shrink-0" aria-hidden="true" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   onKeyDown={handleKeyDown}
+                  role="combobox"
+                  aria-label={searchPlaceholder}
+                  aria-expanded="true"
+                  aria-autocomplete="list"
                   aria-controls={menuId}
                   aria-activedescendant={activeOptionId}
                   placeholder={searchPlaceholder}
-                  className="no-focus-ring w-full !bg-transparent !border-0 text-xs text-[var(--text)] focus:outline-hidden !p-0"
+                  className="w-full !bg-transparent !border-0 text-xs text-[var(--text)] !p-0"
                 />
               </div>
             )}
 
             {/* Options List */}
             <div
+              id={menuId}
+              role="listbox"
+              aria-label={placeholder}
               className="max-h-64 overflow-y-auto scrollbar-thin py-1"
               onScroll={(e) => {
                 const el = e.currentTarget;
@@ -467,7 +505,13 @@ export default function CustomSelect({
               }}
             >
               {filteredOptions.length === 0 ? (
-                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">
+                <div
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected="false"
+                  aria-disabled="true"
+                  className="py-3 px-3.5 text-center text-xs text-[var(--muted)]"
+                >
                   {t("No matching options")}
                 </div>
               ) : groupedMode ? (
@@ -571,7 +615,7 @@ export default function CustomSelect({
               )}
             </div>
           </div>,
-          document.body,
+          portalTarget,
         )}
     </div>
   );

@@ -15,7 +15,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui";
+import { Button, Dialog } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 
 const TERMS_STORAGE_KEY = "applio:terms-accepted";
@@ -86,9 +86,8 @@ export default function TermsModal() {
   if (!open) return null;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      isOpen={open}
       aria-labelledby="terms-modal-title"
       className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
     >
@@ -155,6 +154,8 @@ export default function TermsModal() {
         <div className="relative flex-1 overflow-hidden flex flex-col min-h-0">
           <section
             ref={scrollRef}
+            // biome-ignore lint/a11y/noNoninteractiveTabindex: This labeled scroll region must be keyboard-scrollable.
+            tabIndex={0}
             onScroll={handleScroll}
             aria-label={t("Terms of Use document")}
             className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6 text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans focus:outline-none scrollbar-thin"
@@ -478,6 +479,6 @@ export default function TermsModal() {
           </Button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

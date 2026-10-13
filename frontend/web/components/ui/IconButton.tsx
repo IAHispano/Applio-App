@@ -51,7 +51,9 @@ function IconButtonInner({
       {loading ? (
         <Loader2 size={size === "md" ? 16 : 14} className="animate-spin shrink-0" aria-hidden="true" />
       ) : (
-        icon
+        <span aria-hidden="true" className="flex items-center justify-center">
+          {icon}
+        </span>
       )}
     </button>
   );

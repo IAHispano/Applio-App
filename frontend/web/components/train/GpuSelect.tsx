@@ -4,6 +4,7 @@ import { Check, ChevronDown, Cpu, Search, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useDialogPortalTarget } from "@/components/ui/Dialog";
 import SettingHelp from "@/components/ui/SettingHelp";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
@@ -40,6 +41,7 @@ export default function GpuSelect({
   className = "",
 }: GpuSelectProps) {
   const { t } = useI18n();
+  const portalTarget = useDialogPortalTarget();
   const generatedId = useId();
   const id = propId || `gpu-select-${generatedId}`;
 
@@ -107,7 +109,7 @@ export default function GpuSelect({
   // Click outside listener
   useEffect(() => {
     if (!open) return;
-    setTimeout(() => searchInputRef.current?.focus(), 40);
+    const timer = setTimeout(() => searchInputRef.current?.focus(), 0);
     const handleOutside = (e: MouseEvent) => {
       const target = e.target as Node;
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) {
@@ -124,6 +126,7 @@ export default function GpuSelect({
     window.addEventListener("resize", handleScrollOrResize);
 
     return () => {
+      clearTimeout(timer);
       window.removeEventListener("mousedown", handleOutside);
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
@@ -135,7 +138,28 @@ export default function GpuSelect({
     if (disabled) return;
     if (e.key === "Escape") {
       e.preventDefault();
+      e.stopPropagation();
       handleClose();
+    } else if (open && e.key === "Tab") {
+      const controls = Array.from(
+        menuRef.current?.querySelectorAll<HTMLElement>("input, button:not([disabled])") || [],
+      );
+      if ((e.shiftKey && e.target === controls[0]) || (!e.shiftKey && e.target === controls.at(-1)))
+        handleClose();
+    } else if (open && (e.key === "ArrowDown" || e.key === "ArrowUp")) {
+      e.preventDefault();
+      const options = Array.from(
+        menuRef.current?.querySelectorAll<HTMLElement>('[role="option"]:not([disabled])') || [],
+      );
+      if (!options.length) return;
+      const current = options.indexOf(e.target as HTMLElement);
+      const next =
+        current < 0
+          ? e.key === "ArrowDown"
+            ? 0
+            : options.length - 1
+          : (current + (e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+      options[next].focus();
     } else if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
       if (!open) {
         e.preventDefault();
@@ -234,8 +258,9 @@ export default function GpuSelect({
         onKeyDown={handleKeyDown}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={displayLabel}
-        className={`no-focus-ring form-control w-full flex items-center justify-between gap-2 transition-all select-none cursor-pointer text-left ${
+        aria-controls={open ? `${id}-options` : undefined}
+        aria-label={t("GPU selection: {selection}", { selection: displayLabel })}
+        className={`form-control w-full flex items-center justify-between gap-2 transition-all select-none cursor-pointer text-left ${
           open ? "border-[var(--border)]" : "border-[var(--border)] hover:border-white/20"
         } ${disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "hover:bg-white/[0.03]"}`}
       >
@@ -264,12 +289,12 @@ export default function GpuSelect({
       {mounted &&
         open &&
         menuPos &&
+        portalTarget &&
         createPortal(
+          // biome-ignore lint/a11y/noStaticElementInteractions: Keyboard events bubble from the search and option controls.
           <div
             ref={menuRef}
-            role="listbox"
-            aria-multiselectable={devices.length > 1}
-            aria-label={t("GPU selection")}
+            onKeyDown={handleKeyDown}
             style={{
               position: "fixed",
               left: menuPos.left,
@@ -289,7 +314,7 @@ export default function GpuSelect({
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t("Search options…")}
                 aria-label={t("Search GPUs")}
-                className="no-focus-ring w-full !bg-transparent !border-0 text-xs text-neutral-200 focus:outline-hidden !p-0"
+                className="w-full !bg-transparent !border-0 text-xs text-neutral-200 !p-0"
               />
               {search && (
                 <button
@@ -330,13 +355,25 @@ export default function GpuSelect({
             )}
 
             {/* GPU Device Options */}
-            <div className="max-h-64 overflow-y-auto scrollbar-thin py-1">
+            <div
+              id={`${id}-options`}
+              role="listbox"
+              aria-multiselectable={devices.length > 1}
+              aria-label={t("GPU selection")}
+              className="max-h-64 overflow-y-auto scrollbar-thin py-1"
+            >
               {devices.length === 0 ? (
                 <div className="py-2.5 px-3.5 text-xs text-neutral-400 italic">
                   {t("No CUDA GPU detected")}
                 </div>
               ) : filteredDevices.length === 0 && !showCpu ? (
-                <div className="py-3 px-3.5 text-center text-xs text-neutral-500">
+                <div
+                  role="option"
+                  tabIndex={-1}
+                  aria-selected="false"
+                  aria-disabled="true"
+                  className="py-3 px-3.5 text-center text-xs text-[var(--muted)]"
+                >
                   {t("No matching options")}
                 </div>
               ) : (
@@ -360,7 +397,7 @@ export default function GpuSelect({
 
                       <div className="flex items-center gap-1.5 shrink-0 ml-2">
                         {devices.length > 1 && (
-                          <span className="text-[10px] font-sans text-neutral-500">ID: {device.id}</span>
+                          <span className="text-[10px] font-sans text-[var(--muted)]">ID: {device.id}</span>
                         )}
                         {isSelected && <Check size={14} className="text-white shrink-0" />}
                       </div>
@@ -383,7 +420,7 @@ export default function GpuSelect({
                   >
                     <div className="min-w-0 flex-1 flex flex-col">
                       <span className="truncate">{t("CPU")}</span>
-                      <span className="text-[10px] truncate text-neutral-500">
+                      <span className="text-[10px] truncate text-[var(--muted)]">
                         {t("CPU mode (no GPU acceleration)")}
                       </span>
                     </div>
@@ -396,7 +433,7 @@ export default function GpuSelect({
               )}
             </div>
           </div>,
-          document.body,
+          portalTarget,
         )}
     </div>
   );

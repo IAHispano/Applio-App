@@ -1,7 +1,7 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useRef } from "react";
-import { createPortal } from "react-dom";
+import { type ReactNode, useId } from "react";
+import Dialog from "./Dialog";
 
 interface ModalProps {
   isOpen: boolean;
@@ -29,69 +29,6 @@ export default function Modal({
   const generatedId = useId();
   const titleId = `modal-title-${generatedId}`;
   const descId = `modal-desc-${generatedId}`;
-  const modalRef = useRef<HTMLDivElement | null>(null);
-  const previousActiveElementRef = useRef<HTMLElement | null>(null);
-  const onCloseRef = useRef(onClose);
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  // Focus management & Escape key
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Save previous active element to restore focus on close
-    previousActiveElementRef.current = document.activeElement as HTMLElement | null;
-
-    // Focus the modal container
-    modalRef.current?.focus();
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onCloseRef.current();
-        return;
-      }
-
-      // Trap focus inside modal
-      if (e.key === "Tab" && modalRef.current) {
-        const focusables = Array.from(
-          modalRef.current.querySelectorAll<HTMLElement>(
-            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-          ),
-        ).filter((element) => element.getClientRects().length > 0 && !element.closest("[hidden], [inert]"));
-        if (focusables.length === 0) return;
-
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === modalRef.current) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last || document.activeElement === modalRef.current) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    // Prevent background scroll
-    const origOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-      document.body.style.overflow = origOverflow;
-      previousActiveElementRef.current?.focus();
-    };
-  }, [isOpen]);
-
-  if (!isOpen || typeof document === "undefined") return null;
 
   const widthClass = {
     sm: "max-w-md",
@@ -101,22 +38,15 @@ export default function Modal({
     "2xl": "max-w-5xl",
   }[maxWidth || size];
 
-  return createPortal(
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click closes modal
-    <div
+  return (
+    <Dialog
+      isOpen={isOpen}
+      onClose={onClose}
+      aria-labelledby={titleId}
+      aria-describedby={description ? descId : undefined}
       className="app-modal fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm modal-backdrop"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-      role="presentation"
     >
       <div
-        ref={modalRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        aria-describedby={description ? descId : undefined}
-        tabIndex={-1}
         className={`modal-panel w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-[var(--panel)] text-[var(--text)] border ${
           danger ? "border-red-500/30 shadow-red-500/10" : "border-[var(--border)]"
         } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
@@ -144,7 +74,6 @@ export default function Modal({
         {/* Modal Content */}
         <div className="min-w-0 space-y-4">{children}</div>
       </div>
-    </div>,
-    document.body,
+    </Dialog>
   );
 }

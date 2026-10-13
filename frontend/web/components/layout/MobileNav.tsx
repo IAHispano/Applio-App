@@ -14,7 +14,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/IntentLink";
 import { SidebarNavContent } from "@/components/layout/Sidebar";
-import { IconButton } from "@/components/ui";
+import { Dialog, IconButton } from "@/components/ui";
 import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 
@@ -38,7 +38,6 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
-  const sheetRef = useRef<HTMLDivElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
   const moreActive = expanded || !tabs.some((tab) => pathname === tab.to);
 
@@ -52,35 +51,6 @@ export function BottomNav() {
   useEffect(() => {
     setExpanded(false);
   }, [pathname]);
-
-  // Sheet behaves as a modal dialog: move focus in on open, trap Tab
-  // inside, close on Escape and return focus to the More button.
-  useEffect(() => {
-    if (!expanded) return;
-    sheetRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        close();
-        return;
-      }
-      if (e.key !== "Tab" || !sheetRef.current) return;
-      const focusables = sheetRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      if (focusables.length === 0) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [expanded, close]);
 
   const renderTab = (tab: { icon: typeof House; label: string; to: string }) => {
     const Icon = tab.icon;
@@ -111,45 +81,29 @@ export function BottomNav() {
 
   return (
     <>
-      {/* Backdrop */}
-      <button
-        type="button"
-        onClick={close}
-        aria-label={t("Close menu")}
-        aria-hidden={!expanded}
-        tabIndex={expanded ? 0 : -1}
-        className={`lg:hidden absolute inset-0 z-30 bg-black/60 backdrop-blur-[2px] cursor-default transition-opacity duration-200 border-transparent rounded-none p-0 hover:bg-black/60 active:bg-black/60 ${
-          expanded ? "opacity-100" : "pointer-events-none opacity-0"
-        }`}
-      />
-
       {/* Expandable sheet with the full navigation */}
-      <div
+      <Dialog
         id="mobile-menu-sheet"
-        ref={sheetRef}
-        tabIndex={-1}
-        role="dialog"
-        aria-modal="true"
+        isOpen={expanded}
+        onClose={close}
         aria-label={t("Menu")}
-        aria-hidden={!expanded}
-        inert={!expanded}
-        className={`lg:hidden absolute left-3 right-3 bottom-[6rem] z-40 rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl p-3 flex flex-col min-h-0 max-h-[min(78dvh,560px)] transition-all duration-200 ease-out ${
-          expanded ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0 pointer-events-none"
-        }`}
+        className="lg:hidden bg-black/60 backdrop-blur-[2px] modal-backdrop"
       >
-        <div className="flex items-center justify-end shrink-0 pb-1">
-          <IconButton
-            icon={<ChevronDown size={20} aria-hidden="true" />}
-            label={t("Close menu")}
-            onClick={close}
-            tabIndex={expanded ? 0 : -1}
-            className="!h-10 !w-10 !min-w-10 !min-h-10 !max-w-10 !max-h-10 !rounded-xl border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
-          />
+        <div className="absolute left-3 right-3 bottom-[6rem] rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-2xl p-3 flex flex-col min-h-0 max-h-[min(78dvh,560px)] modal-panel">
+          <div className="flex items-center justify-end shrink-0 pb-1">
+            <IconButton
+              icon={<ChevronDown size={20} aria-hidden="true" />}
+              label={t("Close menu")}
+              onClick={close}
+              tabIndex={expanded ? 0 : -1}
+              className="!h-10 !w-10 !min-w-10 !min-h-10 !max-w-10 !max-h-10 !rounded-xl border-[var(--border)] bg-[var(--surface)] text-[var(--text)]"
+            />
+          </div>
+          <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-thin">
+            <SidebarNavContent onNavigate={() => setExpanded(false)} />
+          </div>
         </div>
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto scrollbar-thin">
-          <SidebarNavContent onNavigate={() => setExpanded(false)} />
-        </div>
-      </div>
+      </Dialog>
 
       {/* Collapsed bar */}
       <nav
@@ -166,6 +120,7 @@ export function BottomNav() {
               ref={moreRef}
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
+              aria-haspopup="dialog"
               aria-controls="mobile-menu-sheet"
               aria-label={t("More")}
               style={{

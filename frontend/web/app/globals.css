@@ -679,6 +679,43 @@ hr {
   outline-offset: 2px;
 }
 
+dialog.app-dialog {
+  position: fixed;
+  inset: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  border: 0;
+  color: var(--text);
+}
+dialog.app-dialog:not([open]) {
+  display: none;
+}
+dialog.app-dialog::backdrop {
+  background: transparent;
+}
+
+#main-content {
+  scroll-padding-block: 1rem calc(7rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  #main-content {
+    scroll-padding-bottom: 1rem;
+  }
+}
+@media (forced-colors: active) {
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline-color: Highlight;
+  }
+  input[type="checkbox"] {
+    appearance: auto;
+    background-image: none;
+    accent-color: Highlight;
+  }
+}
+
 a {
   color: var(--text);
   transition:
@@ -1685,13 +1722,6 @@ button.segmented-item.is-active {
 .segmented-item:active,
 .nav-press:active {
   transform: scale(0.97);
-}
-
-/* Search dropdowns opt out of the global focus-visible ring — their
-   open/hover/selected states already communicate state. Scoped to these
-   triggers and search fields only, not global controls. */
-.no-focus-ring:focus-visible {
-  outline: none;
 }
 
 /* ---------- Modal content hierarchy ----------

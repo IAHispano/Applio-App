@@ -40,7 +40,7 @@ function ToggleFieldInner({
     <div className={`toggle-field space-y-1.5 min-w-0 ${className}`}>
       <label
         htmlFor={id}
-        className={`flex items-center gap-2.5 select-none ${
+        className={`flex items-center gap-2.5 min-h-8 select-none ${
           disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

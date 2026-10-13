@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { BottomNav } from "@/components/layout/MobileNav";
 import PageTransition from "@/components/layout/PageTransition";
 import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
@@ -23,6 +23,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { t } = useI18n();
   const { remote } = useRemoteBridge();
+  const previousPath = useRef(pathname);
+  const previousHeading = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (previousPath.current === pathname) {
+      previousHeading.current = document.querySelector("#main-content h1");
+      return;
+    }
+    previousPath.current = pathname;
+    // Next can update the URL before the new page replaces the old heading.
+    const focusPage = () => {
+      if (document.querySelector("dialog[open]")) return;
+      const main = document.getElementById("main-content");
+      if (!main) return;
+      const heading = main.querySelector<HTMLElement>("h1");
+      if (!heading || heading === previousHeading.current) return;
+      previousHeading.current = heading;
+      main.scrollTop = 0;
+      heading.tabIndex = -1;
+      heading.focus({ preventScroll: true });
+      observer.disconnect();
+    };
+    const observer = new MutationObserver(focusPage);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["open"],
+    });
+    const frame = requestAnimationFrame(focusPage);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [pathname]);
   useEffect(() => {
     const bridge = (
       window as unknown as { applio?: { onNavigate?: (listener: (href: string) => void) => () => void } }

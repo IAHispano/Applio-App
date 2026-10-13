@@ -129,6 +129,11 @@ function SliderFieldInner({
             <input
               type="text"
               inputMode="decimal"
+              role="spinbutton"
+              aria-valuemin={min}
+              aria-valuemax={max}
+              aria-valuenow={clampedValue}
+              aria-valuetext={ariaValueText}
               aria-label={t("{label} numeric value", { label })}
               aria-describedby={description ? descId : undefined}
               value={inputText}

@@ -9,7 +9,8 @@
     "postbuild": "node scripts/copy-static.mts",
     "start": "next start -p 3000",
     "typecheck": "tsc --noEmit",
-    "test:calibration": "node --test tests/realtime-calibration.test.cjs"
+    "test:calibration": "node --test tests/realtime-calibration.test.cjs",
+    "test:accessibility": "pnpm build && node --test tests/accessibility.test.cjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -23,10 +24,12 @@
     "wavesurfer.js": "^7.12.12"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@types/node": "^22.10.2",
     "@types/qrcode": "1.5.6",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
+    "playwright": "1.64.0",
     "typescript": "^5.7.2"
   }
 }

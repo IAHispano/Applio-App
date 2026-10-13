@@ -9,6 +9,7 @@ export {
 } from "@/components/ui/Button";
 export { CardHeader, type CardHeaderProps, type CardProps, default as Card } from "@/components/ui/Card";
 export { default as CustomSelect } from "@/components/ui/CustomSelect";
+export { default as Dialog } from "@/components/ui/Dialog";
 export { type DisclosureProps, default as Disclosure } from "@/components/ui/Disclosure";
 export { default as EmptyState, type EmptyStateProps } from "@/components/ui/EmptyState";
 export { default as FileInput, type FileInputProps } from "@/components/ui/FileInput";

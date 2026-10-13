@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button, IconButton } from "@/components/ui";
+import { Button, Dialog, IconButton } from "@/components/ui";
 import { apiGet, apiSend, cleanVersion, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -266,18 +266,6 @@ export default function AutoUpdateModal() {
     setOpen(false);
   }, [versionData?.latest]);
 
-  // Handle escape key to close modal
-  useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleClose();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [open, handleClose]);
-
   const handleRestartNow = () => {
     const bridge = getBridge();
     if (bridge?.updater) {
@@ -293,21 +281,12 @@ export default function AutoUpdateModal() {
   const versionsBehind = versionData.versionsBehind || 1;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
+    <Dialog
+      isOpen={open}
+      onClose={handleClose}
       aria-labelledby="update-modal-title"
       className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200"
     >
-      {/* Backdrop click to dismiss */}
-      <button
-        type="button"
-        aria-label={t("Close")}
-        onClick={handleClose}
-        className="absolute inset-0 w-full h-full bg-transparent border-0 cursor-default p-0 -z-10 focus:outline-none"
-        tabIndex={-1}
-      />
-
       <div
         className={`relative w-full max-w-lg rounded-2xl border ${
           isOutdated ? "border-red-500/30 shadow-red-500/10" : "border-white/15"
@@ -513,6 +492,6 @@ export default function AutoUpdateModal() {
           </div>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }
