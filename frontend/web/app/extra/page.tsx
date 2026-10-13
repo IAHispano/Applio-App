@@ -13,14 +13,23 @@ import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 
+function ExtraLoading({ analyzer }: { analyzer: boolean }) {
+  const { t } = useI18n();
+  return (
+    <div className="p-8 text-center text-xs text-[var(--muted)]">
+      {t(analyzer ? "Loading audio analyzer…" : "Loading F0 extractor…")}
+    </div>
+  );
+}
+
 const NativeAnalyzer = dynamic(() => import("@/components/extra/NativeAnalyzer"), {
   ssr: false,
-  loading: () => <div className="p-8 text-center text-xs text-neutral-500">Loading audio analyzer…</div>,
+  loading: () => <ExtraLoading analyzer />,
 });
 
 const F0CurveExtractor = dynamic(() => import("@/components/extra/F0CurveExtractor"), {
   ssr: false,
-  loading: () => <div className="p-8 text-center text-xs text-neutral-500">Loading F0 extractor…</div>,
+  loading: () => <ExtraLoading analyzer={false} />,
 });
 
 export default function ExtraPage() {

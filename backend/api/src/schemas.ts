@@ -108,6 +108,9 @@ export const batchInferenceSchema = baseInferSchema
     mode: z.enum(["files", "models", "both"]).default("files"),
     inputFolder: z.string().default(""),
     inputPath: z.string().default(""),
+    excludedFiles: z.array(z.string().min(1)).max(10000).default([]),
+    selectedFiles: z.array(z.string().min(1)).max(10000).optional(),
+    continueOnError: booleanCoerce.default(true),
     models: z
       .array(
         z.object({

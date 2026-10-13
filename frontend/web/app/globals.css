@@ -110,6 +110,15 @@
   font-size: 10px;
   font-weight: 600;
 }
+.halloween-prompt {
+  background: radial-gradient(ellipse at top right, #57301e 0%, transparent 70%), #251333;
+  border: 1px solid #784767;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.15);
+}
+.halloween-prompt .cta > .truncate {
+  white-space: normal;
+}
+
 .bridge-link-row {
   display: flex;
   align-items: center;

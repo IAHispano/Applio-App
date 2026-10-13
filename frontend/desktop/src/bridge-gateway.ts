@@ -1,6 +1,6 @@
 import http, { type IncomingMessage, type ServerResponse } from "node:http";
 import type { Socket } from "node:net";
-import { bridgePairingPage } from "./bridge-page";
+import { type BridgePairingLanguage, bridgePairingPage } from "./bridge-page";
 import { type BridgeDevice, BridgeSessions } from "./bridge-sessions";
 
 const COOKIE = "__Host-applio_bridge";
@@ -24,7 +24,9 @@ export function bridgeApiAllowed(method: string, path: string): boolean {
     return (
       /^\/api\/(models(?:\/|$)|jobs(?:\/|$)|tts\/voices$|uvr\/models$|audio\/raw$|health$|setup\/status$|train\/gpus$)/.test(
         path,
-      ) || /^\/api\/settings(?:\/(?:language|languages|theme|themes|model-presets|version))?$/.test(path)
+      ) ||
+      /^\/api\/settings(?:\/(?:language|languages|theme|themes|model-presets|version))?$/.test(path) ||
+      /^\/api\/inference\/batch\/[a-zA-Z0-9_-]+\/outputs\/\d+$/.test(path)
     );
   }
   if (method === "PUT") return path === "/api/settings/model-presets";
@@ -33,6 +35,7 @@ export function bridgeApiAllowed(method: string, path: string): boolean {
     [
       "/api/inference",
       "/api/inference/batch",
+      "/api/inference/batch/preview",
       "/api/tts",
       "/api/uvr/separate",
       "/api/extra/analyze",
@@ -59,6 +62,8 @@ export class BridgeGateway {
     private readonly webPort: number,
     private readonly apiPort: number,
     private readonly onRequest: (device: BridgeDevice) => void = () => {},
+    private readonly pairingFont?: Buffer,
+    private readonly pairingLanguage?: () => BridgePairingLanguage,
   ) {
     this.sessions = new BridgeSessions(Date.now, (id) => {
       for (const cancel of this.active.get(id) || []) cancel();
@@ -152,11 +157,22 @@ export class BridgeGateway {
       return this.json(res, 403, { error: "Cross-origin requests are not allowed" });
     }
     const device = this.sessions.find(this.credential(req));
+    // Only the bundled interface font is public before approval, never app assets.
+    if (pathname === "/bridge/syne.ttf" && SAFE_METHODS.has(method)) {
+      if (!this.pairingFont) return this.json(res, 404, { error: "Font unavailable" });
+      res.writeHead(200, {
+        "Content-Type": "font/ttf",
+        "Content-Length": this.pairingFont.length,
+        "Cache-Control": "public, max-age=86400",
+      });
+      res.end(method === "HEAD" ? undefined : this.pairingFont);
+      return;
+    }
     if (pathname === "/bridge" && method === "GET") {
-      const { html, nonce } = bridgePairingPage();
+      const { html, nonce } = bridgePairingPage(this.pairingLanguage?.());
       res.setHeader(
         "Content-Security-Policy",
-        `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`,
+        `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'nonce-${nonce}'; font-src 'self'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`,
       );
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
       res.end(html);

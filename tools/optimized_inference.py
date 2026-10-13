@@ -2,7 +2,6 @@
 
 The adapter is app-owned: the engine submodule stays reproducible. It retains
 the engine's F0 predictors, feature extractor, decoder, precision and padding.
-Parity tests exercise these methods against the pinned implementation.
 """
 
 import sys

@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { memo } from "react";
+import { useI18n } from "@/lib/i18n";
 
 export interface CardHeaderProps {
   /** Optional icon displayed before the title */
@@ -21,13 +22,14 @@ export interface CardHeaderProps {
 }
 
 function CardHeaderInner({ icon, title, description, step, action, className = "" }: CardHeaderProps) {
+  const { t } = useI18n();
   return (
     <div className={`space-y-1.5 ${className}`}>
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2 min-w-0 flex-wrap sm:flex-nowrap">
           {step !== undefined && (
             <>
-              <span className="sr-only">Step {step}: </span>
+              <span className="sr-only">{t("Step {step}", { step })}: </span>
               <span
                 className="w-6 h-6 rounded-lg bg-[var(--accent-soft)] text-[11px] font-semibold tabular-nums leading-none text-[var(--accent)] flex items-center justify-center shrink-0"
                 aria-hidden="true"

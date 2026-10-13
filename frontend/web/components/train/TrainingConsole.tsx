@@ -481,7 +481,9 @@ export default function TrainingConsole({
             <div className="flex items-center gap-1.5">
               <Terminal size={14} className="text-white" />
               <span className="font-semibold text-white">{t("Activity Log")}</span>
-              <span className="text-[11px] text-neutral-400">({displayedEvents.length} events)</span>
+              <span className="text-[11px] text-neutral-400">
+                ({t("{count} events", { count: displayedEvents.length })})
+              </span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">

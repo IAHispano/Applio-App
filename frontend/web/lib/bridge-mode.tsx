@@ -15,7 +15,7 @@ export interface DesktopBridgeMode {
   start: () => Promise<BridgeState>;
   stop: () => Promise<BridgeState>;
   newInvite: () => Promise<BridgeState>;
-  copyInvite?: () => Promise<void>;
+  copyInvite: () => Promise<void>;
   approve: (id: string) => Promise<BridgeState>;
   revoke: (id: string) => Promise<BridgeState>;
 }

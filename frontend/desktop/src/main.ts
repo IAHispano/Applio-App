@@ -149,11 +149,20 @@ function initBridgeMode(): void {
     cacheDir: path.join(localStorage?.cache || app.getPath("userData"), "bridge-helper"),
     webPort: Number(WEB_PORT),
     apiPort: Number(API_PORT),
+    fontPath: path.join(isDev ? repoRoot() : app.getAppPath(), "assets", "fonts", "Syne-Variable.ttf"),
+    pairingLanguage: () => {
+      refreshTrayLanguage();
+      return { code: trayLanguage.replace(/\.json$/, "") || "en_US", dict: trayDictionary };
+    },
     onRequest: (device) => {
       if (!Notification.isSupported()) return;
+      refreshTrayLanguage();
       const notification = new Notification({
-        title: "Applio Bridge · Connection request",
-        body: `${device.name} is requesting access. Check code ${device.code} in Settings → Bridge Mode.`,
+        title: trayT("Applio Bridge · Connection request"),
+        body: trayT("{name} is requesting access. Check code {code} in Settings → Bridge Mode.", {
+          name: device.name,
+          code: device.code,
+        }),
       });
       notification.on("click", () => {
         if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -832,12 +841,13 @@ async function reportBootFailure(): Promise<"retry" | "quit"> {
       : ["• No backend logs captured yet"]),
   ].join("\n");
   for (;;) {
+    refreshTrayLanguage();
     const { response } = await dialog.showMessageBox({
       type: "error",
-      title: "Applio failed to start",
-      message: "Applio failed to start",
+      title: trayT("Applio failed to start"),
+      message: trayT("Applio failed to start"),
       detail,
-      buttons: ["Retry", "Copy diagnostics", "Open log folder", "Quit"],
+      buttons: ["Retry", "Copy diagnostics", "Open log folder", "Quit"].map((key) => trayT(key)),
       defaultId: 0,
       cancelId: 3,
       noLink: true,
@@ -1253,11 +1263,12 @@ function initAutoUpdater(): void {
     if (mainWindow && !mainWindow.isDestroyed()) {
       const { response } = await dialog.showMessageBox(mainWindow, {
         type: "info",
-        title: "Applio Update Ready",
-        message: `Applio v${info.version} is ready to install`,
-        detail:
+        title: trayT("Applio Update Ready"),
+        message: trayT("Applio v{version} is ready to install", { version: info.version }),
+        detail: trayT(
           "The new version of Applio has been downloaded. Restart now to apply the update, or install it automatically when you next exit Applio.",
-        buttons: ["Restart and Update", "Later"],
+        ),
+        buttons: ["Restart and Update", "Later"].map((key) => trayT(key)),
         defaultId: 0,
         cancelId: 1,
         noLink: true,
@@ -1273,8 +1284,10 @@ function initAutoUpdater(): void {
       // closed but the app still running): fall back to a system
       // notification so the downloaded release is never missed.
       const notif = new Notification({
-        title: "Applio Update Ready",
-        body: `Applio v${info.version} has been downloaded and will install automatically when you exit.`,
+        title: trayT("Applio Update Ready"),
+        body: trayT("Applio v{version} has been downloaded and will install automatically when you exit.", {
+          version: info.version,
+        }),
         ...(nativeIcon ? { icon: nativeIcon } : {}),
       });
       notif.on("click", () => {
@@ -1740,9 +1753,11 @@ async function createWindow(): Promise<void> {
       const nativeIcon = appNativeIcon();
       await dialog.showMessageBox({
         type: "error",
-        title: "Dev Server Unreachable",
-        message: `Could not connect to Next.js dev server at ${WEB_URL}`,
-        detail: `Make sure 'npm run dev' or 'npm run desktop:dev' is running.\n\nChecked: ${WEB_URL}`,
+        title: trayT("Dev Server Unreachable"),
+        message: trayT("Could not connect to Next.js dev server at {url}", { url: WEB_URL }),
+        detail: trayT("Make sure 'npm run dev' or 'npm run desktop:dev' is running. Checked: {url}", {
+          url: WEB_URL,
+        }),
         ...(nativeIcon ? { icon: nativeIcon } : {}),
       });
       app.quit();
@@ -1980,8 +1995,9 @@ ipcMain.handle("job:notify", (event, value: unknown) => {
 ipcMain.handle("dialog:choose-folder", async (event, defaultPath: unknown) => {
   const win = BrowserWindow.fromWebContents(event.sender);
   if (!win) return null;
+  refreshTrayLanguage();
   const result = await dialog.showOpenDialog(win, {
-    title: "Choose folder",
+    title: trayT("Choose folder"),
     defaultPath: typeof defaultPath === "string" && path.isAbsolute(defaultPath) ? defaultPath : undefined,
     properties: ["openDirectory", "createDirectory", "dontAddToRecent"],
   });

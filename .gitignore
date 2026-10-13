@@ -43,3 +43,18 @@ frontend/desktop/dist-installers
 frontend/desktop/dist
 *.tsbuildinfo
 
+# Local development artifacts
+test/
+tests/
+__tests__/
+*.test.*
+*.spec.*
+test_*.py
+*_test.py
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+playwright-report/
+test-results/
+

@@ -168,6 +168,14 @@ export function setProgress(job: Job, pct: number) {
   notifyAllJobs(job);
 }
 
+export function setJobResult(job: Job, result: Record<string, unknown>) {
+  if (!jobIsActive(job)) return;
+  job.result = result;
+  job.updatedAt = new Date().toISOString();
+  notify(job);
+  notifyAllJobs(job);
+}
+
 export function setDone(job: Job, result?: Record<string, unknown>, outputFile?: string) {
   if (!jobIsActive(job)) return;
   job.status = "done";

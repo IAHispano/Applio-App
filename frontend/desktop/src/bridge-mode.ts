@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { BridgeGateway } from "./bridge-gateway";
+import type { BridgePairingLanguage } from "./bridge-page";
 import type { BridgeDevice } from "./bridge-sessions";
 import {
   type BridgeTunnelProcess,
@@ -30,6 +31,8 @@ export class BridgeMode {
       cacheDir: string;
       webPort: number;
       apiPort: number;
+      fontPath?: string;
+      pairingLanguage?: () => BridgePairingLanguage;
       onRequest?: (device: BridgeDevice) => void;
     },
   ) {}
@@ -96,7 +99,15 @@ export class BridgeMode {
       // Ignore the user's existing cloudflared configuration when creating a temporary tunnel.
       await fs.writeFile(config, "{}\n", { mode: 0o600 });
       controller.signal.throwIfAborted();
-      const gateway = new BridgeGateway(this.options.webPort, this.options.apiPort, this.options.onRequest);
+      const font = this.options.fontPath ? await fs.readFile(this.options.fontPath) : undefined;
+      controller.signal.throwIfAborted();
+      const gateway = new BridgeGateway(
+        this.options.webPort,
+        this.options.apiPort,
+        this.options.onRequest,
+        font,
+        this.options.pairingLanguage,
+      );
       this.gateway = gateway;
       const port = await gateway.listen();
       if (controller.signal.aborted) {

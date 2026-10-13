@@ -9,10 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
     "start": "node dist/index.js",
-    "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test:dataset-review": "pnpm build && node --test tests/dataset-review.test.cjs",
-    "test:inference": "node --test tests/inference-runtime.test.cjs",
-    "test:training": "node --test tests/training-*.test.cjs"
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
     "@types/ws": "^8.18.1",

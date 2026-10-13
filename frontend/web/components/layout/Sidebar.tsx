@@ -2,6 +2,7 @@
 
 import { AlertTriangle, ArrowRight, MessageCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
+import HalloweenThemePrompt from "@/components/HalloweenThemePrompt";
 import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS } from "@/components/layout/nav";
 import SupportLink from "@/components/SupportLink";
@@ -127,6 +128,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
+      {!remote && <HalloweenThemePrompt />}
       <div className="shrink-0 mt-2 px-3 flex flex-col">
         <a
           href={DISCORD_SUPPORT_URL}

@@ -263,20 +263,8 @@ export default function BridgeModeCard() {
                       setCopied(false);
                       try {
                         const bridge = desktopBridgeMode();
-                        if (bridge?.copyInvite) await bridge.copyInvite();
-                        else {
-                          try {
-                            await navigator.clipboard.writeText(link);
-                          } catch {
-                            // Older desktop builds deny the browser clipboard permission.
-                            const previous = document.activeElement;
-                            linkRef.current?.focus();
-                            linkRef.current?.select();
-                            const success = document.execCommand("copy");
-                            if (success && previous instanceof HTMLElement) previous.focus();
-                            if (!success) throw new Error("Clipboard unavailable");
-                          }
-                        }
+                        if (!bridge) throw new Error("Bridge Mode is unavailable.");
+                        await bridge.copyInvite();
                         setCopied(true);
                       } catch {
                         linkRef.current?.focus();

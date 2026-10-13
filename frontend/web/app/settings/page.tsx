@@ -176,6 +176,25 @@ interface DesktopUpdaterState {
 export default function SettingsPage() {
   const { t } = useI18n();
   const [cfg, setCfg] = useState<AppConfig | null>(null);
+  useEffect(() => {
+    const synchronizeTheme = (event: Event) => {
+      const file = (event as CustomEvent<{ file?: string }>).detail?.file;
+      if (typeof file !== "string") return;
+      setCfg((current) =>
+        current
+          ? {
+              ...current,
+              theme: {
+                ...(typeof current.theme === "object" && current.theme !== null ? current.theme : {}),
+                file,
+              },
+            }
+          : current,
+      );
+    };
+    window.addEventListener("applio:theme-changed", synchronizeTheme);
+    return () => window.removeEventListener("applio:theme-changed", synchronizeTheme);
+  }, []);
   const [langs, setLangs] = useState<Array<{ code: string; name: string }>>([]);
   const [themes, setThemes] = useState<
     Array<{
@@ -711,7 +730,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Theme text info */}
-                <div className="flex items-center justify-between gap-1 w-full">
+                <div className="flex flex-wrap items-center justify-between gap-1 w-full">
                   <span
                     className={`text-xs tracking-tight truncate ${
                       isSelected
