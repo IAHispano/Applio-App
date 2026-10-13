@@ -671,9 +671,9 @@ export default function RealtimeWorkspace() {
           deviceId: { exact: inDev },
           channelCount: { ideal: 1 },
           sampleRate: { ideal: 48000 },
-          noiseSuppression: false,
-          autoGainControl: false,
-          echoCancellation: false,
+          ...(voiceFocus !== "off"
+            ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
+            : {}),
         },
       });
       openingStream = stream;
@@ -1407,9 +1407,9 @@ export default function RealtimeWorkspace() {
               deviceId: { exact: inDev },
               channelCount: { ideal: 1 },
               sampleRate: { ideal: 48000 },
-              noiseSuppression: false,
-              autoGainControl: false,
-              echoCancellation: false,
+              ...(voiceFocus !== "off"
+                ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
+                : {}),
             },
           });
           if (cancelled || sessRef.current !== session) return;
