@@ -30,7 +30,10 @@ export default function SetupLogLine({ text }: { text: string }) {
       const dl = parsed.download;
       return (
         <div className="flex items-center gap-1.5 py-0.5" title={parsed.raw}>
-          <Download size={11} className={dl?.done ? "shrink-0 text-emerald-400" : "shrink-0 text-neutral-500"} />
+          <Download
+            size={11}
+            className={dl?.done ? "shrink-0 text-emerald-400" : "shrink-0 text-neutral-500"}
+          />
           <span className="min-w-0 flex-1 truncate text-neutral-300">{dl?.pkg ?? parsed.pretty}</span>
           {dl?.size && (
             <span className="shrink-0 rounded bg-white/5 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-neutral-400">

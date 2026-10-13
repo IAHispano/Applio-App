@@ -55,10 +55,7 @@ export function mergeSetupLines(lines: string[]): string[] {
         j++;
         continue;
       }
-      if (
-        (/=$/.test(cur) || /==.*[\d.]$/.test(cur) || /^==[\d.]*$/.test(cur)) &&
-        /^[\d.]+$/.test(nxt)
-      ) {
+      if ((/=$/.test(cur) || /==.*[\d.]$/.test(cur) || /^==[\d.]*$/.test(cur)) && /^[\d.]+$/.test(nxt)) {
         cur += nxt;
         j++;
         continue;
