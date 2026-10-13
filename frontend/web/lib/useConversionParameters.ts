@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import type {
   ConversionParameterSetters,
   ConversionParameterValues,
@@ -71,6 +71,8 @@ export function useConversionParameters(model = "") {
   const [sessionValues, setValues] = useState<ConversionParameterValues>(() => ({ ...CONVERSION_DEFAULTS }));
   const saved = presets.presets[modelPresetKey("conversion", model)];
   const values = model ? ({ ...CONVERSION_DEFAULTS, ...saved } as ConversionParameterValues) : sessionValues;
+  const modelRef = useRef(model);
+  modelRef.current = model;
   const setters = useMemo(
     () =>
       Object.fromEntries(
@@ -79,8 +81,9 @@ export function useConversionParameters(model = "") {
           return [
             key,
             (value: ConversionParameterValues[typeof key]) => {
-              if (model) {
-                saveModelPreset("conversion", model, { [key]: value });
+              const current = modelRef.current;
+              if (current) {
+                saveModelPreset("conversion", current, { [key]: value });
                 return;
               }
               setValues((previous) =>
@@ -90,11 +93,12 @@ export function useConversionParameters(model = "") {
           ];
         }),
       ) as ConversionParameterSetters,
-    [model],
+    [],
   );
   const reset = useCallback(() => {
-    if (model) saveModelPreset("conversion", model, { ...CONVERSION_DEFAULTS });
+    const current = modelRef.current;
+    if (current) saveModelPreset("conversion", current, { ...CONVERSION_DEFAULTS });
     else setValues({ ...CONVERSION_DEFAULTS });
-  }, [model]);
+  }, []);
   return { values, setters, reset, loaded: presets.loaded, error: presets.error };
 }
