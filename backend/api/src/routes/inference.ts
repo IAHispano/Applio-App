@@ -3,7 +3,8 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { trackPid } from "@/cli";
 import { errMsg } from "@/errors";
-import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunning } from "@/jobs";
+import { appendLog, createJob, getJob, setDone, setError, setJobStage, setRunning } from "@/jobs";
+import { trackConversionStage } from "@/lib/conversion-stage";
 import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { audioUpload } from "@/lib/upload";
 import { getOutputsDir, getRepoRoot, resolveUserPath, runPythonModule } from "@/python";
@@ -94,32 +95,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
       let finalServed: string | null = null;
       let runStdout = "";
 
-      // Real progress from the engine's own log markers: total chunks, then
-      // one line per converted chunk, then the save step. Monotonic by design.
-      let totalChunks = 0;
-      let lastPct = -1;
-      const trackProgress = (trimmed: string) => {
-        let m = trimmed.match(/Audio split into (\d+) chunks/);
-        if (m) {
-          totalChunks = Math.max(1, Number(m[1]));
-          lastPct = 10;
-          setProgress(job, 10);
-          return;
-        }
-        m = trimmed.match(/Converted audio chunk (\d+)/);
-        if (m && totalChunks > 0) {
-          const pct = 10 + Math.round((80 * Math.min(Number(m[1]), totalChunks)) / totalChunks);
-          if (pct > lastPct) {
-            lastPct = pct;
-            setProgress(job, pct);
-          }
-          return;
-        }
-        if (/Saving audio as/i.test(trimmed) && lastPct < 96) {
-          lastPct = 96;
-          setProgress(job, 96);
-        }
-      };
+      setJobStage(job, "Preparing conversion…");
 
       try {
         const res = await inferenceWorker.infer(job.id, params, inputAbs, outWav, (chunk) => {
@@ -127,13 +103,14 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
           if (trimmed) {
             appendLog(job, trimmed);
             runStdout += `${trimmed}\n`;
-            trackProgress(trimmed);
+            trackConversionStage(job, chunk);
           }
         });
         trackPid(job.id, undefined);
         finalServed = res.outputPath || outWav;
       } catch (workerErr) {
         if (job.status !== "running") return;
+        setJobStage(job, "Preparing conversion…");
         appendLog(job, `Worker notice: ${errMsg(workerErr)}; falling back to standalone CLI runner...`);
         const args = toCliArgs(params, inputAbs, outWav);
         const result = await runPythonModule(args, {
@@ -142,7 +119,7 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
             if (trimmed) {
               appendLog(job, trimmed);
               runStdout += `${trimmed}\n`;
-              trackProgress(trimmed);
+              trackConversionStage(job, chunk);
             }
           },
           onSpawn: (pid) => trackPid(job.id, pid),
@@ -154,6 +131,8 @@ async function runInferenceJob(jobId: string, params: InferenceParams, inputAbs:
         runStdout += result.stdout;
       }
 
+      if (job.status !== "running") return;
+      setJobStage(job, "Checking output…");
       const finalAbs = outWav.replace(/\.wav$/i, `.${ext}`);
       const served =
         finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outWav;

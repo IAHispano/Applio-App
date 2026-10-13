@@ -959,12 +959,20 @@ html, body {
 }
 .bar {
   height: 100%;
-  width: 0%;
+  width: 35%;
+  animation: splashProgress 1.5s ease-in-out infinite;
   background: #ffffff;
   border-radius: 999px;
   box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
   will-change: width;
   transform: translateZ(0);
+}
+@keyframes splashProgress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; transform: none; }
 }
 </style>
 </head>
@@ -989,9 +997,10 @@ html, body {
     <div class="center-content">
       <div class="brand-wrap">
         <div class="brand">Applio</div>
-        <div class="track">
+        <div class="track" role="progressbar" aria-label="Applio">
           <div id="pb" class="bar"></div>
         </div>
+        <p id="splash-status" role="status" aria-live="polite" style="color:#aaa;font-size:13px;margin:16px 0 0;text-align:center"></p>
       </div>
     </div>
   </div>
@@ -1000,9 +1009,6 @@ html, body {
       var bar = document.getElementById('pb');
       var brand = document.querySelector('.brand');
       var track = document.querySelector('.track');
-      var current = 0;
-      var target = 18;
-      var lastTime = performance.now();
 
       function syncWidth() {
         if (brand && track) {
@@ -1018,37 +1024,23 @@ html, body {
       }
       window.addEventListener('resize', syncWidth);
 
-      window.setProgress = function(pct) {
-        if (typeof pct === 'number' && !isNaN(pct)) {
-          target = Math.max(target, Math.min(100, pct));
-        }
+      window.setStatus = function(text) {
+        var status = document.getElementById('splash-status');
+        if (status) status.textContent = text;
       };
-
-      function tick(now) {
-        var dt = Math.min(0.05, (now - lastTime) / 1000);
-        lastTime = now;
-
-        if (target >= 100) {
-          current += (100 - current) * Math.min(1, dt * 12);
-          if (current >= 99.8) current = 100;
-        } else {
-          if (current < target) {
-            var diff = target - current;
-            var speed = Math.max(diff * 3.5, 15);
-            current = Math.min(target, current + speed * dt);
-          } else if (current < 94) {
-            current += 1.8 * dt;
+      window.setStatus(${JSON.stringify(trayT("Loading Applio…"))});
+      window.setProgress = function(pct) {
+        if (pct === 100 && bar) {
+          bar.style.animation = 'none';
+          bar.style.transform = 'none';
+          bar.style.width = '100%';
+          if (track) {
+            track.setAttribute('aria-valuemin', '0');
+            track.setAttribute('aria-valuemax', '100');
+            track.setAttribute('aria-valuenow', '100');
           }
         }
-
-        if (bar) {
-          bar.style.width = current.toFixed(2) + '%';
-        }
-
-        requestAnimationFrame(tick);
-      }
-
-      requestAnimationFrame(tick);
+      };
     })();
   </script>
 </body>
@@ -1088,10 +1080,15 @@ function showSplash(): void {
   });
 }
 
-function setSplashStatus(_text: string, percent?: number): void {
+function setSplashStatus(text: string, percent?: number): void {
   if (!splash || splash.isDestroyed()) return;
+  void splash.webContents
+    .executeJavaScript(
+      `if(typeof window.setStatus === 'function') window.setStatus(${JSON.stringify(trayT(text))});`,
+    )
+    .catch(() => {});
   const clamped = typeof percent === "number" ? Math.max(0, Math.min(100, Math.round(percent))) : null;
-  if (clamped !== null) {
+  if (clamped === 100) {
     void splash.webContents
       .executeJavaScript(`if(typeof window.setProgress === 'function') window.setProgress(${clamped});`)
       .catch(() => {});
@@ -1717,29 +1714,29 @@ async function createWindow(): Promise<void> {
   const apiStartupTimeout = movingLogs ? 24 * 60 * 60 : 60;
 
   if (isDev) {
-    setSplashStatus("Connecting to dev environment…", 15);
+    setSplashStatus("Loading Applio…");
     const apiHealthUrl = `http://127.0.0.1:${API_PORT}/api/health`;
 
     let webDone = false;
     let apiDone = false;
 
     const [webOk] = await Promise.all([
-      waitFor(WEB_URL, 60, (ratio) => {
+      waitFor(WEB_URL, 60, () => {
         if (!webDone && !apiDone) {
-          setSplashStatus("Starting dev server…", 15 + Math.round(ratio * 35));
+          setSplashStatus("Loading Applio…");
         }
       }).then((res) => {
         webDone = true;
-        if (res && !apiDone) setSplashStatus("Dev server ready, waiting for engine…", 55);
+        if (res && !apiDone) setSplashStatus("Starting engine…");
         return res;
       }),
-      waitFor(apiHealthUrl, apiStartupTimeout, (ratio) => {
+      waitFor(apiHealthUrl, apiStartupTimeout, () => {
         if (movingLogs) {
-          setSplashStatus("Moving logs folder…", 20);
+          setSplashStatus("Moving logs folder…");
           return;
         }
         if (webDone && !apiDone) {
-          setSplashStatus("Starting engine…", 55 + Math.round(ratio * 30));
+          setSplashStatus("Starting engine…");
         }
       }).then((res) => {
         apiDone = true;
@@ -1765,30 +1762,25 @@ async function createWindow(): Promise<void> {
     }
 
     // Preload & prime engine data
-    setSplashStatus("Loading Applio…", 88);
+    setSplashStatus("Loading Applio…");
     primeStartupData();
   } else {
-    let attempt = 0;
     for (;;) {
-      attempt += 1;
       stopBackends();
-      setSplashStatus(attempt > 1 ? `Retrying… (attempt ${attempt})` : "Starting engine…", 20);
+      setSplashStatus("Starting engine…");
       startProdBackends();
       const apiHealthUrl = `http://127.0.0.1:${API_PORT}/api/health`;
       const webHealthUrl = `http://127.0.0.1:${WEB_PORT}/`;
 
       const [webOk, apiOk] = await Promise.all([
-        waitFor(webHealthUrl, 60, (ratio) =>
-          setSplashStatus(
-            movingLogs ? "Moving logs folder…" : "Starting Applio…",
-            movingLogs ? 20 : 20 + Math.min(65, Math.round(ratio * 65)),
-          ),
+        waitFor(webHealthUrl, 60, () =>
+          setSplashStatus(movingLogs ? "Moving logs folder…" : "Loading Applio…"),
         ),
         waitFor(apiHealthUrl, apiStartupTimeout),
       ]);
 
       if (webOk && apiOk) {
-        setSplashStatus("Loading Applio…", 88);
+        setSplashStatus("Loading Applio…");
         primeStartupData();
         break;
       }
@@ -1801,7 +1793,7 @@ async function createWindow(): Promise<void> {
     }
   }
 
-  setSplashStatus("Ready!", 95);
+  setSplashStatus("Loading Applio…");
 
   const icon = appIconPath();
   const saved = loadWindowState();
@@ -1844,7 +1836,7 @@ async function createWindow(): Promise<void> {
   const showMainWindow = () => {
     if (windowShown || !mainWindow || mainWindow.isDestroyed()) return;
     windowShown = true;
-    setSplashStatus("Ready!", 100);
+    setSplashStatus("Ready", 100);
 
     closeSplash();
     if (!mainWindow || mainWindow.isDestroyed()) return;

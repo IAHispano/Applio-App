@@ -20,8 +20,8 @@ import { useI18n } from "@/lib/i18n";
 
 const PRIMARY_TABS = [
   { icon: House, label: "Home", to: "/" },
-  { icon: Sparkles, label: "Inference", to: "/inference" },
-  { icon: Mic, label: "TTS", to: "/tts" },
+  { icon: Sparkles, label: "Convert Audio", to: "/inference" },
+  { icon: Mic, label: "Text to Speech", to: "/tts" },
   { icon: Database, label: "Models", to: "/models" },
 ] as const;
 
@@ -29,9 +29,9 @@ export function BottomNav() {
   const { remote } = useRemoteBridge();
   const tabs = remote
     ? [
-        { icon: Sparkles, label: "Inference", to: "/inference" },
+        { icon: Sparkles, label: "Convert Audio", to: "/inference" },
         { icon: AudioWaveform, label: "Audio Separator", to: "/audio-separator" },
-        { icon: Mic, label: "TTS", to: "/tts" },
+        { icon: Mic, label: "Text to Speech", to: "/tts" },
         { icon: Activity, label: "Job history", to: "/jobs" },
       ]
     : PRIMARY_TABS;

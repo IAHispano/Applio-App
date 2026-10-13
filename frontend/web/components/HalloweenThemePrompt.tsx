@@ -71,12 +71,12 @@ export default function HalloweenThemePrompt() {
     <section
       ref={panel}
       aria-labelledby={titleId}
-      className="halloween-prompt shrink-0 mx-1 mt-3 rounded-xl p-3 space-y-2"
+      className="halloween-prompt shrink-0 mx-1 mt-2 rounded-xl p-2.5 space-y-1.5"
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-2 min-w-0 text-[#ffd2a8]">
-          <Ghost size={18} aria-hidden="true" />
-          <h2 id={titleId} className="m-0 text-xs font-semibold">
+        <span className="flex items-center gap-1.5 min-w-0 text-[#ffd2a8]">
+          <Ghost size={14} className="shrink-0" aria-hidden="true" />
+          <h2 id={titleId} className="m-0 text-[11px] leading-snug font-semibold">
             {t("A little Halloween magic")}
           </h2>
         </span>
@@ -88,14 +88,14 @@ export default function HalloweenThemePrompt() {
           className="!h-7 !w-7 !min-w-7 !min-h-7 !max-w-7 !max-h-7 !bg-transparent !border-transparent !text-[#eadbf6]"
         />
       </div>
-      <p className="m-0 text-[11px] leading-relaxed text-[#eadbf6]">
+      <p className="m-0 text-[11px] leading-snug text-[#eadbf6]">
         {t("Pumpkin orange, midnight purple. Give Applio a seasonal glow.")}
       </p>
       <Button
-        size="sm"
+        size="xs"
         block
         loading={busy}
-        className="!bg-[#ff9b42] !text-[#160b21] !border-transparent !h-auto !py-2"
+        className="!bg-[#ff9b42] !text-[#160b21] !border-transparent !h-auto !min-h-8 !py-1 !px-2.5 !text-[11px] !leading-snug"
         onClick={async () => {
           setBusy(true);
           setError(false);

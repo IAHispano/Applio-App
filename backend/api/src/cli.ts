@@ -7,9 +7,11 @@ import {
   type Job,
   type JobType,
   jobIsActive,
+  jobOperationStage,
   registerJobCancellation,
   setDone,
   setError,
+  setJobStage,
   setRunning,
 } from "@/jobs";
 import { repoRel as sharedRepoRel } from "@/lib/fsutils";
@@ -170,7 +172,10 @@ export function startCliJob(
               /* progress parsing must never fail the job */
             }
           },
-          onSpawn: (pid) => trackPid(job.id, pid, group),
+          onSpawn: (pid) => {
+            trackPid(job.id, pid, group);
+            setJobStage(job, jobOperationStage(job));
+          },
         });
         trackPid(job.id, undefined);
         if (r.code !== 0) {
@@ -189,6 +194,7 @@ export function startCliJob(
               : opts.expectSuccess.test(lastLine) || opts.expectSuccess.test(r.stdout);
           if (!ok) throw new Error(lastLine.slice(-1000) || "Job reported failure");
         }
+        setJobStage(job, "Checking output…");
         const parsed = opts.parse ? opts.parse(r.stdout, r.stderr) : undefined;
         const resultObj = parsed?.result ?? { message: lastLine || "Done" };
         const outputRel = parsed?.outputFile ? repoRel(parsed.outputFile) : undefined;
@@ -240,7 +246,18 @@ export async function runJobStep(
         }
       }
     },
-    onSpawn: (pid) => trackPid(job.id, pid, group),
+    onSpawn: (pid) => {
+      trackPid(job.id, pid, group);
+      const stages: Record<string, string> = {
+        Preprocess: "Preprocessing dataset…",
+        Extract: "Extracting features…",
+        Training: "Training model…",
+        Index: "Generating index…",
+        "Audio separation setup": "Installing dependencies…",
+        "Pretrained download": "Downloading models…",
+      };
+      setJobStage(job, stages[step] || "Working…");
+    },
   });
   trackPid(job.id, undefined);
   const successLineMatch = !expected || lastStdoutLine(r.stdout) === expected || r.stdout.includes(expected);

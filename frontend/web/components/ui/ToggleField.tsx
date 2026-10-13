@@ -37,10 +37,10 @@ function ToggleFieldInner({
   const descId = description ? `${id}-desc` : undefined;
 
   return (
-    <div className={`toggle-field space-y-1.5 min-w-0 ${className}`}>
+    <div className={`toggle-field flex flex-col gap-1 min-w-0 ${className}`}>
       <label
         htmlFor={id}
-        className={`flex items-center gap-2.5 min-h-8 select-none ${
+        className={`flex items-center gap-2.5 min-h-6 select-none ${
           disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
         }`}
       >

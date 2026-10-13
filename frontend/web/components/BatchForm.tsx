@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BatchResults, { type BatchResult } from "@/components/BatchResults";
 import ConversionParameters, { type ConversionParameterValues } from "@/components/ConversionParameters";
-import { JobError } from "@/components/JobStatus";
+import { JobError, JobStage } from "@/components/JobStatus";
 import ModelPresetStatus from "@/components/ModelPresetStatus";
 import { Alert, Badge, Button, Card, CardHeader, SegmentedControl, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
+import ProgressBar from "@/components/ui/ProgressBar";
 import SettingHelp from "@/components/ui/SettingHelp";
 import { apiSend, errMsg, fetchModels, fileBasename, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -390,6 +391,19 @@ export default function BatchForm() {
     }
   }
 
+  const disabledReason =
+    busy || active
+      ? t("Wait for the current conversion to finish.")
+      : !conversion.loaded
+        ? t("Loading model settings…")
+        : !selectedModels.length
+          ? t("Select a voice model.")
+          : !inputPath.trim() && !inputFolder.trim()
+            ? t("Provide an input folder or a single audio file.")
+            : !sourceFiles || !selectedFileCount
+              ? t("Review and select audio files before converting.")
+              : "";
+
   return (
     <form onSubmit={onSubmit} className="card-stack">
       <ModelPresetStatus />
@@ -458,8 +472,11 @@ export default function BatchForm() {
                       }
                     />
                     <span className="truncate flex-1" title={model}>
-                      {fileBasename(model)}
+                      {fileBasename(model).replace(/\.(pth|onnx)$/i, "")}
                     </span>
+                    <Badge variant="neutral" size="sm">
+                      {model.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH"}
+                    </Badge>
                   </label>
                   {checked && (
                     <div className="mt-1.5 pl-6">
@@ -468,21 +485,26 @@ export default function BatchForm() {
                       </label>
                       <CustomSelect
                         id={`batch-index-${model}`}
-                        description={t(SETTING_HELP.index)}
+                        aria-describedby={`batch-index-${model}-help`}
                         value={indexFor(model)}
                         onChange={(e) => {
                           const v = e.target.value;
                           setModelIndexes((prev) => ({ ...prev, [model]: v }));
                         }}
                         className="w-full"
-                      >
-                        <option value="">{t("None")}</option>
-                        {indexes.map((idx) => (
-                          <option key={idx} value={idx}>
-                            {fileBasename(idx)} ({idx})
-                          </option>
-                        ))}
-                      </CustomSelect>
+                        options={[
+                          { value: "", label: t("None") },
+                          ...indexes.map((idx) => ({
+                            value: idx,
+                            label: fileBasename(idx).replace(/\.index$/i, ""),
+                            badge: "INDEX",
+                            description: idx,
+                          })),
+                        ]}
+                      />
+                      <div className="sr-only">
+                        <SettingHelp text={t(SETTING_HELP.index)} controlId={`batch-index-${model}`} />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -547,25 +569,9 @@ export default function BatchForm() {
             </div>
           )}
         </div>
-        <div className="mt-3">
-          <label htmlFor="batch-output-folder" className="text-xs font-medium text-neutral-300">
-            {t("Output Folder")}
-          </label>
-          <input
-            id="batch-output-folder"
-            type="text"
-            value={outputFolder}
-            onChange={(e) => setOutputFolder(e.target.value)}
-            className="w-full mt-1 text-xs"
-            aria-describedby={`${"batch-output-folder"}-help`}
-          />
-          <SettingHelp text={t(SETTING_HELP.batchOutput)} controlId={"batch-output-folder"} />
-          {canBrowse && (
-            <Button size="xs" variant="ghost" onClick={() => chooseFolder("output")} className="mt-2">
-              {t("Browse")}
-            </Button>
-          )}
-        </div>
+        <p className="field-help m-0 break-words">
+          {t("Output Folder")}: <span className="text-[var(--text)]">{outputFolder}</span>
+        </p>
         <div className="mt-4 space-y-3">
           <Button
             size="sm"
@@ -625,12 +631,6 @@ export default function BatchForm() {
               </div>
             </div>
           )}
-          <ToggleField
-            id="batch-continue-on-error"
-            checked={continueOnError}
-            onChange={setContinueOnError}
-            label={t("Continue after a failed file")}
-          />
         </div>
         {selectedModels.length > 0 && (
           <p className="text-xs text-neutral-300 m-0 mt-3" role="status">
@@ -641,6 +641,37 @@ export default function BatchForm() {
 
       <ConversionParameters
         idPrefix="batch"
+        simplified
+        additionalControls={
+          <div className="space-y-4">
+            {" "}
+            <div className="mt-3">
+              <label htmlFor="batch-output-folder" className="text-xs font-medium text-neutral-300">
+                {t("Output Folder")}
+              </label>
+              <input
+                id="batch-output-folder"
+                type="text"
+                value={outputFolder}
+                onChange={(e) => setOutputFolder(e.target.value)}
+                className="w-full mt-1 text-xs"
+                aria-describedby={`${"batch-output-folder"}-help`}
+              />
+              <SettingHelp text={t(SETTING_HELP.batchOutput)} controlId={"batch-output-folder"} />
+              {canBrowse && (
+                <Button size="xs" variant="ghost" onClick={() => chooseFolder("output")} className="mt-2">
+                  {t("Browse")}
+                </Button>
+              )}
+            </div>
+            <ToggleField
+              id="batch-continue-on-error"
+              checked={continueOnError}
+              onChange={setContinueOnError}
+              label={t("Continue after a failed file")}
+            />
+          </div>
+        }
         onReset={paramsReset}
         values={paramsValues}
         setters={paramsSetters}
@@ -675,15 +706,8 @@ export default function BatchForm() {
           <div className="flex items-center gap-3">
             <Button
               type="submit"
-              disabled={
-                !conversion.loaded ||
-                busy ||
-                active ||
-                !sourceFiles ||
-                !selectedFileCount ||
-                !selectedModels.length ||
-                (!inputPath.trim() && !inputFolder.trim())
-              }
+              disabled={Boolean(disabledReason)}
+              aria-describedby={disabledReason ? "batch-convert-help" : undefined}
               icon={<Wand2 size={16} />}
             >
               {busy ? t("Converting Batch…") : t("Convert Batch")}
@@ -726,6 +750,12 @@ export default function BatchForm() {
           </div>
         </div>
 
+        {disabledReason && (
+          <p id="batch-convert-help" className="field-help m-0" role="status" aria-live="polite">
+            {disabledReason}
+          </p>
+        )}
+
         {/* Running State Live Progress Bar */}
         {job && (job.status === "running" || job.status === "queued") && (
           <div
@@ -739,19 +769,11 @@ export default function BatchForm() {
                 {t(job.status === "queued" ? "Queued" : "In Progress")}
               </span>
             </div>
-            <div
-              className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={job.progress}
-              aria-label={t("Batch Conversion in Progress…")}
-            >
-              <div
-                className="h-full bg-white rounded-full transition-all duration-300"
-                style={{ width: `${job.progress ?? 0}%` }}
-              />
-            </div>
+            <ProgressBar
+              progress={job.status === "running" ? job.progress : undefined}
+              label={t("Batch Conversion in Progress…")}
+              activity={<JobStage job={job} />}
+            />
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-neutral-400 pt-1 break-all">
               <span>
                 {t("Input:")} {String(job.params?.inputPath || job.params?.inputFolder || "")}

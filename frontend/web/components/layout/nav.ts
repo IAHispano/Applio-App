@@ -34,9 +34,14 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Voice",
     items: [
-      { icon: Sparkles, label: "Inference", to: "/inference", blurb: "Convert audio files single or batch" },
+      {
+        icon: Sparkles,
+        label: "Convert Audio",
+        to: "/inference",
+        blurb: "Convert audio files single or batch",
+      },
       { icon: Radio, label: "Realtime", to: "/realtime", blurb: "Live microphone voice conversion" },
-      { icon: Mic, label: "TTS", to: "/tts", blurb: "Synthesize speech and convert voice" },
+      { icon: Mic, label: "Text to Speech", to: "/tts", blurb: "Synthesize speech and convert voice" },
     ],
   },
   {
@@ -56,7 +61,12 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     title: "Tools & Extras",
     items: [
-      { icon: SlidersHorizontal, label: "Extra", to: "/extra", blurb: "Audio analyzer and pitch extractor" },
+      {
+        icon: SlidersHorizontal,
+        label: "Audio Tools",
+        to: "/extra",
+        blurb: "Audio analyzer and pitch extractor",
+      },
       {
         icon: AudioWaveform,
         label: "Audio Separator",

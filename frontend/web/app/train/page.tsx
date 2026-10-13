@@ -15,12 +15,13 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { JobProgress, JobStage } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
 import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
 import TrainingConsole from "@/components/train/TrainingConsole";
 import TrainingUpload from "@/components/train/TrainingUpload";
-import { Alert, Badge, Button, Card, CardHeader, Modal, ToggleField } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, Disclosure, Modal, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SettingHelp from "@/components/ui/SettingHelp";
@@ -29,7 +30,7 @@ import { apiGet, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
-import { usePersistentJobId } from "@/lib/useJob";
+import { useJob, usePersistentJobId } from "@/lib/useJob";
 
 type TrainMode = "auto" | "manual";
 type StepModal = null | "preprocess" | "extract" | "train" | "index";
@@ -87,6 +88,18 @@ export default function TrainPage() {
   }
 
   const [jobId, setJobId] = usePersistentJobId("train");
+  const trainingActivity = useJob(jobId);
+  const trainingJob = trainingActivity.job;
+  const activeTraining =
+    trainingActivity.isActive || Boolean(jobId && trainingJob?.id !== jobId && !trainingActivity.error);
+  const automaticJob =
+    trainingJob?.id === jobId &&
+    trainingJob?.params?.pipeline &&
+    (activeTraining ||
+      (trainingJob.params.modelName === modelName.trim() &&
+        trainingJob.params.datasetPath === cleanDatasetPath()))
+      ? trainingJob
+      : null;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
@@ -205,7 +218,7 @@ export default function TrainPage() {
   }
 
   async function run(path: string, body: unknown, stepKey?: NonNullable<StepModal>) {
-    if (busy || uploadsInProgress > 0) return false;
+    if (busy || activeTraining || uploadsInProgress > 0) return false;
     setError("");
     setBusy(true);
     try {
@@ -222,7 +235,7 @@ export default function TrainPage() {
   }
 
   async function runPipeline() {
-    if (busy || uploadsInProgress > 0) return;
+    if (busy || activeTraining || uploadsInProgress > 0) return;
     if (!modelName.trim()) {
       toast(t("Please enter a model name."), "error");
       return;
@@ -366,11 +379,25 @@ export default function TrainPage() {
   const isCpu = gpuCount === "-";
 
   const pipelinePhases = [
-    { n: 1, icon: <Sliders size={13} className="text-white" />, label: t("Preprocess") },
-    { n: 2, icon: <Activity size={13} className="text-white" />, label: t("Extract") },
-    { n: 3, icon: <Flame size={13} className="text-white" />, label: t("Train") },
-    { n: 4, icon: <Database size={13} className="text-white" />, label: t("Index") },
+    { n: 1, label: t("Preprocess"), stage: "Preprocessing dataset…" },
+    { n: 2, label: t("Extract"), stage: "Extracting features…" },
+    { n: 3, label: t("Train"), stage: "Training model…" },
+    { n: 4, label: t("Index"), stage: "Generating index…" },
   ];
+  const currentPhase =
+    automaticJob?.stage === "Checking output…"
+      ? pipelinePhases.length
+      : pipelinePhases.findIndex((phase) => phase.stage === automaticJob?.stage);
+  const automaticDisabledReason =
+    busy || activeTraining
+      ? t("Pipeline Running…")
+      : uploadsInProgress > 0
+        ? t("Uploading…")
+        : !modelName.trim()
+          ? t("Please enter a model name.")
+          : !cleanDatasetPath()
+            ? t("Please enter a dataset path.")
+            : "";
 
   const manualSteps: Array<{
     key: NonNullable<StepModal>;
@@ -434,6 +461,7 @@ export default function TrainPage() {
             <label htmlFor="train-model-name">{t("Model Name")}</label>
             <input
               id="train-model-name"
+              disabled={activeTraining}
               type="text"
               value={modelName}
               onChange={(e) => setModelName(e.target.value)}
@@ -446,6 +474,7 @@ export default function TrainPage() {
             <label htmlFor="train-gpu">{t("GPU")}</label>
             <GpuSelect
               id="train-gpu"
+              disabled={activeTraining}
               value={gpuCount}
               onChange={setGpuCount}
               devices={gpuDevices}
@@ -455,6 +484,7 @@ export default function TrainPage() {
           <div>
             <SliderField
               id="train-cpu-cores"
+              disabled={activeTraining}
               label={t("CPU Cores")}
               value={cpuCores === "" ? hostCores : Math.min(Number(cpuCores), hostCores)}
               min={1}
@@ -525,161 +555,216 @@ export default function TrainPage() {
               step={3}
               icon={<Zap size={18} className="text-white" />}
               title={t("Automatic Training")}
+              description={t("Preprocess, extract, train, and index.")}
               action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => loadDatasets()}
-                  icon={<RefreshCw size={14} />}
+                <Badge
+                  variant={activeTraining ? "info" : automaticJob?.status === "done" ? "success" : "neutral"}
+                  dot
                 >
-                  {t("Refresh Datasets")}
-                </Button>
+                  {activeTraining
+                    ? t(automaticJob?.status === "queued" ? "Queued" : "In Progress")
+                    : automaticJob?.status === "done"
+                      ? t("Completed")
+                      : t("Automatic")}
+                </Badge>
               }
             />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2">
-              {pipelinePhases.map((p) => (
-                <div
-                  key={p.n}
-                  className="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-black/20 border border-white/10 min-w-0"
-                >
-                  <span className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
-                    {p.icon}
-                  </span>
-                  <span className="text-xs text-neutral-400 shrink-0">{p.n}</span>
-                  <span className="text-xs font-medium text-neutral-200 truncate">{p.label}</span>
+            <ol
+              className="grid grid-cols-2 xl:grid-cols-4 gap-3 list-none p-0 m-0"
+              aria-label={t("Automatic Training")}
+            >
+              {pipelinePhases.map((phase, index) => {
+                const skipIndex =
+                  index === 3 && (automaticJob?.params?.indexAlgorithm ?? indexAlgo) === "Skip";
+                const done = !skipIndex && (automaticJob?.status === "done" || currentPhase > index);
+                const running = !skipIndex && automaticJob?.status === "running" && currentPhase === index;
+                const failed = !skipIndex && automaticJob?.status === "error" && currentPhase === index;
+                const status = skipIndex
+                  ? "Skipped"
+                  : done
+                    ? "Completed"
+                    : failed
+                      ? "Failed"
+                      : running
+                        ? "In Progress"
+                        : "Pending";
+                return (
+                  <li
+                    key={phase.n}
+                    aria-current={running ? "step" : undefined}
+                    className={`rounded-xl border p-3 space-y-2 ${running ? "border-[var(--focus-border)] bg-[var(--accent-soft)]" : "border-[var(--border)] bg-[var(--input-bg)]"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-lg bg-[var(--surface)] text-xs shrink-0">
+                        {done ? <Check size={13} /> : phase.n}
+                      </span>
+                      <span className="text-sm font-medium text-[var(--heading)]">{phase.label}</span>
+                    </div>
+                    <Badge
+                      variant={done ? "success" : failed ? "danger" : running ? "info" : "neutral"}
+                      size="sm"
+                    >
+                      {t(status)}
+                    </Badge>
+                  </li>
+                );
+              })}
+            </ol>
+
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 rounded-xl bg-[var(--surface)] p-4 text-xs m-0">
+              <div className="min-w-0">
+                <dt className="text-[var(--muted)] mb-1">{t("Dataset Path")}</dt>
+                <dd className="m-0 break-words">
+                  {String(
+                    activeTraining && automaticJob
+                      ? automaticJob.params?.datasetPath || ""
+                      : cleanDatasetPath(),
+                  ) || t("Please enter a dataset path.")}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[var(--muted)] mb-1">{t("Output saved to")}</dt>
+                <dd className="m-0 break-words">
+                  logs/
+                  {String(
+                    activeTraining && automaticJob ? automaticJob.params?.modelName || modelName : modelName,
+                  ) || "…"}
+                  /
+                </dd>
+              </div>
+            </dl>
+
+            <fieldset
+              disabled={busy || activeTraining}
+              className="min-w-0 border-0 px-0 pt-0 pb-4 m-0 space-y-4"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <div>
+                  <label htmlFor="auto-sample-rate">{t("Target Sampling Rate")}</label>
+                  <CustomSelect
+                    id="auto-sample-rate"
+                    value={sampleRate}
+                    onChange={(e) => setSampleRate(e.target.value)}
+                    className="w-full mt-1"
+                    description={t(SETTING_HELP.sampleRate)}
+                  >
+                    {srOptions.map((s) => (
+                      <option key={s} value={s}>
+                        {s} Hz
+                      </option>
+                    ))}
+                  </CustomSelect>
                 </div>
-              ))}
-            </div>
-
-            <h3 className="text-xs text-neutral-400 m-0 pt-1">{t("Dataset & Audio")}</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="sm:col-span-2 lg:col-span-1">
-                <label htmlFor="auto-dataset-path">{t("Dataset Path")}</label>
-                <input
-                  id="auto-dataset-path"
-                  type="text"
-                  list="auto-dataset-list"
-                  value={datasetPath}
-                  onChange={(e) => setDatasetPath(e.target.value)}
-                  placeholder={t("e.g. assets/datasets/my-dataset or C:/path/to/dataset")}
-                  aria-describedby={`${"auto-dataset-path"}-help`}
-                />
-                <SettingHelp text={t(SETTING_HELP.dataset)} controlId={"auto-dataset-path"} />
-                <datalist id="auto-dataset-list">
-                  {datasets.map((d) => (
-                    <option key={d} value={d} />
-                  ))}
-                </datalist>
-                <TrainingUpload
-                  kind="dataset"
-                  disabled={busy || uploadsInProgress > 0}
-                  onUploaded={onDatasetUploaded}
-                  onBusyChange={onUploadBusyChange}
-                />
+                <div>
+                  <SliderField
+                    id="auto-total-epoch"
+                    label={t("Total Epoch")}
+                    value={totalEpoch}
+                    min={10}
+                    max={1000}
+                    step={10}
+                    onChange={setTotalEpoch}
+                    description={t(SETTING_HELP.epochs)}
+                  />
+                </div>
+                <div>
+                  <SliderField
+                    id="auto-batch-size"
+                    label={t("Batch Size")}
+                    value={batchSize}
+                    min={1}
+                    max={32}
+                    step={1}
+                    onChange={setBatchSize}
+                    description={t(SETTING_HELP.batchSize)}
+                  />
+                </div>
               </div>
-              <div>
-                <label htmlFor="auto-sample-rate">{t("Target Sampling Rate")}</label>
-                <CustomSelect
-                  id="auto-sample-rate"
-                  value={sampleRate}
-                  onChange={(e) => setSampleRate(e.target.value)}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.sampleRate)}
-                >
-                  {srOptions.map((s) => (
-                    <option key={s} value={s}>
-                      {s} Hz
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-              <div>
-                <label htmlFor="auto-f0-method">{t("Pitch extraction algorithm")}</label>
-                <CustomSelect
-                  id="auto-f0-method"
-                  value={f0Method}
-                  onChange={(e) => setF0Method(e.target.value)}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.pitchMethod)}
-                >
-                  {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-              <div>
-                <label htmlFor="auto-vocoder">{t("Vocoder Architecture")}</label>
-                <CustomSelect
-                  id="auto-vocoder"
-                  value={vocoder}
-                  onChange={(e) => pickVocoder(e.target.value)}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.vocoder)}
-                >
-                  {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-              <div>
-                <SliderField
-                  id="auto-total-epoch"
-                  label={t("Total Epoch")}
-                  value={totalEpoch}
-                  min={10}
-                  max={1000}
-                  step={10}
-                  onChange={setTotalEpoch}
-                  description={t(SETTING_HELP.epochs)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="auto-batch-size"
-                  label={t("Batch Size")}
-                  value={batchSize}
-                  min={1}
-                  max={32}
-                  step={1}
-                  onChange={setBatchSize}
-                  description={t(SETTING_HELP.batchSize)}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <ToggleField
-                id="auto-noise-reduction"
-                label={t("Noise Reduction")}
-                checked={noiseReduction}
-                onChange={setNoiseReduction}
-                description={t(SETTING_HELP.clean)}
-              />
-              <button
-                type="button"
-                onClick={() => setTrainMode("manual")}
-                className="bg-transparent border-0 p-0 text-xs text-neutral-400 hover:text-white cursor-pointer text-left sm:text-right"
+              <Disclosure
+                title={t("Advanced training options")}
+                description={t("Adjust pitch extraction, vocoder, index generation, and noise reduction.")}
+                icon={<Sliders size={16} />}
               >
-                {t("Advanced training options")}
-              </button>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label htmlFor="auto-f0-method">{t("Pitch extraction algorithm")}</label>
+                    <CustomSelect
+                      id="auto-f0-method"
+                      value={f0Method}
+                      onChange={(e) => setF0Method(e.target.value)}
+                      className="w-full mt-1"
+                      description={t(SETTING_HELP.pitchMethod)}
+                    >
+                      {["rmvpe", "fcpe", "swift", "crepe"].map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </div>
+                  <div>
+                    <label htmlFor="auto-vocoder">{t("Vocoder Architecture")}</label>
+                    <CustomSelect
+                      id="auto-vocoder"
+                      value={vocoder}
+                      onChange={(e) => pickVocoder(e.target.value)}
+                      className="w-full mt-1"
+                      description={t(SETTING_HELP.vocoder)}
+                    >
+                      {["HiFi-GAN", "MRF HiFi-GAN", "RefineGAN"].map((s) => (
+                        <option key={s} value={s}>
+                          {s}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </div>
+                  <div>
+                    <label htmlFor="auto-index-algo">{t("Index Algorithm")}</label>
+                    <CustomSelect
+                      id="auto-index-algo"
+                      value={indexAlgo}
+                      onChange={(event) => setIndexAlgo(event.target.value)}
+                      description={t(SETTING_HELP.indexAlgorithm)}
+                      className="w-full mt-1"
+                    >
+                      {["Auto", "Faiss", "KMeans", "Skip"].map((value) => (
+                        <option key={value} value={value}>
+                          {value === "Skip" ? t("Skip") : value}
+                        </option>
+                      ))}
+                    </CustomSelect>
+                  </div>
+                </div>
+                <ToggleField
+                  id="auto-noise-reduction"
+                  label={t("Noise Reduction")}
+                  checked={noiseReduction}
+                  onChange={setNoiseReduction}
+                  description={t(SETTING_HELP.clean)}
+                />
+              </Disclosure>
+            </fieldset>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            {automaticJob && (automaticJob.status === "running" || automaticJob.status === "queued") && (
+              <div className="rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-4 space-y-3">
+                <JobStage job={automaticJob} />
+                <JobProgress status={automaticJob.status} progress={automaticJob.progress} />
+              </div>
+            )}
+            {automaticJob?.status === "error" && <Alert variant="error">{automaticJob.error}</Alert>}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <Button
                 loading={busy}
                 onClick={runPipeline}
                 icon={<Zap size={16} />}
-                disabled={busy || uploadsInProgress > 0}
+                disabled={Boolean(automaticDisabledReason)}
+                aria-describedby={automaticDisabledReason ? "auto-training-help" : undefined}
                 className="w-full sm:w-auto"
               >
-                {busy ? t("Pipeline Running…") : t("Start Automatic Training")}
+                {busy || activeTraining ? t("Pipeline Running…") : t("Start Automatic Training")}
               </Button>
-              {busy && (
+              {activeTraining && (
                 <Button
                   variant="danger"
                   onClick={stop}
@@ -690,6 +775,11 @@ export default function TrainPage() {
                 </Button>
               )}
             </div>
+            {automaticDisabledReason && (
+              <p id="auto-training-help" className="field-help m-0" role="status">
+                {automaticDisabledReason}
+              </p>
+            )}
           </Card>
         </div>
       )}
@@ -792,7 +882,7 @@ export default function TrainPage() {
               </datalist>
               <TrainingUpload
                 kind="dataset"
-                disabled={busy || uploadsInProgress > 0}
+                disabled={busy || activeTraining || uploadsInProgress > 0}
                 onUploaded={onDatasetUploaded}
                 onBusyChange={onUploadBusyChange}
               />
@@ -917,7 +1007,7 @@ export default function TrainPage() {
             loading={busy}
             onClick={runPreprocess}
             icon={<Play size={14} />}
-            disabled={busy || uploadsInProgress > 0}
+            disabled={busy || activeTraining || uploadsInProgress > 0}
           >
             {busy ? t("Running…") : t("Run Preprocess")}
           </Button>
@@ -989,7 +1079,7 @@ export default function TrainPage() {
                 <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"modal-ext-custom-embedder"} />
                 <TrainingUpload
                   kind="embedder"
-                  disabled={busy || uploadsInProgress > 0}
+                  disabled={busy || activeTraining || uploadsInProgress > 0}
                   onUploaded={setEmbedderCustom}
                   onBusyChange={onUploadBusyChange}
                 />
@@ -1036,7 +1126,7 @@ export default function TrainPage() {
             loading={busy}
             onClick={runExtract}
             icon={<Play size={14} />}
-            disabled={busy || uploadsInProgress > 0}
+            disabled={busy || activeTraining || uploadsInProgress > 0}
           >
             {busy ? t("Running…") : t("Run Extraction")}
           </Button>
@@ -1287,7 +1377,7 @@ export default function TrainPage() {
             loading={busy}
             onClick={runTrainStep}
             icon={<Play size={14} />}
-            disabled={busy || uploadsInProgress > 0}
+            disabled={busy || activeTraining || uploadsInProgress > 0}
           >
             {busy ? t("Running…") : t("Start Training")}
           </Button>
@@ -1331,7 +1421,7 @@ export default function TrainPage() {
             loading={busy}
             onClick={runIndex}
             icon={<Play size={14} />}
-            disabled={busy || uploadsInProgress > 0}
+            disabled={busy || activeTraining || uploadsInProgress > 0}
           >
             {busy ? t("Running…") : t("Generate Index")}
           </Button>

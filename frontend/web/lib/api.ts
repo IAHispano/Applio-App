@@ -58,6 +58,9 @@ export interface Job {
   error?: string;
   errorDetails?: string;
   outputFile?: string;
+  stage?: string;
+  stageCurrent?: number;
+  stageTotal?: number;
   progress?: number;
 }
 

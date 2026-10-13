@@ -149,7 +149,7 @@ export default function JobsPage() {
                   )}
                   {active && (
                     <>
-                      <JobProgress status={job.status} progress={job.progress} />
+                      <JobProgress status={job.status} progress={job.progress} job={job} />
                       {job.logs.length > 0 && (
                         <p className="m-0 text-xs text-[var(--muted)] line-clamp-2 break-words">
                           {cleanJobLogs(job.logs).at(-1)}

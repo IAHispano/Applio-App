@@ -87,6 +87,11 @@ interface ConversionParametersProps {
   onReset: () => void;
   /** Optional control rendered next to the reset button (e.g. per-model target picker). */
   targetSelect?: React.ReactNode;
+  /** Keep pitch visible and group technical controls under Advanced. */
+  simplified?: boolean;
+  step?: number;
+  /** Workflow-specific controls grouped with the technical settings. */
+  additionalControls?: React.ReactNode;
 }
 
 export default function ConversionParameters({
@@ -95,6 +100,9 @@ export default function ConversionParameters({
   idPrefix,
   onReset,
   targetSelect,
+  simplified = false,
+  step,
+  additionalControls,
 }: ConversionParametersProps) {
   const { t } = useI18n();
   const {
@@ -213,43 +221,29 @@ export default function ConversionParameters({
     gain: setGain,
     gainDb: setGainDb,
   } = setters;
-  return (
-    <Card>
-      <CardHeader
-        icon={<Sliders size={18} className="text-white" />}
-        title={t("Conversion Parameters")}
-        description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
-        action={
-          <div className="flex items-center gap-2">
-            {targetSelect}
-            <button
-              type="button"
-              onClick={onReset}
-              className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            >
-              {t("Reset defaults")}
-            </button>
-          </div>
-        }
+  const pitchControl = (
+    <div>
+      <SliderField
+        id={`${idPrefix}-pitch`}
+        label={t("Pitch")}
+        value={pitch}
+        min={-24}
+        max={24}
+        step={1}
+        unit="st"
+        formatValue={(v) => `${v}`}
+        onChange={setPitch}
+        description={t("Transpose pitch in semitones (-24 = lower, +24 = higher)")}
       />
-
+    </div>
+  );
+  const advancedParameters = (
+    <>
       {/* 4 Core Voice Sliders (2x2 Grid on md, 4 across on xl/fullscreen) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        {/* Pitch */}
-        <div>
-          <SliderField
-            id={`${idPrefix}-pitch`}
-            label={t("Pitch")}
-            value={pitch}
-            min={-24}
-            max={24}
-            step={1}
-            unit="st"
-            formatValue={(v) => `${v}`}
-            onChange={setPitch}
-            description={t("Transpose pitch in semitones (-24 = lower, +24 = higher)")}
-          />
-        </div>
+      <div
+        className={`grid grid-cols-1 md:grid-cols-2 ${simplified ? "xl:grid-cols-3" : "xl:grid-cols-4"} gap-5`}
+      >
+        {!simplified && pitchControl}
 
         {/* Search Feature Ratio */}
         <div>
@@ -984,6 +978,49 @@ export default function ConversionParameters({
           )}
         </Disclosure>
       </div>
+    </>
+  );
+
+  return (
+    <Card>
+      <CardHeader
+        step={step}
+        icon={<Sliders size={18} className="text-white" />}
+        title={t("Conversion Parameters")}
+        description={
+          simplified
+            ? undefined
+            : t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")
+        }
+        action={
+          <div className="flex items-center gap-2">
+            {targetSelect}
+            <button
+              type="button"
+              onClick={onReset}
+              className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
+            >
+              {t("Reset defaults")}
+            </button>
+          </div>
+        }
+      />
+
+      {simplified ? (
+        <>
+          {pitchControl}
+          <Disclosure
+            title={t("Advanced Settings")}
+            description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
+            icon={<Sliders size={16} />}
+          >
+            {additionalControls}
+            {advancedParameters}
+          </Disclosure>
+        </>
+      ) : (
+        advancedParameters
+      )}
     </Card>
   );
 }

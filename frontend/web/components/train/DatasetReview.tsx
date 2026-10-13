@@ -2,7 +2,9 @@
 
 import { Check, ClipboardCheck, FolderCheck, Play, Search, Square } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { JobStage } from "@/components/JobStatus";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, errMsg, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob } from "@/lib/useJob";
@@ -266,10 +268,12 @@ export default function DatasetReview({
       {active && (
         <div className="space-y-2" role="status">
           <p className="text-xs text-[var(--muted)] m-0">
-            {t(mode === "scan" ? "Scanning recordings…" : "Preparing a separate training copy…")}{" "}
-            {job?.progress ?? 0}%
+            {t(mode === "scan" ? "Scanning recordings…" : "Preparing a separate training copy…")}
           </p>
-          <progress value={job?.progress ?? 0} max={100} className="w-full h-2" />
+          <ProgressBar
+            progress={job?.status === "running" ? job.progress : undefined}
+            activity={job ? <JobStage job={job} /> : t("Preparing…")}
+          />
         </div>
       )}
       {(error || jobError || job?.status === "error") && (

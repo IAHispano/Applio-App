@@ -2,6 +2,7 @@
 
 import { Check, Gauge, Square } from "lucide-react";
 import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { useI18n } from "@/lib/i18n";
 import { type CalibrationResult, recommendCalibration } from "@/lib/realtime-calibration";
 
@@ -14,6 +15,7 @@ export default function RealtimeCalibration({
   stale,
   error,
   progress,
+  activity,
   onStart,
   onCancel,
   onApply,
@@ -26,6 +28,7 @@ export default function RealtimeCalibration({
   stale: boolean;
   error: string;
   progress: number;
+  activity: string;
   onStart: () => void;
   onCancel: () => void;
   onApply: (chunkMs: number) => void;
@@ -68,7 +71,16 @@ export default function RealtimeCalibration({
         )}
       </div>
       {running && (
-        <progress aria-label={t("Calibration progress")} value={progress} max={100} className="w-full h-2" />
+        <ProgressBar
+          label={t("Calibration progress")}
+          progress={progress}
+          activity={
+            <>
+              {t(activity)}
+              {current > 0 && <> · {t("Testing {size} ms", { size: current })}</>}
+            </>
+          }
+        />
       )}
       {error && <Alert variant="error">{error}</Alert>}
       {results.length > 0 && (

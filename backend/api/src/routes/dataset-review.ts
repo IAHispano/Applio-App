@@ -11,8 +11,10 @@ import {
   createJob,
   type Job,
   jobIsActive,
+  jobOperationStage,
   setDone,
   setError,
+  setJobStage,
   setProgress,
   setRunning,
 } from "@/jobs";
@@ -54,6 +56,7 @@ async function runReview(
   if (!(await acquireJobSlot(job, "dataset-review"))) return;
   try {
     setRunning(job);
+    setJobStage(job, jobOperationStage(job));
     let progressBuffer = "";
     const processResult = await runPythonModule(["tools/dataset_quality.py", ...args], {
       detached: process.platform !== "win32",
@@ -66,7 +69,10 @@ async function runReview(
           progressBuffer = lines.pop() || "";
           for (const line of lines) {
             const match = line.match(/^REVIEW_PROGRESS:(\d+)\/(\d+)$/);
-            if (match) setProgress(job, Math.round((Number(match[1]) / Number(match[2])) * 100));
+            if (match && Number(match[2]) > 0) {
+              setJobStage(job, jobOperationStage(job), Number(match[1]), Number(match[2]));
+              setProgress(job, Math.round((Number(match[1]) / Number(match[2])) * 100));
+            }
           }
         }
       },
@@ -74,6 +80,7 @@ async function runReview(
     if (!jobIsActive(job)) return;
     if (processResult.code !== 0)
       throw new Error(processResult.stderr.trim().slice(-2500) || "Dataset review failed.");
+    setJobStage(job, "Checking output…");
     const json = processResult.stdout.split(/\r?\n/).find((line) => line.startsWith("REVIEW_RESULT:"));
     if (!json) throw new Error("Dataset review produced no report.");
     setDone(job, result(JSON.parse(json.slice("REVIEW_RESULT:".length))));

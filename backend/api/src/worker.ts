@@ -2,7 +2,7 @@ import { type ChildProcess, spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
-import { registerJobCancellation } from "@/jobs";
+import { getJob, jobOperationStage, registerJobCancellation, setJobStage } from "@/jobs";
 import { getCodeRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 import { gpuJobRunning, schedulerStatus, setGpuPreparation } from "@/scheduler";
 import type { InferenceParams, TtsParams } from "@/schemas";
@@ -581,6 +581,11 @@ export class InferenceWorkerManager {
     }
 
     try {
+      if (req.command === "tts") req.onLog("[applio-stage:synthesizing]");
+      if (req.command !== "tts" && req.command !== "infer") {
+        const job = getJob(req.id);
+        if (job) setJobStage(job, jobOperationStage(job));
+      }
       this.child.stdin?.write(`${JSON.stringify(payload)}\n`);
     } catch (err: unknown) {
       this.activeJob = null;

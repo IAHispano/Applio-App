@@ -60,7 +60,7 @@ export default function ExtraPage() {
   return (
     <div className="page-stack">
       <PageHeader
-        title={t("Extra Audio Analysis & Processing")}
+        title={t("Audio Tools")}
         description={t(
           "Inspect acoustic waveforms, plot frequency spectrograms, and extract pitch contours.",
         )}

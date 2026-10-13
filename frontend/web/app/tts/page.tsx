@@ -9,7 +9,7 @@ export default function TtsPage() {
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
-        title={t("TTS")}
+        title={t("Text to Speech")}
         description={t("Synthesize speech from text and convert it to your selected target voice.")}
       />
       <TtsForm />

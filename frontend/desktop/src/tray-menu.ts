@@ -117,7 +117,7 @@ export function trayMenu(
       label: t("Studio"),
       submenu: [
         ...(!navigate ? [{ label: t("Stop realtime to switch pages"), enabled: false }] : []),
-        page(t("Inference"), "inference"),
+        page(t("Convert Audio"), "inference"),
         page(t("Text to Speech"), "tts"),
         page(t("Audio Separator"), "audio-separator"),
         { type: "separator" },
@@ -126,7 +126,7 @@ export function trayMenu(
         page(t("TensorBoard"), "tensorboard"),
         { type: "separator" },
         page(t("Jobs"), "jobs"),
-        page(t("Extra"), "extra"),
+        page(t("Audio Tools"), "extra"),
       ],
     },
     {

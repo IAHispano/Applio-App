@@ -2,7 +2,9 @@
 
 import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { JobStage } from "@/components/JobStatus";
 import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import type { SetupStatus } from "@/lib/setup";
@@ -240,15 +242,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     });
   }, [job?.status, logsText]);
 
-  // Estimated progress percentage
-  const progressPercent = useMemo(() => {
-    if (job?.status === "done") return 100;
-    const completedCount = steps.filter((s) => s.status === "done").length;
-    const hasRunning = steps.some((s) => s.status === "running");
-    const base = completedCount * 20;
-    return Math.min(95, Math.max(8, base + (hasRunning ? 10 : 0)));
-  }, [job?.status, steps]);
-
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
       <div className="w-full page-stack">
@@ -292,7 +285,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
               <span>
                 {job?.status === "done"
                   ? t("Installation Complete")
-                  : `${t("Automated Setup in Progress")} (${progressPercent}%)`}
+                  : error
+                    ? t("Failed")
+                    : t("Automated Setup in Progress")}
               </span>
             </span>
             <span className="text-neutral-400">
@@ -302,19 +297,21 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             </span>
           </div>
 
-          <div
-            role="progressbar"
-            aria-valuenow={progressPercent}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuetext={`${progressPercent}% - ${steps.filter((s) => s.status === "done").length} of ${steps.length} steps completed`}
-            className="w-full h-2 rounded-full bg-white/10 overflow-hidden relative"
-          >
-            <div
-              className="h-full bg-white transition-all duration-500 rounded-full"
-              style={{ width: `${progressPercent}%` }}
+          {!error && (
+            <ProgressBar
+              progress={job?.status === "done" ? 100 : job?.status === "running" ? job.progress : undefined}
+              label={t("Automated Setup in Progress")}
+              activity={
+                job?.status === "done" ? (
+                  t("Installation Complete")
+                ) : job ? (
+                  <JobStage job={job} />
+                ) : (
+                  t("Preparing…")
+                )
+              }
             />
-          </div>
+          )}
 
           {/* Checklist */}
           <div className="space-y-2 pt-2">

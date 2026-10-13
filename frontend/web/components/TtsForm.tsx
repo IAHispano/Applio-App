@@ -1,11 +1,10 @@
 "use client";
 
-import { FileText, Music, Type, Upload, Wand2 } from "lucide-react";
+import { FileText, Type, Upload, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
-import { JobError } from "@/components/JobStatus";
-import ModelPresetStatus from "@/components/ModelPresetStatus";
+import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
 import {
   Alert,
   Badge,
@@ -17,8 +16,8 @@ import {
   FormField,
   SegmentedControl,
   SliderField,
-  VoiceModelField,
 } from "@/components/ui";
+import VoiceModelCard from "@/components/VoiceModelCard";
 import { apiGet, apiSend, errMsg, fetchModels, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
@@ -136,6 +135,17 @@ export default function TtsForm() {
     }
   }
 
+  const disabledReason =
+    busy || job?.status === "running" || job?.status === "queued"
+      ? t("Wait for the current conversion to finish.")
+      : !conversion.loaded
+        ? t("Loading model settings…")
+        : !pthPath
+          ? t("Select a voice model.")
+          : !text.trim() && !file
+            ? t("Enter text or upload a .txt file.")
+            : "";
+
   return (
     <div className="space-y-4">
       {error && (
@@ -150,6 +160,7 @@ export default function TtsForm() {
           <CardHeader
             icon={<FileText size={18} className="text-white" />}
             title={t("Speech Synthesis Source")}
+            step={1}
             description={t("Enter text or upload a text file to synthesize speech before voice conversion.")}
             action={
               <Badge variant="neutral" size="sm">
@@ -184,7 +195,7 @@ export default function TtsForm() {
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   placeholder={t("Hello, this is Applio.")}
-                  className="w-full resize-y"
+                  className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-[var(--text)]"
                   aria-describedby={`${"tts-text-input"}-desc`}
                 />
               </FormField>
@@ -233,59 +244,26 @@ export default function TtsForm() {
           </div>
         </Card>
 
-        {/* Card 2: Target Voice Model */}
-        <Card as="section" className="space-y-4">
-          <CardHeader
-            icon={<Music size={18} className="text-white" />}
-            title={t("Voice Model")}
-            description={t("Select the target voice model and feature index for speech timbre conversion.")}
-            action={
-              pthPath ? (
-                <Badge variant="success" size="sm" dot>
-                  {t("Ready")}
-                </Badge>
-              ) : undefined
-            }
-          />
-
-          <div className="space-y-3">
-            <VoiceModelField
-              models={models}
-              selectedModel={pthPath}
-              indexes={indexes}
-              indexPath={indexPath}
-              indexSelectId="tts-index-file"
-              onSelect={(selected) => handleModelSelect(selected, indexes)}
-              onUnload={handleUnloadModel}
-              onRefresh={loadModels}
-              onIndexChange={setIndexPath}
-            />
-            <ModelPresetStatus />
-
-            {speakers.length > 1 && (
-              <div className="max-w-md">
-                <FormField label={t("Speaker ID (Multi-Speaker Model)")} htmlFor="tts-speaker-id">
-                  <CustomSelect
-                    id="tts-speaker-id"
-                    value={String(sid)}
-                    onChange={(e) => setSid(Number(e.target.value))}
-                    className="w-full mt-1"
-                    description={t(SETTING_HELP.speaker)}
-                  >
-                    {speakers.map((s) => (
-                      <option key={s} value={String(s)}>
-                        {t("Speaker")} {s}
-                      </option>
-                    ))}
-                  </CustomSelect>
-                </FormField>
-              </div>
-            )}
-          </div>
-        </Card>
+        <VoiceModelCard
+          step={2}
+          models={models}
+          selectedModel={pthPath}
+          indexes={indexes}
+          indexPath={indexPath}
+          indexSelectId="tts-index-file"
+          onSelect={(selected) => handleModelSelect(selected, indexes)}
+          onUnload={handleUnloadModel}
+          onRefresh={loadModels}
+          onIndexChange={setIndexPath}
+          speakers={speakers}
+          sid={sid}
+          onSpeakerChange={setSid}
+        />
 
         <ConversionParameters
+          step={3}
           idPrefix="tts"
+          simplified
           values={conversion.values}
           setters={conversion.setters}
           onReset={conversion.reset}
@@ -297,14 +275,8 @@ export default function TtsForm() {
             <div className="flex items-center gap-3">
               <Button
                 type="submit"
-                disabled={
-                  !conversion.loaded ||
-                  busy ||
-                  job?.status === "running" ||
-                  job?.status === "queued" ||
-                  !pthPath ||
-                  (!text.trim() && !file)
-                }
+                disabled={Boolean(disabledReason)}
+                aria-describedby={disabledReason ? "tts-convert-help" : undefined}
                 icon={<Wand2 size={16} />}
               >
                 {busy ? t("Submitting…") : t("Convert Speech")}
@@ -343,26 +315,31 @@ export default function TtsForm() {
             </div>
           </div>
 
+          {disabledReason && (
+            <p id="tts-convert-help" className="field-help m-0" role="status" aria-live="polite">
+              {disabledReason}
+            </p>
+          )}
+
           {/* Conversion In Progress Live Progress Bar */}
-          {job && (job.status === "running" || job.status === "queued") && (
+          {(busy || (job && (job.status === "running" || job.status === "queued"))) && (
             <div
               className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200"
               role="status"
               aria-live="polite"
             >
               <div className="flex items-center justify-between text-xs text-neutral-300">
-                <span className="font-medium">{t("Synthesizing speech & converting timbre…")}</span>
-                <span className="text-neutral-400 capitalize">{job.status}</span>
+                <span className="font-medium">
+                  {busy ? t("Submitting…") : job ? <JobStage job={job} /> : t("Working…")}
+                </span>
+                <span className="text-neutral-400 capitalize">
+                  {busy ? t("Submitting…") : job?.status === "queued" ? t("Queued") : t("In Progress")}
+                </span>
               </div>
-              <div
-                className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
-                role="progressbar"
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-label={t("Synthesizing speech & converting timbre…")}
-              >
-                <div className="h-full bg-white rounded-full transition-all duration-300 animate-pulse w-3/4" />
-              </div>
+              <JobProgress
+                status={busy ? "running" : (job?.status ?? "running")}
+                progress={!busy && job?.status === "running" ? job.progress : undefined}
+              />
             </div>
           )}
 
@@ -376,24 +353,15 @@ export default function TtsForm() {
               jobId={job.id}
             />
           )}
-
-          {/* Synthesized Output Waveform Player */}
-          {job?.outputFile && job.status === "done" && (
-            <div className="space-y-2 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
-                <span className="font-semibold text-white">{t("Synthesized Speech Output")}</span>
-                <Badge variant="success" size="sm" dot>
-                  {t("Ready")}
-                </Badge>
-              </div>
-              <AudioWavePlayer
-                src={outputUrl(job.outputFile)}
-                title={`${t("TTS Output:")} ${fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}`}
-                filename={fileBasename(job.outputFile)}
-              />
-            </div>
-          )}
         </Card>
+        {job?.outputFile && job.status === "done" && (
+          <AudioWavePlayer
+            src={outputUrl(job.outputFile)}
+            resultLabel={t("Synthesized Speech Output")}
+            title={fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}
+            filename={fileBasename(job.outputFile)}
+          />
+        )}
       </form>
     </div>
   );

@@ -82,7 +82,8 @@ export default function Disclosure({
         </span>
         <ChevronDown
           size={16}
-          className="transition-transform duration-200 group-open:rotate-180 text-[var(--muted)] shrink-0"
+          aria-hidden="true"
+          className="disclosure-chevron transition-transform duration-200 text-[var(--muted)] shrink-0"
         />
       </summary>
       <div className={`disclosure-body px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>{children}</div>

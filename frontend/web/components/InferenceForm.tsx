@@ -1,19 +1,16 @@
 "use client";
 
-import { AudioWaveform, Loader2, Music, Wand2 } from "lucide-react";
-import Link from "next/link";
+import { AudioWaveform, Wand2 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
-import { JobError } from "@/components/JobStatus";
-import ModelPresetStatus from "@/components/ModelPresetStatus";
+import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
-import { Alert, Badge, Button, Card, CardHeader, EMBEDDER_MODELS, VoiceModelField } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, EMBEDDER_MODELS } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
-import CustomSelect from "@/components/ui/CustomSelect";
+import VoiceModelCard from "@/components/VoiceModelCard";
 import {
-  apiGet,
   apiSend,
   errMsg,
   fetchJob,
@@ -27,26 +24,11 @@ import {
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
-import { getModelPreset, loadModelPresets } from "@/lib/model-presets";
-import { SETTING_HELP } from "@/lib/setting-help";
+import { getModelPreset } from "@/lib/model-presets";
 import { useConversionParameters } from "@/lib/useConversionParameters";
 import { usePersistentJobId } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import { useSpeakers } from "@/lib/useSpeakers";
-
-interface ModelDetail {
-  pthPath: string;
-  pthSize: number;
-  indexSize: number | null;
-  modifiedAt: string;
-  folder: string;
-}
-
-function humanSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 export default function InferenceForm() {
   const { t } = useI18n();
@@ -133,69 +115,14 @@ export default function InferenceForm() {
   const [submitError, setSubmitError] = useState("");
 
   const speakers = useSpeakers(pthPath);
-  const [library, setLibrary] = useState<ModelDetail[]>([]);
-
-  // Cheap filesystem metadata (no Python): fills the model card once a model
-  // is picked, where the empty-state hint used to be.
-  useEffect(() => {
-    apiGet<{ models: ModelDetail[] }>("/api/models/library")
-      .then((r) => setLibrary(r.models || []))
-      .catch(() => setLibrary([]));
-  }, []);
-
-  const selectedMeta = useMemo(() => library.find((m) => m.pthPath === pthPath) ?? null, [library, pthPath]);
-
-  // Deep model metadata extracted by running inspection script
-  const [inspectMeta, setInspectMeta] = useState<ModelMetadata | null>(null);
-  const [inspectLoading, setInspectLoading] = useState(false);
-  const [inspectError, setInspectError] = useState("");
-
-  // Extract model information when checkpoint is loaded
-  useEffect(() => {
-    if (!pthPath) {
-      setInspectMeta(null);
-      setInspectLoading(false);
-      setInspectError("");
-      return;
-    }
-
-    let cancelled = false;
-    // Clear previous model's details immediately so stale arch info never
-    // lingers while the new checkpoint inspects (skeletons show instead).
-    setInspectMeta(null);
-    setInspectLoading(true);
-    setInspectError("");
-
-    apiSend<{ ok: boolean; metadata: ModelMetadata }>("/api/models/inspect", "POST", { pthPath })
-      .then(async (res) => {
-        await loadModelPresets();
-        if (cancelled) return;
-        if (res?.metadata) {
-          setInspectMeta(res.metadata);
-          // Auto-sync embedder model if detected in checkpoint metadata
-          if (res.metadata.embedder_model && res.metadata.embedder_model !== "None") {
-            const emb = res.metadata.embedder_model.toLowerCase();
-            if (EMBEDDER_MODELS.includes(emb) && !getModelPreset("conversion", pthPath)?.embedderModel) {
-              setEmbedderModel(emb);
-            }
-          }
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setInspectError(errMsg(err));
-        }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setInspectLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [pthPath, setEmbedderModel]);
+  const handleModelMetadata = useCallback(
+    (metadata: ModelMetadata) => {
+      const emb = metadata.embedder_model?.toLowerCase();
+      if (emb && EMBEDDER_MODELS.includes(emb) && !getModelPreset("conversion", pthPath)?.embedderModel)
+        setEmbedderModel(emb);
+    },
+    [pthPath, setEmbedderModel],
+  );
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
@@ -216,10 +143,6 @@ export default function InferenceForm() {
           setLoadError("");
         })
         .catch((e) => setLoadError(errMsg(e)));
-
-      apiGet<{ models: ModelDetail[] }>("/api/models/library", { force })
-        .then((r) => setLibrary(r.models || []))
-        .catch(() => setLibrary([]));
     },
     [pthPath],
   );
@@ -412,6 +335,16 @@ export default function InferenceForm() {
 
   const isConverting = Boolean(submitting || (job && job.status !== "done" && job.status !== "error"));
 
+  const disabledReason = isConverting
+    ? t("Wait for the current conversion to finish.")
+    : !conversion.loaded
+      ? t("Loading model settings…")
+      : !pthPath
+        ? t("Select a voice model.")
+        : !audioFile && !inputPath
+          ? t("Upload an audio file or select a sample from your library.")
+          : "";
+
   return (
     <form onSubmit={onSubmit} className="card-stack w-full max-w-[1920px] mx-auto">
       {loadError && (
@@ -427,199 +360,23 @@ export default function InferenceForm() {
       <div className="grid grid-cols-1 xl:grid-cols-12 card-grid items-stretch">
         {/* Voice Model Selector (5 cols, 4 on 2xl) */}
         <div className="xl:col-span-5 2xl:col-span-4 space-y-4 h-full">
-          <Card className="h-full flex flex-col">
-            <CardHeader
-              icon={<Music size={18} className="text-white" />}
-              title={t("Voice Model")}
-              description={t("Select the target voice checkpoint and paired feature index.")}
-              action={
-                pthPath ? (
-                  <Badge variant="success" size="sm" dot>
-                    {t("Ready")}
-                  </Badge>
-                ) : undefined
-              }
-            />
-
-            {/* Shared voice model picker (dropdown + linked index) */}
-            <VoiceModelField
-              models={models}
-              selectedModel={pthPath}
-              indexes={indexes}
-              indexPath={indexPath}
-              indexSelectId="infer-index-file"
-              onSelect={handleModelSelect}
-              onUnload={handleUnloadModel}
-              onRefresh={loadAvailableModels}
-              onIndexChange={setIndexPath}
-            />
-            <ModelPresetStatus />
-
-            {/* Enriched Model Metadata with deep inspection extraction */}
-            {pthPath && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-neutral-400 px-0.5">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-neutral-300">{t("Model Architecture")}</span>
-                    {inspectLoading && (
-                      <span className="flex items-center gap-1 text-[11px] text-neutral-400">
-                        <Loader2 size={11} className="animate-spin text-neutral-300" />
-                        <span>{t("Extracting info…")}</span>
-                      </span>
-                    )}
-                    {inspectMeta?.version && inspectMeta.version !== "None" && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-white font-sans uppercase border border-white/10">
-                        {inspectMeta.version}
-                      </span>
-                    )}
-                  </div>
-                  {inspectMeta?.author && inspectMeta.author !== "None" && (
-                    <span className="text-[11px] text-neutral-300 truncate max-w-[150px]">
-                      {t("by")} <strong className="text-white font-medium">{inspectMeta.author}</strong>
-                    </span>
-                  )}
-                </div>
-
-                {inspectError && !inspectLoading && <Alert variant="warning">{inspectError}</Alert>}
-
-                <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5 [&>div]:min-w-0">
-                  <div>
-                    <dt>{t("Weights")}</dt>
-                    <dd className="text-white font-medium">
-                      {selectedMeta?.pthSize ? humanSize(selectedMeta.pthSize) : "—"}
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{t("Index")}</dt>
-                    <dd className="text-white font-medium">
-                      {selectedMeta?.indexSize
-                        ? humanSize(selectedMeta.indexSize)
-                        : indexPath
-                          ? fileBasename(indexPath)
-                          : "—"}
-                    </dd>
-                  </div>
-                  {(
-                    [
-                      { label: t("Epochs"), value: inspectMeta?.epochs },
-                      { label: t("Training Steps"), value: inspectMeta?.step, numeric: true },
-                      { label: t("Sample Rate"), value: inspectMeta?.sr, sampleRate: true },
-                      { label: t("Pitch extraction algorithm"), value: inspectMeta?.f0, pitch: true },
-                      { label: t("Embedder Model"), value: inspectMeta?.embedder_model, truncate: true },
-                    ] as Array<{
-                      label: string;
-                      value?: string;
-                      numeric?: boolean;
-                      sampleRate?: boolean;
-                      pitch?: boolean;
-                      truncate?: boolean;
-                    }>
-                  ).map((row) => {
-                    const value = row.value ?? "";
-                    const missing =
-                      value === "" || value === "None" || (row.numeric && Number.isNaN(Number(value)));
-                    return (
-                      <div key={row.label}>
-                        <dt>{row.label}</dt>
-                        <dd className="text-white font-medium">
-                          {inspectLoading ? (
-                            <span
-                              aria-hidden="true"
-                              className="block h-3.5 w-20 rounded bg-white/10 animate-pulse"
-                            />
-                          ) : missing ? (
-                            "—"
-                          ) : row.numeric ? (
-                            Number(value).toLocaleString()
-                          ) : row.sampleRate ? (
-                            value.endsWith("k") ? (
-                              `${value}Hz`
-                            ) : (
-                              `${Number(value) / 1000} kHz`
-                            )
-                          ) : row.pitch ? (
-                            value === "1" || value === "True" || value === "true" ? (
-                              t("Yes")
-                            ) : (
-                              t("No (pitchless)")
-                            )
-                          ) : row.truncate ? (
-                            <span className="block truncate" title={value}>
-                              {value}
-                            </span>
-                          ) : (
-                            value
-                          )}
-                        </dd>
-                      </div>
-                    );
-                  })}
-                  <div>
-                    <dt>{t("Speakers")}</dt>
-                    <dd className="text-white font-medium">
-                      {speakers.length > 0 ? speakers.length : inspectMeta?.speakers_id || 1}
-                    </dd>
-                  </div>
-                  {selectedMeta?.folder && (
-                    <div>
-                      <dt>{t("Folder")}</dt>
-                      <dd className="text-white font-medium truncate" title={selectedMeta.folder}>
-                        {selectedMeta.folder}
-                      </dd>
-                    </div>
-                  )}
-                  {selectedMeta?.modifiedAt && (
-                    <div>
-                      <dt>{t("Modified")}</dt>
-                      <dd className="text-white font-medium">
-                        {new Date(selectedMeta.modifiedAt).toLocaleDateString()}
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-              </div>
-            )}
-
-            {/* Empty state: the card is as tall as the audio one, so use the
-                room to say where models come from instead of leaving a void. */}
-            {!pthPath && (
-              <div className="flex flex-col items-center justify-center text-center gap-3 flex-1 py-6">
-                <Music size={26} className="text-neutral-600" />
-                <p className="text-xs text-neutral-400 m-0 max-w-[240px] leading-relaxed">
-                  {models.length === 0
-                    ? t("No models found in logs/. Download one or train your own to get started.")
-                    : t("Pick a voice model above — its index file is paired automatically.")}
-                </p>
-                {models.length === 0 && (
-                  <Link href="/models" className="ghost-link">
-                    {t("Go to Download")}
-                  </Link>
-                )}
-              </div>
-            )}
-
-            {/* Multi-speaker ID selector */}
-            {speakers.length > 1 && (
-              <div>
-                <label htmlFor="speaker-id-select" className="text-xs font-medium text-neutral-300">
-                  {t("Speaker ID (Multi-Speaker Model)")}
-                </label>
-                <CustomSelect
-                  id="speaker-id-select"
-                  value={String(sid)}
-                  onChange={(e) => setSid(Number(e.target.value))}
-                  className="w-full mt-1"
-                  description={t(SETTING_HELP.speaker)}
-                >
-                  {speakers.map((s) => (
-                    <option key={s} value={String(s)}>
-                      {t("Speaker")} {s}
-                    </option>
-                  ))}
-                </CustomSelect>
-              </div>
-            )}
-          </Card>
+          <VoiceModelCard
+            step={1}
+            className="h-full"
+            models={models}
+            selectedModel={pthPath}
+            indexes={indexes}
+            indexPath={indexPath}
+            indexSelectId="infer-index-file"
+            onSelect={handleModelSelect}
+            onUnload={handleUnloadModel}
+            onRefresh={loadAvailableModels}
+            onIndexChange={setIndexPath}
+            speakers={speakers}
+            sid={sid}
+            onSpeakerChange={setSid}
+            onMetadata={handleModelMetadata}
+          />
         </div>
 
         {/* Audio Input & Drag & Drop Zone (7 cols, 8 on 2xl) */}
@@ -628,6 +385,7 @@ export default function InferenceForm() {
             <CardHeader
               icon={<AudioWaveform size={18} className="text-white" />}
               title={t("Audio Source")}
+              step={2}
               description={t("Upload an audio file or select a sample from your library.")}
               action={
                 audioFile || inputPath ? (
@@ -654,7 +412,9 @@ export default function InferenceForm() {
       </div>
 
       <ConversionParameters
+        step={3}
         idPrefix="infer"
+        simplified
         onReset={conversion.reset}
         values={conversion.values}
         setters={conversion.setters}
@@ -667,7 +427,8 @@ export default function InferenceForm() {
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
             <Button
               type="submit"
-              disabled={!conversion.loaded || isConverting || !pthPath || (!audioFile && !inputPath)}
+              disabled={Boolean(disabledReason)}
+              aria-describedby={disabledReason ? "infer-convert-help" : undefined}
               icon={<Wand2 size={16} />}
               className="w-full sm:w-auto"
             >
@@ -695,35 +456,43 @@ export default function InferenceForm() {
                   ? t("Completed")
                   : job.status === "running"
                     ? t("In Progress")
-                    : job.status}
+                    : t("Queued")}
               </Badge>
             )}
           </div>
         </div>
 
-        {/* Live Conversion Progress Bar (strictly progress bar, no spinners!) */}
+        {disabledReason && (
+          <p id="infer-convert-help" className="field-help m-0" role="status" aria-live="polite">
+            {disabledReason}
+          </p>
+        )}
+
+        {/* Display measured progress only after the engine reports it. */}
         {isConverting && (
           <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2">
-            <div className="flex items-center justify-between text-xs text-neutral-300">
+            <div
+              className="flex items-center justify-between text-xs text-neutral-300"
+              role="status"
+              aria-live="polite"
+            >
               <span className="font-medium">
-                {submitting
-                  ? t("Submitting audio to AI voice model…")
-                  : job?.status === "queued"
-                    ? t("Queued in processing pipeline…")
-                    : t("Processing inference with voice model…")}
+                {submitting ? (
+                  t("Submitting audio to AI voice model…")
+                ) : job ? (
+                  <JobStage job={job} />
+                ) : (
+                  t("Working…")
+                )}
               </span>
               <span className="text-neutral-400 capitalize">
-                {submitting ? t("Uploading…") : job?.status || t("Working…")}
+                {submitting ? t("Submitting…") : job?.status === "queued" ? t("Queued") : t("In Progress")}
               </span>
             </div>
-            <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-white rounded-full transition-all duration-300 animate-pulse"
-                style={{
-                  width: submitting ? "30%" : job?.status === "queued" ? "50%" : "85%",
-                }}
-              />
-            </div>
+            <JobProgress
+              status={submitting ? "running" : (job?.status ?? "running")}
+              progress={!submitting && job?.status === "running" ? job.progress : undefined}
+            />
           </div>
         )}
 
@@ -738,24 +507,16 @@ export default function InferenceForm() {
             jobId={job.id}
           />
         )}
-
-        {/* Converted Audio WavePlayer Result with A/B Track Switching */}
-        {job && directAudioUrl && job.status === "done" && (
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between text-xs text-neutral-400 px-1">
-              <span className="font-semibold text-white">{t("Conversion Output Waveform")}</span>
-              <span>{t("Use A/B toggle to compare with original")}</span>
-            </div>
-
-            <AudioWavePlayer
-              src={directAudioUrl}
-              originalSrc={originalAudioUrl}
-              title={`${t("Output:")} ${fileBasename(pthPath).replace(/\.(pth|onnx)$/i, "")}`}
-              filename={job.outputFile ? fileBasename(job.outputFile) : undefined}
-            />
-          </div>
-        )}
       </Card>
+      {job && directAudioUrl && job.status === "done" && (
+        <AudioWavePlayer
+          src={directAudioUrl}
+          originalSrc={originalAudioUrl}
+          resultLabel={t("Conversion Output Waveform")}
+          title={fileBasename(pthPath).replace(/\.(pth|onnx)$/i, "")}
+          filename={job.outputFile ? fileBasename(job.outputFile) : undefined}
+        />
+      )}
     </form>
   );
 }

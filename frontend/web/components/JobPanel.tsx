@@ -95,7 +95,7 @@ export function JobPanelContent({
         />
       )}
 
-      <JobProgress status={job.status} progress={job.progress} />
+      <JobProgress status={job.status} progress={job.progress} job={job} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
 

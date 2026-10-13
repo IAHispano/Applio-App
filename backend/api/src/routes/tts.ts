@@ -3,7 +3,8 @@ import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { trackPid } from "@/cli";
 import { errMsg } from "@/errors";
-import { appendLog, createJob, getJob, setDone, setError, setProgress, setRunning } from "@/jobs";
+import { appendLog, createJob, getJob, setDone, setError, setJobStage, setRunning } from "@/jobs";
+import { trackConversionStage } from "@/lib/conversion-stage";
 import { buildCommonInferArgs } from "@/lib/inferArgs";
 import { txtUpload } from "@/lib/upload";
 import {
@@ -134,7 +135,7 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
     let finalServed: string | null = null;
 
     try {
-      setProgress(job, 10);
+      setJobStage(job, "Preparing speech synthesis…");
       try {
         const res = await inferenceWorker.tts(
           job.id,
@@ -152,8 +153,7 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
             if (trimmed) {
               appendLog(job, trimmed);
               runStdout += `${trimmed}\n`;
-              if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
-              if (/TTS RVC conversion completed/i.test(trimmed)) setProgress(job, 95);
+              trackConversionStage(job, chunk);
             }
           },
         );
@@ -179,13 +179,14 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
         ];
         for (const [stage, args] of stages.entries()) {
           if (job.status !== "running") return;
+          setJobStage(job, stage === 0 ? "Generating speech…" : "Loading voice model…");
           const result = await runPythonModule(args, {
             onData: (chunk) => {
               const trimmed = chunk.trim().slice(0, 1000);
               if (trimmed) {
                 appendLog(job, trimmed);
                 runStdout += `${trimmed}\n`;
-                if (/TTS audio generated/i.test(trimmed)) setProgress(job, 40);
+                trackConversionStage(job, chunk);
               }
             },
             onSpawn: (pid) => trackPid(job.id, pid),
@@ -196,11 +197,11 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
           }
           if (job.status !== "running") return;
           runStdout += result.stdout;
-          setProgress(job, stage === 0 ? 40 : 95);
         }
       }
 
       if (job.status !== "running") return;
+      setJobStage(job, "Checking output…");
       const finalAbs = outRvc.replace(/\.wav$/i, `.${ext}`);
       const served =
         finalServed && fs.existsSync(finalServed) ? finalServed : fs.existsSync(finalAbs) ? finalAbs : outRvc;
@@ -208,7 +209,6 @@ async function runTtsJob(jobId: string, params: TtsParams, ttsFile: string) {
       if (!fs.existsSync(served)) throw new Error("TTS finished but no output file was found.");
       const rel = path.relative(getRepoRoot(), served).replace(/\\/g, "/");
       appendLog(job, `Done: ${rel}`);
-      setProgress(job, 100);
       setDone(
         job,
         {

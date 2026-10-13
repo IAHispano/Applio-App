@@ -20,6 +20,9 @@ export interface Job {
   error?: string;
   errorDetails?: string;
   outputFile?: string; // repo-relative path served under /outputs
+  stage?: string;
+  stageCurrent?: number;
+  stageTotal?: number;
   progress?: number; // 0-100 determinate progress (unset = indeterminate)
 }
 
@@ -152,6 +155,7 @@ export function progressBarDesc(line: string): string {
 export function setRunning(job: Job) {
   if (!jobIsActive(job)) return;
   job.status = "running";
+  job.stage ??= "Preparing…";
   job.startedAt ??= new Date().toISOString();
   job.updatedAt = new Date().toISOString();
   notify(job);
@@ -166,6 +170,40 @@ export function setProgress(job: Job, pct: number) {
   job.updatedAt = new Date().toISOString();
   notify(job);
   notifyAllJobs(job);
+}
+
+/** Stage changes come from dispatched work or engine events, never elapsed time. */
+export function setJobStage(job: Job, stage: string, current?: number, total?: number) {
+  if (!jobIsActive(job)) return;
+  if (job.stage === stage && job.stageCurrent === current && job.stageTotal === total) return;
+  if (job.stage !== stage) delete job.progress;
+  job.stage = stage;
+  job.stageCurrent = current;
+  job.stageTotal = total;
+  job.updatedAt = new Date().toISOString();
+  notify(job);
+  notifyAllJobs(job);
+}
+
+export function jobOperationStage(job: Job): string {
+  const p = job.params || {};
+  const steps: Record<string, string> = {
+    preprocess: "Preprocessing dataset…",
+    extract: "Extracting features…",
+    train: "Training model…",
+    index: "Generating index…",
+    "dataset-review": "Scanning recordings…",
+    "dataset-prepare": "Preparing a separate training copy…",
+  };
+  if (typeof p.step === "string" && steps[p.step]) return steps[p.step];
+  if (job.type === "download" || p.url) return "Downloading…";
+  if (job.type === "train") return "Training model…";
+  if (p.inputPath && p.model && p.outputFormat) return "Separating audio…";
+  if (p.inputPath && p.method) return "Extracting pitch contour…";
+  if (p.plugin) return "Installing…";
+  if (p.pthPath1) return "Voice Blender";
+  if (p.inputPath) return "Analyzing audio…";
+  return "Working…";
 }
 
 export function setJobResult(job: Job, result: Record<string, unknown>) {
@@ -249,6 +287,9 @@ export function jobSummary(job: Job) {
     status: job.status,
     createdAt: job.createdAt,
     progress: job.progress,
+    stage: job.stage,
+    stageCurrent: job.stageCurrent,
+    stageTotal: job.stageTotal,
     stopped: job.status === "error" && /stopped by user|cancelled|canceled/i.test(job.error || ""),
   };
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Mic2, RefreshCw, Search, X } from "lucide-react";
+import { Check, ChevronDown, Mic2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/lib/i18n";
@@ -14,6 +14,8 @@ export interface ModelDropdownProps {
   onUnload?: () => void;
   indexes?: string[];
   disabled?: boolean;
+  /** Use a single-line trigger matching the standard select. */
+  compact?: boolean;
   /** DOM id for the trigger, so an external <label htmlFor> can name it. */
   id?: string;
   "aria-describedby"?: string;
@@ -46,9 +48,9 @@ export default function ModelDropdown({
   selectedModel,
   onSelect,
   onRefresh,
-  onUnload,
   indexes = [],
   disabled = false,
+  compact = false,
   id: customId,
   "aria-describedby": descriptionId,
 }: ModelDropdownProps) {
@@ -227,7 +229,7 @@ export default function ModelDropdown({
         return;
       }
       if (e.key === "Enter") {
-        // Let focused buttons (options, Unload, Refresh) handle Enter natively.
+        // Let focused option buttons handle Enter natively.
         const tag = (e.target as HTMLElement | null)?.tagName;
         if (tag === "BUTTON" || tag === "A") return;
         e.preventDefault();
@@ -375,45 +377,6 @@ export default function ModelDropdown({
                 })
               )}
             </div>
-
-            {/* Actions Footer */}
-            <div
-              className="p-2 flex items-center justify-between gap-2 text-xs shrink-0"
-              style={{ background: "var(--input-bg)" }}
-            >
-              <span className="text-[11px]" style={{ color: "var(--muted)" }}>
-                {models.length} {t("models available")}
-              </span>
-              <div className="flex items-center gap-2">
-                {selectedModel && onUnload && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUnload();
-                      setOpen(false);
-                      triggerRef.current?.focus();
-                    }}
-                    className="text-xs transition-colors hover:text-red-400"
-                    style={{ color: "var(--muted)" }}
-                  >
-                    {t("Unload")}
-                  </button>
-                )}
-                {onRefresh && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRefresh();
-                    }}
-                    className="flex items-center gap-1 text-xs transition-colors hover:text-white"
-                    style={{ color: "var(--button-ghost-text)" }}
-                  >
-                    <RefreshCw size={11} />
-                    <span>{t("Refresh")}</span>
-                  </button>
-                )}
-              </div>
-            </div>
           </div>,
           portalTarget,
         )
@@ -446,46 +409,64 @@ export default function ModelDropdown({
           borderColor: "var(--border)",
           borderRadius: "var(--radius-input)",
         }}
-        className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 border text-left transition-colors hover:border-white/20 ${
+        className={`w-full flex items-center justify-between gap-3 px-3.5 ${compact ? "h-11 rounded-xl" : "py-2.5"} border text-left transition-colors hover:bg-[var(--surface)] hover:border-white/20 ${
           disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
         }`}
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            className="w-8 h-8 flex items-center justify-center shrink-0"
-            style={{
-              background: "var(--accent-soft)",
-              borderRadius: "var(--radius-input)",
-              color: "var(--text)",
-            }}
-          >
-            <Mic2 size={16} />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <span
-                className="text-sm font-semibold truncate"
-                style={{ color: selectedModel ? "var(--text)" : "var(--muted)" }}
-              >
-                {currentDisplayName}
-              </span>
-              {selectedModel && (
-                <span
-                  className="text-[10px] px-1.5 py-0.2 rounded shrink-0"
-                  style={{ background: "var(--accent-soft)", color: "var(--muted)" }}
-                >
-                  {selectedModel.endsWith(".onnx") ? "ONNX" : "PTH"}
-                </span>
-              )}
-            </div>
+        {compact ? (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span
+              className={`min-w-0 flex-1 truncate text-sm font-semibold ${selectedModel ? "text-[var(--text)]" : "text-[var(--muted)]"}`}
+              title={selectedModel || undefined}
+            >
+              {currentDisplayName}
+            </span>
             {selectedModel && (
-              <p className="text-[11px] truncate m-0 leading-tight mt-0.5" style={{ color: "var(--muted)" }}>
-                {modelFolder(selectedModel)} {hasIndexMatch(selectedModel) ? `• ${t("Index paired")}` : ""}
-              </p>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/10 text-neutral-300 font-sans shrink-0">
+                {selectedModel.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH"}
+              </span>
             )}
           </div>
-        </div>
-
+        ) : (
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div
+              className="w-8 h-8 flex items-center justify-center shrink-0"
+              style={{
+                background: "var(--accent-soft)",
+                borderRadius: "var(--radius-input)",
+                color: "var(--text)",
+              }}
+            >
+              <Mic2 size={16} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-sm font-semibold truncate"
+                  style={{ color: selectedModel ? "var(--text)" : "var(--muted)" }}
+                >
+                  {currentDisplayName}
+                </span>
+                {selectedModel && (
+                  <span
+                    className="text-[10px] px-1.5 py-0.2 rounded shrink-0"
+                    style={{ background: "var(--accent-soft)", color: "var(--muted)" }}
+                  >
+                    {selectedModel.endsWith(".onnx") ? "ONNX" : "PTH"}
+                  </span>
+                )}
+              </div>
+              {selectedModel && (
+                <p
+                  className="text-[11px] truncate m-0 leading-tight mt-0.5"
+                  style={{ color: "var(--muted)" }}
+                >
+                  {modelFolder(selectedModel)} {hasIndexMatch(selectedModel) ? `• ${t("Index paired")}` : ""}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-1 shrink-0" style={{ color: "var(--muted)" }}>
           <ChevronDown
             size={16}

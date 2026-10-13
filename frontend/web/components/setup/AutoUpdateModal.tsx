@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Dialog, IconButton } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, cleanVersion, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -55,7 +56,7 @@ export default function AutoUpdateModal() {
   const [, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
   const [updating, setUpdating] = useState(false);
   const [updateStep, setUpdateStep] = useState<"idle" | "downloading" | "ready" | "done" | "error">("idle");
-  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateProgress, setUpdateProgress] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -84,6 +85,7 @@ export default function AutoUpdateModal() {
     setUpdating(true);
     setErrorMsg("");
     setUpdateStep("downloading");
+    setUpdateProgress(null);
     setStatusMessage(t("Starting update…"));
 
     const bridge = getBridge();
@@ -117,7 +119,7 @@ export default function AutoUpdateModal() {
     // 2. Web / Git / API fallback updater
     try {
       setStatusMessage(t("Applying update via repository…"));
-      setUpdateProgress(35);
+      setUpdateProgress(null);
       const res = await apiSend<{
         success: boolean;
         method: string;
@@ -126,7 +128,6 @@ export default function AutoUpdateModal() {
         downloadUrl?: string;
       }>("/api/settings/apply-update", "POST");
 
-      setUpdateProgress(100);
       if (res.success && res.method === "git") {
         setUpdateStep("done");
         setStatusMessage(t("Applio updated successfully! Restart the application to load the new version."));
@@ -220,8 +221,8 @@ export default function AutoUpdateModal() {
         if (st.status === "downloading") {
           setUpdating(true);
           setUpdateStep("downloading");
-          setUpdateProgress(st.percent ?? 0);
-          setStatusMessage(`${t("Downloading update…")} ${st.percent ?? 0}%`);
+          setUpdateProgress(st.percent ?? null);
+          setStatusMessage(t("Downloading update…"));
         } else if (st.status === "downloaded") {
           setUpdating(false);
           setUpdateStep("ready");
@@ -385,29 +386,15 @@ export default function AutoUpdateModal() {
                   {updateStep === "error" && <AlertTriangle size={13} className="text-red-400" />}
                   <span>{statusMessage || t("Processing update…")}</span>
                 </span>
-                {updateStep === "downloading" && updateProgress > 0 && (
-                  <span className="font-sans text-neutral-400">{updateProgress}%</span>
-                )}
               </div>
 
-              {/* Progress bar */}
-              <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                <div
-                  className={`h-full transition-all duration-300 ${
-                    updateStep === "ready" || updateStep === "done"
-                      ? "bg-emerald-400"
-                      : updateStep === "error"
-                        ? "bg-red-500"
-                        : "bg-white"
-                  }`}
-                  style={{
-                    width:
-                      updateStep === "ready" || updateStep === "done"
-                        ? "100%"
-                        : `${Math.max(updateProgress, 15)}%`,
-                  }}
+              {updateStep !== "error" && (
+                <ProgressBar
+                  progress={updateStep === "ready" || updateStep === "done" ? 100 : updateProgress}
+                  label={t("Processing update…")}
+                  activity={statusMessage || t("Processing update…")}
                 />
-              </div>
+              )}
 
               {errorMsg && <p className="text-xs text-red-400 m-0 font-medium">{errorMsg}</p>}
             </div>

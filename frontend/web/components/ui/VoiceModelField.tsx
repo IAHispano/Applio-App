@@ -24,6 +24,8 @@ export interface VoiceModelFieldProps {
   indexSelectId: string;
   /** Index picker label (defaults to "Index File") */
   indexLabel?: React.ReactNode;
+  /** Use compact model and index pickers. */
+  compact?: boolean;
   /** Model selection handlers (ModelDropdown passthrough) */
   onSelect: (modelPath: string) => void;
   onUnload: () => void;
@@ -45,6 +47,7 @@ export default function VoiceModelField({
   indexPath,
   indexSelectId,
   indexLabel,
+  compact = false,
   onSelect,
   onUnload,
   onRefresh,
@@ -55,44 +58,78 @@ export default function VoiceModelField({
 
   return (
     <div className="space-y-2">
-      {label && (
-        <label htmlFor={dropdownId} className="block text-xs font-medium text-neutral-300">
-          {label}
-        </label>
-      )}
-      <ModelDropdown
-        id={dropdownId}
-        aria-describedby={`${dropdownId}-help`}
-        models={models}
-        selectedModel={selectedModel}
-        indexes={indexes}
-        onSelect={onSelect}
-        onUnload={onUnload}
-        onRefresh={onRefresh}
-      />
-      <SettingHelp text={t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
-      {selectedModel && (
-        <div className="space-y-2 pt-3">
-          <label className="field-label block" htmlFor={indexSelectId}>
-            {indexLabel ?? t("Index File")}
-          </label>
-          <CustomSelect
-            id={indexSelectId}
-            description={t(SETTING_HELP.index)}
-            value={indexPath}
-            onOpen={onRefresh}
-            onChange={(e) => onIndexChange(e.target.value)}
-            className="w-full"
-          >
-            <option value="">{t("None")}</option>
-            {indexes.map((idx) => (
-              <option key={idx} value={idx}>
-                {fileBasename(idx)} ({idx})
-              </option>
-            ))}
-          </CustomSelect>
+      <div className={compact ? "grid grid-cols-1 gap-3" : "space-y-2"}>
+        <div className="min-w-0 space-y-2">
+          {(label || compact) && (
+            <label htmlFor={dropdownId} className="field-label block">
+              {label ?? t("Voice Model")}
+            </label>
+          )}
+          {compact ? (
+            <CustomSelect
+              id={dropdownId}
+              aria-describedby={`${dropdownId}-help`}
+              value={selectedModel}
+              placeholder={t("Select a voice model…")}
+              onOpen={onRefresh}
+              onValueChange={onSelect}
+              options={models.map((model) => ({
+                value: model,
+                label: fileBasename(model).replace(/\.(pth|onnx)$/i, ""),
+                badge: model.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH",
+                description: model,
+              }))}
+            />
+          ) : (
+            <ModelDropdown
+              id={dropdownId}
+              aria-describedby={`${dropdownId}-help`}
+              models={models}
+              selectedModel={selectedModel}
+              indexes={indexes}
+              onSelect={onSelect}
+              onUnload={onUnload}
+              onRefresh={onRefresh}
+            />
+          )}
+          <div className={compact ? "sr-only" : undefined}>
+            <SettingHelp text={t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
+          </div>
         </div>
-      )}
+        {(selectedModel || compact) && (
+          <div className={compact ? "min-w-0 space-y-2" : "space-y-2 pt-3"}>
+            <label className="field-label block" htmlFor={indexSelectId}>
+              {indexLabel ?? t("Index File")}
+            </label>
+            <CustomSelect
+              id={indexSelectId}
+              description={compact ? undefined : t(SETTING_HELP.index)}
+              aria-describedby={compact ? `${indexSelectId}-help` : undefined}
+              value={indexPath}
+              disabled={!selectedModel}
+              onOpen={onRefresh}
+              onChange={(e) => onIndexChange(e.target.value)}
+              className="w-full"
+              options={[
+                { value: "", label: t("None") },
+                ...indexes.map((idx) => ({
+                  value: idx,
+                  label: compact
+                    ? fileBasename(idx).replace(/\.index$/i, "")
+                    : `${fileBasename(idx)} (${idx})`,
+                  badge: compact ? "INDEX" : undefined,
+                  description: compact ? idx : undefined,
+                })),
+              ]}
+            />
+            {compact && (
+              <div className="sr-only">
+                <SettingHelp text={t(SETTING_HELP.index)} controlId={indexSelectId} />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

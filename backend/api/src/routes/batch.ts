@@ -11,6 +11,7 @@ import {
   setDone,
   setError,
   setJobResult,
+  setJobStage,
   setProgress,
   setRunning,
 } from "@/jobs";
@@ -173,6 +174,7 @@ async function runBatchJob(
         const item: BatchItem = { input: path.basename(input), model: model.pthPath, status: "running" };
         items.push(item);
         setJobResult(job, result());
+        setJobStage(job, "Converting audio…", done + failed + 1, total);
         appendLog(
           job,
           `${done + failed + 1}/${total}: ${path.basename(input)} -> ${path.basename(model.pthPath)}`,
@@ -231,6 +233,7 @@ async function runBatchJob(
       }
     }
     const rel = path.relative(getRepoRoot(), outputFolder).replace(/\\/g, "/");
+    setJobStage(job, "Checking output…");
     appendLog(job, `Done -> ${rel}`);
     setJobResult(job, result());
     if (!done && failed)

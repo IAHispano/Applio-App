@@ -255,7 +255,7 @@ export default function Home() {
             </p>
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button href="/inference" icon={<Wand2 size={18} />}>
-                {t("Open Inference")}
+                {t("Convert Audio")}
               </Button>
               <Button href="/realtime" variant="ghost" icon={<Radio size={18} />}>
                 {t("Realtime")}

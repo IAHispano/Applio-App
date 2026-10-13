@@ -20,9 +20,10 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { JobError } from "@/components/JobStatus";
+import { JobError, JobStage } from "@/components/JobStatus";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
@@ -245,13 +246,13 @@ export default function TrainingConsole({
     return `${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
   };
 
-  // Prefer determinate backend progress (epoch + intra-epoch batch fraction)
-  // so the bar moves during long epochs; fall back to parsed epoch lines.
+  // Epoch log lines can name an epoch that is still running. Use the backend's
+  // measured batch progress rather than treating that epoch as completed.
   const progressPercent =
-    typeof job?.progress === "number" && Number.isFinite(job.progress)
-      ? Math.max(0, Math.min(100, Math.round(job.progress)))
-      : metrics.currentEpoch && totalEpochs
-        ? Math.min(100, Math.round((metrics.currentEpoch / totalEpochs) * 100))
+    job?.status === "done"
+      ? 100
+      : typeof job?.progress === "number" && Number.isFinite(job.progress)
+        ? Math.max(0, Math.min(100, Math.round(job.progress)))
         : null;
 
   return (
@@ -394,11 +395,21 @@ export default function TrainingConsole({
             </div>
           }
         >
-          {progressPercent !== null && (
-            <div className="w-full bg-white/10 rounded-full h-1 mt-2 overflow-hidden">
-              <div
-                className="bg-white h-full rounded-full origin-left transition-transform duration-300 ease-out"
-                style={{ transform: `scaleX(${progressPercent / 100})` }}
+          {(job?.status === "running" || job?.status === "queued" || progressPercent !== null) && (
+            <div className="mt-2">
+              <ProgressBar
+                progress={job?.status === "queued" ? undefined : progressPercent}
+                label={t("Epoch Progress")}
+                activity={
+                  job && job.status !== "done" && job.status !== "error" ? (
+                    <JobStage job={job} />
+                  ) : job?.status === "error" ? (
+                    t("Failed")
+                  ) : (
+                    t("Training Completed Successfully")
+                  )
+                }
+                showValue={false}
               />
             </div>
           )}
@@ -586,19 +597,11 @@ export default function TrainingConsole({
                         </span>
                         <span className="text-neutral-400 tabular-nums shrink-0">{ev.percent}%</span>
                       </div>
-                      <div
-                        className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"
-                        role="progressbar"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={ev.percent}
-                        aria-label={ev.phase || "Progress"}
-                      >
-                        <div
-                          className="h-full bg-white rounded-full transition-all duration-300"
-                          style={{ width: `${ev.percent}%` }}
-                        />
-                      </div>
+                      <ProgressBar
+                        progress={ev.percent}
+                        label={t(ev.phase) || t("Job progress")}
+                        showValue={false}
+                      />
                       {ev.detail && (
                         <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
                       )}
@@ -623,23 +626,11 @@ export default function TrainingConsole({
                         </span>
                       </div>
                       {ev.meta && <p className="text-[10px] text-neutral-500 m-0 truncate">{ev.meta}</p>}
-                      <div
-                        className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden"
-                        role="progressbar"
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-valuenow={ev.percent ?? (runningTask ? undefined : 100)}
-                        aria-label={ev.title}
-                      >
-                        {ev.percent !== null ? (
-                          <div
-                            className="h-full bg-white rounded-full transition-all duration-300"
-                            style={{ width: `${ev.percent}%` }}
-                          />
-                        ) : (
-                          <div className="h-full w-1/3 bg-white/70 rounded-full animate-pulse" />
-                        )}
-                      </div>
+                      <ProgressBar
+                        progress={ev.percent ?? (runningTask ? undefined : 100)}
+                        label={ev.title}
+                        showValue={false}
+                      />
                       {ev.detail && (
                         <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
                       )}

@@ -2,6 +2,7 @@
 
 import { StopCircle } from "lucide-react";
 import { Alert, Badge, Button } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, type Job, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { historyState, historyStateLabels } from "@/lib/job-history";
@@ -96,38 +97,43 @@ export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (
   );
 }
 
-export function JobProgress({ status, progress }: { status: Job["status"]; progress?: number | null }) {
-  const { t } = useI18n();
+export function JobProgress({
+  status,
+  progress,
+  job,
+}: {
+  status: Job["status"];
+  progress?: number | null;
+  job?: Job;
+}) {
   if (status !== "queued" && status !== "running") return null;
-  if (progress !== undefined && progress !== null) {
-    const pct = Math.max(0, Math.min(100, Math.round(progress)));
-    return (
-      <div className="space-y-1" style={{ marginTop: 8 }}>
-        <div
-          className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
-          role="progressbar"
-          aria-label={t("Job progress")}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={pct}
-        >
-          <div
-            className="h-full bg-white rounded-full transition-all duration-300"
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <p className="text-[11px] text-neutral-400 m-0 tabular-nums">{pct}%</p>
-      </div>
-    );
-  }
   return (
-    <div
-      className="loader"
-      role="progressbar"
-      aria-label={t("Execution in progress")}
-      style={{ marginTop: 8 }}
-    >
-      <div className="loaderBar" />
-    </div>
+    <ProgressBar
+      progress={status === "running" ? progress : undefined}
+      activity={job ? <JobStage job={job} /> : undefined}
+    />
+  );
+}
+
+export function JobStage({ job }: { job: Job }) {
+  const { t } = useI18n();
+  if (job.status !== "running" && job.status !== "queued") return null;
+  return (
+    <span role="status" aria-live="polite">
+      {job.status === "queued"
+        ? t("Queued in processing pipeline…")
+        : job.stage
+          ? t(job.stage)
+          : t("In Progress")}
+      {job.status === "running" &&
+        Number.isFinite(job.stageCurrent) &&
+        Number.isFinite(job.stageTotal) &&
+        (job.stageTotal ?? 0) > 0 && (
+          <span className="tabular-nums">
+            {" · "}
+            {job.stageCurrent} / {job.stageTotal}
+          </span>
+        )}
+    </span>
   );
 }

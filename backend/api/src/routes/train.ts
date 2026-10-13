@@ -15,6 +15,7 @@ import {
   listJobs,
   setDone,
   setError,
+  setJobStage,
   setProgress,
   setRunning,
 } from "@/jobs";
@@ -735,6 +736,7 @@ router.post("/pipeline", async (req: Request, res: Response) => {
           if (aborted()) return;
         }
 
+        setJobStage(job, "Checking output…");
         appendLog(job, "\n>>> [4/4] Verifying artifacts...");
         const pthRel = repoRel(modelFile);
         if (aborted()) return;

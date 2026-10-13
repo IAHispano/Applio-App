@@ -97,7 +97,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     )}
                   </p>
                   <a href="/inference" className="text-sm underline">
-                    {t("Go to Inference")}
+                    {t("Convert Audio")}
                   </a>
                 </div>
               ) : showBarrier ? (

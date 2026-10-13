@@ -25,6 +25,7 @@ import {
   SliderField,
   ToggleField,
 } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
@@ -949,14 +950,12 @@ export default function SettingsPage() {
             <div className="max-w-md space-y-1.5">
               <div className="flex justify-between text-xs text-neutral-400 tabular-nums">
                 <span>{t("Downloading update…")}</span>
-                <span>{updaterState.percent ?? 0}%</span>
               </div>
-              <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-white rounded-full transition-all duration-300"
-                  style={{ width: `${updaterState.percent ?? 0}%` }}
-                />
-              </div>
+              <ProgressBar
+                progress={updaterState.percent}
+                label={t("Downloading update…")}
+                activity={t("Downloading update…")}
+              />
             </div>
           )}
 

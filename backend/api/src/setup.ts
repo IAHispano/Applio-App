@@ -4,7 +4,17 @@ import path from "node:path";
 import type { NextFunction, Request, Response } from "express";
 import { trackPid } from "@/cli";
 import { errDetails, errMsg } from "@/errors";
-import { appendLog, createJob, getJob, type Job, jobIsActive, setDone, setError, setRunning } from "@/jobs";
+import {
+  appendLog,
+  createJob,
+  getJob,
+  type Job,
+  jobIsActive,
+  setDone,
+  setError,
+  setJobStage,
+  setRunning,
+} from "@/jobs";
 import { hasOnnxRuntimeConflict, onnxRuntimeDistribution, resolveOnnxRequirements } from "@/onnx-runtime";
 import { missingDefaultPretraineds } from "@/pretraineds";
 import {
@@ -1192,6 +1202,7 @@ export function startInstall(): Job {
           if (process.platform === "win32") {
             killProcessesInVenv(path.join(root, ".venv"));
           }
+          setJobStage(job, "Creating Python environment…");
           appendLog(job, "Creating app virtualenv (.venv)…");
           if (uvBin) {
             await streamRun(job, uvBin, [
@@ -1244,6 +1255,7 @@ export function startInstall(): Job {
           await ensureWindowsVcRedist(job);
         }
 
+        setJobStage(job, "Installing dependencies…");
         appendLog(job, "Installing engine packages (torch + requirements — this takes a while)…");
         if (!uvBin) {
           await streamRun(job, venvPy, ["-m", "pip", "install", "-U", "pip"]);
@@ -1412,6 +1424,7 @@ export function startInstall(): Job {
         process.env.PYTHON_BIN = venvPy;
         appendLog(job, `Using Python env: ${venvPy}`);
 
+        setJobStage(job, "Downloading models…");
         appendLog(job, "Downloading default training pretrains, base voice models, and prerequisites…");
         await streamRun(job, venvPy, [
           path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),
@@ -1421,6 +1434,7 @@ export function startInstall(): Job {
         ]);
 
         if (exists(path.join(root, "backend", "api", "package.json"))) {
+          setJobStage(job, "Installing dependencies…");
           appendLog(job, "Installing web dependencies…");
           await streamRun(job, pnpmCmd, ["install"], {
             shell: pnpmShell,
@@ -1433,6 +1447,7 @@ export function startInstall(): Job {
                   "Dev mode does not need the production bundle; to build it, stop `pnpm dev` and run `pnpm build`.",
               );
             } else {
+              setJobStage(job, "Building web interface…");
               appendLog(job, "Building web interface…");
               try {
                 await streamRun(job, pnpmCmd, ["run", "build"], { shell: pnpmShell });
@@ -1449,6 +1464,7 @@ export function startInstall(): Job {
         }
 
         cached = null;
+        setJobStage(job, "Verifying installation…");
         let final = await getStatus(true);
         if (!final.ready && process.platform === "win32") {
           const engineCheck = final.checks.find((c) => c.id === "engine" || c.id === "vcredist");
@@ -1510,6 +1526,7 @@ export function startPrerequisites(py: string[] | null): Job {
           exe = exists(venvPy) ? venvPy : process.platform === "win32" ? "python" : "python3";
         }
         const prefix = py ? py.slice(1) : [];
+        setJobStage(job, "Downloading models…");
         await streamRun(job, exe, [
           ...prefix,
           path.join(getBackendRoot(), "rvc", "lib", "tools", "prerequisites_download.py"),

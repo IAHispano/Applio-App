@@ -3,7 +3,6 @@
 import { Disc, Gauge, Headphones, Layers, ListMusic, Play, RefreshCw, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import ModelPresetStatus from "@/components/ModelPresetStatus";
 import RealtimeCalibration from "@/components/RealtimeCalibration";
 import RealtimeDiagnostics from "@/components/RealtimeDiagnostics";
 import {
@@ -19,11 +18,11 @@ import {
   PitchMethodSelect,
   REALTIME_F0_METHODS,
   ToggleField,
-  VoiceModelField,
 } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
+import VoiceModelCard from "@/components/VoiceModelCard";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
@@ -234,10 +233,12 @@ export default function RealtimeWorkspace() {
   });
   const [roundTrip, setRoundTrip] = useState(0);
   const [calibrating, setCalibrating] = useState(false);
+  const [realtimeToolsOpen, setRealtimeToolsOpen] = useState(false);
   const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
   const [calibrationError, setCalibrationError] = useState("");
   const [calibrationCurrent, setCalibrationCurrent] = useState(0);
   const [calibrationProgress, setCalibrationProgress] = useState(0);
+  const [calibrationActivity, setCalibrationActivity] = useState("Preparing…");
   const [calibrationKey, setCalibrationKey] = useState("");
   const calibrationControllerRef = useRef<AbortController | null>(null);
   const calibrationMeterRef = useRef(new CalibrationMeter());
@@ -1293,13 +1294,16 @@ export default function RealtimeWorkspace() {
         if (sessRef.current !== session || calibrationContextRef.current !== context)
           throw new Error("The realtime model or audio settings changed. Run calibration again.");
         setCalibrationCurrent(chunk);
+        setCalibrationActivity("Applying settings…");
         const actualFrames = await session.settings.apply({
           automatic_block_size: false,
           block_frame: chunk * 48,
         });
         if (actualFrames !== chunk * 48)
           throw new Error("The engine did not apply the requested calibration buffer.");
+        setCalibrationActivity("Warming up…");
         await calibrationDelay(1500, controller.signal);
+        setCalibrationActivity("Measuring latency…");
         calibrationMeterRef.current.begin(calibrationCountersRef.current);
         await calibrationDelay(6000, controller.signal);
         if (session.ctx.state !== "running" || sessRef.current !== session)
@@ -1322,6 +1326,7 @@ export default function RealtimeWorkspace() {
       );
     } finally {
       calibrationMeterRef.current.stop();
+      setCalibrationActivity("Restoring settings…");
       if (sessRef.current === session && session.ws.readyState === WebSocket.OPEN) {
         try {
           const restored = await session.settings.apply(original);
@@ -1573,6 +1578,10 @@ export default function RealtimeWorkspace() {
     }
   }, [selectedLiveKey, streaming]);
 
+  useEffect(() => {
+    if (calibrating || recOn) setRealtimeToolsOpen(true);
+  }, [calibrating, recOn]);
+
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
@@ -1594,29 +1603,35 @@ export default function RealtimeWorkspace() {
         </p>
       )}
 
+      <fieldset disabled={calibrating} className="min-w-0 border-0 m-0 p-0">
+        <VoiceModelCard
+          step={1}
+          models={models}
+          selectedModel={model}
+          indexes={indexes}
+          indexPath={index}
+          indexSelectId="rt-index-file"
+          onSelect={handleModelSelect}
+          onUnload={handleUnloadModel}
+          onRefresh={loadModels}
+          onIndexChange={setIndex}
+          speakers={speakers}
+          sid={sid}
+          onSpeakerChange={(value) => {
+            setSid(value);
+            if (streaming) changeConfig("sid", value);
+          }}
+        />
+      </fieldset>
+
       <Stage
         disabled={calibrating}
-        step={1}
-        title={t("Voice & Devices")}
-        description={t("Pick the target voice model and your input/output devices.")}
+        step={2}
+        title={t("Audio Devices")}
+        description={t("Select your input and output devices.")}
         icon={<ListMusic size={18} className="text-white" />}
       >
         <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
-          <div className="col-span-full space-y-2">
-            <VoiceModelField
-              label={t("Voice Model")}
-              models={models}
-              selectedModel={model}
-              indexes={indexes}
-              indexPath={index}
-              indexSelectId="rt-index-file"
-              onSelect={handleModelSelect}
-              onUnload={handleUnloadModel}
-              onRefresh={loadModels}
-              onIndexChange={setIndex}
-            />
-            <ModelPresetStatus />
-          </div>
           <FormField label={t("Input Device")} htmlFor="rt-in-dev" required>
             <CustomSelect
               id="rt-in-dev"
@@ -1671,1036 +1686,1022 @@ export default function RealtimeWorkspace() {
 
       <Stage
         disabled={calibrating}
-        step={2}
+        step={3}
         title={t("Tune & Go Live")}
         description={t("Shape the voice, then start streaming from your microphone.")}
         icon={<Play size={18} className="text-white" />}
       >
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <div>
-            <SliderField
-              id="rt-pitch"
-              label={t("Pitch")}
-              value={pitch}
-              min={-24}
-              max={24}
-              step={1}
-              unit="st"
-              onChange={(v) => {
-                setPitch(v);
-                if (streaming) changeConfigDebounced("f0_up_key", v);
-              }}
-              description={t(SETTING_HELP.pitch)}
-            />
-          </div>
-          <div>
-            <SliderField
-              id="rt-index-rate"
-              label={t("Search Feature Ratio")}
-              value={indexRate}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={(v) => {
-                setIndexRate(v);
-                if (streaming) changeConfigDebounced("index_rate", v);
-              }}
-              description={t(SETTING_HELP.indexRate)}
-            />
-          </div>
-          <div>
-            <SliderField
-              id="rt-protect"
-              label={t("Protect Voiceless Consonants")}
-              value={protect}
-              min={0}
-              max={0.5}
-              step={0.01}
-              onChange={(v) => {
-                setProtect(v);
-                if (streaming) changeConfigDebounced("protect", v);
-              }}
-              description={t(SETTING_HELP.protect)}
-            />
-          </div>
-          <div>
-            <SliderField
-              id="rt-volume-envelope"
-              label={t("Volume Envelope")}
-              value={volumeEnvelope}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={(v) => {
-                setVolumeEnvelope(v);
-                if (streaming) changeConfigDebounced("volume_envelope", v);
-              }}
-              description={t(SETTING_HELP.envelope)}
-            />
-          </div>
-          {speakers.length > 1 && (
-            <div>
-              <label htmlFor="rt-speaker-id">{t("Speaker ID (Multi-Speaker Model)")}</label>
-              <CustomSelect
-                id="rt-speaker-id"
-                value={String(sid)}
-                onChange={(e) => {
-                  setSid(Number(e.target.value));
-                  if (streaming) changeConfig("sid", Number(e.target.value));
-                }}
-                className="w-full mt-1"
-                description={t(SETTING_HELP.speaker)}
-              >
-                {speakers.map((s) => (
-                  <option key={s} value={String(s)}>
-                    {t("Speaker")} {s}
-                  </option>
-                ))}
-              </CustomSelect>
-            </div>
-          )}
-          <PitchMethodSelect
-            id="rt-f0-method"
-            label={t("Pitch extraction algorithm")}
-            value={f0Method}
-            onChange={setF0Method}
-            methods={REALTIME_F0_METHODS}
+        <div>
+          <SliderField
+            id="rt-pitch"
+            label={t("Pitch")}
+            value={pitch}
+            min={-24}
+            max={24}
+            step={1}
+            unit="st"
+            onChange={(v) => {
+              setPitch(v);
+              if (streaming) changeConfigDebounced("f0_up_key", v);
+            }}
+            description={t(SETTING_HELP.pitch)}
           />
-          <EmbedderSelect
-            id="rt-embedder"
-            label={t("Embedder Model")}
-            value={embedder}
-            onChange={setEmbedder}
-          />
-          {embedder === "custom" && (
-            <div>
-              <label htmlFor="rt-custom-embedder">{t("Custom embedder path")}</label>
-              <input
-                id="rt-custom-embedder"
-                type="text"
-                value={embedderCustom}
-                onChange={(e) => setEmbedderCustom(e.target.value)}
-                placeholder="rvc/models/embedders/embedders_custom/my-embedder"
-                aria-describedby={`${"rt-custom-embedder"}-help`}
-              />
-              <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"rt-custom-embedder"} />
-            </div>
-          )}
         </div>
         <Disclosure
-          title={t("Voice cleanup (autotune / proposed pitch / clean)")}
-          icon={<Wand2 size={15} />}
-          description={
-            <>
-              {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
-            </>
-          }
+          title={t("Advanced Settings")}
+          icon={<Gauge size={16} />}
+          description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
         >
-          <div className="row">
-            <div className="min-w-0 flex-1">
-              <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
-                <input
-                  id="rt-autotune"
-                  type="checkbox"
-                  checked={autotune}
-                  onChange={(e) => {
-                    setAutotune(e.target.checked);
-                    if (streaming) changeConfig("autotune", e.target.checked);
-                  }}
-                  aria-describedby={`${"rt-autotune"}-help`}
-                />{" "}
-                {t("Autotune")}
-              </label>
-              <SettingHelp text={t(SETTING_HELP.autotune)} controlId={"rt-autotune"} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <label htmlFor="rt-proposed-pitch" className="flex items-center gap-2 cursor-pointer">
-                <input
-                  id="rt-proposed-pitch"
-                  type="checkbox"
-                  checked={proposedPitch}
-                  onChange={(e) => {
-                    setProposedPitch(e.target.checked);
-                    if (streaming) changeConfig("proposed_pitch", e.target.checked);
-                  }}
-                  aria-describedby={`${"rt-proposed-pitch"}-help`}
-                />{" "}
-                {t("Proposed Pitch")}
-              </label>
-              <SettingHelp text={t(SETTING_HELP.proposed)} controlId={"rt-proposed-pitch"} />
-            </div>
-            <div className="min-w-0 flex-1">
-              <label htmlFor="rt-clean-audio" className="flex items-center gap-2 cursor-pointer">
-                <input
-                  id="rt-clean-audio"
-                  type="checkbox"
-                  checked={cleanAudio}
-                  onChange={(e) => {
-                    setCleanAudio(e.target.checked);
-                    if (streaming) changeConfig("clean_audio", e.target.checked);
-                  }}
-                  aria-describedby={`${"rt-clean-audio"}-help`}
-                />{" "}
-                {t("Clean Audio")}
-              </label>
-              <SettingHelp text={t(SETTING_HELP.clean)} controlId={"rt-clean-audio"} />
-            </div>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginTop: 8 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
             <div>
               <SliderField
-                id="rt-autotune-strength"
-                label={t("Autotune Strength")}
-                value={autotuneStrength}
+                id="rt-index-rate"
+                label={t("Search Feature Ratio")}
+                value={indexRate}
                 min={0}
                 max={1}
                 step={0.05}
                 onChange={(v) => {
-                  setAutotuneStrength(v);
-                  if (streaming) changeConfigDebounced("autotune_strength", v);
+                  setIndexRate(v);
+                  if (streaming) changeConfigDebounced("index_rate", v);
                 }}
-                description={t(SETTING_HELP.autotuneStrength)}
+                description={t(SETTING_HELP.indexRate)}
               />
             </div>
             <div>
               <SliderField
-                id="rt-proposed-threshold"
-                label={t("Proposed Pitch Threshold")}
-                value={proposedPitchThreshold}
-                min={50}
-                max={1200}
-                step={1}
-                unit="Hz"
-                onChange={(v) => {
-                  setProposedPitchThreshold(v);
-                  if (streaming) changeConfigDebounced("proposed_pitch_threshold", v);
-                }}
-                description={t(SETTING_HELP.proposedThreshold)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-clean-strength"
-                label={t("Clean Strength")}
-                value={cleanStrength}
+                id="rt-protect"
+                label={t("Protect Voiceless Consonants")}
+                value={protect}
                 min={0}
-                max={1}
-                step={0.05}
-                onChange={(v) => {
-                  setCleanStrength(v);
-                  if (streaming) changeConfigDebounced("clean_strength", v);
-                }}
-                description={t(SETTING_HELP.cleanStrength)}
-              />
-            </div>
-          </div>
-        </Disclosure>
-        <Disclosure
-          title={t("Latency / VAD / gains")}
-          icon={<Gauge size={15} />}
-          description={
-            <>
-              {t(SETTING_HELP.chunk)} {t(SETTING_HELP.vad)}
-            </>
-          }
-        >
-          <div className="mb-4 space-y-3">
-            <ToggleField
-              id="rt-decoder-fp16"
-              label={t("FP16 HiFi-GAN decoder (CUDA)")}
-              checked={decoderFp16}
-              onChange={(checked) => {
-                setDecoderFp16(checked);
-                if (streaming) changeConfig("decoder_fp16", checked);
-              }}
-              description={t(SETTING_HELP.fp16)}
-            />
-            <label htmlFor="rt-voice-focus" className="text-xs text-neutral-300">
-              {t("Voice Focus")}
-            </label>
-            <CustomSelect
-              id="rt-voice-focus"
-              value={voiceFocus}
-              onChange={(e) => setVoiceFocus(e.target.value as VoiceFocusVariant)}
-              options={[
-                { value: "off", label: t("Off") },
-                { value: "c20", label: "Voice Focus c20" },
-                { value: "c50", label: "Voice Focus c50" },
-                { value: "c100", label: "Voice Focus c100" },
-              ]}
-              description={t(SETTING_HELP.voiceFocus)}
-            />
-            <p className="text-xs text-neutral-400">
-              {t(
-                "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
-              )}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-            <div>
-              <SliderField
-                id="rt-chunk-ms"
-                label={t("Chunk Size (ms)")}
-                value={chunkMs}
-                min={20}
-                max={1000}
-                step={10}
-                unit="ms"
-                onChange={(value) => {
-                  setChunkMs(value);
-                  setAutoChunk(false);
-                }}
-                description={t(SETTING_HELP.chunk)}
-              />
-              <ToggleField
-                label={t("Auto chunk size")}
-                checked={autoChunk}
-                onChange={setAutoChunk}
-                description={t(SETTING_HELP.autoChunk)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-crossfade"
-                label={t("Crossfade Overlap Size (s)")}
-                value={crossfade}
-                min={0.05}
-                max={0.2}
+                max={0.5}
                 step={0.01}
-                unit="s"
                 onChange={(v) => {
-                  setCrossfade(v);
-                  if (streaming) changeConfigDebounced("cross_fade_overlap_size", v);
+                  setProtect(v);
+                  if (streaming) changeConfigDebounced("protect", v);
                 }}
-                description={t(SETTING_HELP.crossfade)}
+                description={t(SETTING_HELP.protect)}
               />
             </div>
             <div>
               <SliderField
-                id="rt-extra-size"
-                label={t("Extra Conversion Size (s)")}
-                value={extraSize}
-                min={0.1}
-                max={5}
-                step={0.1}
-                unit="s"
-                onChange={(v) => {
-                  setExtraSize(v);
-                  if (streaming) changeConfigDebounced("extra_convert_size", v);
-                }}
-                description={t(SETTING_HELP.context)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-silent-threshold"
-                label={t("Silence Threshold (dB)")}
-                value={silent}
-                min={-90}
-                max={-60}
-                step={1}
-                unit="dB"
-                onChange={(v) => {
-                  setSilent(v);
-                  if (streaming) changeConfigDebounced("silent_threshold", v);
-                }}
-                description={t(SETTING_HELP.silence)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-in-gain"
-                label={t("Input Gain (%)")}
-                value={inGain}
+                id="rt-volume-envelope"
+                label={t("Volume Envelope")}
+                value={volumeEnvelope}
                 min={0}
-                max={200}
-                step={1}
-                unit="%"
+                max={1}
+                step={0.05}
                 onChange={(v) => {
-                  setInGain(v);
-                  if (streaming) changeConfigDebounced("input_audio_gain", v);
+                  setVolumeEnvelope(v);
+                  if (streaming) changeConfigDebounced("volume_envelope", v);
                 }}
-                description={t(SETTING_HELP.inputGain)}
+                description={t(SETTING_HELP.envelope)}
               />
             </div>
-            <div>
-              <SliderField
-                id="rt-out-gain"
-                label={`${t("Output Gain (%)")} ${t("(local)")}`}
-                value={outGain}
-                min={0}
-                max={200}
-                step={1}
-                unit="%"
-                onChange={setOutGain}
-                description={t(SETTING_HELP.outputGain)}
-              />
-            </div>
-          </div>
-          <ToggleField
-            id="rt-vad-enabled"
-            label={t("Enable VAD")}
-            checked={vad}
-            onChange={(checked) => {
-              setVad(checked);
-              if (streaming) changeConfig("vad_enabled", checked);
-            }}
-            className="mt-3"
-            description={t(SETTING_HELP.vad)}
-          />
-        </Disclosure>
-        <Disclosure
-          title={t("Monitor")}
-          icon={<Headphones size={15} />}
-          description={t(SETTING_HELP.outputDevice)}
-        >
-          <div className="space-y-4">
-            <ToggleField
-              id="rt-monitor-enabled"
-              label={t("Hear myself")}
-              description={t(
-                "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
-              )}
-              checked={monitorSelf}
-              onChange={setMonitorSelf}
+
+            <PitchMethodSelect
+              id="rt-f0-method"
+              label={t("Pitch extraction algorithm")}
+              value={f0Method}
+              onChange={setF0Method}
+              methods={REALTIME_F0_METHODS}
             />
-            {monitorSelf && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+            <EmbedderSelect
+              id="rt-embedder"
+              label={t("Embedder Model")}
+              value={embedder}
+              onChange={setEmbedder}
+            />
+            {embedder === "custom" && (
+              <div>
+                <label htmlFor="rt-custom-embedder">{t("Custom embedder path")}</label>
+                <input
+                  id="rt-custom-embedder"
+                  type="text"
+                  value={embedderCustom}
+                  onChange={(e) => setEmbedderCustom(e.target.value)}
+                  placeholder="rvc/models/embedders/embedders_custom/my-embedder"
+                  aria-describedby={`${"rt-custom-embedder"}-help`}
+                />
+                <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"rt-custom-embedder"} />
+              </div>
+            )}
+          </div>
+          <Disclosure
+            title={t("Voice cleanup (autotune / proposed pitch / clean)")}
+            icon={<Wand2 size={15} />}
+            description={
+              <>
+                {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
+              </>
+            }
+          >
+            <div className="row">
+              <div className="min-w-0 flex-1">
+                <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    id="rt-autotune"
+                    type="checkbox"
+                    checked={autotune}
+                    onChange={(e) => {
+                      setAutotune(e.target.checked);
+                      if (streaming) changeConfig("autotune", e.target.checked);
+                    }}
+                    aria-describedby={`${"rt-autotune"}-help`}
+                  />{" "}
+                  {t("Autotune")}
+                </label>
+                <SettingHelp text={t(SETTING_HELP.autotune)} controlId={"rt-autotune"} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="rt-proposed-pitch" className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    id="rt-proposed-pitch"
+                    type="checkbox"
+                    checked={proposedPitch}
+                    onChange={(e) => {
+                      setProposedPitch(e.target.checked);
+                      if (streaming) changeConfig("proposed_pitch", e.target.checked);
+                    }}
+                    aria-describedby={`${"rt-proposed-pitch"}-help`}
+                  />{" "}
+                  {t("Proposed Pitch")}
+                </label>
+                <SettingHelp text={t(SETTING_HELP.proposed)} controlId={"rt-proposed-pitch"} />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label htmlFor="rt-clean-audio" className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    id="rt-clean-audio"
+                    type="checkbox"
+                    checked={cleanAudio}
+                    onChange={(e) => {
+                      setCleanAudio(e.target.checked);
+                      if (streaming) changeConfig("clean_audio", e.target.checked);
+                    }}
+                    aria-describedby={`${"rt-clean-audio"}-help`}
+                  />{" "}
+                  {t("Clean Audio")}
+                </label>
+                <SettingHelp text={t(SETTING_HELP.clean)} controlId={"rt-clean-audio"} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginTop: 8 }}>
+              <div>
                 <SliderField
-                  id="rt-monitor-volume"
-                  label={t("Monitor volume")}
-                  value={monitorVolume}
+                  id="rt-autotune-strength"
+                  label={t("Autotune Strength")}
+                  value={autotuneStrength}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => {
+                    setAutotuneStrength(v);
+                    if (streaming) changeConfigDebounced("autotune_strength", v);
+                  }}
+                  description={t(SETTING_HELP.autotuneStrength)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-proposed-threshold"
+                  label={t("Proposed Pitch Threshold")}
+                  value={proposedPitchThreshold}
+                  min={50}
+                  max={1200}
+                  step={1}
+                  unit="Hz"
+                  onChange={(v) => {
+                    setProposedPitchThreshold(v);
+                    if (streaming) changeConfigDebounced("proposed_pitch_threshold", v);
+                  }}
+                  description={t(SETTING_HELP.proposedThreshold)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-clean-strength"
+                  label={t("Clean Strength")}
+                  value={cleanStrength}
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  onChange={(v) => {
+                    setCleanStrength(v);
+                    if (streaming) changeConfigDebounced("clean_strength", v);
+                  }}
+                  description={t(SETTING_HELP.cleanStrength)}
+                />
+              </div>
+            </div>
+          </Disclosure>
+          <Disclosure
+            title={t("Latency / VAD / gains")}
+            icon={<Gauge size={15} />}
+            description={
+              <>
+                {t(SETTING_HELP.chunk)} {t(SETTING_HELP.vad)}
+              </>
+            }
+          >
+            <div className="mb-4 space-y-3">
+              <ToggleField
+                id="rt-decoder-fp16"
+                label={t("FP16 HiFi-GAN decoder (CUDA)")}
+                checked={decoderFp16}
+                onChange={(checked) => {
+                  setDecoderFp16(checked);
+                  if (streaming) changeConfig("decoder_fp16", checked);
+                }}
+                description={t(SETTING_HELP.fp16)}
+              />
+              <label htmlFor="rt-voice-focus" className="text-xs text-neutral-300">
+                {t("Voice Focus")}
+              </label>
+              <CustomSelect
+                id="rt-voice-focus"
+                value={voiceFocus}
+                onChange={(e) => setVoiceFocus(e.target.value as VoiceFocusVariant)}
+                options={[
+                  { value: "off", label: t("Off") },
+                  { value: "c20", label: "Voice Focus c20" },
+                  { value: "c50", label: "Voice Focus c50" },
+                  { value: "c100", label: "Voice Focus c100" },
+                ]}
+                description={t(SETTING_HELP.voiceFocus)}
+              />
+              <p className="text-xs text-neutral-400">
+                {t(
+                  "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
+                )}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+              <div>
+                <SliderField
+                  id="rt-chunk-ms"
+                  label={t("Chunk Size (ms)")}
+                  value={chunkMs}
+                  min={20}
+                  max={1000}
+                  step={10}
+                  unit="ms"
+                  onChange={(value) => {
+                    setChunkMs(value);
+                    setAutoChunk(false);
+                  }}
+                  description={t(SETTING_HELP.chunk)}
+                />
+                <ToggleField
+                  label={t("Auto chunk size")}
+                  checked={autoChunk}
+                  onChange={setAutoChunk}
+                  description={t(SETTING_HELP.autoChunk)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-crossfade"
+                  label={t("Crossfade Overlap Size (s)")}
+                  value={crossfade}
+                  min={0.05}
+                  max={0.2}
+                  step={0.01}
+                  unit="s"
+                  onChange={(v) => {
+                    setCrossfade(v);
+                    if (streaming) changeConfigDebounced("cross_fade_overlap_size", v);
+                  }}
+                  description={t(SETTING_HELP.crossfade)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-extra-size"
+                  label={t("Extra Conversion Size (s)")}
+                  value={extraSize}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  unit="s"
+                  onChange={(v) => {
+                    setExtraSize(v);
+                    if (streaming) changeConfigDebounced("extra_convert_size", v);
+                  }}
+                  description={t(SETTING_HELP.context)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-silent-threshold"
+                  label={t("Silence Threshold (dB)")}
+                  value={silent}
+                  min={-90}
+                  max={-60}
+                  step={1}
+                  unit="dB"
+                  onChange={(v) => {
+                    setSilent(v);
+                    if (streaming) changeConfigDebounced("silent_threshold", v);
+                  }}
+                  description={t(SETTING_HELP.silence)}
+                />
+              </div>
+              <div>
+                <SliderField
+                  id="rt-in-gain"
+                  label={t("Input Gain (%)")}
+                  value={inGain}
                   min={0}
                   max={200}
                   step={1}
                   unit="%"
-                  onChange={setMonitorVolume}
-                  description={t("Local playback volume. Does not change the streamed output.")}
+                  onChange={(v) => {
+                    setInGain(v);
+                    if (streaming) changeConfigDebounced("input_audio_gain", v);
+                  }}
+                  description={t(SETTING_HELP.inputGain)}
                 />
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
-                    <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
-                      {streaming || connecting ? `${outLevel}%` : "—"}
-                    </span>
-                  </div>
-                  <meter
-                    className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
+              </div>
+              <div>
+                <SliderField
+                  id="rt-out-gain"
+                  label={`${t("Output Gain (%)")} ${t("(local)")}`}
+                  value={outGain}
+                  min={0}
+                  max={200}
+                  step={1}
+                  unit="%"
+                  onChange={setOutGain}
+                  description={t(SETTING_HELP.outputGain)}
+                />
+              </div>
+            </div>
+            <ToggleField
+              id="rt-vad-enabled"
+              label={t("Enable VAD")}
+              checked={vad}
+              onChange={(checked) => {
+                setVad(checked);
+                if (streaming) changeConfig("vad_enabled", checked);
+              }}
+              className="mt-3"
+              description={t(SETTING_HELP.vad)}
+            />
+          </Disclosure>
+          <Disclosure
+            title={t("Monitor")}
+            icon={<Headphones size={15} />}
+            description={t(SETTING_HELP.outputDevice)}
+          >
+            <div className="space-y-4">
+              <ToggleField
+                id="rt-monitor-enabled"
+                label={t("Hear myself")}
+                description={t(
+                  "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
+                )}
+                checked={monitorSelf}
+                onChange={setMonitorSelf}
+              />
+              {monitorSelf && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
+                  <SliderField
+                    id="rt-monitor-volume"
+                    label={t("Monitor volume")}
+                    value={monitorVolume}
                     min={0}
-                    max={100}
-                    value={streaming || connecting ? outLevel : 0}
-                    aria-label={t("Output level")}
+                    max={200}
+                    step={1}
+                    unit="%"
+                    onChange={setMonitorVolume}
+                    description={t("Local playback volume. Does not change the streamed output.")}
                   />
-                  <p className="text-[11px] text-neutral-400 m-0 leading-tight">
-                    {t("Use headphones to avoid feedback when monitoring.")}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
+                      <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
+                        {streaming || connecting ? `${outLevel}%` : "—"}
+                      </span>
+                    </div>
+                    <meter
+                      className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
+                      min={0}
+                      max={100}
+                      value={streaming || connecting ? outLevel : 0}
+                      aria-label={t("Output level")}
+                    />
+                    <p className="text-[11px] text-neutral-400 m-0 leading-tight">
+                      {t("Use headphones to avoid feedback when monitoring.")}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <div className="space-y-4">
+                <ToggleField
+                  id="rt-passthrough"
+                  disabled={!streaming}
+                  label={t("Passthrough")}
+                  checked={passthrough}
+                  onChange={(value) => {
+                    if (streaming) setPassthrough(value);
+                  }}
+                  description={t(
+                    "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
+                  )}
+                />
+                <div className="space-y-2 pl-6">
+                  <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
+                    {t("Passthrough hotkey")}
+                  </label>
+                  <input
+                    id="rt-passthrough-hotkey"
+                    value={passthroughHotkey}
+                    maxLength={80}
+                    onChange={(event) => setPassthroughHotkey(event.target.value)}
+                    aria-describedby="rt-passthrough-hotkey-help"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-sans focus:border-white/25 focus:outline-none"
+                  />
+                  <p
+                    id="rt-passthrough-hotkey-help"
+                    className="max-w-xl text-[11px] leading-relaxed text-neutral-400"
+                  >
+                    {t(
+                      "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
+                    )}
                   </p>
+                  {!hotkeyAvailable && (
+                    <p className="text-xs text-amber-300" role="status">
+                      {t("Hotkey unavailable. Choose another combination.")}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </Disclosure>
+          <Disclosure
+            title={t("Post-Process")}
+            icon={<Layers size={15} />}
+            open={postProcess}
+            onToggle={(open) => {
+              setPostProcess(open);
+              if (streaming) changeConfig("post_process", open);
+            }}
+            description={t(SETTING_HELP.postProcess)}
+          >
+            {postProcess && (
+              <div className="space-y-4 pt-2">
+                {/* Reverb */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={reverb}
+                      onChange={(e) => {
+                        setReverb(e.target.checked);
+                        if (streaming) changeConfig("reverb", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-reverb"}-help`}
+                      id="setting-realtime-reverb"
+                    />
+                    <span>{t("Reverb")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.reverb)} controlId={"setting-realtime-reverb"} />
+                  {reverb && (
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <SliderField
+                        id="rt-reverb-room"
+                        label={t("Reverb Room Size")}
+                        value={reverbRoomSize}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbRoomSize(v);
+                          if (streaming) changeConfigDebounced("reverb_room_size", v, true);
+                        }}
+                        description={t(SETTING_HELP.room)}
+                      />
+                      <SliderField
+                        id="rt-reverb-damping"
+                        label={t("Reverb Damping")}
+                        value={reverbDamping}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbDamping(v);
+                          if (streaming) changeConfigDebounced("reverb_damping", v, true);
+                        }}
+                        description={t(SETTING_HELP.damping)}
+                      />
+                      <SliderField
+                        id="rt-reverb-wet"
+                        label={t("Reverb Wet Gain")}
+                        value={reverbWetGain}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbWetGain(v);
+                          if (streaming) changeConfigDebounced("reverb_wet_level", v, true);
+                        }}
+                        description={t(SETTING_HELP.wet)}
+                      />
+                      <SliderField
+                        id="rt-reverb-dry"
+                        label={t("Reverb Dry Gain")}
+                        value={reverbDryGain}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbDryGain(v);
+                          if (streaming) changeConfigDebounced("reverb_dry_level", v, true);
+                        }}
+                        description={t(SETTING_HELP.dry)}
+                      />
+                      <SliderField
+                        id="rt-reverb-width"
+                        label={t("Reverb Width")}
+                        value={reverbWidth}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbWidth(v);
+                          if (streaming) changeConfigDebounced("reverb_width", v, true);
+                        }}
+                        description={t(SETTING_HELP.width)}
+                      />
+                      <SliderField
+                        id="rt-reverb-freeze"
+                        label={t("Reverb Freeze Mode")}
+                        value={reverbFreezeMode}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setReverbFreezeMode(v);
+                          if (streaming) changeConfigDebounced("reverb_freeze_mode", v, true);
+                        }}
+                        description={t(SETTING_HELP.freeze)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Pitch Shift */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={pitchShiftFx}
+                      onChange={(e) => {
+                        setPitchShiftFx(e.target.checked);
+                        if (streaming) changeConfig("pitch_shift", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-pitchShift"}-help`}
+                      id="setting-realtime-pitchShift"
+                    />
+                    <span>{t("Pitch Shift")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.pitchShift)} controlId={"setting-realtime-pitchShift"} />
+                  {pitchShiftFx && (
+                    <SliderField
+                      id="rt-fx-pitch-semi"
+                      label={t("Pitch Shift Semitones")}
+                      value={pitchShiftSemitones}
+                      min={-12}
+                      max={12}
+                      step={1}
+                      onChange={(v) => {
+                        setPitchShiftSemitones(v);
+                        if (streaming) changeConfigDebounced("pitch_shift_semitones", v, true);
+                      }}
+                      description={t(SETTING_HELP.pitchShiftAmount)}
+                    />
+                  )}
+                </div>
+
+                {/* Delay */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={delayFx}
+                      onChange={(e) => {
+                        setDelayFx(e.target.checked);
+                        if (streaming) changeConfig("delay", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-delay"}-help`}
+                      id="setting-realtime-delay"
+                    />
+                    <span>{t("Delay")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.delay)} controlId={"setting-realtime-delay"} />
+                  {delayFx && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <SliderField
+                        id="rt-fx-delay-s"
+                        label={t("Delay Seconds")}
+                        value={delaySeconds}
+                        min={0}
+                        max={5}
+                        step={0.05}
+                        unit="s"
+                        onChange={(v) => {
+                          setDelaySeconds(v);
+                          if (streaming) changeConfigDebounced("delay_seconds", v, true);
+                        }}
+                        description={t(SETTING_HELP.delayTime)}
+                      />
+                      <SliderField
+                        id="rt-fx-delay-fb"
+                        label={t("Delay Feedback")}
+                        value={delayFeedback}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setDelayFeedback(v);
+                          if (streaming) changeConfigDebounced("delay_feedback", v, true);
+                        }}
+                        description={t(SETTING_HELP.feedback)}
+                      />
+                      <SliderField
+                        id="rt-fx-delay-mix"
+                        label={t("Delay Mix")}
+                        value={delayMix}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setDelayMix(v);
+                          if (streaming) changeConfigDebounced("delay_mix", v, true);
+                        }}
+                        description={t(SETTING_HELP.mix)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Limiter */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={limiter}
+                      onChange={(e) => {
+                        setLimiter(e.target.checked);
+                        if (streaming) changeConfig("limiter", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-limiter"}-help`}
+                      id="setting-realtime-limiter"
+                    />
+                    <span>{t("Limiter")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.limiter)} controlId={"setting-realtime-limiter"} />
+                  {limiter && (
+                    <div className="space-y-2">
+                      <SliderField
+                        id="rt-fx-lim-thr"
+                        label={t("Limiter Threshold dB")}
+                        value={limiterThreshold}
+                        min={-60}
+                        max={0}
+                        step={0.5}
+                        unit="dB"
+                        onChange={(v) => {
+                          setLimiterThreshold(v);
+                          if (streaming) changeConfigDebounced("limiter_threshold", v, true);
+                        }}
+                        description={t(SETTING_HELP.limiterThreshold)}
+                      />
+                      <SliderField
+                        id="rt-fx-lim-rel"
+                        label={t("Limiter Release Time")}
+                        value={limiterReleaseTime}
+                        min={0.01}
+                        max={1}
+                        step={0.01}
+                        unit="s"
+                        onChange={(v) => {
+                          setLimiterReleaseTime(v);
+                          if (streaming) changeConfigDebounced("limiter_release", v, true);
+                        }}
+                        description={t(SETTING_HELP.limiterRelease)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Gain */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={gainFx}
+                      onChange={(e) => {
+                        setGainFx(e.target.checked);
+                        if (streaming) changeConfig("gain", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-gain"}-help`}
+                      id="setting-realtime-gain"
+                    />
+                    <span>{t("Gain")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.gain)} controlId={"setting-realtime-gain"} />
+                  {gainFx && (
+                    <SliderField
+                      id="rt-fx-gain-db"
+                      label={t("Gain dB")}
+                      value={gainDb}
+                      min={-60}
+                      max={60}
+                      step={0.5}
+                      unit="dB"
+                      onChange={(v) => {
+                        setGainDb(v);
+                        if (streaming) changeConfigDebounced("gain_db", v, true);
+                      }}
+                      description={t(SETTING_HELP.gainAmount)}
+                    />
+                  )}
+                </div>
+
+                {/* Distortion */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={distortion}
+                      onChange={(e) => {
+                        setDistortion(e.target.checked);
+                        if (streaming) changeConfig("distortion", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-distortion"}-help`}
+                      id="setting-realtime-distortion"
+                    />
+                    <span>{t("Distortion")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.distortion)} controlId={"setting-realtime-distortion"} />
+                  {distortion && (
+                    <SliderField
+                      id="rt-fx-dist"
+                      label={t("Distortion Gain")}
+                      value={distortionGain}
+                      min={-60}
+                      max={60}
+                      step={1}
+                      unit="dB"
+                      onChange={(v) => {
+                        setDistortionGain(v);
+                        if (streaming) changeConfigDebounced("distortion_gain", v, true);
+                      }}
+                      description={t(SETTING_HELP.distortionGain)}
+                    />
+                  )}
+                </div>
+
+                {/* Chorus */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={chorus}
+                      onChange={(e) => {
+                        setChorus(e.target.checked);
+                        if (streaming) changeConfig("chorus", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-chorus"}-help`}
+                      id="setting-realtime-chorus"
+                    />
+                    <span>{t("Chorus")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.chorus)} controlId={"setting-realtime-chorus"} />
+                  {chorus && (
+                    <div className="space-y-2">
+                      <SliderField
+                        id="rt-fx-ch-rate"
+                        label={t("Chorus Rate Hz")}
+                        value={chorusRate}
+                        min={0}
+                        max={100}
+                        step={0.1}
+                        unit="Hz"
+                        onChange={(v) => {
+                          setChorusRate(v);
+                          if (streaming) changeConfigDebounced("chorus_rate", v, true);
+                        }}
+                        description={t(SETTING_HELP.chorusRate)}
+                      />
+                      <SliderField
+                        id="rt-fx-ch-depth"
+                        label={t("Chorus Depth")}
+                        value={chorusDepth}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setChorusDepth(v);
+                          if (streaming) changeConfigDebounced("chorus_depth", v, true);
+                        }}
+                        description={t(SETTING_HELP.chorusDepth)}
+                      />
+                      <SliderField
+                        id="rt-fx-ch-delay"
+                        label={t("Chorus Center Delay ms")}
+                        value={chorusCenterDelay}
+                        min={7}
+                        max={8}
+                        step={0.1}
+                        unit="ms"
+                        onChange={(v) => {
+                          setChorusCenterDelay(v);
+                          if (streaming) changeConfigDebounced("chorus_delay", v, true);
+                        }}
+                        description={t(SETTING_HELP.chorusDelay)}
+                      />
+                      <SliderField
+                        id="rt-fx-ch-fb"
+                        label={t("Chorus Feedback")}
+                        value={chorusFeedback}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setChorusFeedback(v);
+                          if (streaming) changeConfigDebounced("chorus_feedback", v, true);
+                        }}
+                        description={t(SETTING_HELP.feedback)}
+                      />
+                      <SliderField
+                        id="rt-fx-ch-mix"
+                        label={t("Chorus Mix")}
+                        value={chorusMix}
+                        min={0}
+                        max={1}
+                        step={0.05}
+                        onChange={(v) => {
+                          setChorusMix(v);
+                          if (streaming) changeConfigDebounced("chorus_mix", v, true);
+                        }}
+                        description={t(SETTING_HELP.mix)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Compressor */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={compressor}
+                      onChange={(e) => {
+                        setCompressor(e.target.checked);
+                        if (streaming) changeConfig("compressor", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-compressor"}-help`}
+                      id="setting-realtime-compressor"
+                    />
+                    <span>{t("Compressor")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.compressor)} controlId={"setting-realtime-compressor"} />
+                  {compressor && (
+                    <div className="space-y-2">
+                      <SliderField
+                        id="rt-fx-comp-thr"
+                        label={t("Compressor Threshold dB")}
+                        value={compressorThreshold}
+                        min={-60}
+                        max={0}
+                        step={1}
+                        unit="dB"
+                        onChange={(v) => {
+                          setCompressorThreshold(v);
+                          if (streaming) changeConfigDebounced("compressor_threshold", v, true);
+                        }}
+                        description={t(SETTING_HELP.compressorThreshold)}
+                      />
+                      <SliderField
+                        id="rt-fx-comp-ratio"
+                        label={t("Compressor Ratio")}
+                        value={compressorRatio}
+                        min={1}
+                        max={20}
+                        step={0.5}
+                        formatValue={(v) => `${v}:1`}
+                        onChange={(v) => {
+                          setCompressorRatio(v);
+                          if (streaming) changeConfigDebounced("compressor_ratio", v, true);
+                        }}
+                        description={t(SETTING_HELP.compressorRatio)}
+                      />
+                      <SliderField
+                        id="rt-fx-comp-atk"
+                        label={t("Compressor Attack ms")}
+                        value={compressorAttack}
+                        min={0}
+                        max={100}
+                        step={1}
+                        unit="ms"
+                        onChange={(v) => {
+                          setCompressorAttack(v);
+                          if (streaming) changeConfigDebounced("compressor_attack", v, true);
+                        }}
+                        description={t(SETTING_HELP.compressorAttack)}
+                      />
+                      <SliderField
+                        id="rt-fx-comp-rel"
+                        label={t("Compressor Release ms")}
+                        value={compressorRelease}
+                        min={0.01}
+                        max={100}
+                        step={0.5}
+                        unit="ms"
+                        onChange={(v) => {
+                          setCompressorRelease(v);
+                          if (streaming) changeConfigDebounced("compressor_release", v, true);
+                        }}
+                        description={t(SETTING_HELP.compressorRelease)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Bitcrush */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={bitcrush}
+                      onChange={(e) => {
+                        setBitcrush(e.target.checked);
+                        if (streaming) changeConfig("bitcrush", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-bitcrush"}-help`}
+                      id="setting-realtime-bitcrush"
+                    />
+                    <span>{t("Bitcrush")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.bitcrush)} controlId={"setting-realtime-bitcrush"} />
+                  {bitcrush && (
+                    <SliderField
+                      id="rt-fx-bit"
+                      label={t("Bitcrush Bit Depth")}
+                      value={bitcrushBitDepth}
+                      min={1}
+                      max={32}
+                      step={1}
+                      onChange={(v) => {
+                        setBitcrushBitDepth(v);
+                        if (streaming) changeConfigDebounced("bitcrush_bit_depth", v, true);
+                      }}
+                      description={t(SETTING_HELP.bitDepth)}
+                    />
+                  )}
+                </div>
+
+                {/* Clipping */}
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
+                    <input
+                      type="checkbox"
+                      checked={clipping}
+                      onChange={(e) => {
+                        setClipping(e.target.checked);
+                        if (streaming) changeConfig("clipping", e.target.checked, true);
+                      }}
+                      aria-describedby={`${"setting-realtime-clipping"}-help`}
+                      id="setting-realtime-clipping"
+                    />
+                    <span>{t("Clipping")}</span>
+                  </label>
+                  <SettingHelp text={t(SETTING_HELP.clipping)} controlId={"setting-realtime-clipping"} />
+                  {clipping && (
+                    <SliderField
+                      id="rt-fx-clip"
+                      label={t("Clipping Threshold")}
+                      value={clippingThreshold}
+                      min={-60}
+                      max={0}
+                      step={0.5}
+                      unit="dB"
+                      onChange={(v) => {
+                        setClippingThreshold(v);
+                        if (streaming) changeConfigDebounced("clipping_threshold", v, true);
+                      }}
+                      description={t(SETTING_HELP.clippingThreshold)}
+                    />
+                  )}
                 </div>
               </div>
             )}
-            <div className="space-y-4">
-              <ToggleField
-                id="rt-passthrough"
-                disabled={!streaming}
-                label={t("Passthrough")}
-                checked={passthrough}
-                onChange={(value) => {
-                  if (streaming) setPassthrough(value);
-                }}
-                description={t(
-                  "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
-                )}
-              />
-              <div className="space-y-2 pl-6">
-                <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
-                  {t("Passthrough hotkey")}
-                </label>
-                <input
-                  id="rt-passthrough-hotkey"
-                  value={passthroughHotkey}
-                  maxLength={80}
-                  onChange={(event) => setPassthroughHotkey(event.target.value)}
-                  aria-describedby="rt-passthrough-hotkey-help"
-                  autoComplete="off"
-                  spellCheck={false}
-                  className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-sans focus:border-white/25 focus:outline-none"
-                />
-                <p
-                  id="rt-passthrough-hotkey-help"
-                  className="max-w-xl text-[11px] leading-relaxed text-neutral-400"
-                >
-                  {t(
-                    "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
-                  )}
-                </p>
-                {!hotkeyAvailable && (
-                  <p className="text-xs text-amber-300" role="status">
-                    {t("Hotkey unavailable. Choose another combination.")}
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-        </Disclosure>
-        <Disclosure
-          title={t("Post-Process")}
-          icon={<Layers size={15} />}
-          open={postProcess}
-          onToggle={(open) => {
-            setPostProcess(open);
-            if (streaming) changeConfig("post_process", open);
-          }}
-          description={t(SETTING_HELP.postProcess)}
-        >
-          {postProcess && (
-            <div className="space-y-4 pt-2">
-              {/* Reverb */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={reverb}
-                    onChange={(e) => {
-                      setReverb(e.target.checked);
-                      if (streaming) changeConfig("reverb", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-reverb"}-help`}
-                    id="setting-realtime-reverb"
-                  />
-                  <span>{t("Reverb")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.reverb)} controlId={"setting-realtime-reverb"} />
-                {reverb && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <SliderField
-                      id="rt-reverb-room"
-                      label={t("Reverb Room Size")}
-                      value={reverbRoomSize}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbRoomSize(v);
-                        if (streaming) changeConfigDebounced("reverb_room_size", v, true);
-                      }}
-                      description={t(SETTING_HELP.room)}
-                    />
-                    <SliderField
-                      id="rt-reverb-damping"
-                      label={t("Reverb Damping")}
-                      value={reverbDamping}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbDamping(v);
-                        if (streaming) changeConfigDebounced("reverb_damping", v, true);
-                      }}
-                      description={t(SETTING_HELP.damping)}
-                    />
-                    <SliderField
-                      id="rt-reverb-wet"
-                      label={t("Reverb Wet Gain")}
-                      value={reverbWetGain}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbWetGain(v);
-                        if (streaming) changeConfigDebounced("reverb_wet_level", v, true);
-                      }}
-                      description={t(SETTING_HELP.wet)}
-                    />
-                    <SliderField
-                      id="rt-reverb-dry"
-                      label={t("Reverb Dry Gain")}
-                      value={reverbDryGain}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbDryGain(v);
-                        if (streaming) changeConfigDebounced("reverb_dry_level", v, true);
-                      }}
-                      description={t(SETTING_HELP.dry)}
-                    />
-                    <SliderField
-                      id="rt-reverb-width"
-                      label={t("Reverb Width")}
-                      value={reverbWidth}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbWidth(v);
-                        if (streaming) changeConfigDebounced("reverb_width", v, true);
-                      }}
-                      description={t(SETTING_HELP.width)}
-                    />
-                    <SliderField
-                      id="rt-reverb-freeze"
-                      label={t("Reverb Freeze Mode")}
-                      value={reverbFreezeMode}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setReverbFreezeMode(v);
-                        if (streaming) changeConfigDebounced("reverb_freeze_mode", v, true);
-                      }}
-                      description={t(SETTING_HELP.freeze)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Pitch Shift */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={pitchShiftFx}
-                    onChange={(e) => {
-                      setPitchShiftFx(e.target.checked);
-                      if (streaming) changeConfig("pitch_shift", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-pitchShift"}-help`}
-                    id="setting-realtime-pitchShift"
-                  />
-                  <span>{t("Pitch Shift")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.pitchShift)} controlId={"setting-realtime-pitchShift"} />
-                {pitchShiftFx && (
-                  <SliderField
-                    id="rt-fx-pitch-semi"
-                    label={t("Pitch Shift Semitones")}
-                    value={pitchShiftSemitones}
-                    min={-12}
-                    max={12}
-                    step={1}
-                    onChange={(v) => {
-                      setPitchShiftSemitones(v);
-                      if (streaming) changeConfigDebounced("pitch_shift_semitones", v, true);
-                    }}
-                    description={t(SETTING_HELP.pitchShiftAmount)}
-                  />
-                )}
-              </div>
-
-              {/* Delay */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={delayFx}
-                    onChange={(e) => {
-                      setDelayFx(e.target.checked);
-                      if (streaming) changeConfig("delay", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-delay"}-help`}
-                    id="setting-realtime-delay"
-                  />
-                  <span>{t("Delay")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.delay)} controlId={"setting-realtime-delay"} />
-                {delayFx && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <SliderField
-                      id="rt-fx-delay-s"
-                      label={t("Delay Seconds")}
-                      value={delaySeconds}
-                      min={0}
-                      max={5}
-                      step={0.05}
-                      unit="s"
-                      onChange={(v) => {
-                        setDelaySeconds(v);
-                        if (streaming) changeConfigDebounced("delay_seconds", v, true);
-                      }}
-                      description={t(SETTING_HELP.delayTime)}
-                    />
-                    <SliderField
-                      id="rt-fx-delay-fb"
-                      label={t("Delay Feedback")}
-                      value={delayFeedback}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setDelayFeedback(v);
-                        if (streaming) changeConfigDebounced("delay_feedback", v, true);
-                      }}
-                      description={t(SETTING_HELP.feedback)}
-                    />
-                    <SliderField
-                      id="rt-fx-delay-mix"
-                      label={t("Delay Mix")}
-                      value={delayMix}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setDelayMix(v);
-                        if (streaming) changeConfigDebounced("delay_mix", v, true);
-                      }}
-                      description={t(SETTING_HELP.mix)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Limiter */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={limiter}
-                    onChange={(e) => {
-                      setLimiter(e.target.checked);
-                      if (streaming) changeConfig("limiter", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-limiter"}-help`}
-                    id="setting-realtime-limiter"
-                  />
-                  <span>{t("Limiter")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.limiter)} controlId={"setting-realtime-limiter"} />
-                {limiter && (
-                  <div className="space-y-2">
-                    <SliderField
-                      id="rt-fx-lim-thr"
-                      label={t("Limiter Threshold dB")}
-                      value={limiterThreshold}
-                      min={-60}
-                      max={0}
-                      step={0.5}
-                      unit="dB"
-                      onChange={(v) => {
-                        setLimiterThreshold(v);
-                        if (streaming) changeConfigDebounced("limiter_threshold", v, true);
-                      }}
-                      description={t(SETTING_HELP.limiterThreshold)}
-                    />
-                    <SliderField
-                      id="rt-fx-lim-rel"
-                      label={t("Limiter Release Time")}
-                      value={limiterReleaseTime}
-                      min={0.01}
-                      max={1}
-                      step={0.01}
-                      unit="s"
-                      onChange={(v) => {
-                        setLimiterReleaseTime(v);
-                        if (streaming) changeConfigDebounced("limiter_release", v, true);
-                      }}
-                      description={t(SETTING_HELP.limiterRelease)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Gain */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={gainFx}
-                    onChange={(e) => {
-                      setGainFx(e.target.checked);
-                      if (streaming) changeConfig("gain", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-gain"}-help`}
-                    id="setting-realtime-gain"
-                  />
-                  <span>{t("Gain")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.gain)} controlId={"setting-realtime-gain"} />
-                {gainFx && (
-                  <SliderField
-                    id="rt-fx-gain-db"
-                    label={t("Gain dB")}
-                    value={gainDb}
-                    min={-60}
-                    max={60}
-                    step={0.5}
-                    unit="dB"
-                    onChange={(v) => {
-                      setGainDb(v);
-                      if (streaming) changeConfigDebounced("gain_db", v, true);
-                    }}
-                    description={t(SETTING_HELP.gainAmount)}
-                  />
-                )}
-              </div>
-
-              {/* Distortion */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={distortion}
-                    onChange={(e) => {
-                      setDistortion(e.target.checked);
-                      if (streaming) changeConfig("distortion", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-distortion"}-help`}
-                    id="setting-realtime-distortion"
-                  />
-                  <span>{t("Distortion")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.distortion)} controlId={"setting-realtime-distortion"} />
-                {distortion && (
-                  <SliderField
-                    id="rt-fx-dist"
-                    label={t("Distortion Gain")}
-                    value={distortionGain}
-                    min={-60}
-                    max={60}
-                    step={1}
-                    unit="dB"
-                    onChange={(v) => {
-                      setDistortionGain(v);
-                      if (streaming) changeConfigDebounced("distortion_gain", v, true);
-                    }}
-                    description={t(SETTING_HELP.distortionGain)}
-                  />
-                )}
-              </div>
-
-              {/* Chorus */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={chorus}
-                    onChange={(e) => {
-                      setChorus(e.target.checked);
-                      if (streaming) changeConfig("chorus", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-chorus"}-help`}
-                    id="setting-realtime-chorus"
-                  />
-                  <span>{t("Chorus")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.chorus)} controlId={"setting-realtime-chorus"} />
-                {chorus && (
-                  <div className="space-y-2">
-                    <SliderField
-                      id="rt-fx-ch-rate"
-                      label={t("Chorus Rate Hz")}
-                      value={chorusRate}
-                      min={0}
-                      max={100}
-                      step={0.1}
-                      unit="Hz"
-                      onChange={(v) => {
-                        setChorusRate(v);
-                        if (streaming) changeConfigDebounced("chorus_rate", v, true);
-                      }}
-                      description={t(SETTING_HELP.chorusRate)}
-                    />
-                    <SliderField
-                      id="rt-fx-ch-depth"
-                      label={t("Chorus Depth")}
-                      value={chorusDepth}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setChorusDepth(v);
-                        if (streaming) changeConfigDebounced("chorus_depth", v, true);
-                      }}
-                      description={t(SETTING_HELP.chorusDepth)}
-                    />
-                    <SliderField
-                      id="rt-fx-ch-delay"
-                      label={t("Chorus Center Delay ms")}
-                      value={chorusCenterDelay}
-                      min={7}
-                      max={8}
-                      step={0.1}
-                      unit="ms"
-                      onChange={(v) => {
-                        setChorusCenterDelay(v);
-                        if (streaming) changeConfigDebounced("chorus_delay", v, true);
-                      }}
-                      description={t(SETTING_HELP.chorusDelay)}
-                    />
-                    <SliderField
-                      id="rt-fx-ch-fb"
-                      label={t("Chorus Feedback")}
-                      value={chorusFeedback}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setChorusFeedback(v);
-                        if (streaming) changeConfigDebounced("chorus_feedback", v, true);
-                      }}
-                      description={t(SETTING_HELP.feedback)}
-                    />
-                    <SliderField
-                      id="rt-fx-ch-mix"
-                      label={t("Chorus Mix")}
-                      value={chorusMix}
-                      min={0}
-                      max={1}
-                      step={0.05}
-                      onChange={(v) => {
-                        setChorusMix(v);
-                        if (streaming) changeConfigDebounced("chorus_mix", v, true);
-                      }}
-                      description={t(SETTING_HELP.mix)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Compressor */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={compressor}
-                    onChange={(e) => {
-                      setCompressor(e.target.checked);
-                      if (streaming) changeConfig("compressor", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-compressor"}-help`}
-                    id="setting-realtime-compressor"
-                  />
-                  <span>{t("Compressor")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.compressor)} controlId={"setting-realtime-compressor"} />
-                {compressor && (
-                  <div className="space-y-2">
-                    <SliderField
-                      id="rt-fx-comp-thr"
-                      label={t("Compressor Threshold dB")}
-                      value={compressorThreshold}
-                      min={-60}
-                      max={0}
-                      step={1}
-                      unit="dB"
-                      onChange={(v) => {
-                        setCompressorThreshold(v);
-                        if (streaming) changeConfigDebounced("compressor_threshold", v, true);
-                      }}
-                      description={t(SETTING_HELP.compressorThreshold)}
-                    />
-                    <SliderField
-                      id="rt-fx-comp-ratio"
-                      label={t("Compressor Ratio")}
-                      value={compressorRatio}
-                      min={1}
-                      max={20}
-                      step={0.5}
-                      formatValue={(v) => `${v}:1`}
-                      onChange={(v) => {
-                        setCompressorRatio(v);
-                        if (streaming) changeConfigDebounced("compressor_ratio", v, true);
-                      }}
-                      description={t(SETTING_HELP.compressorRatio)}
-                    />
-                    <SliderField
-                      id="rt-fx-comp-atk"
-                      label={t("Compressor Attack ms")}
-                      value={compressorAttack}
-                      min={0}
-                      max={100}
-                      step={1}
-                      unit="ms"
-                      onChange={(v) => {
-                        setCompressorAttack(v);
-                        if (streaming) changeConfigDebounced("compressor_attack", v, true);
-                      }}
-                      description={t(SETTING_HELP.compressorAttack)}
-                    />
-                    <SliderField
-                      id="rt-fx-comp-rel"
-                      label={t("Compressor Release ms")}
-                      value={compressorRelease}
-                      min={0.01}
-                      max={100}
-                      step={0.5}
-                      unit="ms"
-                      onChange={(v) => {
-                        setCompressorRelease(v);
-                        if (streaming) changeConfigDebounced("compressor_release", v, true);
-                      }}
-                      description={t(SETTING_HELP.compressorRelease)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Bitcrush */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={bitcrush}
-                    onChange={(e) => {
-                      setBitcrush(e.target.checked);
-                      if (streaming) changeConfig("bitcrush", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-bitcrush"}-help`}
-                    id="setting-realtime-bitcrush"
-                  />
-                  <span>{t("Bitcrush")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.bitcrush)} controlId={"setting-realtime-bitcrush"} />
-                {bitcrush && (
-                  <SliderField
-                    id="rt-fx-bit"
-                    label={t("Bitcrush Bit Depth")}
-                    value={bitcrushBitDepth}
-                    min={1}
-                    max={32}
-                    step={1}
-                    onChange={(v) => {
-                      setBitcrushBitDepth(v);
-                      if (streaming) changeConfigDebounced("bitcrush_bit_depth", v, true);
-                    }}
-                    description={t(SETTING_HELP.bitDepth)}
-                  />
-                )}
-              </div>
-
-              {/* Clipping */}
-              <div className="space-y-3">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                  <input
-                    type="checkbox"
-                    checked={clipping}
-                    onChange={(e) => {
-                      setClipping(e.target.checked);
-                      if (streaming) changeConfig("clipping", e.target.checked, true);
-                    }}
-                    aria-describedby={`${"setting-realtime-clipping"}-help`}
-                    id="setting-realtime-clipping"
-                  />
-                  <span>{t("Clipping")}</span>
-                </label>
-                <SettingHelp text={t(SETTING_HELP.clipping)} controlId={"setting-realtime-clipping"} />
-                {clipping && (
-                  <SliderField
-                    id="rt-fx-clip"
-                    label={t("Clipping Threshold")}
-                    value={clippingThreshold}
-                    min={-60}
-                    max={0}
-                    step={0.5}
-                    unit="dB"
-                    onChange={(v) => {
-                      setClippingThreshold(v);
-                      if (streaming) changeConfigDebounced("clipping_threshold", v, true);
-                    }}
-                    description={t(SETTING_HELP.clippingThreshold)}
-                  />
-                )}
-              </div>
-            </div>
-          )}
+          </Disclosure>
         </Disclosure>
         <div className="space-y-4 pt-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -2749,78 +2750,86 @@ export default function RealtimeWorkspace() {
           )}
         </div>
       </Stage>
-      <RealtimeCalibration
-        streaming={streaming}
-        disabled={
-          connecting ||
-          applyingSettings ||
-          applyingAudio ||
-          recOn ||
-          passthrough ||
-          inGain === 0 ||
-          !!sessRef.current?.settings.busy
-        }
-        running={calibrating}
-        current={calibrationCurrent}
-        results={calibrationResults}
-        stale={!!calibrationKey && calibrationKey !== calibrationContextKey}
-        error={calibrationError}
-        progress={calibrationProgress}
-        onStart={() => void calibrateHardware()}
-        onCancel={() => calibrationControllerRef.current?.abort()}
-        onApply={(size) => {
-          setChunkMs(size);
-          setAutoChunk(false);
-        }}
-      />
-      <Card aria-label={t("Record Output")}>
-        <CardHeader
-          icon={<Disc size={18} className="text-white" />}
-          title={t("Record Output")}
-          description={t("Records the converted stream server-side via the engine.")}
+      <Disclosure
+        title={t("Recording & Calibration")}
+        icon={<Disc size={16} />}
+        open={realtimeToolsOpen}
+        onToggle={setRealtimeToolsOpen}
+      >
+        <RealtimeCalibration
+          streaming={streaming}
+          disabled={
+            connecting ||
+            applyingSettings ||
+            applyingAudio ||
+            recOn ||
+            passthrough ||
+            inGain === 0 ||
+            !!sessRef.current?.settings.busy
+          }
+          running={calibrating}
+          current={calibrationCurrent}
+          results={calibrationResults}
+          stale={!!calibrationKey && calibrationKey !== calibrationContextKey}
+          error={calibrationError}
+          progress={calibrationProgress}
+          activity={calibrationActivity}
+          onStart={() => void calibrateHardware()}
+          onCancel={() => calibrationControllerRef.current?.abort()}
+          onApply={(size) => {
+            setChunkMs(size);
+            setAutoChunk(false);
+          }}
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-          <div>
-            <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
-            <input
-              id="rt-rec-path"
-              disabled={calibrating}
-              type="text"
-              value={recPath}
-              onChange={(e) => setRecPath(e.target.value)}
-              aria-describedby={`${"rt-rec-path"}-help`}
-            />
-            <SettingHelp text={t(SETTING_HELP.recordPath)} controlId={"rt-rec-path"} />
+        <Card aria-label={t("Record Output")}>
+          <CardHeader
+            icon={<Disc size={18} className="text-white" />}
+            title={t("Record Output")}
+            description={t("Records the converted stream server-side via the engine.")}
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            <div>
+              <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
+              <input
+                id="rt-rec-path"
+                disabled={calibrating}
+                type="text"
+                value={recPath}
+                onChange={(e) => setRecPath(e.target.value)}
+                aria-describedby={`${"rt-rec-path"}-help`}
+              />
+              <SettingHelp text={t(SETTING_HELP.recordPath)} controlId={"rt-rec-path"} />
+            </div>
+            <div>
+              <label htmlFor="rt-rec-format">{t("Export Format")}</label>
+              <CustomSelect
+                id="rt-rec-format"
+                disabled={calibrating}
+                value={recFormat}
+                onChange={(e) => setRecFormat(e.target.value)}
+                className="w-full mt-1"
+                description={t(SETTING_HELP.export)}
+              >
+                {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
+                  <option key={m} value={m}>
+                    {m}
+                  </option>
+                ))}
+              </CustomSelect>
+            </div>
           </div>
-          <div>
-            <label htmlFor="rt-rec-format">{t("Export Format")}</label>
-            <CustomSelect
-              id="rt-rec-format"
-              disabled={calibrating}
-              value={recFormat}
-              onChange={(e) => setRecFormat(e.target.value)}
-              className="w-full mt-1"
-              description={t(SETTING_HELP.export)}
+          <div className="flex justify-end">
+            <Button
+              variant={recOn ? "ghost" : "primary"}
+              onClick={toggleRecord}
+              disabled={calibrating || !streaming}
+              icon={<Disc size={16} className={recOn ? "animate-pulse text-white" : undefined} />}
             >
-              {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </CustomSelect>
+              {recOn ? t("Stop Recording") : t("Start Recording")}
+            </Button>
           </div>
-        </div>
-        <div className="flex justify-end">
-          <Button
-            variant={recOn ? "ghost" : "primary"}
-            onClick={toggleRecord}
-            disabled={calibrating || !streaming}
-            icon={<Disc size={16} className={recOn ? "animate-pulse text-white" : undefined} />}
-          >
-            {recOn ? t("Stop Recording") : t("Start Recording")}
-          </Button>
-        </div>
-      </Card>
+        </Card>
+      </Disclosure>
     </div>
   );
 }

@@ -656,6 +656,10 @@ hr {
     width: 0%;
   }
 }
+details[data-disclosure][open] > summary > .disclosure-chevron {
+  transform: rotate(180deg);
+}
+
 .loader {
   margin: 0 auto;
   border-radius: 10px;
@@ -816,7 +820,7 @@ details.card > * + * {
 }
 
 .form-field > div > label,
-.toggle-field > label {
+.toggle-field > label:has(input[type="checkbox"]) {
   margin: 0;
 }
 
@@ -1002,6 +1006,10 @@ label:has(input[type="checkbox"]) {
   color: var(--text);
   font-size: 13px;
   line-height: 1.25;
+}
+
+.toggle-field > label {
+  margin: 0;
 }
 
 .checkbox-label > span,
@@ -1633,7 +1641,7 @@ svg {
 
 /* Accordions: Disclosure ([data-disclosure]), details.card, job log <details>.
    <details> toggles instantly, so the opening body fades/slides in and the
-   chevron (group-open:rotate-180) covers the affordance. Where supported,
+   each summary's chevron reflects its own open state. Where supported,
    ::details-content also animates the height. */
 details[data-disclosure][open] > .disclosure-body,
 details.card[open] > *:not(summary):last-child,
@@ -1818,5 +1826,14 @@ button.segmented-item.is-active {
   .segmented-item:active,
   .nav-press:active {
     transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader .loaderBar {
+    animation: none;
+    width: 33%;
+    left: 0;
+    right: auto;
   }
 }

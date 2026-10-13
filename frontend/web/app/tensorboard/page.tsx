@@ -4,6 +4,7 @@ import { ExternalLink, RefreshCw, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Button } from "@/components/ui";
+import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -157,14 +158,11 @@ export default function TensorboardPage() {
             role="status"
             aria-live="polite"
           >
-            <div
-              className="w-56 h-1.5 rounded-full bg-white/10 overflow-hidden relative"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")}
-            >
-              <div className="h-full bg-white rounded-full animate-pulse w-3/4" />
+            <div className="w-56">
+              <ProgressBar
+                label={restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")}
+                activity={t("The service is initializing in the backend and will display automatically.")}
+              />
             </div>
             <div className="text-center space-y-1">
               <p className="text-sm font-medium text-neutral-200">

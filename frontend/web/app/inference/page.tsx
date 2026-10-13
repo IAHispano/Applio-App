@@ -16,13 +16,13 @@ export default function InferencePage() {
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
-        title={t("Inference")}
+        title={t("Convert Audio")}
         description={t("Convert audio files using trained voice models with single and batch processing.")}
       >
         <SegmentedControl
           value={mode}
           onChange={setMode}
-          ariaLabel={t("Inference mode")}
+          ariaLabel={t("Convert Audio")}
           tabPanels
           options={[
             { value: "single", label: t("Single"), icon: Music },

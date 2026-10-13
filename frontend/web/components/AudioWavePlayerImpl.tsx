@@ -33,6 +33,7 @@ export interface AudioWavePlayerProps {
   onReplace?: () => void;
   className?: string;
   compact?: boolean;
+  resultLabel?: string;
 }
 
 function formatTime(seconds: number): string {
@@ -53,6 +54,7 @@ function AudioWavePlayerInner({
   onReplace,
   className = "",
   compact = false,
+  resultLabel,
 }: AudioWavePlayerProps) {
   const { t } = useI18n();
   const volumeHelpId = useId();
@@ -325,27 +327,30 @@ function AudioWavePlayerInner({
   return (
     <section
       aria-label={`Audio Waveplayer: ${displayName}`}
-      className={`audioplayer-container w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl p-4 shadow-xl space-y-3 transition-all ${className}`}
+      className={`audioplayer-container w-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text)] rounded-2xl ${resultLabel ? "p-5 space-y-4" : "p-4 shadow-xl space-y-3"} transition-all ${className}`}
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-2.5 min-w-0 flex-1">
-          <div
-            style={{ padding: 0 }}
-            className={`${btnSquare} flex items-center justify-center shrink-0 border border-white/10 transition-all ${
-              isPlaying ? "bg-white text-black shadow-md shadow-white/20" : "bg-white/5 text-neutral-300"
-            }`}
-          >
-            <Music
-              className={`w-4 h-4 shrink-0 ${isPlaying ? "text-black stroke-black" : ""}`}
-              style={isPlaying ? { color: "#000000", stroke: "#000000" } : undefined}
-            />
-          </div>
+          {!resultLabel && (
+            <div
+              style={{ padding: 0 }}
+              className={`${btnSquare} flex items-center justify-center shrink-0 border border-white/10 transition-all ${
+                isPlaying ? "bg-white text-black shadow-md shadow-white/20" : "bg-white/5 text-neutral-300"
+              }`}
+            >
+              <Music
+                className={`w-4 h-4 shrink-0 ${isPlaying ? "text-black stroke-black" : ""}`}
+                style={isPlaying ? { color: "#000000", stroke: "#000000" } : undefined}
+              />
+            </div>
+          )}
           <div className="min-w-0">
+            {resultLabel && <p className="text-xs text-[var(--muted)] mb-1">{resultLabel}</p>}
             <div className="flex items-center gap-2">
               <p className="text-sm font-semibold text-white truncate m-0" title={displayName}>
                 {displayName}
               </p>
-              {isReady && duration > 0 && (
+              {!resultLabel && isReady && duration > 0 && (
                 <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 shrink-0 border border-white/5">
                   {formatTime(duration)}
                 </span>
@@ -400,7 +405,9 @@ function AudioWavePlayerInner({
       </div>
 
       {/* Real Waveform Container (WaveSurfer) */}
-      <div className="relative w-full rounded-xl bg-black/50 border border-white/10 overflow-hidden px-2 py-1 select-none">
+      <div
+        className={`relative w-full overflow-hidden select-none ${resultLabel ? "py-2" : "rounded-xl bg-black/50 border border-white/10 px-2 py-1"}`}
+      >
         <div
           ref={containerRef}
           role="slider"
@@ -504,63 +511,47 @@ function AudioWavePlayerInner({
             <span>{playbackRate}x</span>
           </button>
 
-          {/* A/B Comparison Segmented Switch */}
+          {/* Original / converted comparison tabs */}
           {originalSrc && (
             <div
               role="tablist"
               aria-label={t("Audio comparison")}
-              className={`${pillContainer} inline-flex items-center p-0.5 bg-white/5 border border-white/10 shadow-xs shrink-0`}
+              className={`${pillContainer} inline-flex items-stretch gap-1 shrink-0`}
             >
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTrack === "original"}
-                onClick={() => handleTrackSwitch("original")}
-                style={
-                  activeTrack === "original"
-                    ? { color: "#000000", paddingTop: 0, paddingBottom: 0 }
-                    : { paddingTop: 0, paddingBottom: 0 }
-                }
-                className={`h-full px-2.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTrack === "original"
-                    ? "bg-white text-black font-semibold shadow-xs"
-                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <span
-                  className={`text-[9px] font-bold px-1 rounded ${
-                    activeTrack === "original" ? "bg-black/15 text-black" : "bg-white/10 text-neutral-300"
+              {(["original", "converted"] as const).map((track) => (
+                <button
+                  key={track}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTrack === track}
+                  tabIndex={activeTrack === track ? 0 : -1}
+                  onClick={() => handleTrackSwitch(track)}
+                  onKeyDown={(event) => {
+                    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                    event.preventDefault();
+                    const nextTrack =
+                      event.key === "Home"
+                        ? "original"
+                        : event.key === "End"
+                          ? "converted"
+                          : track === "original"
+                            ? "converted"
+                            : "original";
+                    handleTrackSwitch(nextTrack);
+                    const tabs =
+                      event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]');
+                    tabs?.[nextTrack === "original" ? 0 : 1]?.focus();
+                  }}
+                  style={{ paddingTop: 0, paddingBottom: 0 }}
+                  className={`relative !rounded-none !border-0 !bg-transparent px-3 text-xs font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--text)] after:absolute after:bottom-0 after:inset-x-3 after:h-0.5 after:rounded-full ${
+                    activeTrack === track
+                      ? "text-[var(--text)] after:bg-[var(--text)]"
+                      : "text-[var(--muted)] hover:text-[var(--text)] after:bg-transparent"
                   }`}
                 >
-                  A
-                </span>
-                <span>{t("Original")}</span>
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTrack === "converted"}
-                onClick={() => handleTrackSwitch("converted")}
-                style={
-                  activeTrack === "converted"
-                    ? { color: "#000000", paddingTop: 0, paddingBottom: 0 }
-                    : { paddingTop: 0, paddingBottom: 0 }
-                }
-                className={`h-full px-2.5 text-xs font-medium rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
-                  activeTrack === "converted"
-                    ? "bg-white text-black font-semibold shadow-xs"
-                    : "text-neutral-400 hover:text-white hover:bg-white/5"
-                }`}
-              >
-                <span
-                  className={`text-[9px] font-bold px-1 rounded ${
-                    activeTrack === "converted" ? "bg-black/15 text-black" : "bg-white/10 text-neutral-300"
-                  }`}
-                >
-                  B
-                </span>
-                <span>{t("Converted")}</span>
-              </button>
+                  {t(track === "original" ? "Original" : "Converted")}
+                </button>
+              ))}
             </div>
           )}
 
@@ -616,13 +607,14 @@ function AudioWavePlayerInner({
           {activeSrc && (
             <a
               href={activeSrc}
-              download={displayName}
+              download={filename || displayName}
               aria-label={`${t("Download audio")}: ${displayName}`}
               title={t("Download audio")}
-              style={{ padding: 0 }}
-              className={`${btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs`}
+              style={resultLabel ? undefined : { padding: 0 }}
+              className={`${resultLabel ? btnText : btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 shadow-xs`}
             >
               <Download className="w-4 h-4 shrink-0" />
+              {resultLabel && <span className="text-xs font-medium">{t("Download audio")}</span>}
             </a>
           )}
 
