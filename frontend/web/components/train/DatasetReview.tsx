@@ -6,6 +6,7 @@ import { Alert, Badge, Button, Card, CardHeader, Disclosure, ToggleField } from 
 import { apiGet, apiSend, errMsg, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob } from "@/lib/useJob";
+import TrainingUpload from "./TrainingUpload";
 
 type Issue = "duplicate" | "clipping" | "silence" | "level" | "unreadable" | "no-signal";
 interface Section {
@@ -61,10 +62,14 @@ export default function DatasetReview({
   datasetPath,
   datasets,
   onDatasetChange,
+  onDatasetUploaded,
+  onUploadBusyChange,
 }: {
   datasetPath: string;
   datasets: string[];
   onDatasetChange: (path: string) => void;
+  onDatasetUploaded: (path: string) => void;
+  onUploadBusyChange: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -76,6 +81,7 @@ export default function DatasetReview({
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [mode, setMode] = useState<"scan" | "prepare">("scan");
   const [source, setSource] = useState("");
@@ -197,7 +203,7 @@ export default function DatasetReview({
             id="review-dataset-path"
             type="text"
             value={datasetPath}
-            disabled={active}
+            disabled={active || uploading}
             onChange={(e) => onDatasetChange(e.target.value)}
             list="review-datasets"
             placeholder={t("Choose or enter a training folder")}
@@ -210,7 +216,7 @@ export default function DatasetReview({
         </div>
         <Button
           size="sm"
-          disabled={active || !datasetPath.trim()}
+          disabled={active || uploading || !datasetPath.trim()}
           icon={<Search size={15} />}
           onClick={() => void scan()}
         >
@@ -227,6 +233,15 @@ export default function DatasetReview({
           </Button>
         )}
       </div>
+      <TrainingUpload
+        kind="dataset"
+        disabled={active}
+        onUploaded={onDatasetUploaded}
+        onBusyChange={(value) => {
+          setUploading(value);
+          onUploadBusyChange(value);
+        }}
+      />
       <Disclosure title={t("Detection settings")}>
         <label htmlFor="review-silence-db" className="text-xs">
           {t("Silence threshold (dBFS)")}

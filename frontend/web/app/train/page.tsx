@@ -14,11 +14,12 @@ import {
   StopCircle,
   Zap,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
 import TrainingConsole from "@/components/train/TrainingConsole";
+import TrainingUpload from "@/components/train/TrainingUpload";
 import { Alert, Badge, Button, Card, CardHeader, Modal, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SegmentedControl from "@/components/ui/SegmentedControl";
@@ -88,6 +89,14 @@ export default function TrainPage() {
   const [jobId, setJobId] = usePersistentJobId("train");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [uploadsInProgress, setUploadsInProgress] = useState(0);
+  const onUploadBusyChange = useCallback((uploading: boolean) => {
+    setUploadsInProgress((count) => count + (uploading ? 1 : -1));
+  }, []);
+  const onDatasetUploaded = useCallback((path: string) => {
+    setDatasets((current) => (current.includes(path) ? current : [...current, path].sort()));
+    setDatasetPath(path);
+  }, []);
   const [completedSteps, setCompletedSteps] = useState<Set<NonNullable<StepModal>>>(new Set());
 
   async function loadDatasets(selectFirst = false): Promise<string[]> {
@@ -196,6 +205,7 @@ export default function TrainPage() {
   }
 
   async function run(path: string, body: unknown, stepKey?: NonNullable<StepModal>) {
+    if (busy || uploadsInProgress > 0) return false;
     setError("");
     setBusy(true);
     try {
@@ -212,6 +222,7 @@ export default function TrainPage() {
   }
 
   async function runPipeline() {
+    if (busy || uploadsInProgress > 0) return;
     if (!modelName.trim()) {
       toast(t("Please enter a model name."), "error");
       return;
@@ -471,7 +482,13 @@ export default function TrainPage() {
       </Card>
 
       {/* Step 2: choose mode only after the project setup above */}
-      <DatasetReview datasetPath={datasetPath} datasets={datasets} onDatasetChange={setDatasetPath} />
+      <DatasetReview
+        datasetPath={datasetPath}
+        datasets={datasets}
+        onDatasetChange={setDatasetPath}
+        onUploadBusyChange={onUploadBusyChange}
+        onDatasetUploaded={onDatasetUploaded}
+      />
       <Card>
         <CardHeader
           step={2}
@@ -554,6 +571,12 @@ export default function TrainPage() {
                     <option key={d} value={d} />
                   ))}
                 </datalist>
+                <TrainingUpload
+                  kind="dataset"
+                  disabled={busy || uploadsInProgress > 0}
+                  onUploaded={onDatasetUploaded}
+                  onBusyChange={onUploadBusyChange}
+                />
               </div>
               <div>
                 <label htmlFor="auto-sample-rate">{t("Target Sampling Rate")}</label>
@@ -651,7 +674,7 @@ export default function TrainPage() {
                 loading={busy}
                 onClick={runPipeline}
                 icon={<Zap size={16} />}
-                disabled={busy}
+                disabled={busy || uploadsInProgress > 0}
                 className="w-full sm:w-auto"
               >
                 {busy ? t("Pipeline Running…") : t("Start Automatic Training")}
@@ -767,6 +790,12 @@ export default function TrainPage() {
                   <option key={d} value={d} />
                 ))}
               </datalist>
+              <TrainingUpload
+                kind="dataset"
+                disabled={busy || uploadsInProgress > 0}
+                onUploaded={onDatasetUploaded}
+                onBusyChange={onUploadBusyChange}
+              />
             </div>
             <div>
               <label htmlFor="modal-prep-sample-rate">{t("Sampling Rate")}</label>
@@ -884,7 +913,12 @@ export default function TrainPage() {
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
-          <Button loading={busy} onClick={runPreprocess} icon={<Play size={14} />} disabled={busy}>
+          <Button
+            loading={busy}
+            onClick={runPreprocess}
+            icon={<Play size={14} />}
+            disabled={busy || uploadsInProgress > 0}
+          >
             {busy ? t("Running…") : t("Run Preprocess")}
           </Button>
         </div>
@@ -953,6 +987,12 @@ export default function TrainPage() {
                   aria-describedby={`${"modal-ext-custom-embedder"}-help`}
                 />
                 <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"modal-ext-custom-embedder"} />
+                <TrainingUpload
+                  kind="embedder"
+                  disabled={busy || uploadsInProgress > 0}
+                  onUploaded={setEmbedderCustom}
+                  onBusyChange={onUploadBusyChange}
+                />
               </div>
             )}
           </div>
@@ -992,7 +1032,12 @@ export default function TrainPage() {
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
-          <Button loading={busy} onClick={runExtract} icon={<Play size={14} />} disabled={busy}>
+          <Button
+            loading={busy}
+            onClick={runExtract}
+            icon={<Play size={14} />}
+            disabled={busy || uploadsInProgress > 0}
+          >
             {busy ? t("Running…") : t("Run Extraction")}
           </Button>
         </div>
@@ -1177,6 +1222,16 @@ export default function TrainPage() {
                     <SettingHelp text={t(SETTING_HELP.pretrainedG)} controlId={"modal-train-gpath"} />
                   </>
                 )}
+                <TrainingUpload
+                  kind="pretrained"
+                  label={t("Custom Pretrained G")}
+                  onBusyChange={onUploadBusyChange}
+                  disabled={busy}
+                  onUploaded={(path) => {
+                    setPretG((current) => (current.includes(path) ? current : [...current, path].sort()));
+                    setGPath(path);
+                  }}
+                />
               </div>
               <div>
                 <label htmlFor="modal-train-dpath">{t("Custom Pretrained D")}</label>
@@ -1209,6 +1264,16 @@ export default function TrainPage() {
                     <SettingHelp text={t(SETTING_HELP.pretrainedD)} controlId={"modal-train-dpath"} />
                   </>
                 )}
+                <TrainingUpload
+                  kind="pretrained"
+                  label={t("Custom Pretrained D")}
+                  onBusyChange={onUploadBusyChange}
+                  disabled={busy}
+                  onUploaded={(path) => {
+                    setPretD((current) => (current.includes(path) ? current : [...current, path].sort()));
+                    setDPath(path);
+                  }}
+                />
               </div>
             </div>
           </section>
@@ -1218,7 +1283,12 @@ export default function TrainPage() {
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
-          <Button loading={busy} onClick={runTrainStep} icon={<Play size={14} />} disabled={busy}>
+          <Button
+            loading={busy}
+            onClick={runTrainStep}
+            icon={<Play size={14} />}
+            disabled={busy || uploadsInProgress > 0}
+          >
             {busy ? t("Running…") : t("Start Training")}
           </Button>
         </div>
@@ -1257,7 +1327,12 @@ export default function TrainPage() {
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
           </Button>
-          <Button loading={busy} onClick={runIndex} icon={<Play size={14} />} disabled={busy}>
+          <Button
+            loading={busy}
+            onClick={runIndex}
+            icon={<Play size={14} />}
+            disabled={busy || uploadsInProgress > 0}
+          >
             {busy ? t("Running…") : t("Generate Index")}
           </Button>
         </div>
