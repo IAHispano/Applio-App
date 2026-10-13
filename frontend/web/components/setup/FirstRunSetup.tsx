@@ -3,11 +3,13 @@
 import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JobStage } from "@/components/JobStatus";
+import SetupLogLine from "@/components/setup/SetupLogLine";
 import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import type { SetupStatus } from "@/lib/setup";
+import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs } from "@/lib/useJob";
 
@@ -95,17 +97,20 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   // redraws and collapses same-bar progress updates in place, so a long
   // "Downloading all files: 64%|…" download stays 1 live line, not 1 per step.
   const processedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
+  // Merge word-wrapped installer output (uv splits `Downloading X` / `(size)`
+  // across lines) so each download renders as one tidy row.
+  const displayLogs = useMemo(() => mergeSetupLines(processedLogs), [processedLogs]);
 
   // Auto-scroll logs as new output arrives
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [processedLogs.length]);
+  }, [displayLogs.length]);
 
   // Copy logs handler
   const handleCopyLogs = useCallback(() => {
-    if (!processedLogs.length) return;
-    const text = processedLogs.join("\n");
+    if (!displayLogs.length) return;
+    const text = displayLogs.join("\n");
     navigator.clipboard
       .writeText(text)
       .then(() => {
@@ -116,7 +121,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       .catch(() => {
         toast(t("Failed to copy logs to clipboard"), "error");
       });
-  }, [processedLogs, t]);
+  }, [displayLogs, t]);
 
   const finishSetup = useCallback(async () => {
     if (!jobId || job?.status !== "done" || completionStarted.current) return;
@@ -418,16 +423,16 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             }
             action={
               <div className="flex items-center gap-2">
-                {processedLogs.length > 0 && (
+                {displayLogs.length > 0 && (
                   <span className="text-[11px] text-neutral-400 tabular-nums">
-                    {processedLogs.length} {processedLogs.length === 1 ? t("line") : t("lines")}
+                    {displayLogs.length} {displayLogs.length === 1 ? t("line") : t("lines")}
                   </span>
                 )}
                 <Button
                   variant="ghost"
                   size="xs"
                   onClick={handleCopyLogs}
-                  disabled={!processedLogs.length}
+                  disabled={!displayLogs.length}
                   title={t("Copy logs to clipboard")}
                   icon={copied ? <Check size={12} className="text-white" /> : <Copy size={12} />}
                 >
@@ -444,16 +449,20 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             aria-label={t("Live console output")}
             className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-sans select-text scrollbar-thin"
           >
-            {processedLogs.length ? (
-              processedLogs.map((entry, idx) => (
-                // biome-ignore lint/suspicious/noArrayIndexKey: append-only activity logs
-                <div key={`log-${idx}`} className="flex items-start gap-2 leading-relaxed">
-                  <span className="text-neutral-600 text-[10px] select-none shrink-0 w-6 text-right tabular-nums pt-0.5">
-                    {idx + 1}
-                  </span>
-                  <div className="flex-1 min-w-0">{renderLogLine(entry)}</div>
-                </div>
-              ))
+            {displayLogs.length ? (
+              displayLogs.map((entry, idx) =>
+                isHiddenSetupLine(entry) ? null : (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: append-only activity logs
+                  <div key={`log-${idx}`} className="flex items-start gap-2 leading-relaxed">
+                    <span className="text-neutral-600 text-[10px] select-none shrink-0 w-6 text-right tabular-nums pt-0.5">
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <SetupLogLine text={entry} />
+                    </div>
+                  </div>
+                ),
+              )
             ) : (
               <div className="h-full w-full flex items-center gap-2 justify-center text-neutral-500 text-xs italic">
                 <span className="w-1.5 h-1.5 rounded-full bg-white/40 animate-pulse" />
@@ -486,97 +495,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-function renderLogLine(text: string) {
-  // Separator lines
-  if (/^={5,}|^-{5,}/.test(text)) {
-    return null;
-  }
-
-  // Shell command line ($ cmd ...)
-  if (text.startsWith("$ ")) {
-    return (
-      <div className="flex items-start gap-1.5 text-neutral-200 font-medium py-0.5">
-        <span className="text-neutral-500 font-bold select-none shrink-0">$</span>
-        <span className="text-neutral-100 break-all">{text.slice(2)}</span>
-      </div>
-    );
-  }
-
-  // Success lines
-  if (
-    text.startsWith("✓") ||
-    text.startsWith("✔") ||
-    text.includes("acceleration is ready") ||
-    text.includes("all systems go") ||
-    text.includes("passed ✓") ||
-    text.includes("ready ✓") ||
-    text.includes("installed ✓") ||
-    text.startsWith("Successfully installed")
-  ) {
-    return (
-      <div className="flex items-start gap-1.5 text-emerald-400 py-0.5 font-medium">
-        <span className="text-emerald-400 font-bold select-none shrink-0">✓</span>
-        <span className="text-neutral-200 break-all">{text.replace(/^[✓✔]\s*/, "")}</span>
-      </div>
-    );
-  }
-
-  // Error lines
-  if (
-    text.startsWith("✗") ||
-    text.startsWith("Error:") ||
-    text.startsWith("[ERR]") ||
-    text.toLowerCase().includes("traceback (most recent call last)")
-  ) {
-    return (
-      <div className="flex items-start gap-1.5 text-red-400 py-0.5 font-medium">
-        <span className="text-red-400 font-bold select-none shrink-0">✗</span>
-        <span className="text-red-300 break-all">{text.replace(/^(✗|\[ERR\])\s*/, "")}</span>
-      </div>
-    );
-  }
-
-  // Warning lines
-  if (
-    text.startsWith("!") ||
-    text.startsWith("[!]") ||
-    text.startsWith("Warning:") ||
-    text.startsWith("WARNING:")
-  ) {
-    return (
-      <div className="flex items-start gap-1.5 text-amber-400 py-0.5">
-        <span className="text-amber-400 font-bold select-none shrink-0">!</span>
-        <span className="text-amber-200/90 break-all">{text.replace(/^(\[!\]|!)\s*/, "")}</span>
-      </div>
-    );
-  }
-
-  // Progress/Downloading/Installing action lines
-  if (
-    text.startsWith("Installing") ||
-    text.startsWith("Downloading") ||
-    text.startsWith("Configuring") ||
-    text.startsWith("Building") ||
-    text.startsWith("Verifying") ||
-    text.startsWith("Target architecture:")
-  ) {
-    return (
-      <div className="flex items-start gap-1.5 text-white font-medium py-0.5">
-        <span className="text-neutral-500 select-none shrink-0">›</span>
-        <span className="text-neutral-100 break-all">{text}</span>
-      </div>
-    );
-  }
-
-  // Standard output lines
-  return (
-    <div className="flex items-start gap-1.5 text-neutral-400 py-0.5">
-      <span className="text-neutral-600 select-none shrink-0">•</span>
-      <span className="text-neutral-300 break-all">{text}</span>
     </div>
   );
 }

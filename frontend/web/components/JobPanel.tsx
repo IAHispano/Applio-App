@@ -3,9 +3,11 @@
 import { ChevronDown, Download } from "lucide-react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobBadge, JobCancelButton, JobError, JobProgress } from "@/components/JobStatus";
+import SetupLogLine from "@/components/setup/SetupLogLine";
 import { Alert, Button, Card } from "@/components/ui";
 import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { useJob } from "@/lib/useJob";
 
 export interface JobPanelProps {
@@ -159,13 +161,14 @@ export function JobPanelContent({
             role="log"
             aria-live="polite"
           >
-            {cleanedLogs
+            {mergeSetupLines(cleanedLogs)
               .slice(-60)
               .map((line, pos) => ({ id: `${pos}:${line.substring(0, 40)}`, line }))
+              .filter((entry) => !isHiddenSetupLine(entry.line))
               .map((entry) => (
-                <p key={entry.id} className="m-0 leading-relaxed text-neutral-300">
-                  {entry.line}
-                </p>
+                <div key={entry.id} className="leading-relaxed">
+                  <SetupLogLine text={entry.line} />
+                </div>
               ))}
           </div>
         </details>
