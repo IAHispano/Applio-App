@@ -164,7 +164,7 @@ function initBridgeMode(): void {
       notification.show();
     },
   });
-  for (const action of ["status", "start", "stop", "invite", "approve", "revoke"] as const) {
+  for (const action of ["status", "start", "stop", "invite", "copy-invite", "approve", "revoke"] as const) {
     ipcMain.handle(`bridge:${action}`, (event, id: unknown) => {
       if (
         !mainWindow ||
@@ -186,6 +186,14 @@ function initBridgeMode(): void {
           return bridgeMode.stop();
         case "invite":
           return bridgeMode.newInvite();
+        case "copy-invite": {
+          const state = bridgeMode.getState();
+          if (!state.link || (state.inviteExpiresAt || 0) <= Date.now()) {
+            throw new Error("Create a fresh invitation to connect another device.");
+          }
+          clipboard.writeText(state.link);
+          return;
+        }
         default:
           if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id)) throw new Error("Invalid device.");
           return action === "approve" ? bridgeMode.approve(id) : bridgeMode.revoke(id);

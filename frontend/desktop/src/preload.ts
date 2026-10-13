@@ -41,6 +41,7 @@ export interface ApplioBridge {
     start: () => Promise<BridgeState>;
     stop: () => Promise<BridgeState>;
     newInvite: () => Promise<BridgeState>;
+    copyInvite: () => Promise<void>;
     approve: (id: string) => Promise<BridgeState>;
     revoke: (id: string) => Promise<BridgeState>;
   };
@@ -70,6 +71,7 @@ contextBridge.exposeInMainWorld("applio", {
     start: () => ipcRenderer.invoke("bridge:start"),
     stop: () => ipcRenderer.invoke("bridge:stop"),
     newInvite: () => ipcRenderer.invoke("bridge:invite"),
+    copyInvite: () => ipcRenderer.invoke("bridge:copy-invite"),
     approve: (id: string) => ipcRenderer.invoke("bridge:approve", id),
     revoke: (id: string) => ipcRenderer.invoke("bridge:revoke", id),
   },

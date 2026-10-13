@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import QRCode from "qrcode";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge, Button, Card, CardHeader, Disclosure } from "@/components/ui";
 import { errMsg } from "@/lib/api";
 import { type BridgeState, type DesktopBridgeMode, desktopBridgeMode } from "@/lib/bridge-mode";
@@ -31,6 +31,7 @@ export default function BridgeModeCard() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const linkRef = useRef<HTMLInputElement>(null);
   const [qr, setQr] = useState("");
   const [now, setNow] = useState(Date.now());
 
@@ -245,6 +246,7 @@ export default function BridgeModeCard() {
                 </label>
                 <div className="bridge-link-row">
                   <input
+                    ref={linkRef}
                     id="bridge-link"
                     type="text"
                     readOnly
@@ -256,10 +258,28 @@ export default function BridgeModeCard() {
                     size="sm"
                     icon={copied ? <Check size={15} /> : <Copy size={15} />}
                     onClick={async () => {
+                      setError("");
+                      setCopied(false);
                       try {
-                        await navigator.clipboard.writeText(link);
+                        const bridge = desktopBridgeMode();
+                        if (bridge?.copyInvite) await bridge.copyInvite();
+                        else {
+                          try {
+                            await navigator.clipboard.writeText(link);
+                          } catch {
+                            // Older desktop builds deny the browser clipboard permission.
+                            const previous = document.activeElement;
+                            linkRef.current?.focus();
+                            linkRef.current?.select();
+                            const success = document.execCommand("copy");
+                            if (success && previous instanceof HTMLElement) previous.focus();
+                            if (!success) throw new Error("Clipboard unavailable");
+                          }
+                        }
                         setCopied(true);
                       } catch {
+                        linkRef.current?.focus();
+                        linkRef.current?.select();
                         setError(t("Select and copy the link manually."));
                       }
                     }}

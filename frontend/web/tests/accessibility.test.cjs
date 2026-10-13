@@ -117,10 +117,11 @@ after(async () => {
 });
 
 async function openPage(route, options = {}) {
+  const { bridgeCopy, ...browserOptions } = options;
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
     reducedMotion: "reduce",
-    ...options,
+    ...browserOptions,
   });
   await context.route("**/api/**", (request) =>
     request.fulfill({
@@ -132,6 +133,43 @@ async function openPage(route, options = {}) {
     request.fulfill({ status: 404, contentType: "application/json", body: '{"status":"local"}' }),
   );
   await context.addInitScript(() => localStorage.setItem("applio:terms-accepted", "true"));
+  if (bridgeCopy) {
+    await context.addInitScript((mode) => {
+      const state = {
+        status: "sharing",
+        devices: [],
+        link: "https://test.example/bridge#invite=test-invitation",
+        inviteExpiresAt: Date.now() + 600000,
+      };
+      window.applio = {
+        bridgeMode: {
+          getStatus: async () => state,
+          ...(mode === "native"
+            ? {
+                copyInvite: async () => {
+                  window.copiedInvitation = state.link;
+                },
+              }
+            : {}),
+        },
+      };
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
+          writeText: async () => {
+            throw new Error("Clipboard permission denied");
+          },
+        },
+        configurable: true,
+      });
+      const copy = document.execCommand.bind(document);
+      document.execCommand = (command) => {
+        if (mode === "unavailable") return false;
+        const result = copy(command);
+        if (command === "copy" && result) window.copiedInvitation = document.activeElement.value;
+        return result;
+      };
+    }, bridgeCopy);
+  }
   const page = await context.newPage();
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
@@ -160,6 +198,45 @@ test("primary screens have accessible names, roles and contrast", { timeout: 900
     try {
       await audit(page, route);
       assert.deepEqual(errors, []);
+    } finally {
+      await context.close();
+    }
+  }
+});
+
+test("Bridge copies through native clipboard or legacy fallback and aligns its controls", async () => {
+  for (const bridgeCopy of ["native", "legacy", "unavailable"]) {
+    const { page, context } = await openPage("/settings", { bridgeCopy });
+    try {
+      const input = page.locator("#bridge-link");
+      const copy = page.getByRole("button", { name: "Copy link", exact: true });
+      await input.waitFor();
+      await copy.scrollIntoViewIfNeeded();
+      const field = await input.boundingBox();
+      const button = await copy.boundingBox();
+      assert.ok(Math.abs(field.y - button.y) < 1);
+      assert.ok(Math.abs(field.height - button.height) < 1);
+      await copy.click();
+      if (bridgeCopy === "unavailable") {
+        await page.getByText("Select and copy the link manually.", { exact: true }).waitFor();
+        assert.ok(
+          await input.evaluate(
+            (element) =>
+              element === document.activeElement &&
+              element.selectionStart === 0 &&
+              element.selectionEnd === element.value.length,
+          ),
+        );
+        assert.equal(await page.getByRole("button", { name: "Copied", exact: true }).count(), 0);
+      } else {
+        await page.getByRole("button", { name: "Copied", exact: true }).waitFor();
+        assert.equal(await page.evaluate(() => window.copiedInvitation), await input.inputValue());
+      }
+      await page.setViewportSize({ width: 390, height: 844 });
+      const mobileField = await input.boundingBox();
+      const mobileButton = await page.locator(".bridge-link-row > button").boundingBox();
+      assert.ok(mobileButton.y >= mobileField.y + mobileField.height);
+      assert.ok(Math.abs(mobileButton.width - mobileField.width) < 1);
     } finally {
       await context.close();
     }
