@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test:dataset-review": "pnpm build && node --test tests/dataset-review.test.cjs",
-    "test:inference": "node --test tests/inference-runtime.test.cjs"
+    "test:inference": "node --test tests/inference-runtime.test.cjs",
+    "test:training": "node --test tests/training-*.test.cjs"
   },
   "dependencies": {
     "@types/ws": "^8.18.1",

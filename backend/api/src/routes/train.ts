@@ -19,6 +19,7 @@ import {
   setRunning,
 } from "@/jobs";
 import { repoRel } from "@/lib/fsutils";
+import { indexArtifact, modelArtifacts, trainedModelArtifact } from "@/lib/training-artifacts";
 import { defaultPretrainedPaths, pretrainedFileReady, resolvePretrained } from "@/pretraineds";
 import { getLogsDir, getRepoRoot, getUploadsDir, resolveUserPath } from "@/python";
 import { acquireJobSlot, releaseJobSlot } from "@/scheduler";
@@ -389,6 +390,13 @@ function buildIndexArgs(name: string, indexAlgorithm: string): string[] {
   ];
 }
 
+async function runIndexStep(job: Parameters<typeof runJobStep>[0], name: string, algorithm: string) {
+  // The engine exits successfully without printing anything when the index already exists.
+  await runJobStep(job, buildIndexArgs(name, algorithm), "", "Index");
+  const file = indexArtifact(path.join(getLogsDir(), name), name);
+  appendLog(job, `Index ready: ${file}`);
+}
+
 // Derive determinate 0-100 progress from training stdout lines so the
 // Epoch Progress tile moves during long epochs, not just at epoch end.
 // Parses `model | epoch=E | step=S | batch=B/T` heartbeats (see
@@ -548,16 +556,20 @@ router.post("/train", async (req: Request, res: Response) => {
         await ensureTrainingPretrained(p, job);
         if (getJob(job.id)?.status !== "running") return;
         const trainArgs = buildTrainArgs(p);
+        const modelDirectory = path.join(getLogsDir(), p.modelName);
+        const before = modelArtifacts(modelDirectory);
         await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
           onLine: trainProgressHandler(job, p.totalEpoch),
         });
         setProgress(job, 100);
+        if (getJob(job.id)?.status !== "running") return;
+        const modelFile = trainedModelArtifact(modelDirectory, p.modelName, before, p.totalEpoch);
         if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
           appendLog(job, `\n>>> Generating Index (${p.indexAlgorithm})...`);
-          const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-          await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+          await runIndexStep(job, p.modelName, p.indexAlgorithm);
         }
-        setDone(job, { message: `Model ${p.modelName} trained successfully.` });
+        if (getJob(job.id)?.status !== "running") return;
+        setDone(job, { message: `Model ${p.modelName} trained successfully.` }, repoRel(modelFile));
       } catch (err) {
         trackPid(job.id, undefined);
         const message = errMsg(err);
@@ -590,12 +602,21 @@ router.post("/index", async (req: Request, res: Response) => {
     .safeParse(req.body);
   if (!parsed.success)
     return res.status(400).json({ error: "Invalid params", details: parsed.error.flatten() });
+  if (parsed.data.indexAlgorithm === "Skip") {
+    const job = createJob("train", { step: "index", ...parsed.data });
+    setRunning(job);
+    setDone(job, { message: "Index generation skipped." });
+    return res.status(202).json({ jobId: job.id });
+  }
   const job = startCliJob(
     "train",
     { step: "index", ...parsed.data },
     buildIndexArgs(parsed.data.modelName, parsed.data.indexAlgorithm),
     {
-      expectSuccess: `Index file for ${parsed.data.modelName} generated successfully.`,
+      parse: () => ({
+        result: { message: `Index file for ${parsed.data.modelName} is ready.` },
+        outputFile: indexArtifact(path.join(getLogsDir(), parsed.data.modelName), parsed.data.modelName),
+      }),
     },
   );
   return res.status(202).json({ jobId: job.id });
@@ -699,26 +720,23 @@ router.post("/pipeline", async (req: Request, res: Response) => {
 
         appendLog(job, `\n>>> [3/4] Training Model (${p.totalEpoch} epochs, batch size ${p.batchSize})...`);
         const trainArgs = buildTrainArgs(p);
+        const modelDirectory = path.join(getLogsDir(), p.modelName);
+        const before = modelArtifacts(modelDirectory);
         await runJobStep(job, trainArgs, `Model ${p.modelName} trained successfully.`, "Training", {
           onLine: trainProgressHandler(job, p.totalEpoch),
         });
         setProgress(job, 100);
         if (aborted()) return;
+        const modelFile = trainedModelArtifact(modelDirectory, p.modelName, before, p.totalEpoch);
 
         if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
           appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
-          const indexArgs = buildIndexArgs(p.modelName, p.indexAlgorithm);
-          await runJobStep(job, indexArgs, `Index file for ${p.modelName} generated successfully.`, "Index");
+          await runIndexStep(job, p.modelName, p.indexAlgorithm);
           if (aborted()) return;
         }
 
         appendLog(job, "\n>>> [4/4] Verifying artifacts...");
-        const pthAbs = path.join(getLogsDir(), p.modelName, `${p.modelName}.pth`);
-        if (!fs.existsSync(pthAbs)) {
-          throw new Error(`Training produced no model file (missing ${p.modelName}.pth).`);
-        }
-
-        const pthRel = `logs/${p.modelName}/${p.modelName}.pth`;
+        const pthRel = repoRel(modelFile);
         if (aborted()) return;
         setDone(job, { message: `Model ${p.modelName} trained successfully!` }, pthRel);
       } catch (err) {
