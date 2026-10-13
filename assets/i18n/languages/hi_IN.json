@@ -1498,5 +1498,9 @@
   "Retry": "फिर कोशिश करें",
   "Copy diagnostics": "निदान कॉपी करें",
   "Open log folder": "लॉग फ़ोल्डर खोलें",
-  "Quit": "बंद करें"
+  "Quit": "बंद करें",
+  "Select an input device": "इनपुट डिवाइस चुनें",
+  "Select an output device": "आउटपुट डिवाइस चुनें",
+  "Select input and output devices before starting realtime.": "रीयलटाइम शुरू करने से पहले इनपुट और आउटपुट डिवाइस चुनें।",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "इनपुट के लिए अपना माइक्रोफ़ोन चुनें। बदला हुआ ऑडियो दूसरे ऐप में भेजने के लिए, आउटपुट के रूप में वर्चुअल केबल चुनें और उस ऐप में उसका संबंधित इनपुट चुनें।"
 }

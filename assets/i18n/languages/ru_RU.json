@@ -1498,5 +1498,9 @@
   "Retry": "Повторить",
   "Copy diagnostics": "Копировать диагностику",
   "Open log folder": "Открыть папку журналов",
-  "Quit": "Выйти"
+  "Quit": "Выйти",
+  "Select an input device": "Выберите устройство ввода",
+  "Select an output device": "Выберите устройство вывода",
+  "Select input and output devices before starting realtime.": "Выберите устройства ввода и вывода перед запуском преобразования в реальном времени.",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "Выберите микрофон в качестве входа. Чтобы передать преобразованный звук в другое приложение, выберите виртуальный аудиокабель в качестве выхода и соответствующий вход в этом приложении."
 }

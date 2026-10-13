@@ -1498,5 +1498,9 @@
   "Retry": "重试",
   "Copy diagnostics": "复制诊断",
   "Open log folder": "打开日志文件夹",
-  "Quit": "退出"
+  "Quit": "退出",
+  "Select an input device": "选择输入设备",
+  "Select an output device": "选择输出设备",
+  "Select input and output devices before starting realtime.": "开始实时转换前，请选择输入和输出设备。",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "选择麦克风作为输入。要将转换后的音频发送到其他应用，请选择虚拟音频线作为输出，并在该应用中选择对应的输入。"
 }

@@ -1498,5 +1498,9 @@
   "Retry": "Yeniden dene",
   "Copy diagnostics": "Tanı bilgilerini kopyala",
   "Open log folder": "Günlük klasörünü aç",
-  "Quit": "Çık"
+  "Quit": "Çık",
+  "Select an input device": "Bir giriş cihazı seçin",
+  "Select an output device": "Bir çıkış cihazı seçin",
+  "Select input and output devices before starting realtime.": "Gerçek zamanlı dönüşümü başlatmadan önce giriş ve çıkış cihazlarını seçin.",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "Giriş olarak mikrofonunuzu seçin. Dönüştürülen sesi başka bir uygulamaya göndermek için çıkış olarak sanal bir ses kablosu seçin ve o uygulamada eşleşen girişini seçin."
 }

@@ -148,6 +148,9 @@ export default function RealtimeWorkspace() {
   const [outputs, setOutputs] = useState<Array<{ id: string; label: string }>>([]);
   const [inDev, setInDev] = useState("");
   const [outDev, setOutDev] = useState("");
+  const inputSelected = inputs.some((device) => device.id === inDev);
+  const outputSelected = outputs.some((device) => device.id === outDev);
+  const devicesSelected = inputSelected && outputSelected;
   const [pitch, setPitch] = useState(0);
   const [indexRate, setIndexRate] = useState(0);
   const [protect, setProtect] = useState(0.5);
@@ -452,10 +455,14 @@ export default function RealtimeWorkspace() {
       typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, v)) : fb;
     const bool = (v: unknown, fb: boolean) => (typeof v === "boolean" ? v : fb);
     const str = (v: unknown, fb = "") => (typeof v === "string" ? v : fb);
+    const device = (v: unknown) => {
+      const id = str(v);
+      return id === "default" || id === "communications" ? "" : id;
+    };
     if (typeof rt.model_file === "string" && rt.model_file) savedModelRef.current = rt.model_file;
     if (typeof rt.index_file === "string" && rt.index_file) savedIndexRef.current = rt.index_file;
-    setInDev(str(rt.input_device));
-    setOutDev(str(rt.output_device));
+    setInDev(device(rt.input_device));
+    setOutDev(device(rt.output_device));
     setPitch(num(rt.pitch, -24, 24, 0));
     setIndexRate(num(rt.index_rate, 0, 1, 0));
     setProtect(num(rt.protect, 0, 0.5, 0.5));
@@ -544,9 +551,12 @@ export default function RealtimeWorkspace() {
       });
     void apiSend("/api/realtime/prewarm", "POST").catch(() => {});
     void enumDevices();
+    const refreshDevices = () => void enumDevices();
+    navigator.mediaDevices?.addEventListener("devicechange", refreshDevices);
     const t = setInterval(refreshEngine, 5000);
     return () => {
       clearInterval(t);
+      navigator.mediaDevices?.removeEventListener("devicechange", refreshDevices);
       stopStream(true);
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
@@ -576,11 +586,11 @@ export default function RealtimeWorkspace() {
     setSid(0);
   }
 
-  // Windows exposes each physical device up to 3 times ("Default - X",
-  // "Communications - X", "X"). Collapse those to one entry per device.
+  // Require concrete devices: default aliases can silently change routing.
   function dedupeDevices(devs: Array<{ id: string; label: string }>) {
     const seen = new Set<string>();
     return devs.filter((d) => {
+      if (!d.id || d.id === "default" || d.id === "communications") return false;
       const base = d.label.replace(/^(Default|Communications)\s*-\s*/i, "").trim() || d.label;
       if (seen.has(base)) return false;
       seen.add(base);
@@ -626,6 +636,11 @@ export default function RealtimeWorkspace() {
       setMsg(t("Select a voice model."));
       return;
     }
+    if (!devicesSelected) {
+      setMsg(t("Select input and output devices before starting realtime."));
+      document.getElementById(!inputSelected ? "rt-in-dev" : "rt-out-dev")?.focus();
+      return;
+    }
     setConnecting(true);
     const openingEpoch = ++streamEpochRef.current;
     // Start the backend engine on demand so there is no separate step.
@@ -652,7 +667,7 @@ export default function RealtimeWorkspace() {
       let block = Math.round(((autoChunk ? 100 : chunkMs) * 48000) / 1000);
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          ...(inDev ? { deviceId: { exact: inDev } } : {}),
+          deviceId: { exact: inDev },
           channelCount: { ideal: 1 },
           sampleRate: { ideal: 48000 },
           noiseSuppression: false,
@@ -1364,6 +1379,11 @@ export default function RealtimeWorkspace() {
   useEffect(() => {
     const session = sessRef.current;
     if (!streaming || !session) return;
+    if (!inDev) {
+      controlRef.current.stop();
+      setMsg(t("Select input and output devices before starting realtime."));
+      return;
+    }
     const previous = { ...audioRoutingRef.current };
     if (previous.input === inDev && previous.focus === voiceFocus) return;
     let cancelled = false;
@@ -1379,7 +1399,7 @@ export default function RealtimeWorkspace() {
         try {
           stream = await navigator.mediaDevices.getUserMedia({
             audio: {
-              ...(inDev ? { deviceId: { exact: inDev } } : {}),
+              deviceId: { exact: inDev },
               channelCount: { ideal: 1 },
               sampleRate: { ideal: 48000 },
               noiseSuppression: false,
@@ -1447,6 +1467,11 @@ export default function RealtimeWorkspace() {
   useEffect(() => {
     const session = sessRef.current;
     if (!streaming || !session || audioRoutingRef.current.output === outDev) return;
+    if (!outDev) {
+      controlRef.current.stop();
+      setMsg(t("Select input and output devices before starting realtime."));
+      return;
+    }
     const previous = audioRoutingRef.current.output;
     let cancelled = false;
     const timer = setTimeout(() => {
@@ -1592,7 +1617,7 @@ export default function RealtimeWorkspace() {
             />
             <ModelPresetStatus />
           </div>
-          <FormField label={t("Input Device")} htmlFor="rt-in-dev">
+          <FormField label={t("Input Device")} htmlFor="rt-in-dev" required>
             <CustomSelect
               id="rt-in-dev"
               value={inDev}
@@ -1600,7 +1625,9 @@ export default function RealtimeWorkspace() {
               className="w-full"
               description={t(SETTING_HELP.inputDevice)}
             >
-              <option value="">{t("System default input")}</option>
+              <option value="" disabled>
+                {t("Select an input device")}
+              </option>
               {inputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -1608,7 +1635,7 @@ export default function RealtimeWorkspace() {
               ))}
             </CustomSelect>
           </FormField>
-          <FormField label={t("Output Device")} htmlFor="rt-out-dev">
+          <FormField label={t("Output Device")} htmlFor="rt-out-dev" required>
             <CustomSelect
               id="rt-out-dev"
               value={outDev}
@@ -1616,7 +1643,9 @@ export default function RealtimeWorkspace() {
               className="w-full"
               description={t(SETTING_HELP.outputDevice)}
             >
-              <option value="">{t("System default output")}</option>
+              <option value="" disabled>
+                {t("Select an output device")}
+              </option>
               {outputs.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.label}
@@ -1633,6 +1662,11 @@ export default function RealtimeWorkspace() {
             />
           </div>
         </div>
+        <p className="text-xs text-neutral-400">
+          {t(
+            "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.",
+          )}
+        </p>
       </Stage>
 
       <Stage
@@ -2671,7 +2705,11 @@ export default function RealtimeWorkspace() {
         <div className="space-y-4 pt-3">
           <div className="flex items-center gap-3 flex-wrap">
             {!streaming ? (
-              <Button onClick={startStream} disabled={connecting} icon={<Play size={16} />}>
+              <Button
+                onClick={startStream}
+                disabled={connecting || !devicesSelected}
+                icon={<Play size={16} />}
+              >
                 {connecting ? t("Preparing…") : t("Start Streaming")}
               </Button>
             ) : (
@@ -2682,6 +2720,11 @@ export default function RealtimeWorkspace() {
               >
                 {t("Stop Streaming")}
               </Button>
+            )}
+            {!streaming && !devicesSelected && (
+              <span className="text-xs text-neutral-400">
+                {t("Select input and output devices before starting realtime.")}
+              </span>
             )}
             <Badge variant={streaming ? "success" : "neutral"} dot>
               {streaming ? t("live") : connecting ? t("connecting…") : t("idle")}

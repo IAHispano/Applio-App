@@ -1498,5 +1498,9 @@
   "Retry": "إعادة المحاولة",
   "Copy diagnostics": "نسخ التشخيص",
   "Open log folder": "فتح مجلد السجلات",
-  "Quit": "خروج"
+  "Quit": "خروج",
+  "Select an input device": "اختر جهاز إدخال",
+  "Select an output device": "اختر جهاز إخراج",
+  "Select input and output devices before starting realtime.": "اختر جهازَي الإدخال والإخراج قبل بدء تحويل الصوت في الوقت الفعلي.",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "اختر الميكروفون كجهاز إدخال. لإرسال الصوت المحوّل إلى تطبيق آخر، اختر كابلًا افتراضيًا كجهاز إخراج واختر مدخله المقابل في ذلك التطبيق."
 }

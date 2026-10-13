@@ -1498,5 +1498,9 @@
   "Retry": "Riprova",
   "Copy diagnostics": "Copia diagnostica",
   "Open log folder": "Apri cartella dei log",
-  "Quit": "Esci"
+  "Quit": "Esci",
+  "Select an input device": "Seleziona un dispositivo di ingresso",
+  "Select an output device": "Seleziona un dispositivo di uscita",
+  "Select input and output devices before starting realtime.": "Seleziona i dispositivi di ingresso e uscita prima di avviare la conversione in tempo reale.",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "Scegli il microfono come ingresso. Per inviare l’audio convertito a un’altra app, scegli un cavo virtuale come uscita e il relativo ingresso in quell’app."
 }

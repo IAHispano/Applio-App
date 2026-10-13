@@ -1498,5 +1498,9 @@
   "Retry": "다시 시도",
   "Copy diagnostics": "진단 복사",
   "Open log folder": "로그 폴더 열기",
-  "Quit": "종료"
+  "Quit": "종료",
+  "Select an input device": "입력 장치 선택",
+  "Select an output device": "출력 장치 선택",
+  "Select input and output devices before starting realtime.": "실시간 변환을 시작하기 전에 입력 및 출력 장치를 선택하세요.",
+  "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.": "입력 장치로 마이크를 선택하세요. 변환된 오디오를 다른 앱으로 보내려면 출력 장치로 가상 오디오 케이블을 선택하고 해당 앱에서 연결된 입력 장치를 선택하세요."
 }
