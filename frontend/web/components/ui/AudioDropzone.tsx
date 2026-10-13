@@ -179,7 +179,7 @@ function AudioDropzoneInner({
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles && droppedFiles.length > 0) {
       const file = droppedFiles[0];
-      if (file.type.startsWith("audio/") || /\.(wav|mp3|flac|ogg|m4a|opus|webm|aac|aiff)$/i.test(file.name)) {
+      if (file.type.startsWith("audio/") || /\.(wav|mp3|flac)$/i.test(file.name)) {
         onFileSelect(file);
         onPathSelect("");
         resetYoutube();
@@ -353,7 +353,7 @@ function AudioDropzoneInner({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.aiff,.webm"
+        accept=".wav,.mp3,.flac"
         onChange={handleFileChange}
         disabled={disabled}
         className="hidden"
@@ -701,11 +701,11 @@ function AudioDropzoneInner({
                   {isDragging ? t("Drop audio file here") : t("Click to browse or drag and drop audio")}
                 </p>
                 <p className="text-xs text-neutral-400 m-0 mt-1 max-w-sm">
-                  {t("Supports WAV, MP3, FLAC, OGG, M4A, Opus, and AAC (max 200MB)")}
+                  {t("Supports WAV, MP3, and FLAC (max 200MB)")}
                 </p>
 
                 <div className="flex items-center gap-1.5 mt-4 flex-wrap justify-center">
-                  {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((fmt) => (
+                  {["WAV", "MP3", "FLAC"].map((fmt) => (
                     <span
                       key={fmt}
                       className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 border border-white/5"

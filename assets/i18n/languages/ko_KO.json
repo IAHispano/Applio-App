@@ -1104,7 +1104,7 @@
   "Submitting…": "제출 중…",
   "Sunset": "노을",
   "Support us": "후원하기",
-  "Supports WAV, MP3, FLAC, OGG, M4A, Opus, and AAC (max 200MB)": "WAV, MP3, FLAC, OGG, M4A, Opus 및 AAC 지원 (최대 200MB)",
+  "Supports WAV, MP3, and FLAC (max 200MB)": "WAV, MP3 및 FLAC 지원 (최대 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "리버브 테일을 약화시키는 대신 유지하십시오. 정상적인 잔향을 위해서는 0으로 두십시오.",
   "Syne (Applio default)": "Syne (Applio 기본값)",
   "Synthesize speech and convert voice": "음성 합성 및 음성 변환",

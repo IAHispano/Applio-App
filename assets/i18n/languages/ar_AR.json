@@ -1104,7 +1104,7 @@
   "Submitting…": "جارٍ الإرسال…",
   "Sunset": "غروب الشمس",
   "Support us": "ادعمنا",
-  "Supports WAV, MP3, FLAC, OGG, M4A, Opus, and AAC (max 200MB)": "يدعم WAV وMP3 وFLAC وOGG وM4A وOpus وAAC (بحد أقصى 200 ميجابايت)",
+  "Supports WAV, MP3, and FLAC (max 200MB)": "يدعم WAV وMP3 وFLAC (بحد أقصى 200 ميجابايت)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "حافظ على ذيل الصدى بدلاً من تركه يتحلل. اترك عند 0 للتردد الطبيعي.",
   "Syne (Applio default)": "Syne (خط Applio الافتراضي)",
   "Synthesize speech and convert voice": "توليد الكلام وتحويل الصوت",
