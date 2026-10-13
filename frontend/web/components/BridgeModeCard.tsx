@@ -48,7 +48,8 @@ export default function BridgeModeCard() {
           setNow(Date.now());
         }
       } catch (e) {
-        if (!disposed) setError(errMsg(e));
+        if (!disposed)
+          setError(t(errMsg(e).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "")));
       }
     };
     void refresh();
@@ -57,7 +58,7 @@ export default function BridgeModeCard() {
       disposed = true;
       clearInterval(timer);
     };
-  }, []);
+  }, [t]);
 
   const link = state.link && (state.inviteExpiresAt || 0) > now ? state.link : "";
   useEffect(() => {
@@ -82,11 +83,11 @@ export default function BridgeModeCard() {
     setError("");
     try {
       const bridge = desktopBridgeMode();
-      if (!bridge) throw new Error("Bridge Mode is unavailable.");
+      if (!bridge) throw new Error(t("Bridge Mode is unavailable."));
       setState(await action(bridge));
       setNow(Date.now());
     } catch (e) {
-      setError(errMsg(e));
+      setError(t(errMsg(e).replace(/^Error invoking remote method '[^']+': (?:Error: )?/, "")));
     } finally {
       setBusy(false);
     }
@@ -141,7 +142,7 @@ export default function BridgeModeCard() {
       {(error || state.status === "error") && (
         <div role="alert" className="bridge-alert">
           <AlertCircle size={17} className="shrink-0" />
-          <span>{error || state.message}</span>
+          <span>{error || t(state.message || "Connection failed")}</span>
         </div>
       )}
 
