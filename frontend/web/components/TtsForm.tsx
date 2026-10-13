@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, Music, Wand2 } from "lucide-react";
+import { FileText, Music, Type, Upload, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
@@ -15,6 +15,7 @@ import {
   CustomSelect,
   FileInput,
   FormField,
+  SegmentedControl,
   SliderField,
   VoiceModelField,
 } from "@/components/ui";
@@ -39,6 +40,7 @@ export default function TtsForm() {
   const { t } = useI18n();
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [textSource, setTextSource] = useState<"write" | "upload">("write");
   const [voice, setVoice] = useState("");
   const [rate, setRate] = useState(0);
   const [pthPath, setPthPath] = useState("");
@@ -157,29 +159,44 @@ export default function TtsForm() {
           />
 
           <div className="space-y-3">
-            <FormField
-              label={t("Text to Synthesize")}
-              htmlFor="tts-text-input"
-              description={t(SETTING_HELP.ttsText)}
-            >
-              <textarea
-                id="tts-text-input"
-                rows={3}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                placeholder={t("Hello, this is Applio.")}
-                className="w-full resize-y"
-                aria-describedby={`${"tts-text-input"}-desc`}
-              />
-            </FormField>
-
-            <FormField
-              label={t("Or upload a .txt file")}
-              htmlFor="tts-file-input"
-              description={t(SETTING_HELP.textFile)}
-            >
-              <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
-            </FormField>
+            <SegmentedControl
+              value={textSource}
+              onChange={(v) => {
+                setTextSource(v);
+                if (v === "write") setFile(null);
+                else setText("");
+              }}
+              ariaLabel={t("Text source")}
+              options={[
+                { value: "write", label: t("Write text"), icon: Type },
+                { value: "upload", label: t("Upload file"), icon: Upload },
+              ]}
+            />
+            {textSource === "write" ? (
+              <FormField
+                label={t("Text to Synthesize")}
+                htmlFor="tts-text-input"
+                description={t(SETTING_HELP.ttsText)}
+              >
+                <textarea
+                  id="tts-text-input"
+                  rows={3}
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder={t("Hello, this is Applio.")}
+                  className="w-full resize-y"
+                  aria-describedby={`${"tts-text-input"}-desc`}
+                />
+              </FormField>
+            ) : (
+              <FormField
+                label={t("Text file")}
+                htmlFor="tts-file-input"
+                description={t(SETTING_HELP.textFile)}
+              >
+                <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
+              </FormField>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">

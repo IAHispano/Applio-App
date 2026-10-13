@@ -104,6 +104,7 @@ export default function TensorboardPage() {
                 size="xs"
                 onClick={handleReloadIframe}
                 title={t("Reload TensorBoard view")}
+                aria-label={t("Reload TensorBoard view")}
                 icon={<RefreshCw className="w-3.5 h-3.5" />}
               >
                 <span className="hidden md:inline">{t("Reload")}</span>
@@ -114,6 +115,7 @@ export default function TensorboardPage() {
                 variant="ghost"
                 size="xs"
                 title={t("Open in browser tab")}
+                aria-label={t("Open in browser tab")}
                 icon={<ExternalLink className="w-3.5 h-3.5" />}
               >
                 <span className="hidden md:inline">{t("Open Tab")}</span>
@@ -126,6 +128,7 @@ export default function TensorboardPage() {
             onClick={handleRestart}
             disabled={restarting}
             title={t("Restart TensorBoard backend service")}
+            aria-label={t("Restart TensorBoard backend service")}
             icon={<RotateCcw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />}
           >
             <span className="hidden md:inline">{restarting ? t("Restarting…") : t("Restart")}</span>
