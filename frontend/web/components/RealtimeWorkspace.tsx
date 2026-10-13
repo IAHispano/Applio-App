@@ -487,7 +487,7 @@ export default function RealtimeWorkspace() {
     setAutoChunk(bool(rt.auto_chunk, true));
     setCrossfade(num(rt.cross_fade_overlap_size, 0.05, 0.2, 0.05));
     setExtraSize(num(rt.extra_convert_size, 0.1, 5, 2.5));
-    setSilent(num(rt.silent_threshold, -90, -60, -60));
+    setSilent(num(rt.silent_threshold, -90, -30, -60));
     setVad(bool(rt.vad_enabled, true));
     setInGain(num(rt.input_audio_gain, 0, 200, 100));
     setPassthroughHotkey(str(rt.passthrough_hotkey, "CommandOrControl+Alt+V"));
@@ -1997,7 +1997,7 @@ export default function RealtimeWorkspace() {
                   label={t("Silence Threshold (dB)")}
                   value={silent}
                   min={-90}
-                  max={-60}
+                  max={-30}
                   step={1}
                   unit="dB"
                   onChange={(v) => {
