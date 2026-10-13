@@ -316,6 +316,9 @@ export function getBackendRoot(): string {
 export function resolvePythonArgs(args: string[]): string[] {
   if (!args.length) return args;
   const script = args[0].replace(/\\/g, "/");
+  if (script === "rvc/infer/infer.py") {
+    return [path.join(getCodeRoot(), "tools", "inference_runtime.py"), "infer", ...args.slice(1)];
+  }
   if (script.startsWith("rvc/") && script.endsWith(".py")) {
     return [path.join(getBackendRoot(), script), ...args.slice(1)];
   }

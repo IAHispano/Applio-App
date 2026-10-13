@@ -13,6 +13,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import BridgeModeCard from "@/components/BridgeModeCard";
 import PageHeader from "@/components/layout/PageHeader";
 import {
   Badge,
@@ -581,6 +582,7 @@ export default function SettingsPage() {
       )}
 
       {/* 1. General Preferences */}
+      <BridgeModeCard />
       <Card>
         <CardHeader
           icon={<Sliders size={18} />}

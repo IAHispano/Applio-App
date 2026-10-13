@@ -8,13 +8,15 @@
     "build": "next build",
     "postbuild": "node scripts/copy-static.mts",
     "start": "next start -p 3000",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:calibration": "node --test tests/realtime-calibration.test.cjs"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",
     "amazon-chime-sdk-js": "^3.32.0",
     "lucide-react": "^1.47.0",
     "next": "^15.3.4",
+    "qrcode": "1.5.4",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwindcss": "^4.3.3",
@@ -22,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "@types/qrcode": "1.5.6",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",
     "typescript": "^5.7.2"

@@ -67,6 +67,7 @@ files:
       - "!demo.*"
       - "!audios/**"
       - "!datasets/**"
+      - "!curated-datasets/**"
       - "!uvr-models/**"
       - "!**/__pycache__"
       - "!**/*.pyc"

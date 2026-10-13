@@ -6,6 +6,7 @@ import AppShell from "@/components/layout/AppShell";
 import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
+import { RemoteBridgeProvider } from "@/lib/bridge-mode";
 import { I18nProvider } from "@/lib/i18n";
 import { SetupProvider } from "@/lib/setup";
 import { ThemeProvider } from "@/lib/theme";
@@ -35,16 +36,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={syne.variable}>
       <body className="bg-[var(--bg)] text-[var(--text)] overflow-hidden h-dvh w-screen flex flex-col m-0 p-0">
         <I18nProvider>
-          <ThemeProvider>
-            <SetupProvider>
-              <SkipLink />
-              <AppShell>{children}</AppShell>
-              <TermsModal />
-              <AutoUpdateModal />
-              <Toaster />
-              <JobNotifications />
-            </SetupProvider>
-          </ThemeProvider>
+          <RemoteBridgeProvider>
+            <ThemeProvider>
+              <SetupProvider>
+                <SkipLink />
+                <AppShell>{children}</AppShell>
+                <TermsModal />
+                <AutoUpdateModal />
+                <Toaster />
+                <JobNotifications />
+              </SetupProvider>
+            </ThemeProvider>
+          </RemoteBridgeProvider>
         </I18nProvider>
       </body>
     </html>

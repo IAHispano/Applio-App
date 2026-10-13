@@ -2,6 +2,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { apiGet } from "@/lib/api";
+import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { type JobActivity, JobNotificationTracker } from "@/lib/job-notifications";
 import { disableSupportReminders, SUPPORT_URL, supportReminderDue } from "@/lib/support";
@@ -18,6 +19,7 @@ interface DesktopNotifications {
 }
 
 export default function JobNotifications() {
+  const { remote } = useRemoteBridge();
   const { t } = useI18n();
   const router = useRouter();
   const tracker = useRef(new JobNotificationTracker());
@@ -93,7 +95,7 @@ export default function JobNotifications() {
       }
       if (!disposed && (!stream || stream.readyState !== EventSource.OPEN)) polling = setTimeout(poll, 2000);
     };
-    if (typeof EventSource !== "undefined") {
+    if (!remote && typeof EventSource !== "undefined") {
       stream = new EventSource("/api/jobs/events");
       stream.onmessage = (event) => {
         try {
@@ -120,6 +122,6 @@ export default function JobNotifications() {
       clearTimeout(supportTimer);
       unsubscribe?.();
     };
-  }, [t, router]);
+  }, [t, router, remote]);
   return null;
 }

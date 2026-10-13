@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import readline from "node:readline";
 import { registerJobCancellation } from "@/jobs";
-import { getBackendRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
+import { getCodeRoot, getPythonBin, getRepoRoot, pythonEnv } from "@/python";
 import { gpuJobRunning, schedulerStatus, setGpuPreparation } from "@/scheduler";
 import type { InferenceParams, TtsParams } from "@/schemas";
 
@@ -149,11 +149,11 @@ export class InferenceWorkerManager {
   public start() {
     if (this.child && !this.child.killed) return;
     const repoRoot = getRepoRoot();
-    const workerScript = path.join(getBackendRoot(), "rvc", "infer", "worker.py");
+    const workerScript = path.join(getCodeRoot(), "tools", "inference_runtime.py");
     const pyBin = getPythonBin();
     const pathEnv = `${repoRoot}${path.delimiter}${process.env.PATH || ""}`;
 
-    const child = spawn(pyBin, [workerScript], {
+    const child = spawn(pyBin, [workerScript, "worker"], {
       cwd: repoRoot,
       env: pythonEnv({ PATH: pathEnv }),
       windowsHide: true,

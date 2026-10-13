@@ -30,6 +30,17 @@ spec = importlib.util.spec_from_file_location(
 )
 engine = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(engine)
+_engine_voice_converter = engine.import_voice_converter
+
+
+def import_voice_converter():
+    from tools.optimized_inference import install
+
+    install()
+    return _engine_voice_converter()
+
+
+engine.import_voice_converter = import_voice_converter
 for name in dir(engine):
     if name.startswith("run_") or name in (
         "load_voices_data",

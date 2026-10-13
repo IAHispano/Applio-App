@@ -201,6 +201,8 @@ export function jobSummary(job: Job) {
     preprocess: "Dataset preprocessing",
     extract: "Feature extraction",
     index: "Index generation",
+    "dataset-review": "Dataset quality review",
+    "dataset-prepare": "Prepare reviewed dataset",
   };
   const label =
     typeof p.step === "string" && stepLabels[p.step]

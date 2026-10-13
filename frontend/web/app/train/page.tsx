@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
+import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
 import TrainingConsole from "@/components/train/TrainingConsole";
 import { Alert, Badge, Button, Card, CardHeader, Modal, ToggleField } from "@/components/ui";
@@ -470,6 +471,7 @@ export default function TrainPage() {
       </Card>
 
       {/* Step 2: choose mode only after the project setup above */}
+      <DatasetReview datasetPath={datasetPath} datasets={datasets} onDatasetChange={setDatasetPath} />
       <Card>
         <CardHeader
           step={2}

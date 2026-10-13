@@ -20,6 +20,7 @@ import {
 import audioRouter from "@/routes/audio";
 import batchRouter from "@/routes/batch";
 import blenderRouter from "@/routes/blender";
+import datasetReviewRouter from "@/routes/dataset-review";
 import downloadRouter from "@/routes/download";
 import extraRouter from "@/routes/extra";
 import inferenceRouter from "@/routes/inference";
@@ -148,6 +149,7 @@ app.use("/api/extra", extraRouter);
 app.use("/api/audio", audioRouter);
 app.use("/api/uvr", uvrRouter);
 app.use("/api/train", trainRouter);
+app.use("/api/train/dataset-review", datasetReviewRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/tensorboard", tensorboardRouter);
 app.use("/api/report", reportRouter);

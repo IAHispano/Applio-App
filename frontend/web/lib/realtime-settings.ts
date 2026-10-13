@@ -11,6 +11,28 @@ export class RealtimeSettingsSender {
   private sequence = 0;
   private stopped = false;
   private applying = false;
+  private applied: { resolve: (frames: number) => void; reject: (error: Error) => void } | null = null;
+
+  get busy(): boolean {
+    return (
+      this.stopped ||
+      this.applying ||
+      !!this.timer ||
+      Object.keys(this.changes).length > 0 ||
+      Object.keys(this.effects).length > 0
+    );
+  }
+
+  /** Apply a calibration candidate at a block boundary and wait for its actual engine ACK. */
+  apply(changes: Record<string, SettingValue>): Promise<number> {
+    if (this.busy) return Promise.reject(new Error("Wait for the current settings to finish applying."));
+    if (!Object.keys(changes).length) return Promise.reject(new Error("No realtime settings supplied."));
+    this.changes = { ...changes };
+    return new Promise((resolve, reject) => {
+      this.applied = { resolve, reject };
+      void this.flush();
+    });
+  }
 
   constructor(
     private readonly audio: RealtimeAudioSender,
@@ -67,16 +89,20 @@ export class RealtimeSettingsSender {
       this.finish("Invalid realtime block size", true);
     else {
       this.resize(message.block_frame as number);
-      this.finish();
+      this.finish(undefined, false, message.block_frame as number);
     }
     return true;
   }
 
-  private finish(error?: string, fatal = false): void {
+  private finish(error?: string, fatal = false, frames?: number): void {
     if (!this.pending) return;
     clearTimeout(this.pending.timer);
     this.pending = null;
     this.applying = false;
+    const applied = this.applied;
+    this.applied = null;
+    if (error) applied?.reject(new Error(error));
+    else if (frames !== undefined) applied?.resolve(frames);
     if (this.stopped) return;
     if (fatal) {
       this.dispose();
@@ -89,6 +115,8 @@ export class RealtimeSettingsSender {
   }
 
   dispose(): void {
+    this.applied?.reject(new Error("The realtime session closed."));
+    this.applied = null;
     this.stopped = true;
     if (this.timer) clearTimeout(this.timer);
     if (this.pending) clearTimeout(this.pending.timer);

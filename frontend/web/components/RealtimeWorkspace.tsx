@@ -4,6 +4,7 @@ import { Disc, Gauge, Headphones, Layers, ListMusic, Play, RefreshCw, Square, Wa
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import ModelPresetStatus from "@/components/ModelPresetStatus";
+import RealtimeCalibration from "@/components/RealtimeCalibration";
 import RealtimeDiagnostics from "@/components/RealtimeDiagnostics";
 import {
   Badge,
@@ -28,6 +29,12 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset, loadModelPresets, saveModelPreset, useModelPresets } from "@/lib/model-presets";
 import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
+import {
+  CALIBRATION_CANDIDATES,
+  CalibrationMeter,
+  type CalibrationResult,
+  calibrationDelay,
+} from "@/lib/realtime-calibration";
 import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
 import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
@@ -53,17 +60,21 @@ function Stage({
   description,
   icon,
   children,
+  disabled = false,
 }: {
   step: number;
   title: string;
   description: string;
   icon: ReactNode;
   children: ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <Card as="section" aria-label={`${step}. ${title}`}>
       <CardHeader step={step} title={title} description={description} icon={icon} />
-      <div>{children}</div>
+      <fieldset disabled={disabled} className="min-w-0 border-0 m-0 p-0">
+        {children}
+      </fieldset>
     </Card>
   );
 }
@@ -219,6 +230,15 @@ export default function RealtimeWorkspace() {
     recentUnderrunMs: 0,
   });
   const [roundTrip, setRoundTrip] = useState(0);
+  const [calibrating, setCalibrating] = useState(false);
+  const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
+  const [calibrationError, setCalibrationError] = useState("");
+  const [calibrationCurrent, setCalibrationCurrent] = useState(0);
+  const [calibrationProgress, setCalibrationProgress] = useState(0);
+  const [calibrationKey, setCalibrationKey] = useState("");
+  const calibrationControllerRef = useRef<AbortController | null>(null);
+  const calibrationMeterRef = useRef(new CalibrationMeter());
+  const calibrationCountersRef = useRef({ droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 });
   const [inputLevel, setInputLevel] = useState<{ rms: number | null; at: number }>({ rms: null, at: 0 });
   const [msg, setMsg] = useState("");
   const [recOn, setRecOn] = useState(false);
@@ -242,6 +262,7 @@ export default function RealtimeWorkspace() {
     inputBridge?: AudioNode;
     outputBridge?: AudioNode;
     inputLatencyMs: number;
+    blockFrame: number;
   } | null>(null);
   const streamEpochRef = useRef(0);
   const [applyingSettings, setApplyingSettings] = useState(false);
@@ -706,6 +727,8 @@ export default function RealtimeWorkspace() {
       let sentAt = 0;
       let lastRoundTrip = 0;
       let lastCaptureQueueMs = 0;
+      let lastProcessingMs = 0;
+      let lastInputRms = 0;
       let retryEager = false;
       const sender = new RealtimeAudioSender((chunk) => {
         lastCaptureQueueMs = sender.queueDelayMs;
@@ -718,7 +741,8 @@ export default function RealtimeWorkspace() {
         (frames) => {
           if (frames !== block) {
             block = frames;
-            setChunkMs(frames / 48);
+            if (sessRef.current?.ws === ws) sessRef.current.blockFrame = frames;
+            if (!calibrationControllerRef.current) setChunkMs(frames / 48);
             inNode.port.postMessage({ block_frame: frames, reset: true });
           }
         },
@@ -745,9 +769,15 @@ export default function RealtimeWorkspace() {
         (stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })?.latency ||
         0;
       const healthWindow = new RealtimeHealthWindow();
+      calibrationCountersRef.current = { droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 };
       playNode.port.onmessage = (event) => {
         const stats = event.data.stats;
         if (!stats || sessRef.current?.ws !== ws) return;
+        calibrationCountersRef.current = {
+          droppedBlocks: sender.droppedBlocks,
+          underrunMs: (stats.underrunFrames / ctx.sampleRate) * 1000,
+          playbackDroppedMs: (stats.droppedFrames / ctx.sampleRate) * 1000,
+        };
         setDiagnostics({
           ...healthWindow.push(
             performance.now(),
@@ -778,6 +808,7 @@ export default function RealtimeWorkspace() {
         els: outputElements,
         settings: liveSettings,
         inputLatencyMs: inputLatency * 1000,
+        blockFrame: block,
       };
       audioRoutingRef.current = { input: inDev, output: outDev, focus: voiceFocus };
       ws.onopen = () => {
@@ -866,6 +897,7 @@ export default function RealtimeWorkspace() {
             if (m.type === "ready") {
               if (Number.isInteger(m.block_frame) && m.block_frame >= 480 && m.block_frame <= 48000) {
                 block = m.block_frame;
+                if (sessRef.current?.ws === ws) sessRef.current.blockFrame = block;
                 setChunkMs(Math.round(block / 48));
               }
               setConnecting(false);
@@ -874,7 +906,12 @@ export default function RealtimeWorkspace() {
               setStreaming(true);
               setMsg(t("Streaming ✓ speak into your microphone."));
             }
-            if (m.type === "latency") setLatency(m.value);
+            if (m.type === "latency" && Number.isFinite(m.value)) {
+              lastProcessingMs = m.value;
+              setLatency(m.value);
+            }
+            if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
+              lastInputRms = m.volume;
             if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
               setInputLevel({ rms: m.volume, at: performance.now() });
           } catch {
@@ -883,6 +920,11 @@ export default function RealtimeWorkspace() {
         } else {
           lastRoundTrip = performance.now() - sentAt;
           setRoundTrip(lastRoundTrip);
+          if (calibrationControllerRef.current) {
+            const rendered = new Float32Array(ev.data);
+            const convertedSignal = rendered.some((sample) => Math.abs(sample) > 0.00001);
+            calibrationMeterRef.current.reply(lastProcessingMs, lastRoundTrip, lastInputRms, convertedSignal);
+          }
           playNode.port.postMessage({ chunk: ev.data }, [ev.data]);
           sender.acknowledge();
         }
@@ -932,6 +974,7 @@ export default function RealtimeWorkspace() {
   };
   const trayCommandRef = useRef((_action: RealtimeTrayCommand) => {});
   trayCommandRef.current = (action) => {
+    if (calibrationControllerRef.current && action !== "stop") return;
     if (action === "start") void startStream();
     else if (action === "stop") stopStream(false);
     else if (streaming) {
@@ -1018,6 +1061,8 @@ export default function RealtimeWorkspace() {
   });
 
   function stopStream(silentStop = false) {
+    calibrationControllerRef.current?.abort();
+    calibrationMeterRef.current.stop();
     setPassthrough(false);
     const cleanup = voiceFocusCleanupRef.current;
     voiceFocusCleanupRef.current = null;
@@ -1197,6 +1242,97 @@ export default function RealtimeWorkspace() {
   };
   settingsRef.current = settingsSnapshot;
   const settingsKey = JSON.stringify(settingsSnapshot);
+  const calibrationContextKey = JSON.stringify({
+    ...settingsSnapshot,
+    chunk_ms: undefined,
+    auto_chunk: undefined,
+  });
+  const calibrationContextRef = useRef(calibrationContextKey);
+  calibrationContextRef.current = calibrationContextKey;
+
+  async function calibrateHardware() {
+    const session = sessRef.current;
+    if (
+      !streaming ||
+      !session ||
+      calibrationControllerRef.current ||
+      session.settings.busy ||
+      recOn ||
+      passthrough ||
+      inGain === 0
+    )
+      return;
+    const controller = new AbortController();
+    calibrationControllerRef.current = controller;
+    calibrationMeterRef.current.stop();
+    setCalibrating(true);
+    setCalibrationResults([]);
+    setCalibrationError("");
+    setCalibrationProgress(0);
+    const original = { block_frame: session.blockFrame, automatic_block_size: autoChunk };
+    const context = calibrationContextRef.current;
+    const results: CalibrationResult[] = [];
+    try {
+      for (const [index, chunk] of CALIBRATION_CANDIDATES.entries()) {
+        controller.signal.throwIfAborted();
+        if (sessRef.current !== session || calibrationContextRef.current !== context)
+          throw new Error("The realtime model or audio settings changed. Run calibration again.");
+        setCalibrationCurrent(chunk);
+        const actualFrames = await session.settings.apply({
+          automatic_block_size: false,
+          block_frame: chunk * 48,
+        });
+        if (actualFrames !== chunk * 48)
+          throw new Error("The engine did not apply the requested calibration buffer.");
+        await calibrationDelay(1500, controller.signal);
+        calibrationMeterRef.current.begin(calibrationCountersRef.current);
+        await calibrationDelay(6000, controller.signal);
+        if (session.ctx.state !== "running" || sessRef.current !== session)
+          throw new Error("The audio session paused during calibration.");
+        if (calibrationContextRef.current !== context)
+          throw new Error("The realtime model or audio settings changed. Run calibration again.");
+        results.push(calibrationMeterRef.current.finish(chunk, calibrationCountersRef.current));
+        setCalibrationResults([...results]);
+        setCalibrationProgress(Math.round(((index + 1) / CALIBRATION_CANDIDATES.length) * 100));
+      }
+      setCalibrationKey(context);
+    } catch (error) {
+      setCalibrationResults([]);
+      setCalibrationError(
+        t(
+          controller.signal.aborted
+            ? "Calibration cancelled. Original buffer settings restored."
+            : errMsg(error),
+        ),
+      );
+    } finally {
+      calibrationMeterRef.current.stop();
+      if (sessRef.current === session && session.ws.readyState === WebSocket.OPEN) {
+        try {
+          const restored = await session.settings.apply(original);
+          setChunkMs(restored / 48);
+        } catch (error) {
+          setCalibrationResults([]);
+          setCalibrationError(
+            t("Could not restore buffer settings. Realtime has been stopped: {message}", {
+              message: errMsg(error),
+            }),
+          );
+          stopStream(true);
+        }
+      }
+      calibrationControllerRef.current = null;
+      setCalibrating(false);
+    }
+  }
+
+  useEffect(() => {
+    const hidden = () => {
+      if (document.hidden) calibrationControllerRef.current?.abort();
+    };
+    document.addEventListener("visibilitychange", hidden);
+    return () => document.removeEventListener("visibilitychange", hidden);
+  }, []);
 
   useEffect(() => {
     if (!model || !settingsLoadedRef.current || !modelPresets.loaded) return;
@@ -1381,7 +1517,7 @@ export default function RealtimeWorkspace() {
     const current = JSON.parse(selectedLiveKey) as typeof selectedLiveSettings;
     const previous = previousLiveSettingsRef.current;
     previousLiveSettingsRef.current = current;
-    if (!streaming || !sessRef.current) return;
+    if (!streaming || !sessRef.current || calibrationControllerRef.current) return;
     for (const [key, value] of Object.entries(current)) {
       if (key === "block_frame" && current.automatic_block_size) continue;
       if (key === "pitch") continue;
@@ -1434,6 +1570,7 @@ export default function RealtimeWorkspace() {
       )}
 
       <Stage
+        disabled={calibrating}
         step={1}
         title={t("Voice & Devices")}
         description={t("Pick the target voice model and your input/output devices.")}
@@ -1499,6 +1636,7 @@ export default function RealtimeWorkspace() {
       </Stage>
 
       <Stage
+        disabled={calibrating}
         step={2}
         title={t("Tune & Go Live")}
         description={t("Shape the voice, then start streaming from your microphone.")}
@@ -2561,14 +2699,37 @@ export default function RealtimeWorkspace() {
               roundTrip={roundTrip}
               input={inputLevel}
               silentThreshold={silent}
-              chunkMs={chunkMs}
-              autoChunk={autoChunk}
+              chunkMs={calibrating ? calibrationCurrent : chunkMs}
+              autoChunk={calibrating ? false : autoChunk}
               diagnostics={diagnostics}
             />
           )}
         </div>
       </Stage>
-
+      <RealtimeCalibration
+        streaming={streaming}
+        disabled={
+          connecting ||
+          applyingSettings ||
+          applyingAudio ||
+          recOn ||
+          passthrough ||
+          inGain === 0 ||
+          !!sessRef.current?.settings.busy
+        }
+        running={calibrating}
+        current={calibrationCurrent}
+        results={calibrationResults}
+        stale={!!calibrationKey && calibrationKey !== calibrationContextKey}
+        error={calibrationError}
+        progress={calibrationProgress}
+        onStart={() => void calibrateHardware()}
+        onCancel={() => calibrationControllerRef.current?.abort()}
+        onApply={(size) => {
+          setChunkMs(size);
+          setAutoChunk(false);
+        }}
+      />
       <Card aria-label={t("Record Output")}>
         <CardHeader
           icon={<Disc size={18} className="text-white" />}
@@ -2580,6 +2741,7 @@ export default function RealtimeWorkspace() {
             <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
             <input
               id="rt-rec-path"
+              disabled={calibrating}
               type="text"
               value={recPath}
               onChange={(e) => setRecPath(e.target.value)}
@@ -2591,6 +2753,7 @@ export default function RealtimeWorkspace() {
             <label htmlFor="rt-rec-format">{t("Export Format")}</label>
             <CustomSelect
               id="rt-rec-format"
+              disabled={calibrating}
               value={recFormat}
               onChange={(e) => setRecFormat(e.target.value)}
               className="w-full mt-1"
@@ -2608,6 +2771,7 @@ export default function RealtimeWorkspace() {
           <Button
             variant={recOn ? "ghost" : "primary"}
             onClick={toggleRecord}
+            disabled={calibrating || !streaming}
             icon={<Disc size={16} className={recOn ? "animate-pulse text-white" : undefined} />}
           >
             {recOn ? t("Stop Recording") : t("Start Recording")}

@@ -1,11 +1,21 @@
 "use client";
 
-import { ChevronDown, Database, House, LayoutGrid, Mic, Sparkles } from "lucide-react";
+import {
+  Activity,
+  AudioWaveform,
+  ChevronDown,
+  Database,
+  House,
+  LayoutGrid,
+  Mic,
+  Sparkles,
+} from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/IntentLink";
 import { SidebarNavContent } from "@/components/layout/Sidebar";
 import { IconButton } from "@/components/ui";
+import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 
 const PRIMARY_TABS = [
@@ -16,12 +26,21 @@ const PRIMARY_TABS = [
 ] as const;
 
 export function BottomNav() {
+  const { remote } = useRemoteBridge();
+  const tabs = remote
+    ? [
+        { icon: Sparkles, label: "Inference", to: "/inference" },
+        { icon: AudioWaveform, label: "Audio Separator", to: "/audio-separator" },
+        { icon: Mic, label: "TTS", to: "/tts" },
+        { icon: Activity, label: "Job history", to: "/jobs" },
+      ]
+    : PRIMARY_TABS;
   const pathname = usePathname();
   const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const sheetRef = useRef<HTMLDivElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);
-  const moreActive = expanded || !PRIMARY_TABS.some((tab) => pathname === tab.to);
+  const moreActive = expanded || !tabs.some((tab) => pathname === tab.to);
 
   const close = useCallback(() => {
     setExpanded(false);
@@ -63,7 +82,7 @@ export function BottomNav() {
     return () => window.removeEventListener("keydown", onKey);
   }, [expanded, close]);
 
-  const renderTab = (tab: (typeof PRIMARY_TABS)[number]) => {
+  const renderTab = (tab: { icon: typeof House; label: string; to: string }) => {
     const Icon = tab.icon;
     const currentPage = pathname === tab.to;
     const active = currentPage && !expanded;
@@ -139,8 +158,8 @@ export function BottomNav() {
         style={{ paddingBottom: "calc(0.375rem + env(safe-area-inset-bottom))" }}
       >
         <ul className="list-none m-0 p-0 grid grid-cols-5 gap-0.5">
-          {renderTab(PRIMARY_TABS[0])}
-          {renderTab(PRIMARY_TABS[1])}
+          {renderTab(tabs[0])}
+          {renderTab(tabs[1])}
           <li className="min-w-0">
             <button
               type="button"
@@ -168,8 +187,8 @@ export function BottomNav() {
               <span className="truncate max-w-full">{t("More")}</span>
             </button>
           </li>
-          {renderTab(PRIMARY_TABS[2])}
-          {renderTab(PRIMARY_TABS[3])}
+          {renderTab(tabs[2])}
+          {renderTab(tabs[3])}
         </ul>
       </nav>
     </>

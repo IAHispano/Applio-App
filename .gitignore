@@ -20,6 +20,7 @@ backend/revision.json
 
 assets/audios
 assets/datasets
+assets/curated-datasets
 assets/uvr-models
 
 assets/config.json

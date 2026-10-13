@@ -8,6 +8,7 @@ import PageHeader from "@/components/layout/PageHeader";
 import { Button, Card, CardHeader, CustomSelect, FileInput } from "@/components/ui";
 import SettingHelp from "@/components/ui/SettingHelp";
 import { errMsg, fetchModels } from "@/lib/api";
+import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
@@ -23,6 +24,7 @@ const F0CurveExtractor = dynamic(() => import("@/components/extra/F0CurveExtract
 });
 
 export default function ExtraPage() {
+  const { remote } = useRemoteBridge();
   const { t } = useI18n();
   const [audio, setAudio] = useState<File | null>(null);
   const [inputPath, setInputPath] = useState("");
@@ -146,44 +148,48 @@ export default function ExtraPage() {
       </div>
 
       {/* Training data uploads */}
-      <Card>
-        <CardHeader
-          icon={<FolderUp size={18} />}
-          title={t("Dataset & Checkpoint Uploads")}
-          description={t("Upload local dataset files, pretrained weights, or custom embedders for training.")}
-        />
-        <div className="grid grid-cols-1 xl:grid-cols-3 card-grid items-stretch">
-          <UploadBox
-            icon={<AudioWaveform size={20} />}
-            accept=".wav,.mp3,.flac"
-            fileLabel={t("Audio files")}
-            path="/api/train/upload-dataset"
-            fields={[{ name: "datasetName", label: t("Dataset name (e.g. my_vocals)") }]}
-            files="files"
-            multiple
-            label={t("Dataset audio files (WAV/MP3/FLAC)")}
+      {!remote && (
+        <Card>
+          <CardHeader
+            icon={<FolderUp size={18} />}
+            title={t("Dataset & Checkpoint Uploads")}
+            description={t(
+              "Upload local dataset files, pretrained weights, or custom embedders for training.",
+            )}
           />
-          <UploadBox
-            icon={<Layers size={20} />}
-            accept=".pth"
-            fileLabel={t("Weights")}
-            path="/api/train/upload-pretrained"
-            fields={[]}
-            files="file"
-            label={t("Custom pretrained weights (.pth)")}
-          />
-          <UploadBox
-            icon={<Brain size={20} />}
-            accept=".bin"
-            fileLabel=".bin"
-            path="/api/train/upload-embedder"
-            fields={[{ name: "folderName", label: t("Folder Name") }]}
-            files="bin"
-            extra="config"
-            label={t("Custom Embedder (.bin + .json)")}
-          />
-        </div>
-      </Card>
+          <div className="grid grid-cols-1 xl:grid-cols-3 card-grid items-stretch">
+            <UploadBox
+              icon={<AudioWaveform size={20} />}
+              accept=".wav,.mp3,.flac"
+              fileLabel={t("Audio files")}
+              path="/api/train/upload-dataset"
+              fields={[{ name: "datasetName", label: t("Dataset name (e.g. my_vocals)") }]}
+              files="files"
+              multiple
+              label={t("Dataset audio files (WAV/MP3/FLAC)")}
+            />
+            <UploadBox
+              icon={<Layers size={20} />}
+              accept=".pth"
+              fileLabel={t("Weights")}
+              path="/api/train/upload-pretrained"
+              fields={[]}
+              files="file"
+              label={t("Custom pretrained weights (.pth)")}
+            />
+            <UploadBox
+              icon={<Brain size={20} />}
+              accept=".bin"
+              fileLabel=".bin"
+              path="/api/train/upload-embedder"
+              fields={[{ name: "folderName", label: t("Folder Name") }]}
+              files="bin"
+              extra="config"
+              label={t("Custom Embedder (.bin + .json)")}
+            />
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

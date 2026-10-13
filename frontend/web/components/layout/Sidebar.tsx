@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS } from "@/components/layout/nav";
 import SupportLink from "@/components/SupportLink";
+import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
 import { DISCORD_SUPPORT_URL } from "@/lib/support";
@@ -14,13 +15,20 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
   const { t } = useI18n();
   const { isReady, loading } = useSetup();
+  const { remote } = useRemoteBridge();
+  const sections = remote
+    ? NAV_SECTIONS.map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !REMOTE_HOST_ROUTES.has(item.to)),
+      })).filter((section) => section.items.length)
+    : NAV_SECTIONS;
 
   return (
     <>
       {/* Brand Header */}
       <div className="px-3 pt-1 pb-1.5 mb-1 flex items-center justify-between shrink-0">
         <Link
-          href="/"
+          href={remote ? "/inference" : "/"}
           onClick={onNavigate}
           className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
           aria-label={t("Applio - Home")}
@@ -35,7 +43,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       {/* Setup Incomplete Notice */}
-      {!isReady && !loading && (
+      {!remote && !isReady && !loading && (
         <div className="mx-1 my-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs">
           <div className="flex items-center gap-1.5 font-semibold text-amber-400">
             <AlertTriangle size={13} className="shrink-0" />
@@ -60,7 +68,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
         className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scrollbar-thin"
         aria-label={t("Main Navigation")}
       >
-        {NAV_SECTIONS.map((section, sIdx) => (
+        {sections.map((section, sIdx) => (
           <div key={section.title || `sec-${sIdx}`} className="space-y-1">
             {section.title && (
               <h2 className="px-3 pt-1 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)] select-none m-0">

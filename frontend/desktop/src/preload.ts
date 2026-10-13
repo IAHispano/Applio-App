@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { BridgeState } from "./bridge-mode";
 import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "./tray-menu";
 
 // Mark the native surface before the UI mounts, including development error screens.
@@ -35,6 +36,14 @@ export interface UpdaterBridge {
 }
 
 export interface ApplioBridge {
+  bridgeMode: {
+    getStatus: () => Promise<BridgeState>;
+    start: () => Promise<BridgeState>;
+    stop: () => Promise<BridgeState>;
+    newInvite: () => Promise<BridgeState>;
+    approve: (id: string) => Promise<BridgeState>;
+    revoke: (id: string) => Promise<BridgeState>;
+  };
   platform: NodeJS.Platform;
   versions: NodeJS.ProcessVersions;
   controls: WindowControls;
@@ -56,6 +65,14 @@ declare global {
 }
 
 contextBridge.exposeInMainWorld("applio", {
+  bridgeMode: {
+    getStatus: () => ipcRenderer.invoke("bridge:status"),
+    start: () => ipcRenderer.invoke("bridge:start"),
+    stop: () => ipcRenderer.invoke("bridge:stop"),
+    newInvite: () => ipcRenderer.invoke("bridge:invite"),
+    approve: (id: string) => ipcRenderer.invoke("bridge:approve", id),
+    revoke: (id: string) => ipcRenderer.invoke("bridge:revoke", id),
+  },
   onNavigate: (listener: (href: string) => void) => {
     const handler = (_event: unknown, href: string) => listener(href);
     ipcRenderer.on("app:navigate", handler);

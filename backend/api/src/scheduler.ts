@@ -7,7 +7,7 @@ import {
   subscribeAllJobs,
 } from "@/jobs";
 
-export type JobResource = "gpu" | "network" | "model-download";
+export type JobResource = "gpu" | "network" | "model-download" | "dataset-review";
 let prepareGpu: ((job: Job) => Promise<void>) | undefined;
 export function setGpuPreparation(prepare: (job: Job) => Promise<void>): void {
   prepareGpu = prepare;
@@ -74,7 +74,11 @@ export function acquireJobSlot(job: Job, resource: JobResource = "gpu"): Promise
     if (waiting.includes(entry))
       appendLog(
         job,
-        resource === "gpu" ? "Waiting for the GPU to become available." : "Waiting for a download slot.",
+        resource === "gpu"
+          ? "Waiting for the GPU to become available."
+          : resource === "dataset-review"
+            ? "Waiting for the current dataset review to finish."
+            : "Waiting for a download slot.",
       );
   });
 }

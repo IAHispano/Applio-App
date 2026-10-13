@@ -49,7 +49,7 @@ function walkAudioDirs(root: string): string[] {
     let hasAudio = false;
     for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, e.name);
-      if (e.isDirectory()) walk(full);
+      if (e.isDirectory() && !e.name.startsWith(".applio-review-")) walk(full);
       else if (AUDIO_EXTS.includes(path.extname(e.name).toLowerCase())) hasAudio = true;
     }
     if (hasAudio) out.push(path.relative(getRepoRoot(), dir).replace(/\\/g, "/"));
@@ -75,7 +75,12 @@ function walkFiles(root: string, exts: string[], exclude: (f: string) => boolean
 }
 
 router.get("/datasets", (_req: Request, res: Response) => {
-  res.json({ datasets: walkAudioDirs(path.join(getRepoRoot(), "assets", "datasets")) });
+  res.json({
+    datasets: [
+      ...walkAudioDirs(path.join(getRepoRoot(), "assets", "datasets")),
+      ...walkAudioDirs(path.join(getRepoRoot(), "assets", "curated-datasets")),
+    ],
+  });
 });
 
 router.get("/pretraineds", (_req: Request, res: Response) => {

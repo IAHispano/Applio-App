@@ -241,6 +241,14 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
       if (controller.signal.aborted) return;
       onUpdate(job);
       if (isJobFinished(job)) return;
+      try {
+        if (sessionStorage.getItem("applio:remote-bridge") === "1") {
+          fallback();
+          return;
+        }
+      } catch {
+        /* storage may be unavailable; the stream error still falls back */
+      }
       const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
       try {
         source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events`);

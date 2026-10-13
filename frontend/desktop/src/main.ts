@@ -18,6 +18,7 @@ import {
   Tray,
 } from "electron";
 import { NsisUpdater, autoUpdater as platformUpdater, type UpdateInfo } from "electron-updater";
+import { BridgeMode } from "./bridge-mode";
 import { copyLegacyUserData, prepareInstallationStorage } from "./local-storage";
 import { PassthroughHotkey } from "./passthrough-hotkey";
 import { isCompletedSetup, refreshSetupPath } from "./setup-restart";
@@ -141,6 +142,57 @@ const isDev: boolean = !app.isPackaged;
 const API_PORT: string = process.env.API_PORT || "8000";
 const WEB_PORT: string = process.env.WEB_PORT || "3000";
 const WEB_URL: string = process.env.WEB_URL || `http://127.0.0.1:${WEB_PORT}/`;
+let bridgeMode: BridgeMode | undefined;
+
+function initBridgeMode(): void {
+  bridgeMode = new BridgeMode({
+    cacheDir: path.join(localStorage?.cache || app.getPath("userData"), "bridge-helper"),
+    webPort: Number(WEB_PORT),
+    apiPort: Number(API_PORT),
+    onRequest: (device) => {
+      if (!Notification.isSupported()) return;
+      const notification = new Notification({
+        title: "Applio Bridge · Connection request",
+        body: `${device.name} is requesting access. Check code ${device.code} in Settings → Bridge Mode.`,
+      });
+      notification.on("click", () => {
+        if (!mainWindow || mainWindow.isDestroyed()) return;
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send("app:navigate", "/settings");
+      });
+      notification.show();
+    },
+  });
+  for (const action of ["status", "start", "stop", "invite", "approve", "revoke"] as const) {
+    ipcMain.handle(`bridge:${action}`, (event, id: unknown) => {
+      if (
+        !mainWindow ||
+        mainWindow.isDestroyed() ||
+        event.sender !== mainWindow.webContents ||
+        event.senderFrame !== mainWindow.webContents.mainFrame ||
+        new URL(event.senderFrame.url).origin !==
+          new URL(isDev ? WEB_URL : `http://127.0.0.1:${WEB_PORT}`).origin
+      ) {
+        throw new Error("Bridge Mode can only be controlled from the host window.");
+      }
+      if (!bridgeMode) throw new Error("Bridge Mode is unavailable.");
+      switch (action) {
+        case "status":
+          return bridgeMode.getState();
+        case "start":
+          return bridgeMode.start();
+        case "stop":
+          return bridgeMode.stop();
+        case "invite":
+          return bridgeMode.newInvite();
+        default:
+          if (typeof id !== "string" || !/^[a-f0-9]{32}$/.test(id)) throw new Error("Invalid device.");
+          return action === "approve" ? bridgeMode.approve(id) : bridgeMode.revoke(id);
+      }
+    });
+  }
+}
 
 function noEnv(): boolean {
   return process.argv.includes("--no-env") || process.env.APPLIO_NO_ENV === "1";
@@ -599,6 +651,7 @@ function startProdBackends(): void {
 }
 
 function stopBackends(): void {
+  bridgeMode?.stop();
   for (const p of [apiProc, webProc]) {
     try {
       p?.kill();
@@ -1995,6 +2048,7 @@ if (!gotLock) {
         : null,
     );
     initAutoUpdater();
+    initBridgeMode();
     // Explicit mic grant for our local UI so background (tray-driven)
     // streaming is never stuck on a permission prompt.
     try {
@@ -2021,6 +2075,7 @@ if (!gotLock) {
 }
 
 app.on("window-all-closed", () => {
+  bridgeMode?.stop();
   apiProc?.kill();
   webProc?.kill();
   if (process.platform !== "darwin") app.quit();
@@ -2031,6 +2086,7 @@ app.on("activate", () => {
 });
 
 app.on("before-quit", () => {
+  bridgeMode?.stop();
   isQuitting = true;
   globalShortcut.unregisterAll();
   destroyTray();

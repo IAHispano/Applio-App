@@ -1,5 +1,255 @@
 @import "tailwindcss";
 
+/* Personal remote access: scoped to the Bridge Mode settings card. */
+.bridge-intro {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--input-bg);
+}
+.bridge-device-art {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.bridge-art-host,
+.bridge-art-phone {
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--heading);
+}
+.bridge-art-host {
+  width: 76px;
+  height: 76px;
+  border-radius: 18px;
+}
+.bridge-art-phone {
+  width: 50px;
+  height: 60px;
+  border-radius: 13px;
+}
+.bridge-art-line {
+  width: 24px;
+  border-top: 2px dotted var(--muted);
+  opacity: 0.5;
+}
+.bridge-invite-grid {
+  display: grid;
+  grid-template-columns: 256px minmax(0, 1fr);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.bridge-qr-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 20px;
+  background: var(--input-bg);
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.bridge-qr-frame {
+  width: 208px;
+  height: 208px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.bridge-qr-image {
+  width: 208px;
+  height: 208px;
+}
+.bridge-invite-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 20px;
+  min-width: 0;
+  padding: 24px;
+}
+.bridge-eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.bridge-steps {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+.bridge-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--text);
+}
+.bridge-steps li > span {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 600;
+}
+.bridge-link-row {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.bridge-link-row input {
+  margin: 0;
+}
+.bridge-requests {
+  display: grid;
+  gap: 12px;
+  border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  border-radius: 12px;
+  padding: 16px;
+  background: color-mix(in srgb, var(--warn) 4%, var(--panel));
+}
+.bridge-request-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.bridge-match-code {
+  font-family: ui-monospace, monospace;
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  color: var(--heading);
+  white-space: nowrap;
+}
+.bridge-device-actions {
+  display: flex;
+  gap: 8px;
+}
+.bridge-connected-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+.bridge-connected-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  background: var(--accent-soft);
+  border-radius: 10px;
+  color: var(--heading);
+}
+.bridge-empty-devices {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.bridge-footer {
+  display: flex;
+  gap: 12px 20px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 11px;
+}
+.bridge-footer > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.bridge-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--err);
+  background: var(--input-bg);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 767px) {
+  .bridge-intro {
+    gap: 18px;
+    padding: 20px;
+    align-items: flex-start;
+  }
+  .bridge-device-art {
+    display: none;
+  }
+  .bridge-invite-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bridge-qr-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+    padding: 20px;
+  }
+  .bridge-invite-content {
+    padding: 20px;
+    gap: 18px;
+  }
+}
+@media (max-width: 479px) {
+  .bridge-link-row {
+    flex-direction: column;
+  }
+  .bridge-link-row input {
+    width: 100%;
+  }
+  .bridge-request-row {
+    align-items: flex-start;
+  }
+  .bridge-device-actions {
+    width: 100%;
+  }
+  .bridge-device-actions > button {
+    flex: 1;
+  }
+  .bridge-connected-row {
+    flex-wrap: wrap;
+  }
+  .bridge-connected-row > button {
+    margin-left: 50px;
+  }
+}
+
 /* Next's development overlay contains source/editor controls. Keep it outside the native UI. */
 html[data-applio-desktop="true"] nextjs-portal {
   display: none !important;
