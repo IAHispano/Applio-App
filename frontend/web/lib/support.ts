@@ -1,6 +1,7 @@
 import { ECOSYSTEM } from "@/lib/ecosystem";
 
 export const SUPPORT_URL = ECOSYSTEM.links.support;
+export const PATREON_URL = ECOSYSTEM.links.patreon;
 export const DISCORD_SUPPORT_URL = ECOSYSTEM.links.discord;
 const REMINDER_KEY = "applio:support-reminder";
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
