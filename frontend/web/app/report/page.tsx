@@ -6,10 +6,12 @@ import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, errMsg, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { formatDiagnostics, issueReportUrl } from "@/lib/report";
 import { toast } from "@/lib/toast";
 
 interface SystemInfo {
   version: string;
+  backendRevision?: string;
   platform: string;
   node: string;
   python: string;
@@ -78,10 +80,6 @@ export default function ReportPage() {
     }
   }
 
-  const issueBody = info
-    ? `**Describe the bug**%0A%0A**System**%0A- Applio ${info.version} · ${info.platform}%0A- Node ${info.node} · ${info.python}%0A- CPUs ${info.cpus} · RAM ${info.totalMemGB}GB`
-    : "";
-
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
@@ -125,7 +123,7 @@ export default function ReportPage() {
           </Button>
           {info && (
             <Button
-              href={`${info.issueUrl}?body=${issueBody}`}
+              href={issueReportUrl(info)}
               target="_blank"
               variant="ghost"
               icon={<ExternalLink size={16} className="text-white" />}
@@ -161,7 +159,7 @@ export default function ReportPage() {
                 variant="ghost"
                 size="sm"
                 onClick={() => {
-                  const text = `Applio ${info.version}\n${info.platform}\nNode ${info.node}\n${info.python}\nCPUs: ${info.cpus} · RAM: ${info.totalMemGB}GB`;
+                  const text = formatDiagnostics(info);
                   navigator.clipboard.writeText(text);
                   toast(t("Diagnostics copied to clipboard"));
                 }}
@@ -175,7 +173,11 @@ export default function ReportPage() {
 
         {info ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatTile label={t("Applio Version")} value={info.version} />
+            <StatTile
+              label={t("Applio Version")}
+              value={info.version}
+              subtext={`${t("Engine revision")}: ${info.backendRevision?.slice(0, 12) || "unknown"}`}
+            />
             <StatTile label={t("Platform")} value={info.platform} />
             <StatTile label={t("Engine Runtimes")} value={`Node ${info.node}`} subtext={info.python} />
             <StatTile

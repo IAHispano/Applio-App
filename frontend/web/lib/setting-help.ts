@@ -115,7 +115,8 @@ export const SETTING_HELP = {
   textFile: "Load spoken text from a UTF-8 text file instead of typing it.",
   ttsVoice: "Choose the speech voice and language used to read your text.",
   ttsSpeed: "Change speech speed. Positive values speak faster; negative values speak slower.",
-  blend: "Mix model weights: 0 uses only Model 1, 1 uses only Model 2. Both models must be compatible.",
+  blend:
+    "Mix model weights: 0 uses only the second model, 1 uses only the first model. Both models must be compatible.",
   blendModel: "Select a checkpoint to blend. Both checkpoints must share a compatible architecture.",
   pretrainedDownload: "Choose the pretrained weight family to download for training.",
   customURLs: "Provide your own download links for the generator and discriminator weights.",

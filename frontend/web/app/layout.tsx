@@ -7,6 +7,7 @@ import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
 import { RemoteBridgeProvider } from "@/lib/bridge-mode";
+import { ECOSYSTEM } from "@/lib/ecosystem";
 import { I18nProvider } from "@/lib/i18n";
 import { SetupProvider } from "@/lib/setup";
 import { ThemeProvider } from "@/lib/theme";
@@ -21,8 +22,8 @@ const syne = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Applio",
-  description: "A simple, high-quality voice conversion tool.",
+  title: ECOSYSTEM.brand.name,
+  description: ECOSYSTEM.brand.description,
 };
 
 export const viewport: Viewport = {

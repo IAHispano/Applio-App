@@ -1511,5 +1511,16 @@
   "{label} numeric value": "{label} numeric value",
   "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} is requesting access. Check code {code} in Settings → Bridge Mode.",
   "{n} files selected": "{n} files selected",
-  "…or pick from assets/audios": "…or pick from assets/audios"
+  "…or pick from assets/audios": "…or pick from assets/audios",
+  "Website": "Website",
+  "Documentation": "Documentation",
+  "User guide": "User guide",
+  "Download Desktop": "Download Desktop",
+  "Community": "Community",
+  "Source code": "Source code",
+  "Voice conversion, realtime voice changing, speech synthesis, and model training.": "Voice conversion, realtime voice changing, speech synthesis, and model training.",
+  "Engine revision": "Engine revision",
+  "Mix model weights: 0 uses only the second model, 1 uses only the first model. Both models must be compatible.": "Mix model weights: 0 uses only the second model, 1 uses only the first model. Both models must be compatible.",
+  "Blending requires .pth voice models; ONNX files are not supported.": "Blending requires .pth voice models; ONNX files are not supported.",
+  "No jobs match these filters.": "No jobs match these filters."
 }

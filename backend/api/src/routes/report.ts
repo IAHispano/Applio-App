@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { type Request, type Response, Router } from "express";
 import { z } from "zod";
+import { desktopIssueUrl } from "@/ecosystem";
 import { errMsg } from "@/errors";
 import {
   getAppVersion,
@@ -15,7 +16,6 @@ import {
 import { schedulerStatus } from "@/scheduler";
 
 const router = Router();
-const ISSUE_URL = "https://github.com/IAHispano/Applio-app/issues/new";
 
 // `python --version` spawns a full interpreter (~0.5s cold on Windows) and
 // the binary never changes under a process, so cache per resolved binary.
@@ -55,7 +55,7 @@ router.get("/info", async (_req: Request, res: Response) => {
     python,
     cpus: os.cpus().length,
     totalMemGB: Math.round(os.totalmem() / 1024 ** 3),
-    issueUrl: ISSUE_URL,
+    issueUrl: desktopIssueUrl(),
     time: new Date().toISOString(),
   });
 });
@@ -71,7 +71,7 @@ router.post("/upload", (req: Request, res: Response) => {
     const file = path.join(getOutputsDir(), `web_report_${Date.now()}.${ext}`);
     fs.writeFileSync(file, Buffer.from(m[2], "base64"));
     const rel = path.relative(getRepoRoot(), file).replace(/\\/g, "/");
-    res.json({ ok: true, file: rel, issueUrl: ISSUE_URL });
+    res.json({ ok: true, file: rel, issueUrl: desktopIssueUrl() });
   } catch (err) {
     res.status(500).json({ error: errMsg(err) });
   }

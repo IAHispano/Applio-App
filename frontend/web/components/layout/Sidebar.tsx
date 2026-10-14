@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, ArrowRight, MessageCircle } from "lucide-react";
+import { AlertTriangle, ArrowRight, BookOpen, Globe, MessageCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
 import HalloweenThemePrompt from "@/components/HalloweenThemePrompt";
 import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS } from "@/components/layout/nav";
 import SupportLink from "@/components/SupportLink";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
+import { DOCS_URL, WEBSITE_URL } from "@/lib/ecosystem";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
 import { DISCORD_SUPPORT_URL } from "@/lib/support";
@@ -34,6 +35,16 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
           aria-label={t("Applio - Home")}
         >
+          <span
+            aria-hidden="true"
+            className="h-6 w-5 shrink-0 bg-[var(--heading)]"
+            style={{
+              maskImage: "url('/assets/applio-logo.svg')",
+              maskSize: "contain",
+              maskRepeat: "no-repeat",
+              maskPosition: "center",
+            }}
+          />
           <span className="title text-xl text-[var(--heading)] group-hover:opacity-80 transition-opacity">
             Applio
           </span>
@@ -130,6 +141,26 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       {!remote && <HalloweenThemePrompt />}
       <div className="shrink-0 mt-2 px-3 flex flex-col">
+        <div className="flex items-center gap-4 border-t border-[var(--border)] pt-2">
+          <a
+            href={WEBSITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
+          >
+            <Globe size={14} aria-hidden="true" />
+            {t("Website")}
+          </a>
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
+          >
+            <BookOpen size={14} aria-hidden="true" />
+            {t("Documentation")}
+          </a>
+        </div>
         <a
           href={DISCORD_SUPPORT_URL}
           target="_blank"

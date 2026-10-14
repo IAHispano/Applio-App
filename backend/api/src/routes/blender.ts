@@ -19,8 +19,8 @@ const upload = multer({
   limits: { fileSize: 1024 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const n = file.originalname.toLowerCase();
-    if (!n.endsWith(".pth") && !n.endsWith(".onnx")) {
-      return cb(new Error("Only .pth/.onnx model files are accepted"));
+    if (!n.endsWith(".pth")) {
+      return cb(new Error("Blending requires .pth voice models; ONNX files are not supported."));
     }
     cb(null, true);
   },
@@ -28,8 +28,18 @@ const upload = multer({
 
 const blenderSchema = z.object({
   modelName: z.string().min(1).max(120),
-  pthPath1: z.string().min(1),
-  pthPath2: z.string().min(1),
+  pthPath1: z
+    .string()
+    .min(1)
+    .refine((value) => value.toLowerCase().endsWith(".pth"), {
+      message: "Blending requires .pth voice models; ONNX files are not supported.",
+    }),
+  pthPath2: z
+    .string()
+    .min(1)
+    .refine((value) => value.toLowerCase().endsWith(".pth"), {
+      message: "Blending requires .pth voice models; ONNX files are not supported.",
+    }),
   ratio: z.coerce.number().min(0).max(1).default(0.5),
 });
 

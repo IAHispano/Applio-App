@@ -48,6 +48,11 @@ app.use(express.json({ limit: "2mb" }));
 const repoRoot = getRepoRoot();
 const outputsDir = getOutputsDir();
 app.use("/outputs", express.static(outputsDir, { maxAge: "1h", fallthrough: true }));
+// Branding is shipped code. Existing runtime assets are not reseeded on every
+// upgrade, so the current mark must not depend on a writable data-folder copy.
+app.get("/assets/applio-logo.svg", (_req, res) => {
+  res.sendFile(path.join(getCodeRoot(), "assets", "applio-logo.svg"), { maxAge: "1h" });
+});
 app.use("/assets", express.static(path.join(repoRoot, "assets"), { maxAge: "1h", fallthrough: true }));
 
 // Ensure essential shipped training data exists in the selected logs folder.

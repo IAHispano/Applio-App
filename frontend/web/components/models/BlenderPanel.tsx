@@ -28,9 +28,10 @@ export default function BlenderPanel() {
   useEffect(() => {
     fetchModels()
       .then((m) => {
-        setModels(m.models);
-        if (m.models[0]) setP1(m.models[0]);
-        if (m.models[1]) setP2(m.models[1]);
+        const checkpoints = m.models.filter((model) => model.toLowerCase().endsWith(".pth"));
+        setModels(checkpoints);
+        if (checkpoints[0]) setP1(checkpoints[0]);
+        if (checkpoints[1]) setP2(checkpoints[1]);
       })
       .catch(() => {});
   }, []);
@@ -40,6 +41,10 @@ export default function BlenderPanel() {
     setError("");
     if (!name || (!p1 && !f1) || (!p2 && !f2)) {
       setError(t("Name and two models are required (path or upload)."));
+      return;
+    }
+    if ([f1?.name || p1, f2?.name || p2].some((model) => !model.toLowerCase().endsWith(".pth"))) {
+      setError(t("Blending requires .pth voice models; ONNX files are not supported."));
       return;
     }
     const picked = [f1?.name || p1, f2?.name || p2].map((s) => s.split(/[\\/]/).pop() || "");
@@ -100,7 +105,7 @@ export default function BlenderPanel() {
             <div>
               <SliderField
                 id="blend-ratio"
-                label={`${t("Blend Ratio")} (0 = ${t("Model 1")}, 1 = ${t("Model 2")})`}
+                label={`${t("Blend Ratio")} (0 = ${t("Model 2")}, 1 = ${t("Model 1")})`}
                 value={ratio}
                 min={0}
                 max={1}
@@ -146,7 +151,7 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 1 file")}
               </label>
-              <FileInput id="blend-model1-file" accept=".pth,.onnx" onFileSelect={setF1} />
+              <FileInput id="blend-model1-file" accept=".pth" onFileSelect={setF1} />
             </div>
 
             <div className="space-y-2">
@@ -183,7 +188,7 @@ export default function BlenderPanel() {
               <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
                 {t("Or upload Model 2 file")}
               </label>
-              <FileInput id="blend-model2-file" accept=".pth,.onnx" onFileSelect={setF2} />
+              <FileInput id="blend-model2-file" accept=".pth" onFileSelect={setF2} />
             </div>
           </div>
         </Card>
