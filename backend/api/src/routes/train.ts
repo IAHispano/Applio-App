@@ -260,8 +260,6 @@ interface PreprocessParams {
   cpuCores: number;
   cutPreprocess: string;
   processEffects: boolean;
-  noiseReduction: boolean;
-  cleanStrength: number;
   chunkLen: number;
   overlapLen: number;
   normalizationMode: string;
@@ -276,8 +274,6 @@ function buildPreprocessArgs(p: PreprocessParams): string[] {
     String(p.cpuCores),
     p.cutPreprocess,
     p.processEffects ? "True" : "False",
-    p.noiseReduction ? "True" : "False",
-    String(p.cleanStrength),
     p.chunkLen.toFixed(1),
     p.overlapLen.toFixed(1),
     p.normalizationMode,
@@ -439,8 +435,6 @@ router.post("/preprocess", async (req: Request, res: Response) => {
       cpuCores: z.coerce.number().int().min(1).max(64).default(maxCores),
       cutPreprocess: z.enum(["Skip", "Simple", "Automatic"]).default("Automatic"),
       processEffects: booleanCoerce.default(false),
-      noiseReduction: booleanCoerce.default(false),
-      cleanStrength: z.coerce.number().min(0).max(1).default(0.5),
       chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
       overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
       normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
@@ -639,8 +633,6 @@ router.post("/pipeline", async (req: Request, res: Response) => {
       chunkLen: z.coerce.number().min(0.5).max(5).default(3.0),
       overlapLen: z.coerce.number().min(0).max(0.4).default(0.3),
       processEffects: booleanCoerce.default(false),
-      noiseReduction: booleanCoerce.default(false),
-      cleanStrength: z.coerce.number().min(0).max(1).default(0.7),
       normalizationMode: z.enum(["none", "pre", "post"]).default("post"),
       f0Method: z.enum(["crepe", "rmvpe", "fcpe", "swift"]).default("rmvpe"),
       embedderModel: z

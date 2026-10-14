@@ -1,6 +1,6 @@
 "use client";
 
-import { Disc, Gauge, Headphones, Layers, ListMusic, Play, RefreshCw, Square, Wand2 } from "lucide-react";
+import { Disc, Gauge, Headphones, ListMusic, Play, RefreshCw, Sparkles, Square, Wand2 } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import RealtimeCalibration from "@/components/RealtimeCalibration";
@@ -87,45 +87,10 @@ const REALTIME_PRESET_DEFAULTS = {
   autotune_strength: 1,
   proposed_pitch: false,
   proposed_pitch_threshold: 155,
-  clean_audio: false,
-  clean_strength: 0.5,
-  post_process: false,
-  reverb: false,
-  reverb_room_size: 0.5,
-  reverb_damping: 0.5,
-  reverb_wet_level: 0.5,
-  reverb_dry_level: 0.5,
-  reverb_width: 0.5,
-  reverb_freeze_mode: 0.5,
-  pitch_shift: false,
-  pitch_shift_semitones: 0,
-  limiter: false,
-  limiter_threshold: -6,
-  limiter_release: 0.01,
-  gain: false,
-  gain_db: 0,
-  distortion: false,
-  distortion_gain: 25,
-  chorus: false,
-  chorus_rate: 1.0,
-  chorus_depth: 0.25,
-  chorus_delay: 7,
-  chorus_feedback: 0.0,
-  chorus_mix: 0.5,
-  bitcrush: false,
-  clipping: false,
-  clipping_threshold: -6,
-  compressor: false,
-  compressor_threshold: 0,
-  compressor_ratio: 1,
-  compressor_attack: 1.0,
-  compressor_release: 100,
-  delay: false,
-  delay_seconds: 0.5,
-  delay_feedback: 0.0,
-  delay_mix: 0.5,
+  formant_shifting: false,
+  formant_qfrency: 1,
+  formant_timbre: 1,
   sid: 0,
-  bitcrush_bit_depth: 8,
   f0_method: "fcpe",
   embedder_model: "contentvec",
   embedder_model_custom: "",
@@ -165,8 +130,9 @@ export default function RealtimeWorkspace() {
   const [autotuneStrength, setAutotuneStrength] = useState(1);
   const [proposedPitch, setProposedPitch] = useState(false);
   const [proposedPitchThreshold, setProposedPitchThreshold] = useState(155);
-  const [cleanAudio, setCleanAudio] = useState(false);
-  const [cleanStrength, setCleanStrength] = useState(0.5);
+  const [formantShifting, setFormantShifting] = useState(false);
+  const [formantQfrency, setFormantQfrency] = useState(1);
+  const [formantTimbre, setFormantTimbre] = useState(1);
   const [chunkMs, setChunkMs] = useState(30);
   const [autoChunk, setAutoChunk] = useState(true);
   const [crossfade, setCrossfade] = useState(0.05);
@@ -181,43 +147,6 @@ export default function RealtimeWorkspace() {
   const [monitorSelf, setMonitorSelf] = useState(false);
   const [monitorVolume, setMonitorVolume] = useState(100);
   const [outLevel, setOutLevel] = useState(0);
-  // Post-process FX rack (parity with Gradio realtime tab: post_process + 10 pedalboard FX)
-  const [postProcess, setPostProcess] = useState(false);
-  const [reverb, setReverb] = useState(false);
-  const [reverbRoomSize, setReverbRoomSize] = useState(0.5);
-  const [reverbDamping, setReverbDamping] = useState(0.5);
-  const [reverbWetGain, setReverbWetGain] = useState(0.5);
-  const [reverbDryGain, setReverbDryGain] = useState(0.5);
-  const [reverbWidth, setReverbWidth] = useState(0.5);
-  const [reverbFreezeMode, setReverbFreezeMode] = useState(0.5);
-  const [pitchShiftFx, setPitchShiftFx] = useState(false);
-  const [pitchShiftSemitones, setPitchShiftSemitones] = useState(0);
-  const [limiter, setLimiter] = useState(false);
-  const [limiterThreshold, setLimiterThreshold] = useState(-6);
-  const [limiterReleaseTime, setLimiterReleaseTime] = useState(0.01);
-  const [gainFx, setGainFx] = useState(false);
-  const [gainDb, setGainDb] = useState(0);
-  const [distortion, setDistortion] = useState(false);
-  const [distortionGain, setDistortionGain] = useState(25);
-  const [chorus, setChorus] = useState(false);
-  const [chorusRate, setChorusRate] = useState(1.0);
-  const [chorusDepth, setChorusDepth] = useState(0.25);
-  const [chorusCenterDelay, setChorusCenterDelay] = useState(7);
-  const [chorusFeedback, setChorusFeedback] = useState(0.0);
-  const [chorusMix, setChorusMix] = useState(0.5);
-  const [bitcrush, setBitcrush] = useState(false);
-  const [bitcrushBitDepth, setBitcrushBitDepth] = useState(8);
-  const [clipping, setClipping] = useState(false);
-  const [clippingThreshold, setClippingThreshold] = useState(-6);
-  const [compressor, setCompressor] = useState(false);
-  const [compressorThreshold, setCompressorThreshold] = useState(0);
-  const [compressorRatio, setCompressorRatio] = useState(1);
-  const [compressorAttack, setCompressorAttack] = useState(1.0);
-  const [compressorRelease, setCompressorRelease] = useState(100);
-  const [delayFx, setDelayFx] = useState(false);
-  const [delaySeconds, setDelaySeconds] = useState(0.5);
-  const [delayFeedback, setDelayFeedback] = useState(0.0);
-  const [delayMix, setDelayMix] = useState(0.5);
   const [streaming, setStreaming] = useState(false);
   const [connecting, setConnecting] = useState(false);
   const [latency, setLatency] = useState(0);
@@ -396,45 +325,10 @@ export default function RealtimeWorkspace() {
     setAutotuneStrength(num(values.autotune_strength, 0, 1, 1));
     setProposedPitch(bool(values.proposed_pitch, false));
     setProposedPitchThreshold(num(values.proposed_pitch_threshold, 50, 1200, 155));
-    setCleanAudio(bool(values.clean_audio, false));
-    setCleanStrength(num(values.clean_strength, 0, 1, 0.5));
-    setPostProcess(bool(values.post_process, false));
-    setReverb(bool(values.reverb, false));
-    setReverbRoomSize(num(values.reverb_room_size, 0, 1, 0.5));
-    setReverbDamping(num(values.reverb_damping, 0, 1, 0.5));
-    setReverbWetGain(num(values.reverb_wet_level, 0, 1, 0.5));
-    setReverbDryGain(num(values.reverb_dry_level, 0, 1, 0.5));
-    setReverbWidth(num(values.reverb_width, 0, 1, 0.5));
-    setReverbFreezeMode(num(values.reverb_freeze_mode, 0, 1, 0.5));
-    setPitchShiftFx(bool(values.pitch_shift, false));
-    setPitchShiftSemitones(num(values.pitch_shift_semitones, -12, 12, 0));
-    setLimiter(bool(values.limiter, false));
-    setLimiterThreshold(num(values.limiter_threshold, -60, 0, -6));
-    setLimiterReleaseTime(num(values.limiter_release, 0.01, 1, 0.01));
-    setGainFx(bool(values.gain, false));
-    setGainDb(num(values.gain_db, -60, 60, 0));
-    setDistortion(bool(values.distortion, false));
-    setDistortionGain(num(values.distortion_gain, -60, 60, 25));
-    setChorus(bool(values.chorus, false));
-    setChorusRate(num(values.chorus_rate, 0, 100, 1.0));
-    setChorusDepth(num(values.chorus_depth, 0, 1, 0.25));
-    setChorusCenterDelay(num(values.chorus_delay, 7, 8, 7));
-    setChorusFeedback(num(values.chorus_feedback, 0, 1, 0.0));
-    setChorusMix(num(values.chorus_mix, 0, 1, 0.5));
-    setBitcrush(bool(values.bitcrush, false));
-    setClipping(bool(values.clipping, false));
-    setClippingThreshold(num(values.clipping_threshold, -60, 0, -6));
-    setCompressor(bool(values.compressor, false));
-    setCompressorThreshold(num(values.compressor_threshold, -60, 0, 0));
-    setCompressorRatio(num(values.compressor_ratio, 1, 20, 1));
-    setCompressorAttack(num(values.compressor_attack, 0, 100, 1.0));
-    setCompressorRelease(num(values.compressor_release, 0.01, 100, 100));
-    setDelayFx(bool(values.delay, false));
-    setDelaySeconds(num(values.delay_seconds, 0, 5, 0.5));
-    setDelayFeedback(num(values.delay_feedback, 0, 1, 0.0));
-    setDelayMix(num(values.delay_mix, 0, 1, 0.5));
+    setFormantShifting(bool(values.formant_shifting, false));
+    setFormantQfrency(num(values.formant_qfrency, 0, 16, 1));
+    setFormantTimbre(num(values.formant_timbre, 0, 16, 1));
     setSid(num(values.sid, 0, 63, 0));
-    setBitcrushBitDepth(num(values.bitcrush_bit_depth, 1, 32, 8));
     const method = str(values.f0_method, "fcpe");
     setF0Method(REALTIME_F0_METHODS.includes(method) ? method : "fcpe");
     const embedder = str(values.embedder_model, "contentvec");
@@ -481,8 +375,9 @@ export default function RealtimeWorkspace() {
     setAutotuneStrength(num(rt.autotune_strength, 0, 1, 1));
     setProposedPitch(bool(rt.proposed_pitch, false));
     setProposedPitchThreshold(num(rt.proposed_pitch_threshold, 50, 1200, 155));
-    setCleanAudio(bool(rt.clean_audio, false));
-    setCleanStrength(num(rt.clean_strength, 0, 1, 0.5));
+    setFormantShifting(bool(rt.formant_shifting, false));
+    setFormantQfrency(num(rt.formant_qfrency, 0, 16, 1));
+    setFormantTimbre(num(rt.formant_timbre, 0, 16, 1));
     setChunkMs(num(rt.chunk_ms, 20, 1000, 30));
     setAutoChunk(bool(rt.auto_chunk, true));
     setCrossfade(num(rt.cross_fade_overlap_size, 0.05, 0.2, 0.05));
@@ -494,42 +389,6 @@ export default function RealtimeWorkspace() {
     setOutGain(num(rt.output_audio_gain, 0, 200, 100));
     setMonitorSelf(bool(rt.monitor_enabled, false));
     setMonitorVolume(num(rt.monitor_volume, 0, 200, 100));
-    setPostProcess(bool(rt.post_process, false));
-    setReverb(bool(rt.reverb, false));
-    setReverbRoomSize(num(rt.reverb_room_size, 0, 1, 0.5));
-    setReverbDamping(num(rt.reverb_damping, 0, 1, 0.5));
-    setReverbWetGain(num(rt.reverb_wet_level, 0, 1, 0.5));
-    setReverbDryGain(num(rt.reverb_dry_level, 0, 1, 0.5));
-    setReverbWidth(num(rt.reverb_width, 0, 1, 0.5));
-    setReverbFreezeMode(num(rt.reverb_freeze_mode, 0, 1, 0.5));
-    setPitchShiftFx(bool(rt.pitch_shift, false));
-    setPitchShiftSemitones(num(rt.pitch_shift_semitones, -12, 12, 0));
-    setLimiter(bool(rt.limiter, false));
-    setLimiterThreshold(num(rt.limiter_threshold, -60, 0, -6));
-    setLimiterReleaseTime(num(rt.limiter_release, 0.01, 1, 0.01));
-    setGainFx(bool(rt.gain, false));
-    setGainDb(num(rt.gain_db, -60, 60, 0));
-    setDistortion(bool(rt.distortion, false));
-    setDistortionGain(num(rt.distortion_gain, -60, 60, 25));
-    setChorus(bool(rt.chorus, false));
-    setChorusRate(num(rt.chorus_rate, 0, 100, 1.0));
-    setChorusDepth(num(rt.chorus_depth, 0, 1, 0.25));
-    setChorusCenterDelay(num(rt.chorus_delay, 7, 8, 7));
-    setChorusFeedback(num(rt.chorus_feedback, 0, 1, 0.0));
-    setChorusMix(num(rt.chorus_mix, 0, 1, 0.5));
-    setBitcrush(bool(rt.bitcrush, false));
-    setBitcrushBitDepth(Math.round(num(rt.bitcrush_bit_depth, 1, 32, 8)));
-    setClipping(bool(rt.clipping, false));
-    setClippingThreshold(num(rt.clipping_threshold, -60, 0, -6));
-    setCompressor(bool(rt.compressor, false));
-    setCompressorThreshold(num(rt.compressor_threshold, -60, 0, 0));
-    setCompressorRatio(num(rt.compressor_ratio, 1, 20, 1));
-    setCompressorAttack(num(rt.compressor_attack, 0, 100, 1.0));
-    setCompressorRelease(num(rt.compressor_release, 0.01, 100, 100));
-    setDelayFx(bool(rt.delay, false));
-    setDelaySeconds(num(rt.delay_seconds, 0, 5, 0.5));
-    setDelayFeedback(num(rt.delay_feedback, 0, 1, 0.0));
-    setDelayMix(num(rt.delay_mix, 0, 1, 0.5));
     setRecPath(str(rt.record_audio_path, "assets/audios/record_audio.wav"));
     if (
       typeof rt.export_format === "string" &&
@@ -853,46 +712,9 @@ export default function RealtimeWorkspace() {
             autotune_strength: autotuneStrength,
             proposed_pitch: proposedPitch,
             proposed_pitch_threshold: proposedPitchThreshold,
-            clean_audio: cleanAudio,
-            clean_strength: cleanStrength,
-            post_process: postProcess,
-            kwargs: {
-              reverb,
-              pitch_shift: pitchShiftFx,
-              limiter,
-              gain: gainFx,
-              distortion,
-              chorus,
-              bitcrush,
-              clipping,
-              compressor,
-              delay: delayFx,
-              reverb_room_size: reverbRoomSize,
-              reverb_damping: reverbDamping,
-              reverb_wet_level: reverbWetGain,
-              reverb_dry_level: reverbDryGain,
-              reverb_width: reverbWidth,
-              reverb_freeze_mode: reverbFreezeMode,
-              pitch_shift_semitones: pitchShiftSemitones,
-              limiter_threshold: limiterThreshold,
-              limiter_release: limiterReleaseTime,
-              gain_db: gainDb,
-              distortion_gain: distortionGain,
-              chorus_rate: chorusRate,
-              chorus_depth: chorusDepth,
-              chorus_delay: chorusCenterDelay,
-              chorus_feedback: chorusFeedback,
-              chorus_mix: chorusMix,
-              bitcrush_bit_depth: bitcrushBitDepth,
-              clipping_threshold: clippingThreshold,
-              compressor_threshold: compressorThreshold,
-              compressor_ratio: compressorRatio,
-              compressor_attack: compressorAttack,
-              compressor_release: compressorRelease,
-              delay_seconds: delaySeconds,
-              delay_feedback: delayFeedback,
-              delay_mix: delayMix,
-            },
+            formant_shifting: formantShifting,
+            formant_qfrency: formantQfrency,
+            formant_timbre: formantTimbre,
           }),
         );
         setMsg(t("Preparing realtime model…"));
@@ -1204,8 +1026,9 @@ export default function RealtimeWorkspace() {
     autotune_strength: autotuneStrength,
     proposed_pitch: proposedPitch,
     proposed_pitch_threshold: proposedPitchThreshold,
-    clean_audio: cleanAudio,
-    clean_strength: cleanStrength,
+    formant_shifting: formantShifting,
+    formant_qfrency: formantQfrency,
+    formant_timbre: formantTimbre,
     chunk_ms: chunkMs,
     auto_chunk: autoChunk,
     cross_fade_overlap_size: crossfade,
@@ -1217,42 +1040,6 @@ export default function RealtimeWorkspace() {
     output_audio_gain: outGain,
     monitor_enabled: monitorSelf,
     monitor_volume: monitorVolume,
-    post_process: postProcess,
-    reverb,
-    reverb_room_size: reverbRoomSize,
-    reverb_damping: reverbDamping,
-    reverb_wet_level: reverbWetGain,
-    reverb_dry_level: reverbDryGain,
-    reverb_width: reverbWidth,
-    reverb_freeze_mode: reverbFreezeMode,
-    pitch_shift: pitchShiftFx,
-    pitch_shift_semitones: pitchShiftSemitones,
-    limiter,
-    limiter_threshold: limiterThreshold,
-    limiter_release: limiterReleaseTime,
-    gain: gainFx,
-    gain_db: gainDb,
-    distortion,
-    distortion_gain: distortionGain,
-    chorus,
-    chorus_rate: chorusRate,
-    chorus_depth: chorusDepth,
-    chorus_delay: chorusCenterDelay,
-    chorus_feedback: chorusFeedback,
-    chorus_mix: chorusMix,
-    bitcrush,
-    bitcrush_bit_depth: bitcrushBitDepth,
-    clipping,
-    clipping_threshold: clippingThreshold,
-    compressor,
-    compressor_threshold: compressorThreshold,
-    compressor_ratio: compressorRatio,
-    compressor_attack: compressorAttack,
-    compressor_release: compressorRelease,
-    delay: delayFx,
-    delay_seconds: delaySeconds,
-    delay_feedback: delayFeedback,
-    delay_mix: delayMix,
     record_audio_path: recPath,
     export_format: recFormat,
   };
@@ -1565,9 +1352,9 @@ export default function RealtimeWorkspace() {
           "autotune_strength",
           "proposed_pitch",
           "proposed_pitch_threshold",
-          "clean_audio",
-          "clean_strength",
-          "post_process",
+          "formant_shifting",
+          "formant_qfrency",
+          "formant_timbre",
           "model_path",
           "index_path",
           "automatic_block_size",
@@ -1788,13 +1575,9 @@ export default function RealtimeWorkspace() {
             )}
           </div>
           <Disclosure
-            title={t("Voice cleanup (autotune / proposed pitch / clean)")}
+            title={t("Voice cleanup (autotune / proposed pitch)")}
             icon={<Wand2 size={15} />}
-            description={
-              <>
-                {t(SETTING_HELP.autotune)} {t(SETTING_HELP.clean)}
-              </>
-            }
+            description={t(SETTING_HELP.autotune)}
           >
             <div className="row">
               <div className="min-w-0 flex-1">
@@ -1829,24 +1612,8 @@ export default function RealtimeWorkspace() {
                 </label>
                 <SettingHelp text={t(SETTING_HELP.proposed)} controlId={"rt-proposed-pitch"} />
               </div>
-              <div className="min-w-0 flex-1">
-                <label htmlFor="rt-clean-audio" className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    id="rt-clean-audio"
-                    type="checkbox"
-                    checked={cleanAudio}
-                    onChange={(e) => {
-                      setCleanAudio(e.target.checked);
-                      if (streaming) changeConfig("clean_audio", e.target.checked);
-                    }}
-                    aria-describedby={`${"rt-clean-audio"}-help`}
-                  />{" "}
-                  {t("Clean Audio")}
-                </label>
-                <SettingHelp text={t(SETTING_HELP.clean)} controlId={"rt-clean-audio"} />
-              </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" style={{ marginTop: 8 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginTop: 8 }}>
               <div>
                 <SliderField
                   id="rt-autotune-strength"
@@ -1878,22 +1645,53 @@ export default function RealtimeWorkspace() {
                   description={t(SETTING_HELP.proposedThreshold)}
                 />
               </div>
-              <div>
+            </div>
+          </Disclosure>
+          <Disclosure
+            title={t("Formant Shifting")}
+            icon={<Sparkles size={15} />}
+            description={t(SETTING_HELP.formant)}
+          >
+            <ToggleField
+              id="rt-formant-shifting"
+              label={t("Enable Formant Shifting")}
+              checked={formantShifting}
+              onChange={(checked) => {
+                setFormantShifting(checked);
+                if (streaming) changeConfig("formant_shifting", checked);
+              }}
+              description={t(SETTING_HELP.formant)}
+            />
+            {formantShifting && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
                 <SliderField
-                  id="rt-clean-strength"
-                  label={t("Clean Strength")}
-                  value={cleanStrength}
+                  id="rt-formant-qfrency"
+                  label={t("Quefrency for formant shifting")}
+                  value={formantQfrency}
                   min={0}
-                  max={1}
-                  step={0.05}
+                  max={16}
+                  step={0.1}
                   onChange={(v) => {
-                    setCleanStrength(v);
-                    if (streaming) changeConfigDebounced("clean_strength", v);
+                    setFormantQfrency(v);
+                    if (streaming) changeConfigDebounced("formant_qfrency", v);
                   }}
-                  description={t(SETTING_HELP.cleanStrength)}
+                  description={t("Modifies formants width and spectral envelope")}
+                />
+                <SliderField
+                  id="rt-formant-timbre"
+                  label={t("Timbre for formant shifting")}
+                  value={formantTimbre}
+                  min={0}
+                  max={16}
+                  step={0.1}
+                  onChange={(v) => {
+                    setFormantTimbre(v);
+                    if (streaming) changeConfigDebounced("formant_timbre", v);
+                  }}
+                  description={t("Adjusts vocal tract length / timbre brightness")}
                 />
               </div>
-            </div>
+            )}
           </Disclosure>
           <Disclosure
             title={t("Latency / VAD / gains")}
@@ -2140,567 +1938,6 @@ export default function RealtimeWorkspace() {
                 </div>
               </div>
             </div>
-          </Disclosure>
-          <Disclosure
-            title={t("Post-Process")}
-            icon={<Layers size={15} />}
-            open={postProcess}
-            onToggle={(open) => {
-              setPostProcess(open);
-              if (streaming) changeConfig("post_process", open);
-            }}
-            description={t(SETTING_HELP.postProcess)}
-          >
-            {postProcess && (
-              <div className="space-y-4 pt-2">
-                {/* Reverb */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={reverb}
-                      onChange={(e) => {
-                        setReverb(e.target.checked);
-                        if (streaming) changeConfig("reverb", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-reverb"}-help`}
-                      id="setting-realtime-reverb"
-                    />
-                    <span>{t("Reverb")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.reverb)} controlId={"setting-realtime-reverb"} />
-                  {reverb && (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <SliderField
-                        id="rt-reverb-room"
-                        label={t("Reverb Room Size")}
-                        value={reverbRoomSize}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbRoomSize(v);
-                          if (streaming) changeConfigDebounced("reverb_room_size", v, true);
-                        }}
-                        description={t(SETTING_HELP.room)}
-                      />
-                      <SliderField
-                        id="rt-reverb-damping"
-                        label={t("Reverb Damping")}
-                        value={reverbDamping}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbDamping(v);
-                          if (streaming) changeConfigDebounced("reverb_damping", v, true);
-                        }}
-                        description={t(SETTING_HELP.damping)}
-                      />
-                      <SliderField
-                        id="rt-reverb-wet"
-                        label={t("Reverb Wet Gain")}
-                        value={reverbWetGain}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbWetGain(v);
-                          if (streaming) changeConfigDebounced("reverb_wet_level", v, true);
-                        }}
-                        description={t(SETTING_HELP.wet)}
-                      />
-                      <SliderField
-                        id="rt-reverb-dry"
-                        label={t("Reverb Dry Gain")}
-                        value={reverbDryGain}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbDryGain(v);
-                          if (streaming) changeConfigDebounced("reverb_dry_level", v, true);
-                        }}
-                        description={t(SETTING_HELP.dry)}
-                      />
-                      <SliderField
-                        id="rt-reverb-width"
-                        label={t("Reverb Width")}
-                        value={reverbWidth}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbWidth(v);
-                          if (streaming) changeConfigDebounced("reverb_width", v, true);
-                        }}
-                        description={t(SETTING_HELP.width)}
-                      />
-                      <SliderField
-                        id="rt-reverb-freeze"
-                        label={t("Reverb Freeze Mode")}
-                        value={reverbFreezeMode}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setReverbFreezeMode(v);
-                          if (streaming) changeConfigDebounced("reverb_freeze_mode", v, true);
-                        }}
-                        description={t(SETTING_HELP.freeze)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Pitch Shift */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={pitchShiftFx}
-                      onChange={(e) => {
-                        setPitchShiftFx(e.target.checked);
-                        if (streaming) changeConfig("pitch_shift", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-pitchShift"}-help`}
-                      id="setting-realtime-pitchShift"
-                    />
-                    <span>{t("Pitch Shift")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.pitchShift)} controlId={"setting-realtime-pitchShift"} />
-                  {pitchShiftFx && (
-                    <SliderField
-                      id="rt-fx-pitch-semi"
-                      label={t("Pitch Shift Semitones")}
-                      value={pitchShiftSemitones}
-                      min={-12}
-                      max={12}
-                      step={1}
-                      onChange={(v) => {
-                        setPitchShiftSemitones(v);
-                        if (streaming) changeConfigDebounced("pitch_shift_semitones", v, true);
-                      }}
-                      description={t(SETTING_HELP.pitchShiftAmount)}
-                    />
-                  )}
-                </div>
-
-                {/* Delay */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={delayFx}
-                      onChange={(e) => {
-                        setDelayFx(e.target.checked);
-                        if (streaming) changeConfig("delay", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-delay"}-help`}
-                      id="setting-realtime-delay"
-                    />
-                    <span>{t("Delay")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.delay)} controlId={"setting-realtime-delay"} />
-                  {delayFx && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <SliderField
-                        id="rt-fx-delay-s"
-                        label={t("Delay Seconds")}
-                        value={delaySeconds}
-                        min={0}
-                        max={5}
-                        step={0.05}
-                        unit="s"
-                        onChange={(v) => {
-                          setDelaySeconds(v);
-                          if (streaming) changeConfigDebounced("delay_seconds", v, true);
-                        }}
-                        description={t(SETTING_HELP.delayTime)}
-                      />
-                      <SliderField
-                        id="rt-fx-delay-fb"
-                        label={t("Delay Feedback")}
-                        value={delayFeedback}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setDelayFeedback(v);
-                          if (streaming) changeConfigDebounced("delay_feedback", v, true);
-                        }}
-                        description={t(SETTING_HELP.feedback)}
-                      />
-                      <SliderField
-                        id="rt-fx-delay-mix"
-                        label={t("Delay Mix")}
-                        value={delayMix}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setDelayMix(v);
-                          if (streaming) changeConfigDebounced("delay_mix", v, true);
-                        }}
-                        description={t(SETTING_HELP.mix)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Limiter */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={limiter}
-                      onChange={(e) => {
-                        setLimiter(e.target.checked);
-                        if (streaming) changeConfig("limiter", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-limiter"}-help`}
-                      id="setting-realtime-limiter"
-                    />
-                    <span>{t("Limiter")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.limiter)} controlId={"setting-realtime-limiter"} />
-                  {limiter && (
-                    <div className="space-y-2">
-                      <SliderField
-                        id="rt-fx-lim-thr"
-                        label={t("Limiter Threshold dB")}
-                        value={limiterThreshold}
-                        min={-60}
-                        max={0}
-                        step={0.5}
-                        unit="dB"
-                        onChange={(v) => {
-                          setLimiterThreshold(v);
-                          if (streaming) changeConfigDebounced("limiter_threshold", v, true);
-                        }}
-                        description={t(SETTING_HELP.limiterThreshold)}
-                      />
-                      <SliderField
-                        id="rt-fx-lim-rel"
-                        label={t("Limiter Release Time")}
-                        value={limiterReleaseTime}
-                        min={0.01}
-                        max={1}
-                        step={0.01}
-                        unit="s"
-                        onChange={(v) => {
-                          setLimiterReleaseTime(v);
-                          if (streaming) changeConfigDebounced("limiter_release", v, true);
-                        }}
-                        description={t(SETTING_HELP.limiterRelease)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Gain */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={gainFx}
-                      onChange={(e) => {
-                        setGainFx(e.target.checked);
-                        if (streaming) changeConfig("gain", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-gain"}-help`}
-                      id="setting-realtime-gain"
-                    />
-                    <span>{t("Gain")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.gain)} controlId={"setting-realtime-gain"} />
-                  {gainFx && (
-                    <SliderField
-                      id="rt-fx-gain-db"
-                      label={t("Gain dB")}
-                      value={gainDb}
-                      min={-60}
-                      max={60}
-                      step={0.5}
-                      unit="dB"
-                      onChange={(v) => {
-                        setGainDb(v);
-                        if (streaming) changeConfigDebounced("gain_db", v, true);
-                      }}
-                      description={t(SETTING_HELP.gainAmount)}
-                    />
-                  )}
-                </div>
-
-                {/* Distortion */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={distortion}
-                      onChange={(e) => {
-                        setDistortion(e.target.checked);
-                        if (streaming) changeConfig("distortion", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-distortion"}-help`}
-                      id="setting-realtime-distortion"
-                    />
-                    <span>{t("Distortion")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.distortion)} controlId={"setting-realtime-distortion"} />
-                  {distortion && (
-                    <SliderField
-                      id="rt-fx-dist"
-                      label={t("Distortion Gain")}
-                      value={distortionGain}
-                      min={-60}
-                      max={60}
-                      step={1}
-                      unit="dB"
-                      onChange={(v) => {
-                        setDistortionGain(v);
-                        if (streaming) changeConfigDebounced("distortion_gain", v, true);
-                      }}
-                      description={t(SETTING_HELP.distortionGain)}
-                    />
-                  )}
-                </div>
-
-                {/* Chorus */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={chorus}
-                      onChange={(e) => {
-                        setChorus(e.target.checked);
-                        if (streaming) changeConfig("chorus", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-chorus"}-help`}
-                      id="setting-realtime-chorus"
-                    />
-                    <span>{t("Chorus")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.chorus)} controlId={"setting-realtime-chorus"} />
-                  {chorus && (
-                    <div className="space-y-2">
-                      <SliderField
-                        id="rt-fx-ch-rate"
-                        label={t("Chorus Rate Hz")}
-                        value={chorusRate}
-                        min={0}
-                        max={100}
-                        step={0.1}
-                        unit="Hz"
-                        onChange={(v) => {
-                          setChorusRate(v);
-                          if (streaming) changeConfigDebounced("chorus_rate", v, true);
-                        }}
-                        description={t(SETTING_HELP.chorusRate)}
-                      />
-                      <SliderField
-                        id="rt-fx-ch-depth"
-                        label={t("Chorus Depth")}
-                        value={chorusDepth}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setChorusDepth(v);
-                          if (streaming) changeConfigDebounced("chorus_depth", v, true);
-                        }}
-                        description={t(SETTING_HELP.chorusDepth)}
-                      />
-                      <SliderField
-                        id="rt-fx-ch-delay"
-                        label={t("Chorus Center Delay ms")}
-                        value={chorusCenterDelay}
-                        min={7}
-                        max={8}
-                        step={0.1}
-                        unit="ms"
-                        onChange={(v) => {
-                          setChorusCenterDelay(v);
-                          if (streaming) changeConfigDebounced("chorus_delay", v, true);
-                        }}
-                        description={t(SETTING_HELP.chorusDelay)}
-                      />
-                      <SliderField
-                        id="rt-fx-ch-fb"
-                        label={t("Chorus Feedback")}
-                        value={chorusFeedback}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setChorusFeedback(v);
-                          if (streaming) changeConfigDebounced("chorus_feedback", v, true);
-                        }}
-                        description={t(SETTING_HELP.feedback)}
-                      />
-                      <SliderField
-                        id="rt-fx-ch-mix"
-                        label={t("Chorus Mix")}
-                        value={chorusMix}
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        onChange={(v) => {
-                          setChorusMix(v);
-                          if (streaming) changeConfigDebounced("chorus_mix", v, true);
-                        }}
-                        description={t(SETTING_HELP.mix)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Compressor */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={compressor}
-                      onChange={(e) => {
-                        setCompressor(e.target.checked);
-                        if (streaming) changeConfig("compressor", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-compressor"}-help`}
-                      id="setting-realtime-compressor"
-                    />
-                    <span>{t("Compressor")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.compressor)} controlId={"setting-realtime-compressor"} />
-                  {compressor && (
-                    <div className="space-y-2">
-                      <SliderField
-                        id="rt-fx-comp-thr"
-                        label={t("Compressor Threshold dB")}
-                        value={compressorThreshold}
-                        min={-60}
-                        max={0}
-                        step={1}
-                        unit="dB"
-                        onChange={(v) => {
-                          setCompressorThreshold(v);
-                          if (streaming) changeConfigDebounced("compressor_threshold", v, true);
-                        }}
-                        description={t(SETTING_HELP.compressorThreshold)}
-                      />
-                      <SliderField
-                        id="rt-fx-comp-ratio"
-                        label={t("Compressor Ratio")}
-                        value={compressorRatio}
-                        min={1}
-                        max={20}
-                        step={0.5}
-                        formatValue={(v) => `${v}:1`}
-                        onChange={(v) => {
-                          setCompressorRatio(v);
-                          if (streaming) changeConfigDebounced("compressor_ratio", v, true);
-                        }}
-                        description={t(SETTING_HELP.compressorRatio)}
-                      />
-                      <SliderField
-                        id="rt-fx-comp-atk"
-                        label={t("Compressor Attack ms")}
-                        value={compressorAttack}
-                        min={0}
-                        max={100}
-                        step={1}
-                        unit="ms"
-                        onChange={(v) => {
-                          setCompressorAttack(v);
-                          if (streaming) changeConfigDebounced("compressor_attack", v, true);
-                        }}
-                        description={t(SETTING_HELP.compressorAttack)}
-                      />
-                      <SliderField
-                        id="rt-fx-comp-rel"
-                        label={t("Compressor Release ms")}
-                        value={compressorRelease}
-                        min={0.01}
-                        max={100}
-                        step={0.5}
-                        unit="ms"
-                        onChange={(v) => {
-                          setCompressorRelease(v);
-                          if (streaming) changeConfigDebounced("compressor_release", v, true);
-                        }}
-                        description={t(SETTING_HELP.compressorRelease)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Bitcrush */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={bitcrush}
-                      onChange={(e) => {
-                        setBitcrush(e.target.checked);
-                        if (streaming) changeConfig("bitcrush", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-bitcrush"}-help`}
-                      id="setting-realtime-bitcrush"
-                    />
-                    <span>{t("Bitcrush")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.bitcrush)} controlId={"setting-realtime-bitcrush"} />
-                  {bitcrush && (
-                    <SliderField
-                      id="rt-fx-bit"
-                      label={t("Bitcrush Bit Depth")}
-                      value={bitcrushBitDepth}
-                      min={1}
-                      max={32}
-                      step={1}
-                      onChange={(v) => {
-                        setBitcrushBitDepth(v);
-                        if (streaming) changeConfigDebounced("bitcrush_bit_depth", v, true);
-                      }}
-                      description={t(SETTING_HELP.bitDepth)}
-                    />
-                  )}
-                </div>
-
-                {/* Clipping */}
-                <div className="space-y-3">
-                  <label className="flex items-center gap-2 cursor-pointer font-medium text-white text-xs">
-                    <input
-                      type="checkbox"
-                      checked={clipping}
-                      onChange={(e) => {
-                        setClipping(e.target.checked);
-                        if (streaming) changeConfig("clipping", e.target.checked, true);
-                      }}
-                      aria-describedby={`${"setting-realtime-clipping"}-help`}
-                      id="setting-realtime-clipping"
-                    />
-                    <span>{t("Clipping")}</span>
-                  </label>
-                  <SettingHelp text={t(SETTING_HELP.clipping)} controlId={"setting-realtime-clipping"} />
-                  {clipping && (
-                    <SliderField
-                      id="rt-fx-clip"
-                      label={t("Clipping Threshold")}
-                      value={clippingThreshold}
-                      min={-60}
-                      max={0}
-                      step={0.5}
-                      unit="dB"
-                      onChange={(v) => {
-                        setClippingThreshold(v);
-                        if (streaming) changeConfigDebounced("clipping_threshold", v, true);
-                      }}
-                      description={t(SETTING_HELP.clippingThreshold)}
-                    />
-                  )}
-                </div>
-              </div>
-            )}
           </Disclosure>
         </Disclosure>
         <div className="space-y-4 pt-3">

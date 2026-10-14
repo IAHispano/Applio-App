@@ -56,8 +56,6 @@ export default function TrainPage() {
   const [cut, setCut] = useState("Automatic");
   const [chunk, setChunk] = useState(3.0);
   const [overlap, setOverlap] = useState(0.3);
-  const [noiseReduction, setNoiseReduction] = useState(false);
-  const [cleanStrength, setCleanStrength] = useState(0.7);
   const [processEffects, setProcessEffects] = useState(false);
   const [normalizationMode, setNormalizationMode] = useState("none");
   const [f0Method, setF0Method] = useState("rmvpe");
@@ -257,8 +255,6 @@ export default function TrainPage() {
         chunkLen: chunk,
         overlapLen: overlap,
         processEffects,
-        noiseReduction,
-        cleanStrength,
         normalizationMode,
         f0Method,
         embedderModel: embedder,
@@ -300,8 +296,6 @@ export default function TrainPage() {
         cutPreprocess: cut,
         chunkLen: chunk,
         overlapLen: overlap,
-        noiseReduction,
-        cleanStrength,
         processEffects,
         normalizationMode,
       },
@@ -736,13 +730,6 @@ export default function TrainPage() {
                     </CustomSelect>
                   </div>
                 </div>
-                <ToggleField
-                  id="auto-noise-reduction"
-                  label={t("Noise Reduction")}
-                  checked={noiseReduction}
-                  onChange={setNoiseReduction}
-                  description={t(SETTING_HELP.clean)}
-                />
               </Disclosure>
             </fieldset>
 
@@ -971,25 +958,6 @@ export default function TrainPage() {
         <section className="modal-section" aria-label={t("Cleanup")}>
           <h3 className="modal-section-title">{t("Cleanup")}</h3>
           <div className="modal-option-grid">
-            <ToggleField
-              id="modal-prep-noise-reduction"
-              label={t("Noise Reduction")}
-              checked={noiseReduction}
-              onChange={setNoiseReduction}
-              description={t(SETTING_HELP.clean)}
-            />
-            {noiseReduction && (
-              <SliderField
-                id="modal-prep-clean-strength"
-                label={t("Clean strength")}
-                value={cleanStrength}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={setCleanStrength}
-                description={t(SETTING_HELP.cleanStrength)}
-              />
-            )}
             <ToggleField
               id="modal-prep-process-effects"
               label={t("Noise filter")}

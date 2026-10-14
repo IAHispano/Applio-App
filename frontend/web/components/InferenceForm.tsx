@@ -64,47 +64,9 @@ export default function InferenceForm() {
     f0AutotuneStrength,
     proposedPitch,
     proposedPitchThreshold,
-    cleanAudio,
-    cleanStrength,
     formantShifting,
     formantQfrency,
     formantTimbre,
-    postProcess,
-    reverb,
-    reverbRoomSize,
-    reverbDamping,
-    reverbWetGain,
-    reverbDryGain,
-    reverbWidth,
-    reverbFreezeMode,
-    pitchShift,
-    pitchShiftSemitones,
-    delay,
-    delaySeconds,
-    delayFeedback,
-    delayMix,
-    compressor,
-    compressorThreshold,
-    compressorRatio,
-    compressorAttack,
-    compressorRelease,
-    limiter,
-    limiterThreshold,
-    limiterReleaseTime,
-    chorus,
-    chorusRate,
-    chorusDepth,
-    chorusCenterDelay,
-    chorusFeedback,
-    chorusMix,
-    bitcrush,
-    bitcrushBitDepth,
-    clipping,
-    clippingThreshold,
-    distortion,
-    distortionGain,
-    gain,
-    gainDb,
   } = conversion.values;
   const { embedderModel: setEmbedderModel } = conversion.setters;
 
@@ -251,73 +213,12 @@ export default function InferenceForm() {
     fd.append("f0AutotuneStrength", String(f0AutotuneStrength));
     fd.append("proposedPitch", String(proposedPitch));
     fd.append("proposedPitchThreshold", String(proposedPitchThreshold));
-    fd.append("cleanAudio", String(cleanAudio));
-    fd.append("cleanStrength", String(cleanStrength));
     fd.append("sid", String(sid));
 
     if (formantShifting) {
       fd.append("formantShifting", "true");
       fd.append("formantQfrency", String(formantQfrency));
       fd.append("formantTimbre", String(formantTimbre));
-    }
-
-    if (postProcess) {
-      fd.append("postProcess", "true");
-      if (reverb) {
-        fd.append("reverb", "true");
-        fd.append("reverbRoomSize", String(reverbRoomSize));
-        fd.append("reverbDamping", String(reverbDamping));
-        fd.append("reverbWetGain", String(reverbWetGain));
-        fd.append("reverbDryGain", String(reverbDryGain));
-        fd.append("reverbWidth", String(reverbWidth));
-        fd.append("reverbFreezeMode", String(reverbFreezeMode));
-      }
-      if (pitchShift) {
-        fd.append("pitchShift", "true");
-        fd.append("pitchShiftSemitones", String(pitchShiftSemitones));
-      }
-      if (delay) {
-        fd.append("delay", "true");
-        fd.append("delaySeconds", String(delaySeconds));
-        fd.append("delayFeedback", String(delayFeedback));
-        fd.append("delayMix", String(delayMix));
-      }
-      if (compressor) {
-        fd.append("compressor", "true");
-        fd.append("compressorThreshold", String(compressorThreshold));
-        fd.append("compressorRatio", String(compressorRatio));
-        fd.append("compressorAttack", String(compressorAttack));
-        fd.append("compressorRelease", String(compressorRelease));
-      }
-      if (limiter) {
-        fd.append("limiter", "true");
-        fd.append("limiterThreshold", String(limiterThreshold));
-        fd.append("limiterReleaseTime", String(limiterReleaseTime));
-      }
-      if (chorus) {
-        fd.append("chorus", "true");
-        fd.append("chorusRate", String(chorusRate));
-        fd.append("chorusDepth", String(chorusDepth));
-        fd.append("chorusCenterDelay", String(chorusCenterDelay));
-        fd.append("chorusFeedback", String(chorusFeedback));
-        fd.append("chorusMix", String(chorusMix));
-      }
-      if (bitcrush) {
-        fd.append("bitcrush", "true");
-        fd.append("bitcrushBitDepth", String(bitcrushBitDepth));
-      }
-      if (clipping) {
-        fd.append("clipping", "true");
-        fd.append("clippingThreshold", String(clippingThreshold));
-      }
-      if (gain) {
-        fd.append("gain", "true");
-        fd.append("gainDb", String(gainDb));
-      }
-      if (distortion) {
-        fd.append("distortion", "true");
-        fd.append("distortionGain", String(distortionGain));
-      }
     }
 
     setSubmitting(true);
