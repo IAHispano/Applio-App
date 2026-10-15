@@ -510,6 +510,7 @@ fn main() {
             };
             let bridge = include_str!("bridge.js")
                 .replace("__APPLIO_PLATFORM__", &serde_json::to_string(platform)?);
+            let tensorboard_port = applio_api::tensorboard_routes::configured_port();
             let window =
                 tauri::WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                     .title("Applio")
@@ -540,12 +541,8 @@ fn main() {
                             let _ = tray::refresh(window.app_handle());
                         }
                     })
-                    .on_navigation(|url| {
-                        // The native bridge is granted to this exact origin only.
-                        url.as_str() == "about:blank"
-                            || url.scheme() == "tauri"
-                            || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost"))
-                            || url.origin().ascii_serialization() == "http://127.0.0.1:3000"
+                    .on_navigation(move |url| {
+                        desktop_policy::navigation_allowed(url, tensorboard_port)
                     })
                     .build()?;
             desktop_policy::apply(&window)?;

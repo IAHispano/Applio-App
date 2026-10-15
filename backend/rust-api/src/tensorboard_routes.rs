@@ -25,14 +25,16 @@ pub struct Tensorboard {
     starting: AtomicBool,
     start_timeout: Duration,
 }
+/// Used by both the service and desktop navigation policy so a custom TB_PORT
+/// remains embeddable without allowing unrelated loopback services.
+pub fn configured_port() -> u16 {
+    std::env::var("TB_PORT")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(6007)
+}
 pub fn router(engine: Arc<NativeEngine>) -> Router {
-    router_with_port(
-        engine,
-        std::env::var("TB_PORT")
-            .ok()
-            .and_then(|value| value.parse().ok())
-            .unwrap_or(6007),
-    )
+    router_with_port(engine, configured_port())
 }
 pub fn router_with_port(engine: Arc<NativeEngine>, port: u16) -> Router {
     Router::new()
