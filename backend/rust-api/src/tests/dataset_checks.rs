@@ -9,7 +9,11 @@ use tower::ServiceExt;
 fn fixture() -> Fixture {
     let fixture = Fixture::new(true);
     std::fs::write(
-        fixture.engine.runtime.code.join("tools/dataset_quality.py"),
+        fixture
+            .engine
+            .runtime
+            .code
+            .join("backend/python/datasets/quality.py"),
         PYTHON,
     )
     .unwrap();
@@ -267,8 +271,9 @@ async fn real_python_scan_and_prepare_preserve_source_audio() {
         config_dir: fixture.engine.runtime.config_dir.clone(),
     };
     std::fs::copy(
-        std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tools/dataset_quality.py"),
-        config.code_root.join("tools/dataset_quality.py"),
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../backend/python/datasets/quality.py"),
+        config.code_root.join("backend/python/datasets/quality.py"),
     )
     .unwrap();
     let runtime =

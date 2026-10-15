@@ -15,7 +15,7 @@ import zipfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ADAPTER = ROOT / "tools/model_download_runtime.py"
+ADAPTER = ROOT / "backend/python/downloads/model.py"
 BACKEND = ROOT / "backend/applio"
 
 
@@ -25,10 +25,24 @@ def main():
     spec.loader.exec_module(adapter)
     # Compare against the actual pinned helper without importing its ML stack.
     tree = ast.parse((BACKEND / "rvc/lib/utils.py").read_text(encoding="utf-8"))
-    function = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "format_title")
+    function = next(
+        n
+        for n in tree.body
+        if isinstance(n, ast.FunctionDef) and n.name == "format_title"
+    )
     namespace = {"re": adapter.re, "unicodedata": adapter.unicodedata}
-    exec(compile(ast.Module(body=[function], type_ignores=[]), "upstream", "exec"), namespace)
-    for title in ["─Cafe\u0301 音声.zip", "a\t b — c", "emoji😀.zip", "", "...", "a/b\\c"]:
+    exec(
+        compile(ast.Module(body=[function], type_ignores=[]), "upstream", "exec"),
+        namespace,
+    )
+    for title in [
+        "─Cafe\u0301 音声.zip",
+        "a\t b — c",
+        "emoji😀.zip",
+        "",
+        "...",
+        "a/b\\c",
+    ]:
         assert adapter.format_title(title) == namespace["format_title"](title)
 
     with tempfile.TemporaryDirectory(prefix="applio-download-check-") as temporary:
@@ -39,10 +53,16 @@ def main():
             zipped.writestr("nested/original.index", b"fixture-index")
         with zipfile.ZipFile(directory / "unsafe.zip", "w") as zipped:
             zipped.writestr("../../escape.pth", b"unsafe")
-        server = ThreadingHTTPServer(("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=temporary))
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=temporary)
+        )
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
-        env = {**os.environ, "APPLIO_LOGS_DIR": str(directory / "logs"), "APPLIO_BACKEND_ROOT": str(BACKEND)}
+        env = {
+            **os.environ,
+            "APPLIO_LOGS_DIR": str(directory / "logs"),
+            "APPLIO_BACKEND_ROOT": str(BACKEND),
+        }
         env.pop("PYTHONHOME", None)
         # Fail immediately if the downloader imports any ML/audio packages.
         runner = """
@@ -57,13 +77,45 @@ runpy.run_path(script, run_name='__main__')
 """
         try:
             start = time.perf_counter()
-            result = subprocess.run([sys.executable, "-c", runner, str(ADAPTER), f"http://127.0.0.1:{server.server_port}/Test%20Voice.zip"], cwd=temporary, env=env, capture_output=True, text=True, timeout=60)
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    runner,
+                    str(ADAPTER),
+                    f"http://127.0.0.1:{server.server_port}/Test%20Voice.zip",
+                ],
+                cwd=temporary,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
             assert result.returncode == 0, result.stdout + result.stderr
             assert "Model downloaded successfully." in result.stdout
-            assert (directory / "logs/Test_Voice/Test_Voice.pth").read_bytes() == b"fixture-model"
-            assert (directory / "logs/Test_Voice/Test_Voice.index").read_bytes() == b"fixture-index"
-            print(f"Local model download and extraction: {time.perf_counter() - start:.3f}s (no ML imports)")
-            result = subprocess.run([sys.executable, "-c", runner, str(ADAPTER), f"http://127.0.0.1:{server.server_port}/unsafe.zip"], cwd=temporary, env=env, capture_output=True, text=True, timeout=60)
+            assert (
+                directory / "logs/Test_Voice/Test_Voice.pth"
+            ).read_bytes() == b"fixture-model"
+            assert (
+                directory / "logs/Test_Voice/Test_Voice.index"
+            ).read_bytes() == b"fixture-index"
+            print(
+                f"Local model download and extraction: {time.perf_counter() - start:.3f}s (no ML imports)"
+            )
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    runner,
+                    str(ADAPTER),
+                    f"http://127.0.0.1:{server.server_port}/unsafe.zip",
+                ],
+                cwd=temporary,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
             assert result.returncode != 0, result.stdout
             assert not (directory / "escape.pth").exists()
             print("Filename compatibility and unsafe archive rejection passed")
@@ -77,7 +129,14 @@ runpy.run_path(script, run_name='__main__')
                 samples = []
                 for _ in range(2):
                     start = time.perf_counter()
-                    result = subprocess.run([sys.executable, str(script), "--help"], cwd=temporary, env=env, capture_output=True, text=True, timeout=120)
+                    result = subprocess.run(
+                        [sys.executable, str(script), "--help"],
+                        cwd=temporary,
+                        env=env,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                    )
                     assert result.returncode == 0, result.stdout + result.stderr
                     samples.append(round(time.perf_counter() - start, 3))
                 print(f"{script.name} CLI startup seconds: {samples}")

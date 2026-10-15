@@ -11,7 +11,7 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 BACKEND = ROOT / "backend/applio"
-ENTRY = ROOT / "tools/inference_runtime.py"
+ENTRY = ROOT / "backend/python/inference/runtime.py"
 NO_ML = """
 import sys
 class NoML:
@@ -115,11 +115,11 @@ class VoiceConverter:
         install_stub = """
 import types
 from pathlib import Path
-stub=types.ModuleType('tools.optimized_inference')
+stub=types.ModuleType('backend.python.inference.optimized')
 def install():
     p=Path('install-count'); p.write_text(p.read_text()+'x' if p.exists() else 'x')
 stub.install=install
-sys.modules['tools.optimized_inference']=stub
+sys.modules['backend.python.inference.optimized']=stub
 """
         fixture_runner = (
             NO_ML
@@ -184,7 +184,7 @@ sys.modules['tools.optimized_inference']=stub
 import runpy
 import torch
 torch.cuda.is_available = lambda: False
-from tools.optimized_inference import install
+from backend.python.inference.optimized import install
 install()
 runpy.run_module('rvc.infer.worker', run_name='__main__')
 """
@@ -220,12 +220,15 @@ runpy.run_module('rvc.infer.worker', run_name='__main__')
             ), output.stdout
             print(f"Real checkpoint metadata through lazy worker: {elapsed:.3f}s")
             scripts = [
-                ("YouTube CLI", [ROOT / "tools/audio/youtube.py", "--help"]),
+                ("YouTube CLI", [ROOT / "backend/python/audio/youtube.py", "--help"]),
                 (
                     "Model downloader CLI",
-                    [ROOT / "tools/model_download_runtime.py", "--help"],
+                    [ROOT / "backend/python/downloads/model.py", "--help"],
                 ),
-                ("Dataset review CLI", [ROOT / "tools/dataset_quality.py", "--help"]),
+                (
+                    "Dataset review CLI",
+                    [ROOT / "backend/python/datasets/quality.py", "--help"],
+                ),
                 ("UVR catalog", [ROOT / "uvr/separate.py", "--list-models"]),
                 (
                     "Prerequisites CLI",

@@ -42,7 +42,9 @@ impl Fixture {
         let data = directory.path().join("data");
         for folder in [
             "assets",
-            "tools",
+            "backend/python/inference",
+            "backend/python/datasets",
+            "backend/python/downloads",
             "backend/applio/rvc/configs",
             "backend/applio/rvc/lib/tools",
             "backend/applio/rvc/train/process",
@@ -57,7 +59,7 @@ impl Fixture {
         .unwrap();
         std::fs::write(code.join("backend/applio/rvc/configs/config.py"), "").unwrap();
         for script in [
-            "tools/inference_runtime.py",
+            "backend/python/inference/runtime.py",
             "backend/applio/rvc/lib/tools/tts.py",
             "backend/applio/rvc/lib/tools/f0_curve.py",
             "backend/applio/rvc/train/process/model_information.py",
@@ -672,7 +674,7 @@ async fn native_runtime_preserves_custom_storage_and_maps_installed_python_comma
         .unwrap();
     assert_eq!(
         PathBuf::from(&spec.args[0]),
-        runtime.code.join("tools/inference_runtime.py")
+        runtime.code.join("backend/python/inference/runtime.py")
     );
     assert_eq!(spec.args[1], "infer");
     assert_eq!(spec.cwd, runtime.data);

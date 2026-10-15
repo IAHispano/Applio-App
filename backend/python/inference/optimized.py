@@ -15,7 +15,7 @@ import torch.nn.functional as F
 import rvc.lib.zluda  # noqa: F401
 from rvc.infer import pipeline as engine
 
-from tools.inference_algorithms import (
+from backend.python.inference.algorithms import (
     RetrievalIndexCache,
     autotune_f0,
     merge_audio,

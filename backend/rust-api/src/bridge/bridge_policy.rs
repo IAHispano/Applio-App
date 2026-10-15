@@ -39,8 +39,10 @@ pub fn api_allowed(method: &str, path: &str) -> bool {
 mod checks {
     #[test]
     fn remote_capabilities_match_the_original_gateway_for_all_captured_api_methods() {
-        let cases: Vec<serde_json::Value> =
-            serde_json::from_str(include_str!("bridge-policy-reference.json")).unwrap();
+        let cases: Vec<serde_json::Value> = serde_json::from_str(include_str!(
+            "../tests/fixtures/bridge-policy-reference.json"
+        ))
+        .unwrap();
         for case in cases {
             assert_eq!(
                 super::api_allowed(

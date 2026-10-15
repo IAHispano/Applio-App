@@ -34,7 +34,7 @@ _engine_voice_converter = engine.import_voice_converter
 
 
 def import_voice_converter():
-    from tools.optimized_inference import install
+    from backend.python.inference.optimized import install
 
     install()
     return _engine_voice_converter()

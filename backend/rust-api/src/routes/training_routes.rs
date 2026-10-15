@@ -188,7 +188,7 @@ async fn gpus(State(state): State<Arc<Training>>) -> Result<Json<Value>, Error> 
     let spec = state
         .engine
         .runtime
-        .python_command(["-c", include_str!("training-gpu.py")])?;
+        .python_command(["-c", include_str!("../training/training-gpu.py")])?;
     let result = tokio::time::timeout(
         Duration::from_secs(90),
         ManagedProcess::run(&spec, &state.engine.cancellation_token(), |_, _| {}),

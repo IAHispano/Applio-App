@@ -346,8 +346,8 @@ async fn unicode_model_drop_replaces_a_file_in_custom_logs_without_leaking_uploa
 #[tokio::test]
 async fn python_acquisition_jobs_are_owned_and_do_not_require_gpu_or_stop_inference() {
     let fixture = Fixture::new(false);
-    std::fs::create_dir_all(fixture.engine.runtime.code.join("tools/audio")).unwrap();
-    std::fs::write(fixture.engine.runtime.code.join("tools/audio/youtube.py"), "import sys,json\nfrom pathlib import Path\nout=Path(sys.argv[sys.argv.index('--output-dir')+1])/'Song.wav'\nout.write_bytes(b'audio')\nprint('APPLIO_JSON:'+json.dumps({'file':str(out),'title':'Song'}))\n").unwrap();
+    std::fs::create_dir_all(fixture.engine.runtime.code.join("backend/python/audio")).unwrap();
+    std::fs::write(fixture.engine.runtime.code.join("backend/python/audio/youtube.py"), "import sys,json\nfrom pathlib import Path\nout=Path(sys.argv[sys.argv.index('--output-dir')+1])/'Song.wav'\nout.write_bytes(b'audio')\nprint('APPLIO_JSON:'+json.dumps({'file':str(out),'title':'Song'}))\n").unwrap();
     std::fs::write(
         fixture
             .engine
@@ -362,8 +362,8 @@ async fn python_acquisition_jobs_are_owned_and_do_not_require_gpu_or_stop_infere
             .engine
             .runtime
             .code
-            .join("tools/model_download_runtime.py"),
-        include_str!("../../../tools/model_download_runtime.py"),
+            .join("backend/python/downloads/model.py"),
+        include_str!("../../../python/downloads/model.py"),
     )
     .unwrap();
     let realtime = fixture.engine.scheduler.begin_realtime().unwrap();

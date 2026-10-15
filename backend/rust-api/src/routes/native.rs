@@ -1,5 +1,6 @@
 //! Native API routes, shared by the desktop shell and standalone server.
-use crate::{engine::NativeEngine, ApiConfig, ApiState, Router};
+use super::catalog::{self, ApiState};
+use crate::{engine::NativeEngine, ApiConfig, Router};
 use axum::{extract::State, http::header, routing::get, Json};
 use serde_json::{json, Value};
 use std::sync::Arc;
@@ -9,10 +10,10 @@ pub fn router(config: ApiConfig, engine: Arc<NativeEngine>) -> Router {
 }
 fn routes(config: ApiConfig, engine: Arc<NativeEngine>, cors: bool) -> Router {
     let catalogs = Router::new()
-        .route("/api/settings/version", get(crate::version))
-        .route("/api/settings/themes", get(crate::themes))
-        .route("/api/settings/theme", get(crate::theme))
-        .route("/api/tts/voices", get(crate::voices))
+        .route("/api/settings/version", get(catalog::version))
+        .route("/api/settings/themes", get(catalog::themes))
+        .route("/api/settings/theme", get(catalog::theme))
+        .route("/api/tts/voices", get(catalog::voices))
         .with_state(Arc::new(ApiState { config }));
     let health = Router::new()
         .route("/api/health", get(health))
@@ -110,7 +111,8 @@ mod checks {
                 response
             }));
         let inventory: serde_json::Value =
-            serde_json::from_str(include_str!("api-route-inventory.json")).unwrap();
+            serde_json::from_str(include_str!("../tests/fixtures/api-route-inventory.json"))
+                .unwrap();
         for route in inventory["routes"].as_array().unwrap() {
             let path = route["path"]
                 .as_str()

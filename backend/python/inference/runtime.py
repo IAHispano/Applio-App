@@ -7,7 +7,7 @@ import sys
 
 
 def main():
-    code_root = Path(__file__).resolve().parents[1]
+    code_root = Path(__file__).resolve().parents[3]
     backend = Path(
         os.environ.get("APPLIO_BACKEND_ROOT") or code_root / "backend" / "applio"
     )
@@ -16,16 +16,14 @@ def main():
         os.environ.setdefault("OMP_NUM_THREADS", "1")
         os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     if len(sys.argv) < 2 or sys.argv[1] not in ("worker", "infer"):
-        raise SystemExit(
-            "Usage: inference_runtime.py {worker|infer} [inference options]"
-        )
+        raise SystemExit("Usage: runtime.py {worker|infer} [inference options]")
     mode = sys.argv.pop(1)
     if mode == "worker":
-        from tools.worker_runtime import run
+        from backend.python.inference.worker import run
 
         run(backend)
         return
-    from tools.optimized_inference import install
+    from backend.python.inference.optimized import install
 
     install()
     runpy.run_module(f"rvc.infer.{mode}", run_name="__main__")

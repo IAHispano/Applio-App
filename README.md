@@ -27,6 +27,10 @@ run in Rust. Rust also serves the statically exported Next.js UI. Installed buil
 include no Node runtime or Node service; Node is needed only for development and
 build tooling. The voice engine remains Python.
 
+Backend code is grouped by responsibility under `backend/rust-api/src/`.
+App-owned Python helpers live in `backend/python/` (`inference`, `datasets`,
+`downloads`, and `audio`); `backend/applio/` remains the pinned upstream engine.
+
 Build installers with `pnpm build:win`, `pnpm build:mac` or `pnpm build:linux`
 on the corresponding platform. Run `pnpm test:rust` and `pnpm release:check`
 after staging release resources.

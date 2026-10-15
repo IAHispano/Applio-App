@@ -243,12 +243,12 @@ impl EngineRuntime {
             if script == "rvc/infer/infer.py" {
                 args[0] = self
                     .code
-                    .join("tools/inference_runtime.py")
+                    .join("backend/python/inference/runtime.py")
                     .into_os_string();
                 args.insert(1, "infer".into());
             } else if script.starts_with("rvc/") && script.ends_with(".py") {
                 args[0] = self.backend.join(script).into_os_string();
-            } else if (script.starts_with("tools/") || script.starts_with("uvr/"))
+            } else if (script.starts_with("backend/python/") || script.starts_with("uvr/"))
                 && script.ends_with(".py")
             {
                 args[0] = self.code.join(script).into_os_string();
@@ -344,7 +344,7 @@ impl EngineRuntime {
     pub fn worker_command(&self) -> Result<CommandSpec> {
         self.python_command([
             self.code
-                .join("tools/inference_runtime.py")
+                .join("backend/python/inference/runtime.py")
                 .into_os_string(),
             "worker".into(),
         ])

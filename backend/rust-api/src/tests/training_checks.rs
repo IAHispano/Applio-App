@@ -44,7 +44,8 @@ fn args(name: &str) -> Value {
 
 #[test]
 fn training_parameters_and_all_stage_arguments_match_the_original_node_contract() {
-    let cases: Vec<Value> = serde_json::from_str(include_str!("training-reference.json")).unwrap();
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/training-reference.json")).unwrap();
     for mut case in cases {
         let kind = case["kind"].as_str().unwrap().to_owned();
         match params::normalize(&kind, &case["input"]) {

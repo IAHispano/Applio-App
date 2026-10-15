@@ -16,7 +16,7 @@ def format_title(title):
 
 
 def main():
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[3]
     backend = Path(os.environ.get("APPLIO_BACKEND_ROOT") or root / "backend/applio")
     script = backend / "rvc/lib/tools/model_download.py"
     sys.path.insert(0, str(backend))

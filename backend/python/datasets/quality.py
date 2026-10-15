@@ -67,7 +67,7 @@ def decode(filename, workspace):
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
             shipped = Path(
-                os.environ.get("APPLIO_CODE_ROOT", Path(__file__).resolve().parents[1])
+                os.environ.get("APPLIO_CODE_ROOT", Path(__file__).resolve().parents[3])
             ) / ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
             if shipped.is_file():
                 ffmpeg = str(shipped)

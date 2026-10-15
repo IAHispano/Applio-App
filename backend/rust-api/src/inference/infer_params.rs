@@ -328,7 +328,8 @@ mod checks {
     #[test]
     fn parameters_and_cli_arguments_match_the_existing_node_api_reference() {
         let cases: Vec<Value> =
-            serde_json::from_str(include_str!("inference-reference.json")).unwrap();
+            serde_json::from_str(include_str!("../tests/fixtures/inference-reference.json"))
+                .unwrap();
         for case in cases {
             let normalized = if case["mode"] == "tts" {
                 tts(&case["input"])

@@ -14,7 +14,7 @@ class LazyVoiceConverter:
 
     def __getattr__(self, name):
         if self._converter is None:
-            from tools.optimized_inference import install
+            from backend.python.inference.optimized import install
 
             install()
             from rvc.infer.infer import VoiceConverter

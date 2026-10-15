@@ -130,7 +130,7 @@ async fn model(State(engine): State<Arc<NativeEngine>>, request: Request) -> Acc
             move |engine, job, token| async move {
                 let spec = engine
                     .runtime
-                    .python_command(["tools/model_download_runtime.py", &body.model_link])?;
+                    .python_command(["backend/python/downloads/model.py", &body.model_link])?;
                 let mut last = 0.;
                 static PERCENT: OnceLock<Regex> = OnceLock::new();
                 let percent = PERCENT.get_or_init(|| Regex::new(r"(\d{1,3})%\s*\|").unwrap());
@@ -341,7 +341,7 @@ async fn youtube(State(engine): State<Arc<NativeEngine>>, request: Request) -> A
                 let directory = engine.runtime.data.join("assets/audios");
                 tokio::fs::create_dir_all(&directory).await?;
                 let mut args = vec![
-                    path_string(&engine.runtime.code.join("tools/audio/youtube.py")),
+                    path_string(&engine.runtime.code.join("backend/python/audio/youtube.py")),
                     "--url".into(),
                     body.url,
                     "--output-dir".into(),

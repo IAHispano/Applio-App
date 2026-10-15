@@ -67,9 +67,9 @@ async fn run(
     };
     engine.jobs.stage(&job.id, stage, None, None);
     let mut reported = None;
-    let spec = engine
-        .runtime
-        .python_command(std::iter::once("tools/dataset_quality.py".to_owned()).chain(args))?;
+    let spec = engine.runtime.python_command(
+        std::iter::once("backend/python/datasets/quality.py".to_owned()).chain(args),
+    )?;
     let result = ManagedProcess::run(&spec, token, |stream, line| {
         if stream == Stream::Stderr {
             engine.jobs.log(&job.id, line);

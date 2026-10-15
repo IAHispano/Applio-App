@@ -14,7 +14,8 @@ use tower::ServiceExt;
 
 #[test]
 fn separator_parameters_and_cli_match_the_legacy_node_reference() {
-    let cases: Vec<Value> = serde_json::from_str(include_str!("uvr-reference.json")).unwrap();
+    let cases: Vec<Value> =
+        serde_json::from_str(include_str!("fixtures/uvr-reference.json")).unwrap();
     for case in cases {
         match uvr_routes::normalize(&case["input"]) {
             Ok(params) => {

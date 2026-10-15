@@ -14,11 +14,11 @@ import time
 import numpy as np
 import torch
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 sys.path[:0] = [str(ROOT / "backend" / "applio"), str(ROOT)]
 from rvc.infer.infer import VoiceConverter
 from rvc.infer.pipeline import Pipeline
-from tools.optimized_inference import OptimizedPipeline
+from backend.python.inference.optimized import OptimizedPipeline
 
 
 def harmonics(seconds):
