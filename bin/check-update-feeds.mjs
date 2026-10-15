@@ -8,7 +8,7 @@ import path from "node:path";
 
 const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "applio-feeds-"));
 const version = "0.2.10";
-const env = { ...process.env, RELEASE_VERSION: version };
+const env = { ...process.env, RELEASE_VERSION: `v${version}` };
 const collect = () =>
   spawnSync(process.execPath, ["bin/collect-tauri-artifacts.mjs", "--manifest", temporary], {
     env,

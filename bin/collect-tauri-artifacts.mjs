@@ -1,12 +1,12 @@
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { releaseVersion } from "./release-version.mjs";
 
 const manifestIndex = process.argv.indexOf("--manifest");
 if (manifestIndex >= 0) {
   const directory = path.resolve(process.argv[manifestIndex + 1]);
-  const version = (process.env.RELEASE_VERSION || "").replace(/^v/, "");
-  if (!/^\d+\.\d+\.\d+(?:-[\w.-]+)?$/.test(version)) throw new Error("Invalid release version");
+  const version = releaseVersion(process.env.RELEASE_VERSION);
   const repository = process.env.GITHUB_REPOSITORY || "IAHispano/Applio-App";
   const platforms = {};
   const legacy = {};

@@ -33,6 +33,10 @@ after staging release resources.
 
 ## Releases
 
+In GitHub Actions, run **Build and Release** and enter the next version. The
+workflow updates every app version automatically, then builds and tags that exact
+commit. There is no need to edit version files manually.
+
 The release workflow requires `TAURI_SIGNING_PRIVATE_KEY` and, for encrypted keys,
 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in GitHub Actions secrets. The key must match
 the public identity in `frontend/desktop/src-tauri/tauri.conf.json`. Back it up
