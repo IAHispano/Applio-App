@@ -212,33 +212,7 @@ export default function Home() {
     versionInfo && !versionInfo.isDev && versionInfo.status === "behind" && versionInfo.latest;
   const currentVersion = displayVersion(sysInfo?.version || versionInfo?.local);
 
-  if (!status) {
-    if (setupError || error) {
-      return (
-        <div className="h-full w-full min-h-[300px] flex flex-col items-center justify-center p-6">
-          <div className="max-w-md w-full space-y-4 text-center">
-            <Alert variant="error">{setupError || error}</Alert>
-            <Button loading={setupLoading} onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
-              {t("Retry Connection")}
-            </Button>
-          </div>
-        </div>
-      );
-    }
-    return (
-      <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack animate-pulse">
-        <div className="h-52 sm:h-56 rounded-xl border border-white/5 bg-white/[0.02]" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!status.ready || forceSetup) {
+  if (status?.ready === false || forceSetup) {
     return (
       <FirstRunSetup
         onComplete={() => {
@@ -254,8 +228,8 @@ export default function Home() {
       <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 sm:p-7">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <Badge variant="success" dot>
-              {t("Ready")}
+            <Badge variant={status?.ready ? "success" : "neutral"} dot>
+              {t(status?.ready ? "Ready" : "Checking engine status…")}
             </Badge>
             {currentVersion && <span className="text-xs text-[var(--muted)]">Applio {currentVersion}</span>}
           </div>
@@ -288,6 +262,25 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {(error || setupError) && (
+        <Alert variant="error">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span>{error || setupError}</span>
+            {setupError && (
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={setupLoading}
+                onClick={() => refresh(true)}
+                icon={<RefreshCw size={14} />}
+              >
+                {t("Retry Connection")}
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
 
       {/* Update banner */}
       {updateAvailable && (
@@ -474,8 +467,8 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <Activity size={16} className="text-white" />
             <h2 className="text-sm font-semibold text-neutral-200 m-0">{t("System Diagnostics")}</h2>
-            <Badge variant={passedChecks === totalChecks ? "success" : "warning"}>
-              {passedChecks}/{totalChecks} {t("passed")}
+            <Badge variant={!status ? "neutral" : passedChecks === totalChecks ? "success" : "warning"}>
+              {status ? `${passedChecks}/${totalChecks} ${t("passed")}` : t("Checking…")}
             </Badge>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -483,7 +476,7 @@ export default function Home() {
               size="xs"
               variant="ghost"
               onClick={prerequisites}
-              disabled={prereqRunning}
+              disabled={!status?.ready || prereqRunning}
               title={t("Download base voice models and checkpoints (hubert, rmvpe, vocoders)")}
               icon={<Download size={13} />}
             >
@@ -515,12 +508,6 @@ export default function Home() {
           </div>
         </div>
 
-        {(error || setupError) && (
-          <div className="mx-4 mb-4">
-            <Alert variant="error">{error || setupError}</Alert>
-          </div>
-        )}
-
         {showDetails && sysInfo && (
           <div className="px-4 pb-4 grid grid-cols-2 xl:grid-cols-4 gap-3">
             <StatTile label={t("App Version")} value={displayVersion(sysInfo.version) || "—"} />
@@ -539,7 +526,7 @@ export default function Home() {
             id="home-diagnostics-details"
             className="p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5"
           >
-            {status.checks.map((c) => {
+            {status?.checks.map((c) => {
               const isOk = c.status === "ok";
               const isWarn = c.status === "warn";
               return (

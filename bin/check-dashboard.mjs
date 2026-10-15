@@ -63,7 +63,7 @@ export async function checkTrayHeartbeat(call) {
   }
 }
 
-export async function checkDashboard(call) {
+export async function checkDashboard(call, origin = "http://127.0.0.1:3000") {
   await call("Page.enable", {});
   const evaluate = async (expression) => {
     const result = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
@@ -86,7 +86,8 @@ export async function checkDashboard(call) {
       const fixture = window.__dashboardTest = {
         setupFails: sessionStorage.getItem('dashboard-failure') === '1',
         voice: 'Dashboard fixture voice', versionRequests: 0, forcedChecks: 0,
-        versionReleased: false, releaseVersion: () => {}, requests: []
+        versionReleased: false, releaseVersion: () => {}, requests: [],
+        setupReleased: false, releaseSetup: () => { fixture.setupReleased=true; }, setupReady: true, setupInstalls: 0
       };
       const response = (value, status=200) => new Response(JSON.stringify(value), {
         status, headers: {'content-type':'application/json'}
@@ -98,8 +99,14 @@ export async function checkDashboard(call) {
           case '/api/settings/language': return response({code:'en_US',dict:{}});
           case '/api/setup/status':
             if (url.searchParams.get('refresh') === '1') fixture.forcedChecks++;
-            return fixture.setupFails ? response({error:'Fixture API unavailable'},503)
-              : response({ready:true,checks:[],checkedAt:new Date().toISOString()});
+            if (fixture.setupFails) return response({error:'Fixture API unavailable'},503);
+            if (!fixture.setupReleased) await new Promise(resolve => {
+              const previous = fixture.releaseSetup;
+              fixture.releaseSetup = () => { previous(); fixture.setupReleased=true; resolve(); };
+            });
+            return response({ready:fixture.setupReady,checks:[],checkedAt:new Date().toISOString()});
+          case '/api/setup/install':
+            fixture.setupInstalls++; return response({error:'Fixture installation blocked'},503);
           case '/api/models': return response({models:['fixture.pth'],indexes:[],audios:[]});
           case '/api/models/library': return response({models:[{
             pthPath:'fixture.pth',name:fixture.voice,indexPath:null,modifiedAt:new Date().toISOString()
@@ -126,7 +133,14 @@ export async function checkDashboard(call) {
     })();`,
   });
   try {
-    await call("Page.navigate", { url: "http://127.0.0.1:3000/" });
+    await call("Page.navigate", { url: `${origin}/` });
+    await until(
+      "document.querySelector('a[href=\"/train\"]') && document.querySelector('a[href=\"/tts\"]') && (document.body?.innerText || String()).includes('Dashboard fixture voice') && window.__dashboardTest?.requests.includes('/api/setup/status')",
+      "Homepage cards and local content must render while setup validation remains pending",
+    );
+    assert.equal(await evaluate("window.__dashboardTest.setupReleased"), false);
+    assert.equal(await evaluate("(document.body?.innerText || String()).includes('Checking engine status…')"), true);
+    await evaluate("window.__dashboardTest.releaseSetup()");
     await until(
       "(document.body?.innerText || String()).includes('Dashboard fixture voice') && window.__dashboardTest?.versionRequests > 0 && [...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Refresh' && !b.disabled)",
       "Local dashboard content and Refresh must be ready while the version request remains pending",
@@ -144,7 +158,7 @@ export async function checkDashboard(call) {
       "(document.body?.innerText || String()).includes('Fixture API unavailable') && [...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Retry Connection' && !b.disabled)",
       "Initial API failure must show a retry action instead of an endless skeleton",
     );
-    await evaluate(`window.__dashboardTest.setupFails=false;
+    await evaluate(`window.__dashboardTest.setupFails=false; window.__dashboardTest.releaseSetup();
       [...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Retry Connection').click()`);
     await until(
       "(document.body?.innerText || String()).includes('Dashboard fixture voice') && !(document.body?.innerText || String()).includes('Fixture API unavailable') && [...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Refresh'&&!b.disabled)",
@@ -157,7 +171,13 @@ export async function checkDashboard(call) {
       "window.__dashboardTest.forcedChecks===2 && (document.body?.innerText || String()).includes('Fixture API unavailable')",
       "A second forced check must reach the API rather than reuse the previous cached success",
     );
-    console.log("Dashboard deferred updates, connection failure, retry and forced-refresh checks passed.");
+    await evaluate(`window.__dashboardTest.setupFails=false; window.__dashboardTest.setupReady=false;
+      [...document.querySelectorAll('button')].find(b=>b.textContent.trim()==='Refresh').click()`);
+    await until(
+      "window.__dashboardTest.setupInstalls===1 && (document.body?.innerText || String()).includes('Fixture installation blocked')",
+      "A confirmed missing engine must still open first-run setup",
+    );
+    console.log("Dashboard immediate cards during pending diagnostics, deferred updates, failure, retry and refresh checks passed.");
   } finally {
     await call("Page.removeScriptToEvaluateOnNewDocument", { identifier: injected.identifier });
     await evaluate("sessionStorage.removeItem('dashboard-failure')");
