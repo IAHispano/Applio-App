@@ -5,7 +5,7 @@ import { apiGet } from "@/lib/api";
 import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { type JobActivity, JobNotificationTracker } from "@/lib/job-notifications";
-import { disableSupportReminders, SUPPORT_URL, supportReminderDue } from "@/lib/support";
+import { SUPPORT_URL, supportReminderDue } from "@/lib/support";
 import { toast } from "@/lib/toast";
 
 interface DesktopNotifications {
@@ -75,7 +75,6 @@ export default function JobNotifications() {
               id: "support-reminder",
               duration: 9000,
               action: { label: t("Support us"), href: SUPPORT_URL },
-              secondaryAction: { label: t("Don't remind me"), onClick: disableSupportReminders },
             });
           }, 12000);
         }

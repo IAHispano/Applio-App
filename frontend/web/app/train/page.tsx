@@ -189,10 +189,25 @@ export default function TrainPage() {
   }, []);
 
   // Step completion is per-project: switching models starts a fresh trail.
+  // Steps are marked done only when their job succeeds, never on submit,
+  // so a failed run (e.g. training exit code 1) can't show green checks.
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset is intentionally keyed on modelName only
   useEffect(() => {
     setCompletedSteps(new Set());
   }, [modelName]);
+
+  useEffect(() => {
+    const step = trainingJob?.params?.step as string | undefined;
+    if (
+      trainingJob?.status === "done" &&
+      (step === "preprocess" || step === "extract" || step === "train" || step === "index")
+    ) {
+      setCompletedSteps((prev) => {
+        if (prev.has(step as NonNullable<StepModal>)) return prev;
+        return new Set(prev).add(step as NonNullable<StepModal>);
+      });
+    }
+  }, [trainingJob?.status, trainingJob?.params?.step]);
 
   function needModel(): boolean {
     if (!modelName.trim()) {
@@ -215,14 +230,15 @@ export default function TrainPage() {
     return datasetPath.trim().replace(/^["']|["']$/g, "");
   }
 
-  async function run(path: string, body: unknown, stepKey?: NonNullable<StepModal>) {
+  async function run(path: string, body: unknown, _stepKey?: NonNullable<StepModal>) {
     if (busy || activeTraining || uploadsInProgress > 0) return false;
     setError("");
     setBusy(true);
     try {
       const { jobId: id } = await submitJob(path, body);
       setJobId(id);
-      if (stepKey) setCompletedSteps((prev) => new Set(prev).add(stepKey));
+      // Completion is recorded by the effect watching trainingJob status,
+      // so failed jobs never mark their step as done.
       return true;
     } catch (e) {
       setError(errMsg(e));

@@ -74,6 +74,21 @@ export function getGpuHardware(force = false): GpuHardwareInfo {
 }
 
 /**
+ * Whether the AMD ROCm stack should be used on this machine.
+ *
+ * An AMD integrated GPU (e.g. Radeon 890M on a Ryzen AI 9 HX 370) also shows
+ * up in Win32_VideoController, so `isAmd` alone would select ROCm even when
+ * a much faster discrete GPU is present. When NVIDIA hardware is detected,
+ * CUDA wins and ROCm must stay out of the way (it would otherwise uninstall
+ * CUDA PyTorch and set HIP/MIOpen env vars for a GPU that is never used).
+ * An explicit APPLIO_ROCM_GFX override always forces the AMD path.
+ */
+export function shouldUseAmdRocm(hw: GpuHardwareInfo = getGpuHardware()): boolean {
+  if (process.env.APPLIO_ROCM_GFX) return true;
+  return hw.isAmd && !hw.isNvidia;
+}
+
+/**
  * Detect installed AMD HIP SDK on Windows.
  */
 export function findHipSdk(force = false): HipSdkInfo | null {
@@ -559,7 +574,10 @@ export function applyAmdRocmEnv(venvDir?: string): boolean {
   process.env.PATH = parts.join(path.delimiter);
 
   const gpu = getGpuHardware();
-  if (gpu.isAmd || hip || process.env.APPLIO_ROCM_GFX) {
+  // A HIP SDK install alone must not pull in the ROCm stack when NVIDIA
+  // hardware is present — CUDA takes precedence (see shouldUseAmdRocm).
+  const useRocm = shouldUseAmdRocm(gpu) || (!gpu.isNvidia && Boolean(hip));
+  if (useRocm) {
     process.env.HIP_VISIBLE_DEVICES ??= "0";
     process.env.DISABLE_ADDMM_CUDA_LT ??= "1";
     process.env.MIOPEN_FIND_MODE ??= "2";

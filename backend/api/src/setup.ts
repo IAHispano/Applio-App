@@ -587,9 +587,10 @@ async function computeStatus(force: boolean): Promise<SetupStatus> {
 
   if (process.platform === "win32") {
     try {
-      const { getGpuHardware, getAmdGfxTarget, isRocmInstalled, findMsvcToolchain } = await import("@/rocm");
+      const { getGpuHardware, getAmdGfxTarget, isRocmInstalled, findMsvcToolchain, shouldUseAmdRocm } =
+        await import("@/rocm");
       const gpu = getGpuHardware();
-      if (gpu.isAmd || process.env.APPLIO_ROCM_GFX) {
+      if (shouldUseAmdRocm(gpu)) {
         const root = getRepoRoot();
         const targetVenv = py ? path.resolve(path.dirname(py.cmd[0]), "..") : path.join(root, ".venv");
         const torchLibDir = path.join(targetVenv, "Lib", "site-packages", "torch", "lib");
@@ -1266,10 +1267,13 @@ export function startInstall(): Job {
         //   uv pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match
         // unsafe-best-match is required because the torch index also mirrors a
         // few PyPI packages at older versions.
-        const { getGpuHardware, installAmdRocm, cleanupZluda } = await import("@/rocm");
+        const { getGpuHardware, installAmdRocm, cleanupZluda, isRocmInstalled, shouldUseAmdRocm } =
+          await import("@/rocm");
         const gpuHardware = getGpuHardware();
-        const isAmdGpu =
-          process.platform === "win32" && (gpuHardware.isAmd || Boolean(process.env.APPLIO_ROCM_GFX));
+        // NVIDIA wins over AMD integrated graphics (e.g. Radeon 890M iGPU +
+        // RTX 4060 Laptop): only go ROCm when no NVIDIA GPU is present,
+        // unless the user forces it via APPLIO_ROCM_GFX.
+        const isAmdGpu = process.platform === "win32" && shouldUseAmdRocm(gpuHardware);
 
         const gpus = !isAmdGpu ? await getNvidiaGpus() : null;
         const hasLegacyGpu = gpus ? isLegacyNvidiaGpu(gpus) : false;
@@ -1359,6 +1363,61 @@ export function startInstall(): Job {
             effectiveReqFile = legacyReqFile;
           } catch (e) {
             appendLog(job, `Note: Could not prepare legacy requirements file (${e}).`);
+          }
+        }
+
+        // Repair machines that a previous setup wrongly put on ROCm because an
+        // AMD iGPU was detected next to a better GPU (e.g. Radeon 890M + RTX
+        // 4060). pip will NOT replace same-version ROCm wheels with CUDA ones
+        // on its own (identical version string, different index), so remove
+        // them explicitly before the requirements install below.
+        if (!isAmdGpu) {
+          const venvDir = path.join(root, ".venv");
+          const torchLibDir = path.join(venvDir, "Lib", "site-packages", "torch", "lib");
+          if (isRocmInstalled(torchLibDir, venvDir)) {
+            const reason = gpuHardware.isNvidia
+              ? "an NVIDIA GPU is available and takes precedence over AMD integrated graphics"
+              : "no AMD GPU was detected";
+            appendLog(job, `AMD ROCm PyTorch is installed, but ${reason} — removing ROCm wheels…`);
+            try {
+              await streamRun(job, venvPy, [
+                "-m",
+                "pip",
+                "uninstall",
+                "-y",
+                "torch",
+                "torchaudio",
+                "torchvision",
+              ]);
+            } catch (err) {
+              appendLog(job, `Note during ROCm uninstall: ${err}`);
+            }
+            // Device-specific metapackages are named per GPU (e.g.
+            // amd-torchvision-device-gfx1150): remove whatever is installed.
+            try {
+              const listed = await runCmd(venvPy, ["-m", "pip", "list", "--format=json"], {
+                timeoutMs: 30000,
+              });
+              if (listed.code === 0) {
+                const pkgs = JSON.parse(listed.stdout.trim()) as Array<{ name?: string }>;
+                const amdPkgs = pkgs.map((p) => p.name || "").filter((n) => /^amd-/i.test(n));
+                if (amdPkgs.length > 0) {
+                  await streamRun(job, venvPy, ["-m", "pip", "uninstall", "-y", ...amdPkgs]);
+                }
+              }
+            } catch {
+              /* leftover metapackages are harmless; the CUDA install below wins */
+            }
+            for (const marker of [
+              path.join(torchLibDir, ".rocm-installed"),
+              path.join(venvDir, ".rocm-installed"),
+            ]) {
+              try {
+                fs.rmSync(marker, { force: true });
+              } catch {
+                /* ignore */
+              }
+            }
           }
         }
 

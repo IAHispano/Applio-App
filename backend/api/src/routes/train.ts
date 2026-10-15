@@ -723,7 +723,7 @@ router.post("/pipeline", async (req: Request, res: Response) => {
         const modelFile = trainedModelArtifact(modelDirectory, p.modelName, before, p.totalEpoch);
 
         if (p.indexAlgorithm && p.indexAlgorithm !== "Skip") {
-          appendLog(job, `\n>>> [3b/4] Generating Index (${p.indexAlgorithm})...`);
+          appendLog(job, `\n>>> [4/4] Generating Index (${p.indexAlgorithm})...`);
           await runIndexStep(job, p.modelName, p.indexAlgorithm);
           if (aborted()) return;
         }
