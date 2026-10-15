@@ -357,6 +357,15 @@ async fn python_acquisition_jobs_are_owned_and_do_not_require_gpu_or_stop_infere
         "print(' 45%|progress')\nprint('Model downloaded successfully.')\n",
     )
     .unwrap();
+    std::fs::write(
+        fixture
+            .engine
+            .runtime
+            .code
+            .join("tools/model_download_runtime.py"),
+        include_str!("../../../tools/model_download_runtime.py"),
+    )
+    .unwrap();
     let realtime = fixture.engine.scheduler.begin_realtime().unwrap();
     let id = fixture
         .start("/api/audio/youtube", json!({"url":"https://youtu.be/abc"}))

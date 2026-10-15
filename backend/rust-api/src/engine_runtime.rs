@@ -161,6 +161,7 @@ pub struct EngineRuntime {
     pub config: ConfigStore,
     pub environment: std::collections::BTreeMap<OsString, OsString>,
     python: PathBuf,
+    pub(crate) package_probe: Arc<crate::engine::PackageProbe>,
 }
 impl EngineRuntime {
     pub fn open(config: &ApiConfig) -> Result<Self> {
@@ -217,6 +218,7 @@ impl EngineRuntime {
             config: configuration,
             environment,
             python,
+            package_probe: Arc::default(),
         })
     }
 

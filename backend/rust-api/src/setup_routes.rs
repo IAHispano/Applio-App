@@ -73,6 +73,9 @@ async fn status(
             }
         }
     }
+    if query.get("refresh").is_some_and(|v| v == "1") {
+        state.engine.runtime.package_probe.invalidate().await;
+    }
     let token = state.engine.cancellation_token();
     let value = compute(&state.engine, None, false, &token)
         .await
@@ -193,7 +196,7 @@ pub(crate) async fn compute(
         if !owns_gpu && (engine.scheduler.gpu_busy() || engine.scheduler.status().realtime) {
             spec.env.insert("APPLIO_PROBE_SKIP_GPU".into(), "1".into());
         }
-        match run_check(&spec, token, 180).await {
+        match runtime.package_probe.run(&spec, token).await {
             Ok(output) if output.success && output.stdout.contains("OK|") => {
                 (true, output.stdout.trim().to_owned())
             }
@@ -333,7 +336,9 @@ async fn install(State(state): State<Arc<Setup>>) -> Accepted {
             Some(Resource::Gpu),
             move |engine, job, token| async move {
                 setup.revision.fetch_add(1, Ordering::SeqCst);
+                engine.runtime.package_probe.invalidate().await;
                 let result = crate::setup_install::install(&engine, &job.id, &token).await;
+                engine.runtime.package_probe.invalidate().await;
                 setup.revision.fetch_add(1, Ordering::SeqCst);
                 result
             },

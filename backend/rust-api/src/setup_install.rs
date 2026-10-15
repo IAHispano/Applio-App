@@ -839,6 +839,7 @@ pub(crate) async fn install(
     )
     .await?;
     engine.jobs.stage(id, "Verifying installation…", None, None);
+    engine.runtime.package_probe.invalidate().await;
     let final_status = setup_routes::compute(engine, Some(python), true, token).await?;
     for check in final_status["checks"]
         .as_array()

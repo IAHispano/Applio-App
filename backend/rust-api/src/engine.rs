@@ -32,18 +32,64 @@ pub trait Readiness: Send + Sync {
 pub struct RuntimeReadiness {
     runtime: EngineRuntime,
     bypass: bool,
-    cached: tokio::sync::Mutex<Option<(tokio::time::Instant, Option<String>)>>,
 }
 impl RuntimeReadiness {
     pub fn new(runtime: EngineRuntime, bypass: bool) -> Self {
-        Self {
-            runtime,
-            bypass,
-            cached: tokio::sync::Mutex::new(None),
-        }
+        Self { runtime, bypass }
     }
     pub async fn invalidate(&self) {
+        self.runtime.package_probe.invalidate().await;
+    }
+}
+
+// Setup and request admission share one probe per runtime, including concurrent
+// callers. A successful check lasts as long as Electron's setup cache; failed
+// checks expire quickly so fixing an environment does not require a restart.
+#[derive(Default)]
+pub(crate) struct PackageProbe {
+    cached: tokio::sync::Mutex<Option<PackageCheck>>,
+}
+struct PackageCheck {
+    spec: crate::process::CommandSpec,
+    at: tokio::time::Instant,
+    output: crate::process::ProcessOutput,
+}
+impl PackageProbe {
+    pub(crate) async fn invalidate(&self) {
         *self.cached.lock().await = None;
+    }
+    pub(crate) async fn run(
+        &self,
+        spec: &crate::process::CommandSpec,
+        cancelled: &CancellationToken,
+    ) -> Result<crate::process::ProcessOutput> {
+        let mut cache = tokio::select! {
+            biased;
+            _ = cancelled.cancelled() => bail!("Engine check cancelled"),
+            cache = self.cached.lock() => cache,
+        };
+        if let Some(check) = &*cache {
+            let ttl = if check.output.success { 3600 } else { 5 };
+            if check.spec == *spec && check.at.elapsed() < Duration::from_secs(ttl) {
+                return Ok(check.output.clone());
+            }
+        }
+        let output = tokio::time::timeout(
+            Duration::from_secs(180),
+            ManagedProcess::run(spec, cancelled, |_, _| {}),
+        )
+        .await
+        .context("Python engine dependency check timed out")??;
+        // Cancellation must never become a cached environment failure.
+        if cancelled.is_cancelled() {
+            bail!("Engine check cancelled");
+        }
+        *cache = Some(PackageCheck {
+            spec: spec.clone(),
+            at: tokio::time::Instant::now(),
+            output: output.clone(),
+        });
+        Ok(output)
     }
 }
 impl Readiness for RuntimeReadiness {
@@ -56,25 +102,9 @@ impl Readiness for RuntimeReadiness {
             if self.bypass {
                 return Ok(());
             }
-            let mut cache = self.cached.lock().await;
-            if cache
-                .as_ref()
-                .is_none_or(|(at, _)| at.elapsed() > Duration::from_secs(60))
-            {
-                let spec = self.runtime.python_command(["-c", ENGINE_PROBE])?;
-                let probe = tokio::time::timeout(
-                    Duration::from_secs(180),
-                    ManagedProcess::run(&spec, &cancelled, |_, _| {}),
-                )
-                .await;
-                let failure = match probe {
-                    Ok(Ok(output)) => output.ensure_success().err().map(|error| error.to_string()),
-                    Ok(Err(error)) => Some(error.to_string()),
-                    Err(_) => Some("Python engine dependency check timed out".into()),
-                };
-                *cache = Some((tokio::time::Instant::now(), failure));
-            }
-            if let Some((_, Some(error))) = cache.as_ref() {
+            let spec = self.runtime.python_command(["-c", ENGINE_PROBE])?;
+            let output = self.runtime.package_probe.run(&spec, &cancelled).await?;
+            if let Err(error) = output.ensure_success() {
                 bail!("Engine environment is not ready ({error}). Please complete Applio setup first.");
             }
             if !allow_missing_pretrains {
@@ -440,3 +470,110 @@ if (legacy or broken) and not version.startswith('2.7.'):
     raise RuntimeError(f'torch {version} is incompatible with older GPU {gpu}; run Install/Repair for PyTorch 2.7.1 (cu126)')
 print(f'OK|{version}')
 "#;
+
+#[cfg(test)]
+mod package_probe_checks {
+    use super::*;
+    use crate::process::CommandSpec;
+
+    #[tokio::test]
+    #[ignore = "Requires APPLIO_ENGINE_TEST_PYTHON pointing to installed engine Python"]
+    async fn real_package_probe_reuses_validation_after_one_minute() {
+        let python = std::env::var_os("APPLIO_ENGINE_TEST_PYTHON").expect("engine Python");
+        let directory = tempfile::tempdir().unwrap();
+        let mut spec = CommandSpec::new(std::path::PathBuf::from(python), directory.path())
+            .args(["-c", ENGINE_PROBE]);
+        spec.env.insert("APPLIO_PROBE_SKIP_GPU".into(), "1".into());
+        spec.env_remove.push("PYTHONHOME".into());
+        let probe = PackageProbe::default();
+        let token = CancellationToken::new();
+        let start = std::time::Instant::now();
+        let output = probe.run(&spec, &token).await.unwrap();
+        output.ensure_success().unwrap();
+        assert!(output.stdout.contains("OK|"));
+        let cold = start.elapsed();
+        probe.cached.lock().await.as_mut().unwrap().at =
+            tokio::time::Instant::now() - Duration::from_secs(61);
+        let start = std::time::Instant::now();
+        assert_eq!(
+            probe.run(&spec, &token).await.unwrap().stdout,
+            output.stdout
+        );
+        println!(
+            "Package validation: cold {cold:?}, reused after 61 seconds {:?}",
+            start.elapsed()
+        );
+    }
+
+    #[tokio::test]
+    async fn package_probe_coalesces_callers_caches_beyond_one_minute_and_invalidates() {
+        let directory = tempfile::tempdir().unwrap();
+        let python = std::env::var_os("PYTHON_BIN")
+            .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
+        let spec = CommandSpec::new(std::path::PathBuf::from(python), directory.path()).args([
+            "-c", "from pathlib import Path; p=Path('calls'); p.write_text(p.read_text()+'x' if p.exists() else 'x'); print('OK|fixture')",
+        ]);
+        let probe = PackageProbe::default();
+        let token = CancellationToken::new();
+        let (first, concurrent) = tokio::join!(probe.run(&spec, &token), probe.run(&spec, &token));
+        assert!(first.unwrap().success);
+        assert!(concurrent.unwrap().success);
+        probe.cached.lock().await.as_mut().unwrap().at =
+            tokio::time::Instant::now() - Duration::from_secs(61);
+        probe.run(&spec, &token).await.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("calls")).unwrap(),
+            "x"
+        );
+        probe.cached.lock().await.as_mut().unwrap().at =
+            tokio::time::Instant::now() - Duration::from_secs(3601);
+        probe.run(&spec, &token).await.unwrap();
+        probe.invalidate().await;
+        probe.run(&spec, &token).await.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("calls")).unwrap(),
+            "xxx"
+        );
+        let mut changed = spec.clone();
+        changed
+            .env
+            .insert("APPLIO_PROBE_TEST".into(), "changed".into());
+        probe.run(&changed, &token).await.unwrap();
+        assert_eq!(
+            std::fs::read_to_string(directory.path().join("calls")).unwrap(),
+            "xxxx"
+        );
+        let stopped = CancellationToken::new();
+        stopped.cancel();
+        assert!(probe.run(&changed, &stopped).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn package_probe_failures_retry_quickly_and_cancelled_waiters_do_not_block() {
+        let directory = tempfile::tempdir().unwrap();
+        let python = std::env::var_os("PYTHON_BIN")
+            .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
+        let spec = CommandSpec::new(std::path::PathBuf::from(python), directory.path()).args([
+            "-c",
+            "from pathlib import Path; import sys; sys.exit(0 if Path('fixed').exists() else 1)",
+        ]);
+        let probe = PackageProbe::default();
+        let token = CancellationToken::new();
+        assert!(!probe.run(&spec, &token).await.unwrap().success);
+        std::fs::write(directory.path().join("fixed"), "").unwrap();
+        assert!(!probe.run(&spec, &token).await.unwrap().success);
+        probe.cached.lock().await.as_mut().unwrap().at =
+            tokio::time::Instant::now() - Duration::from_secs(6);
+        assert!(probe.run(&spec, &token).await.unwrap().success);
+        let held = probe.cached.lock().await;
+        let cancelled = CancellationToken::new();
+        let wait = probe.run(&spec, &cancelled);
+        cancelled.cancel();
+        assert!(tokio::time::timeout(Duration::from_secs(1), wait)
+            .await
+            .unwrap()
+            .is_err());
+        drop(held);
+        assert!(probe.run(&spec, &token).await.unwrap().success);
+    }
+}

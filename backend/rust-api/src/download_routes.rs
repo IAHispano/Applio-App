@@ -130,7 +130,7 @@ async fn model(State(engine): State<Arc<NativeEngine>>, request: Request) -> Acc
             move |engine, job, token| async move {
                 let spec = engine
                     .runtime
-                    .python_command(["rvc/lib/tools/model_download.py", &body.model_link])?;
+                    .python_command(["tools/model_download_runtime.py", &body.model_link])?;
                 let mut last = 0.;
                 static PERCENT: OnceLock<Regex> = OnceLock::new();
                 let percent = PERCENT.get_or_init(|| Regex::new(r"(\d{1,3})%\s*\|").unwrap());

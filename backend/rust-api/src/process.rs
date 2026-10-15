@@ -23,7 +23,7 @@ pub fn json_result(stdout: &str) -> Result<serde_json::Value> {
     Ok(serde_json::from_str(json)?)
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CommandSpec {
     pub program: PathBuf,
     pub args: Vec<OsString>,
@@ -250,7 +250,7 @@ impl Drop for ManagedProcess {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct ProcessOutput {
     pub code: Option<i32>,
     pub success: bool,
