@@ -26,6 +26,27 @@ pub fn apply(window: &tauri::WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 
+/// The embedded UI is application code; browser permission bubbles add no useful
+/// choice here. OS microphone privacy still applies independently of this policy.
+pub fn permission_response(
+    url: Option<&tauri::Url>,
+    kind: tauri::webview::PermissionKind,
+) -> tauri::webview::PermissionResponse {
+    use tauri::webview::{PermissionKind, PermissionResponse};
+    if url.is_some_and(|url| url.origin().ascii_serialization() == "http://127.0.0.1:3000")
+        && matches!(
+            kind,
+            PermissionKind::Microphone
+                | PermissionKind::AutomaticDownloads
+                | PermissionKind::Autoplay
+        )
+    {
+        PermissionResponse::Allow
+    } else {
+        PermissionResponse::Deny
+    }
+}
+
 /// WebKit applies navigation policy to subframes too. TensorBoard runs on its
 /// own loopback origin; permitting its frame does not grant native capabilities.
 pub fn navigation_allowed(url: &tauri::Url, tensorboard_port: u16) -> bool {
@@ -41,6 +62,58 @@ pub fn navigation_allowed(url: &tauri::Url, tensorboard_port: u16) -> bool {
 #[cfg(test)]
 mod checks {
     use super::*;
+
+    #[test]
+    fn app_permissions_do_not_prompt_or_extend_to_tensorboard_and_remote_pages() {
+        use tauri::webview::{PermissionKind, PermissionResponse};
+        let app: tauri::Url = "http://127.0.0.1:3000/realtime".parse().unwrap();
+        for kind in [
+            PermissionKind::Microphone,
+            PermissionKind::AutomaticDownloads,
+            PermissionKind::Autoplay,
+        ] {
+            assert_eq!(
+                permission_response(Some(&app), kind),
+                PermissionResponse::Allow
+            );
+        }
+        for kind in [
+            PermissionKind::Camera,
+            PermissionKind::Geolocation,
+            PermissionKind::FileSystemAccess,
+            PermissionKind::ClipboardRead,
+            PermissionKind::Notifications,
+            PermissionKind::Other,
+        ] {
+            assert_eq!(
+                permission_response(Some(&app), kind),
+                PermissionResponse::Deny
+            );
+        }
+        for origin in [
+            "http://127.0.0.1:6007/",
+            "http://localhost:3000/",
+            "https://example.com/",
+            "http://127.0.0.1.example.com:3000/",
+            "about:blank",
+        ] {
+            let url: tauri::Url = origin.parse().unwrap();
+            assert_eq!(
+                permission_response(Some(&url), PermissionKind::Microphone),
+                PermissionResponse::Deny,
+                "{origin}"
+            );
+            assert_eq!(
+                permission_response(Some(&url), PermissionKind::AutomaticDownloads),
+                PermissionResponse::Deny,
+                "{origin}"
+            );
+        }
+        assert_eq!(
+            permission_response(None, PermissionKind::Microphone),
+            PermissionResponse::Deny
+        );
+    }
 
     #[test]
     fn tensorboard_frames_are_allowed_without_opening_unrelated_origins() {

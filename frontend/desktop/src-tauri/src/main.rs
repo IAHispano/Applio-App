@@ -544,6 +544,10 @@ fn main() {
                     .on_navigation(move |url| {
                         desktop_policy::navigation_allowed(url, tensorboard_port)
                     })
+                    .on_permission_request(|webview, kind| {
+                        let url = webview.url().ok();
+                        desktop_policy::permission_response(url.as_ref(), kind)
+                    })
                     .build()?;
             desktop_policy::apply(&window)?;
             let handle = app.handle().clone();

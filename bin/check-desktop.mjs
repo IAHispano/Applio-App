@@ -33,6 +33,7 @@ await new Promise((resolve) => reservation.listen(0, "127.0.0.1", resolve));
 const port = reservation.address().port;
 await new Promise((resolve) => reservation.close(resolve));
 const startupRetry = process.argv.includes("--startup-retry");
+const permissions = process.argv.includes("--permissions");
 const blocker = startupRetry ? net.createServer() : null;
 if (blocker)
   await new Promise((resolve, reject) => {
@@ -51,7 +52,7 @@ const processHandle = spawn(executable, [], {
     ...(release
       ? { APPDATA: path.join(temporary, "roaming"), LOCALAPPDATA: path.join(temporary, "local") }
       : {}),
-    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}`,
+    WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `--remote-debugging-port=${port}${permissions ? " --use-fake-device-for-media-stream" : ""}`,
     WEBVIEW2_USER_DATA_FOLDER: path.join(temporary, "webview"),
   },
 });
@@ -239,6 +240,31 @@ try {
   assert.equal(value.editingPreserved, true);
   assert.equal(value.contextMenuBlocked, true);
   assert.equal(launcherOutput.includes("Could not disable native browser commands"), false, launcherOutput);
+  if (permissions) {
+    const media = await call("Runtime.evaluate", {
+      awaitPromise: true,
+      returnByValue: true,
+      userGesture: true,
+      expression: `(async()=>{
+        // Only fake capture devices are enabled; browser permission UI is not
+        // bypassed by Chromium flags or a CDP permission override.
+        const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+        const tracks=stream.getAudioTracks();
+        const captured=tracks.length===1 && tracks[0].readyState==='live';
+        for(const track of stream.getTracks())track.stop();
+        const policy=document.permissionsPolicy || document.featurePolicy;
+        return {captured,cameraDenied:!policy.allowsFeature('camera'),
+          microphoneOrigins:policy.getAllowlistForFeature('microphone')};
+      })()`,
+    });
+    assert.equal(media.exceptionDetails, undefined, JSON.stringify(media.exceptionDetails));
+    assert.equal(media.result.value.captured, true);
+    assert.equal(media.result.value.cameraDenied, true);
+    assert.deepEqual(media.result.value.microphoneOrigins, ["http://127.0.0.1:3000"]);
+    console.log(
+      "Native microphone permission passed without browser UI; cross-origin capture remains blocked.",
+    );
+  }
   if (process.argv.includes("--dashboard")) await checkDashboard(call);
   await call("Page.navigate", { url: "http://127.0.0.1:3000/realtime" });
   let formantControls = false;

@@ -86,6 +86,14 @@ async fn asset_headers(request: Request, next: Next) -> Response {
                 .or_insert("no-cache".parse().unwrap());
         }
     }
+    // Native permission callbacks identify the main webview. Prevent embedded
+    // cross-origin pages (including TensorBoard plugins) from requesting media.
+    response.headers_mut().insert(
+        "permissions-policy",
+        "microphone=(self), camera=(), geolocation=()"
+            .parse()
+            .unwrap(),
+    );
     response
         .headers_mut()
         .insert("x-content-type-options", "nosniff".parse().unwrap());
@@ -129,6 +137,10 @@ mod checks {
                 .await
                 .unwrap();
             assert_eq!(response.status(), StatusCode::OK);
+            assert_eq!(
+                response.headers()["permissions-policy"],
+                "microphone=(self), camera=(), geolocation=()"
+            );
             assert_eq!(
                 to_bytes(response.into_body(), 1024).await.unwrap(),
                 expected
