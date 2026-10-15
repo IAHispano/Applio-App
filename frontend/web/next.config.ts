@@ -4,6 +4,11 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Keep the running development server from replacing release build files.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
+  // Each mode checks only its own generated route types. Old development
+  // validators must not enter production builds after a route is renamed.
+  typescript: {
+    tsconfigPath: process.env.NODE_ENV === "development" ? "tsconfig.dev.json" : "tsconfig.json",
+  },
   // Rust serves the exported UI and native API; production needs no Node server.
   output: "export",
   reactStrictMode: true,
