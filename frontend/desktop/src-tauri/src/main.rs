@@ -339,7 +339,7 @@ async fn notify_job(
         .builder()
         .extra("href", href)
         .title(format!(
-            "Applio Â· {}",
+            "Applio \u{00b7} {}",
             title.chars().take(100).collect::<String>()
         ))
         .body(body.chars().take(300).collect::<String>())
