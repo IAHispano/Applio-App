@@ -4,10 +4,15 @@ export interface DiagnosticInfo {
   version: string;
   backendRevision?: string;
   platform: string;
-  node: string;
+  node?: string;
+  runtime?: string;
   python: string;
   cpus: number;
   totalMemGB: number;
+}
+
+export function diagnosticRuntime(info: Pick<DiagnosticInfo, "node" | "runtime">): string {
+  return info.runtime || (info.node ? `Node ${info.node}` : "Rust");
 }
 
 export function formatDiagnostics(info: DiagnosticInfo): string {
@@ -15,7 +20,7 @@ export function formatDiagnostics(info: DiagnosticInfo): string {
     `${ECOSYSTEM.projects.desktop.name} ${info.version}`,
     `Engine revision: ${info.backendRevision || "unknown"}`,
     info.platform,
-    `Node ${info.node}`,
+    diagnosticRuntime(info),
     info.python,
     `CPUs: ${info.cpus} · RAM: ${info.totalMemGB}GB`,
   ].join("\n");

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Applio</title>
+<style>
+@font-face {
+  font-family: "Syne";
+  src: url("./Syne-Variable.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: block;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+  background: #060606;
+  overflow: hidden;
+  font-family: "Syne", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.2s ease-out;
+}
+.splash {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background-color: #060606;
+  background-image: radial-gradient(ellipse 55% 50% at 50% 50%, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.11) 28%, rgba(255, 255, 255, 0.03) 50%, rgba(6, 6, 6, 0) 72%);
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.95);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+}
+.bg-lines {
+  position: absolute;
+  width: 82%;
+  height: 80%;
+  max-width: 950px;
+  max-height: 540px;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000000 30%, rgba(0, 0, 0, 0.4) 60%, transparent 90%);
+  mask-image: radial-gradient(ellipse 75% 70% at 50% 50%, #000000 30%, rgba(0, 0, 0, 0.4) 60%, transparent 90%);
+}
+.center-content {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: -10px;
+}
+.brand-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: max-content;
+}
+.brand {
+  font-family: inherit;
+  font-size: 82px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  line-height: 1;
+  text-shadow: 0 0 14px rgba(255, 255, 255, 0.25);
+  margin-bottom: 24px;
+  white-space: nowrap;
+  display: block;
+}
+.track {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.bar {
+  height: 100%;
+  width: 35%;
+  animation: splashProgress 1.5s ease-in-out infinite;
+  background: #ffffff;
+  border-radius: 999px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.45);
+  will-change: width;
+  transform: translateZ(0);
+}
+@keyframes splashProgress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(290%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar { animation: none; transform: none; }
+}
+#splash-status { color:#aaa; font-size:13px; line-height:1.6; margin:16px 32px 0; text-align:center; max-width:720px; max-height:200px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }
+button { margin-top:20px; padding:10px 20px; font:600 13px inherit; font-family:inherit; color:#fff; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.3); border-radius:8px; cursor:pointer; }
+button:hover, button:focus-visible { background:rgba(255,255,255,.17); outline:2px solid #fff; outline-offset:3px; }
+button[hidden] { display:none; }
+body[data-failed] .bar { animation-play-state:paused; opacity:.4; }
+</style>
+</head>
+<body>
+  <div class="splash" data-tauri-drag-region>
+    <svg class="bg-lines" aria-hidden="true" viewBox="0 0 1373 777" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+      <g opacity="0.22" stroke="white" stroke-width="1.5">
+        <line x1="4.48657" y1="1" x2="1370.49" y2="1"/>
+        <line x1="4.48657" y1="80" x2="1370.49" y2="80"/>
+        <line x1="4.48657" y1="770" x2="1370.49" y2="770"/>
+        <line x1="4.48657" y1="700" x2="1370.49" y2="700"/>
+        <line x1="4.48657" y1="641" x2="1370.49" y2="641"/>
+        <line x1="157.487" y1="2" x2="157.487" y2="771"/>
+        <line x1="1209.49" y1="2" x2="1209.49" y2="771"/>
+        <path d="M198.987 1L298.487 84"/>
+        <path d="M189.987 637L3.48657 740.5M359.487 637L194.487 775M489.987 636L388.987 775M605.487 636L544.987 773.5"/>
+        <path d="M1170.49 635.5L1371.99 753M1008.99 635.5L1172.99 772.5M876.987 636.5L976.987 775M778.487 636L824.487 776"/>
+        <path d="M390.987 1.5L453.987 88.5M544.487 0.5L582.987 86.5M822.987 0.5L795.487 86.5M975.487 1.5L913.487 86.5M1174.49 1.5L1074.49 86M1371.99 20L1206.99 117"/>
+        <path d="M0.486572 29.5L167.487 122.5"/>
+      </g>
+    </svg>
+    <div class="center-content">
+      <div class="brand-wrap">
+        <div class="brand">Applio</div>
+        <div class="track" role="progressbar" aria-label="Applio">
+          <div id="pb" class="bar"></div>
+        </div>
+
+      </div>
+      <p id="splash-status" role="status" aria-live="polite">Loading Applio…</p>
+      <button id="retry" type="button" hidden>Retry startup</button>
+    </div>
+  </div>
+  <script>
+    (function() {
+      var bar = document.getElementById('pb');
+      var brand = document.querySelector('.brand');
+      var track = document.querySelector('.track');
+
+      function syncWidth() {
+        if (brand && track) {
+          var w = brand.getBoundingClientRect().width;
+          if (w > 0) {
+            track.style.width = w + 'px';
+          }
+        }
+      }
+      syncWidth();
+      if (document.fonts) {
+        document.fonts.ready.then(syncWidth);
+      }
+      window.addEventListener('resize', syncWidth);
+
+      window.setStatus = function(text) {
+        var status = document.getElementById('splash-status');
+        if (status) status.textContent = text;
+      };
+      window.setStatus("Loading Applio…");
+      window.setProgress = function(pct) {
+        if (pct === 100 && bar) {
+          bar.style.animation = 'none';
+          bar.style.transform = 'none';
+          bar.style.width = '100%';
+          if (track) {
+            track.setAttribute('aria-valuemin', '0');
+            track.setAttribute('aria-valuemax', '100');
+            track.setAttribute('aria-valuenow', '100');
+          }
+        }
+      };
+      const retry = document.getElementById('retry');
+      let attempt = 0;
+      function showError(error) {
+        window.setStatus(String(error));
+        document.body.dataset.failed = 'true';
+        retry.hidden = false;
+      }
+      const native = window.__TAURI__;
+      if (native) {
+        Promise.all([
+          native.event.listen('startup-status', event => window.setStatus(event.payload)),
+          native.event.listen('startup-error', event => showError(event.payload))
+        ]).then(async () => {
+          const initialAttempt = attempt;
+          const error = await native.core.invoke('startup_error');
+          if (initialAttempt === attempt && error) showError(error);
+        }).catch(showError);
+        retry.onclick = async () => {
+          attempt++;
+          retry.hidden = true;
+          delete document.body.dataset.failed;
+          window.setStatus('Loading Applio…');
+          try { await native.core.invoke('retry_startup'); } catch (error) { showError(error); }
+        };
+      }
+    })();
+  </script>
+</body>
+</html>

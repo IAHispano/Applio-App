@@ -1,0 +1,9 @@
+[[permission]]
+identifier = "allow-native"
+description = "Applio's validated native bridge; no general shell or filesystem access."
+commands.allow = ["window_action", "bridge_command", "choose_folder", "restart_after_setup", "notify_job", "set_passthrough_hotkey", "report_realtime_state", "updater_command", "retry_startup", "startup_error"]
+
+[[permission]]
+identifier = "allow-startup"
+description = "Read startup errors and retry application startup."
+commands.allow = ["retry_startup", "startup_error"]

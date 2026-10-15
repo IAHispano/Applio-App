@@ -1,0 +1,483 @@
+{
+  "preprocess": [
+    {
+      "name": "modelName",
+      "type": "string",
+      "trim": true,
+      "min": 1,
+      "max": 120,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    {
+      "name": "datasetPath",
+      "type": "string",
+      "min": 1
+    },
+    {
+      "name": "sampleRate",
+      "default": "40000",
+      "type": "enum",
+      "values": [
+        "32000",
+        "40000",
+        "48000"
+      ]
+    },
+    {
+      "name": "cpuCores",
+      "default": 12,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "cutPreprocess",
+      "default": "Automatic",
+      "type": "enum",
+      "values": [
+        "Skip",
+        "Simple",
+        "Automatic"
+      ]
+    },
+    {
+      "name": "processEffects",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "chunkLen",
+      "default": 3,
+      "type": "number",
+      "min": 0.5,
+      "max": 5
+    },
+    {
+      "name": "overlapLen",
+      "default": 0.3,
+      "type": "number",
+      "min": 0,
+      "max": 0.4
+    },
+    {
+      "name": "normalizationMode",
+      "default": "post",
+      "type": "enum",
+      "values": [
+        "none",
+        "pre",
+        "post"
+      ]
+    }
+  ],
+  "extract": [
+    {
+      "name": "modelName",
+      "type": "string",
+      "trim": true,
+      "min": 1,
+      "max": 120,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    {
+      "name": "f0Method",
+      "default": "rmvpe",
+      "type": "enum",
+      "values": [
+        "crepe",
+        "rmvpe",
+        "fcpe",
+        "swift"
+      ]
+    },
+    {
+      "name": "cpuCores",
+      "default": 12,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "gpu",
+      "default": "0",
+      "type": "string"
+    },
+    {
+      "name": "sampleRate",
+      "default": "40000",
+      "type": "enum",
+      "values": [
+        "32000",
+        "40000",
+        "44100",
+        "48000"
+      ]
+    },
+    {
+      "name": "embedderModel",
+      "default": "contentvec",
+      "type": "enum",
+      "values": [
+        "contentvec",
+        "spin",
+        "spin-v2",
+        "chinese-hubert-base",
+        "japanese-hubert-base",
+        "korean-hubert-base",
+        "custom"
+      ]
+    },
+    {
+      "name": "embedderModelCustom",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "includeMutes",
+      "default": 2,
+      "type": "number",
+      "integer": true,
+      "min": 0,
+      "max": 10
+    }
+  ],
+  "train": [
+    {
+      "name": "modelName",
+      "type": "string",
+      "trim": true,
+      "min": 1,
+      "max": 120,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    {
+      "name": "vocoder",
+      "default": "HiFi-GAN",
+      "type": "enum",
+      "values": [
+        "HiFi-GAN",
+        "MRF HiFi-GAN",
+        "RefineGAN"
+      ]
+    },
+    {
+      "name": "checkpointing",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "saveEveryEpoch",
+      "default": 10,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 100
+    },
+    {
+      "name": "saveOnlyLatest",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "saveEveryWeights",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "totalEpoch",
+      "default": 200,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "name": "sampleRate",
+      "default": "40000",
+      "type": "string"
+    },
+    {
+      "name": "batchSize",
+      "default": 4,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "gpu",
+      "default": "0",
+      "type": "string"
+    },
+    {
+      "name": "pretrained",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "customPretrained",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "gPretrainedPath",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "dPretrainedPath",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "cleanup",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "cacheDataInGpu",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "indexAlgorithm",
+      "default": "Auto",
+      "type": "enum",
+      "values": [
+        "Auto",
+        "Faiss",
+        "KMeans",
+        "Skip"
+      ]
+    }
+  ],
+  "index": [
+    {
+      "name": "modelName",
+      "type": "string",
+      "trim": true,
+      "min": 1,
+      "max": 120,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    {
+      "name": "indexAlgorithm",
+      "default": "Auto",
+      "type": "enum",
+      "values": [
+        "Auto",
+        "Faiss",
+        "KMeans",
+        "Skip"
+      ]
+    }
+  ],
+  "pipeline": [
+    {
+      "name": "modelName",
+      "type": "string",
+      "trim": true,
+      "min": 1,
+      "max": 120,
+      "pattern": "^[^\\r\\n]*$"
+    },
+    {
+      "name": "datasetPath",
+      "type": "string",
+      "min": 1
+    },
+    {
+      "name": "sampleRate",
+      "default": "40000",
+      "type": "enum",
+      "values": [
+        "32000",
+        "40000",
+        "44100",
+        "48000"
+      ]
+    },
+    {
+      "name": "cpuCores",
+      "default": 12,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "cutPreprocess",
+      "default": "Automatic",
+      "type": "enum",
+      "values": [
+        "Skip",
+        "Simple",
+        "Automatic"
+      ]
+    },
+    {
+      "name": "chunkLen",
+      "default": 3,
+      "type": "number",
+      "min": 0.5,
+      "max": 5
+    },
+    {
+      "name": "overlapLen",
+      "default": 0.3,
+      "type": "number",
+      "min": 0,
+      "max": 0.4
+    },
+    {
+      "name": "processEffects",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "normalizationMode",
+      "default": "post",
+      "type": "enum",
+      "values": [
+        "none",
+        "pre",
+        "post"
+      ]
+    },
+    {
+      "name": "f0Method",
+      "default": "rmvpe",
+      "type": "enum",
+      "values": [
+        "crepe",
+        "rmvpe",
+        "fcpe",
+        "swift"
+      ]
+    },
+    {
+      "name": "embedderModel",
+      "default": "contentvec",
+      "type": "enum",
+      "values": [
+        "contentvec",
+        "spin",
+        "spin-v2",
+        "chinese-hubert-base",
+        "japanese-hubert-base",
+        "korean-hubert-base",
+        "custom"
+      ]
+    },
+    {
+      "name": "embedderModelCustom",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "includeMutes",
+      "default": 2,
+      "type": "number",
+      "integer": true,
+      "min": 0,
+      "max": 10
+    },
+    {
+      "name": "vocoder",
+      "default": "HiFi-GAN",
+      "type": "enum",
+      "values": [
+        "HiFi-GAN",
+        "MRF HiFi-GAN",
+        "RefineGAN"
+      ]
+    },
+    {
+      "name": "totalEpoch",
+      "default": 200,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 10000
+    },
+    {
+      "name": "batchSize",
+      "default": 4,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 64
+    },
+    {
+      "name": "saveEveryEpoch",
+      "default": 10,
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 100
+    },
+    {
+      "name": "saveOnlyLatest",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "saveEveryWeights",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "pretrained",
+      "default": true,
+      "type": "boolean"
+    },
+    {
+      "name": "customPretrained",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "gPretrainedPath",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "dPretrainedPath",
+      "optional": true,
+      "type": "string"
+    },
+    {
+      "name": "cleanup",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "cacheDataInGpu",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "checkpointing",
+      "default": false,
+      "type": "boolean"
+    },
+    {
+      "name": "gpu",
+      "default": "0",
+      "type": "string"
+    },
+    {
+      "name": "indexAlgorithm",
+      "default": "Auto",
+      "type": "enum",
+      "values": [
+        "Auto",
+        "Faiss",
+        "KMeans",
+        "Skip"
+      ]
+    }
+  ]
+}

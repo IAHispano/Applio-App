@@ -1,0 +1,490 @@
+{
+  "rules": [
+    {
+      "pattern": "9070|r9700|r9600",
+      "gfx": "gfx1201"
+    },
+    {
+      "pattern": "9060|9050",
+      "gfx": "gfx1200"
+    },
+    {
+      "pattern": "8065s|8060s|8050s|8040s|strix\\s*halo|ai\\s*max",
+      "gfx": "gfx1151"
+    },
+    {
+      "pattern": "890m|880m",
+      "gfx": "gfx1150"
+    },
+    {
+      "pattern": "860m|840m",
+      "gfx": "gfx1152"
+    },
+    {
+      "pattern": "820m",
+      "gfx": "gfx1153"
+    },
+    {
+      "pattern": "strix",
+      "gfx": "gfx1150"
+    },
+    {
+      "pattern": "krackan",
+      "gfx": "gfx1152"
+    },
+    {
+      "pattern": "ryzen\\s+ai\\s+9\\b",
+      "gfx": "gfx1150"
+    },
+    {
+      "pattern": "ryzen\\s+ai\\s+7\\b",
+      "gfx": "gfx1152"
+    },
+    {
+      "pattern": "ryzen\\s+ai\\s+5\\s+330",
+      "gfx": "gfx1153"
+    },
+    {
+      "pattern": "ryzen\\s+ai\\s+5\\b",
+      "gfx": "gfx1152"
+    },
+    {
+      "pattern": "ryzen\\s+7\\s+7840",
+      "gfx": "gfx1103"
+    },
+    {
+      "pattern": "7900|w7900|w7800",
+      "gfx": "gfx1100"
+    },
+    {
+      "pattern": "7700s|7600s|7600m",
+      "gfx": "gfx1102"
+    },
+    {
+      "pattern": "7800|7700|w7700|v710",
+      "gfx": "gfx1101"
+    },
+    {
+      "pattern": "7600|7650|w7600|w7500",
+      "gfx": "gfx1102"
+    },
+    {
+      "pattern": "780m|760m|740m|phoenix|hawk\\s*point",
+      "gfx": "gfx1103"
+    },
+    {
+      "pattern": "6800m",
+      "gfx": "gfx1031"
+    },
+    {
+      "pattern": "6800s|6700s",
+      "gfx": "gfx1032"
+    },
+    {
+      "pattern": "6950|6900|6800|w6800",
+      "gfx": "gfx1030"
+    },
+    {
+      "pattern": "6750|6700|6850",
+      "gfx": "gfx1031"
+    },
+    {
+      "pattern": "6650|6600",
+      "gfx": "gfx1032"
+    },
+    {
+      "pattern": "6500|6400",
+      "gfx": "gfx1034"
+    },
+    {
+      "pattern": "6550|6450|6300",
+      "gfx": "gfx1034"
+    },
+    {
+      "pattern": "680m|660m|rembrandt",
+      "gfx": "gfx1035"
+    },
+    {
+      "pattern": "610m|mendocino|raphael|granite\\s*ridge",
+      "gfx": "gfx1036"
+    },
+    {
+      "pattern": "pro\\s*5600m",
+      "gfx": "gfx1011"
+    },
+    {
+      "pattern": "5700|5600",
+      "gfx": "gfx1010"
+    },
+    {
+      "pattern": "5500|5300",
+      "gfx": "gfx1012"
+    },
+    {
+      "pattern": "mi300|mi325",
+      "gfx": "gfx942"
+    },
+    {
+      "pattern": "mi250|mi210|mi200",
+      "gfx": "gfx90a"
+    },
+    {
+      "pattern": "mi100",
+      "gfx": "gfx908"
+    }
+  ],
+  "cases": [
+    {
+      "names": [
+        "RX 9070 XT"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1201"
+    },
+    {
+      "names": [
+        "RX 9060"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1200"
+    },
+    {
+      "names": [
+        "Radeon 8060S"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1151"
+    },
+    {
+      "names": [
+        "Ryzen AI Max PRO 395"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1151"
+    },
+    {
+      "names": [
+        "Ryzen AI 9 HX 375"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1150"
+    },
+    {
+      "names": [
+        "Ryzen AI 7 350"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1152"
+    },
+    {
+      "names": [
+        "Ryzen AI 5 330"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1153"
+    },
+    {
+      "names": [
+        "Ryzen AI 5 340"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1152"
+    },
+    {
+      "names": [
+        "Ryzen 7 7840U"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1103"
+    },
+    {
+      "names": [
+        "Radeon 820M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1153"
+    },
+    {
+      "names": [
+        "RX 7900 XTX"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1100"
+    },
+    {
+      "names": [
+        "RX 7800 XT"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1101"
+    },
+    {
+      "names": [
+        "RX 7700S"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1102"
+    },
+    {
+      "names": [
+        "RX 7600M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1102"
+    },
+    {
+      "names": [
+        "Radeon 780M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1103"
+    },
+    {
+      "names": [
+        "RX 6800M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1031"
+    },
+    {
+      "names": [
+        "RX 6800S"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1032"
+    },
+    {
+      "names": [
+        "RX 6950"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1030"
+    },
+    {
+      "names": [
+        "RX 6750 XT"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1031"
+    },
+    {
+      "names": [
+        "RX 6650 XT"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1032"
+    },
+    {
+      "names": [
+        "RX 6550M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1034"
+    },
+    {
+      "names": [
+        "Radeon 680M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1035"
+    },
+    {
+      "names": [
+        "AMD Raphael"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1036"
+    },
+    {
+      "names": [
+        "RX 5700 XT"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1010"
+    },
+    {
+      "names": [
+        "Radeon Pro 5600M"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1011"
+    },
+    {
+      "names": [
+        "RX 5500"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1012"
+    },
+    {
+      "names": [
+        "MI300X"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx942"
+    },
+    {
+      "names": [
+        "MI250"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx90a"
+    },
+    {
+      "names": [
+        "MI100"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx908"
+    },
+    {
+      "names": [
+        "device-gfx1152"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1152"
+    },
+    {
+      "names": [
+        "Generic AMD Radeon Graphics"
+      ],
+      "pnpIds": [],
+      "env": {},
+      "target": "gfx1100"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_150E&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1150"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_1114&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1152"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_15BF&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1103"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_1900&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1103"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_1681&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1035"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_1506&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1036"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_164E&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1036"
+    },
+    {
+      "names": [
+        "AMD Radeon Graphics"
+      ],
+      "pnpIds": [
+        "PCI\\VEN_1002&DEV_13C0&SUBSYS_0000"
+      ],
+      "env": {},
+      "target": "gfx1036"
+    },
+    {
+      "names": [],
+      "pnpIds": [],
+      "env": {
+        "APPLIO_ROCM_GFX": "device-gfx1151"
+      },
+      "target": "gfx1151"
+    },
+    {
+      "names": [],
+      "pnpIds": [],
+      "env": {
+        "APPLIO_ROCM_GFX": "1201"
+      },
+      "target": "gfx1201"
+    },
+    {
+      "names": [],
+      "pnpIds": [],
+      "env": {
+        "HSA_OVERRIDE_GFX_VERSION": "11.5.2"
+      },
+      "target": "gfx1152"
+    }
+  ]
+}

@@ -90,7 +90,7 @@ export default function AutoUpdateModal() {
 
     const bridge = getBridge();
 
-    // 1. If Electron Desktop updater is available and functional
+    // 1. If Tauri Desktop updater is available and functional
     if (bridge?.updater) {
       try {
         const currentStatus = await bridge.updater.getStatus();
@@ -156,7 +156,7 @@ export default function AutoUpdateModal() {
       return;
     }
 
-    // 2. Disable in desktop Electron dev-mode
+    // 2. Disable in desktop Tauri dev-mode
     const bridge = getBridge();
     if (bridge?.updater) {
       try {
@@ -207,7 +207,7 @@ export default function AutoUpdateModal() {
       /* non-fatal if offline */
     }
 
-    // Connect desktop updater listener if running inside Electron
+    // Connect desktop updater listener if running inside Tauri
     if (bridge?.updater) {
       bridge.updater
         .getStatus()

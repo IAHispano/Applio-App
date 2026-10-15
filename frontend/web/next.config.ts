@@ -6,14 +6,14 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   // Keep the running development server from replacing release build files.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
-  // Single-folder deploy for Electron resources + Docker + Colab.
+  // Single-folder deploy for Tauri resources + Docker + Colab.
   // The tracing root keeps the flat classic layout in monorepos.
   output: "standalone",
   outputFileTracingRoot: import.meta.dirname,
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   experimental: {
-    // /api/* is proxied to the Express gateway via rewrites below. Next
+    // /api/* is proxied to the Rust API via rewrites below. Next
     // buffers proxied request bodies (default 10MB) — model/audio uploads
     // (.pth, datasets, samples) are hundreds of MB, so raise the limit to
     // match the API's 1GB multer cap. Without this, uploads are silently

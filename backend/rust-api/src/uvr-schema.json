@@ -1,0 +1,190 @@
+[
+  {
+    "name": "model",
+    "type": "string",
+    "min": 1
+  },
+  {
+    "name": "inputPath",
+    "optional": true,
+    "type": "string"
+  },
+  {
+    "name": "outputFormat",
+    "default": "WAV",
+    "type": "enum",
+    "values": [
+      "WAV",
+      "MP3",
+      "FLAC"
+    ]
+  },
+  {
+    "name": "singleStem",
+    "default": "all",
+    "type": "string",
+    "min": 1,
+    "max": 64
+  },
+  {
+    "name": "vrAggression",
+    "default": 5,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 100
+  },
+  {
+    "name": "vrWindow",
+    "default": 512,
+    "type": "number",
+    "integer": true,
+    "min": 320,
+    "max": 1024
+  },
+  {
+    "name": "vrBatch",
+    "default": 1,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 16
+  },
+  {
+    "name": "vrTta",
+    "default": false,
+    "type": "boolean"
+  },
+  {
+    "name": "vrHighEnd",
+    "default": false,
+    "type": "boolean"
+  },
+  {
+    "name": "vrPostProcess",
+    "default": false,
+    "type": "boolean"
+  },
+  {
+    "name": "vrPostThreshold",
+    "default": 0.2,
+    "type": "number",
+    "min": 0.01,
+    "max": 0.3
+  },
+  {
+    "name": "mdxSegment",
+    "default": 256,
+    "type": "number",
+    "integer": true,
+    "min": 32,
+    "max": 4000
+  },
+  {
+    "name": "mdxOverlap",
+    "default": 0.25,
+    "type": "number",
+    "min": 0,
+    "max": 0.99
+  },
+  {
+    "name": "mdxBatch",
+    "default": 1,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 16
+  },
+  {
+    "name": "mdxHop",
+    "default": 1024,
+    "type": "number",
+    "integer": true,
+    "min": 32,
+    "max": 2048
+  },
+  {
+    "name": "mdxDenoise",
+    "default": false,
+    "type": "boolean"
+  },
+  {
+    "name": "mdxcSegment",
+    "default": 256,
+    "type": "number",
+    "integer": true,
+    "min": 32,
+    "max": 4000
+  },
+  {
+    "name": "mdxcOverlap",
+    "default": 8,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 50
+  },
+  {
+    "name": "mdxcBatch",
+    "default": 1,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 16
+  },
+  {
+    "name": "demucsSegment",
+    "default": "Default",
+    "type": "string",
+    "pattern": "^(Default|\\d+)$"
+  },
+  {
+    "name": "demucsShifts",
+    "default": 2,
+    "type": "number",
+    "integer": true,
+    "min": 0,
+    "max": 20
+  },
+  {
+    "name": "demucsOverlap",
+    "default": 0.25,
+    "type": "number",
+    "min": 0,
+    "max": 0.99
+  },
+  {
+    "name": "demucsSplit",
+    "default": true,
+    "type": "boolean"
+  },
+  {
+    "name": "roformerChunk",
+    "optional": true,
+    "type": "number",
+    "min": 1,
+    "max": 60
+  },
+  {
+    "name": "roformerOverlap",
+    "default": 2,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 32
+  },
+  {
+    "name": "roformerBatch",
+    "default": 1,
+    "type": "number",
+    "integer": true,
+    "min": 1,
+    "max": 16
+  },
+  {
+    "name": "device",
+    "default": "auto",
+    "type": "string",
+    "pattern": "^(auto|cpu|\\d+)$"
+  }
+]

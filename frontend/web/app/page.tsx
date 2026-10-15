@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JobPanelContent } from "@/components/JobPanel";
 import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
@@ -40,7 +40,8 @@ interface ModelsSummary {
 interface SystemInfo {
   version: string;
   platform: string;
-  node: string;
+  node?: string;
+  runtime?: string;
   python: string;
   cpus: number;
   totalMemGB: number;
@@ -92,7 +93,7 @@ function ActionCard({
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const { status, refresh: refreshSetup } = useSetup();
+  const { status, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
   const [modelsData, setModelsData] = useState<ModelsSummary | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [library, setLibrary] = useState<LibraryModel[] | null>(null);
@@ -103,6 +104,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(true);
   const [jobId, setJobId] = useState<string | null>(null);
   const [forceSetup, setForceSetup] = useState(false);
+  const requests = useRef<AbortController | null>(null);
   const activity = useJob(jobId);
   const { job: prereqJob, isActive: prereqRunning } = activity;
 
@@ -117,48 +119,69 @@ export default function Home() {
 
   const refresh = useCallback(
     async (force = false) => {
+      requests.current?.abort();
+      const controller = new AbortController();
+      requests.current = controller;
       setRefreshing(true);
-      try {
-        const [, modelsRes, sysRes, verRes, libraryRes, jobsRes] = await Promise.all([
-          refreshSetup(force),
-          apiGet<ModelsSummary>("/api/models").catch(() => null),
-          apiGet<SystemInfo>("/api/report/info").catch(() => null),
-          apiGet<VersionInfo>("/api/settings/version-check").catch(() => null),
-          apiGet<{ models: LibraryModel[] }>("/api/models/library").catch(() => null),
-          apiGet<{ jobs: Job[] }>("/api/jobs/activity").catch(() => null),
-        ]);
-        if (modelsRes) setModelsData(modelsRes);
-        if (sysRes) setSysInfo(sysRes);
-        if (verRes) setVersionInfo(verRes);
-        if (libraryRes) setLibrary(libraryRes.models);
-        if (jobsRes) setJobs(jobsRes.jobs);
-        setError("");
-      } catch (e) {
-        setError(errMsg(e));
-      } finally {
-        setRefreshing(false);
-      }
+      setError("");
+      const load = async <T,>(path: string, update: (value: T) => void) => {
+        try {
+          const value = await apiGet<T>(path, { force, signal: controller.signal });
+          if (!controller.signal.aborted) update(value);
+        } catch {
+          // Optional sections remain usable when another service is unavailable.
+        }
+      };
+      // Online release checks must not hold up local dashboard content or Refresh.
+      void load<VersionInfo>("/api/settings/version-check", setVersionInfo);
+      await Promise.all([
+        refreshSetup(force),
+        load<ModelsSummary>("/api/models", setModelsData),
+        load<SystemInfo>("/api/report/info", setSysInfo),
+        load<{ models: LibraryModel[] }>("/api/models/library", (value) => setLibrary(value.models)),
+        load<{ jobs: Job[] }>("/api/jobs/activity", (value) => setJobs(value.jobs)),
+      ]);
+      if (!controller.signal.aborted) setRefreshing(false);
     },
     [refreshSetup],
   );
 
   useEffect(() => {
     refresh();
+    return () => requests.current?.abort();
   }, [refresh]);
 
   useEffect(() => {
     let disposed = false;
-    const timer = setInterval(() => {
-      if (document.hidden) return;
-      void apiGet<{ jobs: Job[] }>("/api/jobs/activity")
-        .then((data) => {
-          if (!disposed) setJobs(data.jobs);
-        })
-        .catch(() => {});
-    }, 15000);
+    const controller = new AbortController();
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (disposed || inFlight || document.hidden) return;
+      inFlight = true;
+      try {
+        const data = await apiGet<{ jobs: Job[] }>("/api/jobs/activity", { signal: controller.signal });
+        if (!disposed) setJobs(data.jobs);
+      } catch {
+        // Resume after transient service restarts.
+      } finally {
+        inFlight = false;
+        if (!disposed) timer = setTimeout(poll, 15000);
+      }
+    };
+    const resume = () => {
+      if (!document.hidden && !inFlight) {
+        clearTimeout(timer);
+        timer = setTimeout(poll, 0);
+      }
+    };
+    timer = setTimeout(poll, 15000);
+    document.addEventListener("visibilitychange", resume);
     return () => {
       disposed = true;
-      clearInterval(timer);
+      clearTimeout(timer);
+      controller.abort();
+      document.removeEventListener("visibilitychange", resume);
     };
   }, []);
 
@@ -189,12 +212,12 @@ export default function Home() {
   const currentVersion = displayVersion(sysInfo?.version || versionInfo?.local);
 
   if (!status) {
-    if (error) {
+    if (setupError || error) {
       return (
         <div className="h-full w-full min-h-[300px] flex flex-col items-center justify-center p-6">
           <div className="max-w-md w-full space-y-4 text-center">
-            <Alert variant="error">{error}</Alert>
-            <Button onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
+            <Alert variant="error">{setupError || error}</Alert>
+            <Button loading={setupLoading} onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
               {t("Retry Connection")}
             </Button>
           </div>
@@ -491,9 +514,9 @@ export default function Home() {
           </div>
         </div>
 
-        {error && (
+        {(error || setupError) && (
           <div className="mx-4 mb-4">
-            <Alert variant="error">{error}</Alert>
+            <Alert variant="error">{error || setupError}</Alert>
           </div>
         )}
 

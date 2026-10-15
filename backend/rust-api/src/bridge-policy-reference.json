@@ -1,0 +1,2732 @@
+[
+  {
+    "method": "GET",
+    "path": "/api/audio/raw",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/audio/youtube",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/extra/analyze",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/extra/f0",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/extra/model-info",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/health",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference/batch",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference/batch/preview",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/fixture",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/activity",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/models",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/fixture",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/inspect",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/library",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/preload",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/speakers",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/language",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/languages",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/model-presets",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/theme",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/themes",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/version",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/setup/status",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/gpus",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/tts",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/tts/voices",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/uvr/models",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/uvr/separate",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": true
+  },
+  {
+    "method": "GET",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "GET",
+    "path": "/api/models/nested",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/audio/raw",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/audio/youtube",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/extra/analyze",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/extra/f0",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/extra/model-info",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/health",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference/batch",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference/batch/preview",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/fixture",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/activity",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/fixture",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/inspect",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/library",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/preload",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/speakers",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/language",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/languages",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/model-presets",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/theme",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/themes",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/version",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/setup/status",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/gpus",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tts",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/tts/voices",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/uvr/models",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/uvr/separate",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": true
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "HEAD",
+    "path": "/api/models/nested",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/audio/raw",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/audio/youtube",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/extra/analyze",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/extra/f0",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/extra/model-info",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/health",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference/batch",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference/batch/preview",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/activity",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/models",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/fixture",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/inspect",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/library",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/preload",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/speakers",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/language",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/languages",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/model-presets",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/theme",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/themes",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/version",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/setup/status",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/gpus",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/tts",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/tts/voices",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/uvr/models",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/uvr/separate",
+    "allowed": true
+  },
+  {
+    "method": "POST",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "POST",
+    "path": "/api/models/nested",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/audio/raw",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/audio/youtube",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/extra/analyze",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/extra/f0",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/extra/model-info",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/health",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference/batch",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference/batch/preview",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/activity",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/fixture",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/inspect",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/library",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/preload",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/speakers",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/language",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/languages",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/model-presets",
+    "allowed": true
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/theme",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/themes",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/version",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/setup/status",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/gpus",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tts",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/tts/voices",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/uvr/models",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/uvr/separate",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "PUT",
+    "path": "/api/models/nested",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/audio/raw",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/audio/youtube",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/extra/analyze",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/extra/f0",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/extra/model-info",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/health",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference/batch",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference/batch/preview",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/activity",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/fixture",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/inspect",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/library",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/preload",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/speakers",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/language",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/languages",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/model-presets",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/theme",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/themes",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/version",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/setup/status",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/gpus",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tts",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/tts/voices",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/uvr/models",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/uvr/separate",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "DELETE",
+    "path": "/api/models/nested",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/audio/raw",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/audio/youtube",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/diagnostics",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/download",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/download/drop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/download/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/extra/analyze",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/extra/f0",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/extra/model-info",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/health",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference/batch",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference/batch/fixture/outputs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference/batch/preview",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/fixture",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/fixture/events",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/fixture/stop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/activity",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/events",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/fixture",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/inspect",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/library",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/preload",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/speakers",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/plugins",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/plugins/install",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/plugins/toggle",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/change-config",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/config",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/prewarm",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/record",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/start",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/status",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/stop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/realtime/ws-audio",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/report/info",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/report/upload",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/apply-update",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/language",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/languages",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/model-presets",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/presence",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/presence/stop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/restart",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/storage",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/storage/clean",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/theme",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/themes",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/version",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/version-check",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/setup/install",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/setup/prerequisites",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/setup/status",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tensorboard/restart",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tensorboard/start",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tensorboard/status",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tensorboard/stop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/dataset-review/fixture",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/dataset-review/fixture/audio/fixture",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/dataset-review/fixture/prepare",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/dataset-review/scan",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/datasets",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/embedders",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/export-file",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/exports",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/extract",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/gpus",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/index",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/pipeline",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/preprocess",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/pretraineds",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/stop",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/train",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/upload-dataset",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/upload-embedder",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/train/upload-pretrained",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tts",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/tts/voices",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/uvr/models",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/uvr/separate",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/voice-blender",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/jobs/abc/events",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/settings/bridge",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference/batch/abc/outputs/0",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/inference/batch/abc/outputs/no",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/modelsExtra",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/SETTINGS",
+    "allowed": false
+  },
+  {
+    "method": "OPTIONS",
+    "path": "/api/models/nested",
+    "allowed": false
+  }
+]

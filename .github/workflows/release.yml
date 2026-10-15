@@ -1,6 +1,6 @@
 name: Build and Release
 
-# Manual release: builds the Electron installers on all three platforms and
+# Manual release: builds the Tauri installers on all three platforms and
 # publishes them as a GitHub release. Run from Actions > Build and Release.
 on:
   workflow_dispatch:
@@ -38,7 +38,10 @@ jobs:
             id: win
             build-command: pnpm build:win
           - os: macos-latest
-            id: mac
+            id: mac-arm64
+            build-command: pnpm build:mac
+          - os: macos-15-intel
+            id: mac-x64
             build-command: pnpm build:mac
           - os: ubuntu-24.04
             id: linux
@@ -63,24 +66,17 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - name: Cache Electron binaries
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cache/electron
-            ~/Library/Caches/electron
-            ~\AppData\Local\electron\Cache
-          key: ${{ runner.os }}-electron-33.2.1
-          restore-keys: |
-            ${{ runner.os }}-electron-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y rpm libopenjp2-tools
-          # fpm (Ruby) is required by electron-builder for the .deb target.
-          command -v fpm >/dev/null || sudo gem install fpm --no-document || echo "fpm install failed, continuing"
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -103,11 +99,15 @@ jobs:
         run: ${{ matrix.build-command }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          # Unsigned CI builds (no Apple Developer certificate on runners).
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          APPLIO_UPDATER_PUBLIC_KEY: ${{ secrets.APPLIO_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      - name: Verify packaged startup
+      - name: Verify staged runtime startup
         run: pnpm release:check
+
+      - name: Collect Tauri installers
+        run: node bin/collect-tauri-artifacts.mjs
 
       - name: Upload build artifacts
         # Installers are already compressed (.exe/.dmg/.AppImage/.deb), so
@@ -116,14 +116,7 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: build-${{ matrix.id }}
-          path: |
-            frontend/desktop/dist-installers/Applio-*-Windows-Setup.exe
-            frontend/desktop/dist-installers/Applio-*-macOS*.dmg
-            frontend/desktop/dist-installers/Applio-*-macOS*.zip
-            frontend/desktop/dist-installers/Applio-*-Linux*.AppImage
-            frontend/desktop/dist-installers/Applio-*-Linux*.deb
-            frontend/desktop/dist-installers/*.blockmap
-            frontend/desktop/dist-installers/latest*.yml
+          path: frontend/desktop/dist-installers/*
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
@@ -156,7 +149,7 @@ jobs:
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          git add package.json backend/api/package.json frontend/web/package.json frontend/desktop/package.json assets/config_template.json
+          git add package.json frontend/web/package.json frontend/desktop/package.json assets/config_template.json Cargo.toml Cargo.lock frontend/desktop/src-tauri/tauri.conf.json
           if git diff --cached --quiet; then
             echo "Versions already in sync."
           else
@@ -202,6 +195,12 @@ jobs:
 
       - name: List release files
         run: ls -la release-files/
+
+      - name: Generate signed updater manifest
+        run: node bin/collect-tauri-artifacts.mjs --manifest release-files
+        env:
+          RELEASE_VERSION: ${{ github.event.inputs.version }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: Create Release
         uses: softprops/action-gh-release@v2

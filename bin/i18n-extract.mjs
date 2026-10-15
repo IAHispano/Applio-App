@@ -81,11 +81,7 @@ function isTCall(node) {
 }
 
 function usesI18n(text) {
-  return (
-    /from\s+["']@\/lib\/i18n["']/.test(text) ||
-    /const trayT/.test(text) ||
-    /TrayTranslate/.test(text)
-  );
+  return /from\s+["']@\/lib\/i18n["']/.test(text) || /const trayT/.test(text) || /TrayTranslate/.test(text);
 }
 
 // Module-level `const NAME = {...}` / `= [...]` in a file.
@@ -111,11 +107,22 @@ function objectValues(obj) {
 // Static carrier files whose values reach t() dynamically.
 const POOL_FILES = [
   { file: "lib/setting-help.ts", reason: "t(SETTING_HELP.*), t(PITCH_METHOD_HELP.*)", pick: "object-values" },
-  { file: "components/layout/nav.ts", reason: "t(item.label/badge), t(section.title)", pick: ["label", "blurb", "badge", "title"] },
-  { file: "lib/job-history.ts", reason: "t(historyStateLabels.*), t(fieldLabel()), Yes/No", pick: "object-values" },
+  {
+    file: "components/layout/nav.ts",
+    reason: "t(item.label/badge), t(section.title)",
+    pick: ["label", "blurb", "badge", "title"],
+  },
+  {
+    file: "lib/job-history.ts",
+    reason: "t(historyStateLabels.*), t(fieldLabel()), Yes/No",
+    pick: "object-values",
+  },
   { file: "components/setup/FirstRunSetup.tsx", reason: "t(step.title/desc)", pick: ["title", "desc"] },
-  { file: "app/settings/page.tsx", reason: "t(opt.name/subtitle), t(o.label)", pick: ["name", "subtitle", "label"] },
-  { file: "/backend/api/src/jobs.ts", reason: "t(job.label): backend job type/step labels", pick: "object-values" },
+  {
+    file: "app/settings/page.tsx",
+    reason: "t(opt.name/subtitle), t(o.label)",
+    pick: ["name", "subtitle", "label"],
+  },
 ];
 
 function poolKeys(file) {
@@ -124,8 +131,7 @@ function poolKeys(file) {
   const loc = (n) => source.getLineAndCharacterOfPosition(n.getStart()).line + 1;
   if (file.pick === "object-values") {
     (function visit(n) {
-      if (ts.isPropertyAssignment(n) && isStr(n.initializer))
-        found.set(n.initializer.text, loc(n));
+      if (ts.isPropertyAssignment(n) && isStr(n.initializer)) found.set(n.initializer.text, loc(n));
       ts.forEachChild(n, visit);
     })(source);
   } else {
@@ -289,7 +295,11 @@ function collectDisplayed(source, file, rel, found) {
   (function visit(node) {
     // Backend user-facing errors: setError(job, "…") and thrown route
     // errors surface via errMsg() → t() on the frontend.
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "setError") {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "setError"
+    ) {
       const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
       for (const arg of node.arguments.slice(1)) {
         for (const lit of branchLiterals(arg)) {
@@ -305,7 +315,11 @@ function collectDisplayed(source, file, rel, found) {
         }
       }
     }
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && DISPLAY_SETTERS.has(node.expression.text)) {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      DISPLAY_SETTERS.has(node.expression.text)
+    ) {
       const line = source.getLineAndCharacterOfPosition(node.getStart()).line + 1;
       let hit = false;
       for (const arg of node.arguments) {
@@ -362,11 +376,12 @@ function collectDisplayed(source, file, rel, found) {
 }
 
 const POOL_PREFIX = /^(SETTING_HELP\.|PITCH_METHOD_HELP\[|historyStateLabels\[)/;
-const PASSTHROUGH = /(errMsg\(|job\.label|job\.type|ev\.title|ev\.phase|ver\.status|fieldLabel\(|fieldValue\()/;
+const PASSTHROUGH =
+  /(errMsg\(|job\.label|job\.type|ev\.title|ev\.phase|ver\.status|fieldLabel\(|fieldValue\()/;
 
 for (const file of SCAN_DIRS.flatMap((d) => collectFiles(d))) {
   const { text, source } = parse(file);
-  const rel = path.relative(root, file);
+  const rel = path.relative(root, file).replaceAll("\\", "/");
   const i18nFile = usesI18n(text);
   (function visit(node) {
     if (isTCall(node)) {
@@ -407,7 +422,8 @@ function pickPool(pool, source) {
   const loc = (n) => source.getLineAndCharacterOfPosition(n.getStart()).line + 1;
   (function visit(n) {
     if (ts.isPropertyAssignment(n) && (ts.isIdentifier(n.name) || isStr(n.name))) {
-      const hit = pool.pick === "object-values" || (Array.isArray(pool.pick) && pool.pick.includes(n.name.text));
+      const hit =
+        pool.pick === "object-values" || (Array.isArray(pool.pick) && pool.pick.includes(n.name.text));
       if (hit && isStr(n.initializer)) found.set(n.initializer.text, loc(n));
     }
     ts.forEachChild(n, visit);
@@ -418,14 +434,14 @@ function pickPool(pool, source) {
 for (const pool of POOL_FILES) {
   const file = pool.file.startsWith("/") ? path.join(root, pool.file) : path.join(WEB, pool.file);
   const { source } = parse(file);
-  const rel = path.relative(root, file);
+  const rel = path.relative(root, file).replaceAll("\\", "/");
   for (const [key, line] of pickPool(pool, source)) add(key, `${rel}:${line} [pool]`);
 }
 
 if (fs.existsSync(BACKEND_SRC)) {
   for (const file of collectFiles(BACKEND_SRC)) {
     const { source } = parse(file);
-    const rel = path.relative(root, file);
+    const rel = path.relative(root, file).replaceAll("\\", "/");
     const disp = [];
     collectDisplayed(source, file, rel, disp);
     for (const [k, loc] of disp) {
@@ -435,6 +451,12 @@ if (fs.existsSync(BACKEND_SRC)) {
   }
 }
 
+// Rust menu and job labels are explicit carriers outside the TypeScript AST.
+for (const relative of ["frontend/desktop/tray-labels.json", "backend/rust-api/i18n-labels.json"]) {
+  for (const key of JSON.parse(fs.readFileSync(path.join(root, relative), "utf8")))
+    add(key, `${relative} [Rust labels]`);
+}
+
 // Dynamic sites already covered by extraction rules above. Each entry is
 // SELF-VERIFYING: it only suppresses the review note when every listed key
 // was actually collected. If a key goes missing, the site reappears in REVIEW.
@@ -442,26 +464,82 @@ const COVERED = [
   { file: "app/jobs/page.tsx", expr: "label", reason: "fieldLabel() pool", verify: ["Voice model"] },
   { file: "app/settings/page.tsx", expr: "opt.name", reason: "themes pool", verify: ["Default"] },
   { file: "app/settings/page.tsx", expr: "opt.subtitle", reason: "themes pool", verify: ["Dark Slate"] },
-  { file: "app/settings/page.tsx", expr: "o.label", reason: "font presets pool + runtime font proper nouns fall back", verify: ["Theme default"] },
+  {
+    file: "app/settings/page.tsx",
+    expr: "o.label",
+    reason: "font presets pool + runtime font proper nouns fall back",
+    verify: ["Theme default"],
+  },
   { file: "app/train/page.tsx", expr: "s", reason: "mapped arrays", verify: ["pre", "Skip", "Automatic"] },
-  { file: "app/train/page.tsx", expr: "status", reason: "flows-to-t() const", verify: ["Skipped", "Pending"] },
-  { file: "components/JobDetails.tsx", expr: "title", reason: "mapped pairs", verify: ["Settings", "Results"] },
-  { file: "components/JobStatus.tsx", expr: "job.stage", reason: "display setter values", verify: ["Converting audio…"] },
-  { file: "components/RealtimeCalibration.tsx", expr: "label", reason: "mapped array", verify: ["Playback gaps", "Result"] },
-  { file: "components/RealtimeCalibration.tsx", expr: "activity", reason: "calibration setter values", verify: ["Warming up…"] },
+  {
+    file: "app/train/page.tsx",
+    expr: "status",
+    reason: "flows-to-t() const",
+    verify: ["Skipped", "Pending"],
+  },
+  {
+    file: "components/JobDetails.tsx",
+    expr: "title",
+    reason: "mapped pairs",
+    verify: ["Settings", "Results"],
+  },
+  {
+    file: "components/JobStatus.tsx",
+    expr: "job.stage",
+    reason: "display setter values",
+    verify: ["Converting audio…"],
+  },
+  {
+    file: "components/RealtimeCalibration.tsx",
+    expr: "label",
+    reason: "mapped array",
+    verify: ["Playback gaps", "Result"],
+  },
+  {
+    file: "components/RealtimeCalibration.tsx",
+    expr: "activity",
+    reason: "calibration setter values",
+    verify: ["Warming up…"],
+  },
   { file: "components/layout/MobileNav.tsx", expr: "tab.label", reason: "nav pool", verify: ["Models"] },
   { file: "components/layout/Sidebar.tsx", expr: "section.title", reason: "nav pool", verify: ["Voice"] },
-  { file: "components/layout/Sidebar.tsx", expr: "item.label", reason: "nav pool", verify: ["Convert Audio"] },
+  {
+    file: "components/layout/Sidebar.tsx",
+    expr: "item.label",
+    reason: "nav pool",
+    verify: ["Convert Audio"],
+  },
   { file: "components/layout/Sidebar.tsx", expr: "item.badge", reason: "nav pool", verify: ["Models"] },
-  { file: "components/setup/FirstRunSetup.tsx", expr: "step.title", reason: "steps pool", verify: ["Audio Processing Engine"] },
-  { file: "components/setup/FirstRunSetup.tsx", expr: "step.desc", reason: "steps pool", verify: ["Faiss indexer, FCPE, Crepe, and acoustic models"] },
-  { file: "components/train/DatasetReview.tsx", expr: "label", reason: "mapped entries + mapped pairs", verify: ["Duplicate", "Clipped sections"] },
-  { file: "components/train/DatasetReview.tsx", expr: "ISSUES[issue]", reason: "mapped entries", verify: ["Duplicate", "No usable signal"] },
-  { file: "components/train/TrainingConsole.tsx", expr: "ev.phase", reason: "console parser phases are backend log text, English fallback by design", verify: [] },
-  { file: "desktop/src/main.ts", expr: "key", reason: "mapped arrays with trayT", verify: ["Retry", "Quit", "Restart and Update"] },
-  { file: "desktop/src/main.ts", expr: "trayStatus(state)", reason: "trayStatus static literals", verify: ["Realtime active", "Engine ready"] },
-  { file: "desktop/src/main.ts", expr: "text", reason: "runtime splash text, English fallback by design", verify: [] },
-  { file: "desktop/src/tray-menu.ts", expr: "trayStatus(state)", reason: "trayStatus static literals", verify: ["Realtime active", "Engine ready"] },
+  {
+    file: "components/setup/FirstRunSetup.tsx",
+    expr: "step.title",
+    reason: "steps pool",
+    verify: ["Audio Processing Engine"],
+  },
+  {
+    file: "components/setup/FirstRunSetup.tsx",
+    expr: "step.desc",
+    reason: "steps pool",
+    verify: ["Faiss indexer, FCPE, Crepe, and acoustic models"],
+  },
+  {
+    file: "components/train/DatasetReview.tsx",
+    expr: "label",
+    reason: "mapped entries + mapped pairs",
+    verify: ["Duplicate", "Clipped sections"],
+  },
+  {
+    file: "components/train/DatasetReview.tsx",
+    expr: "ISSUES[issue]",
+    reason: "mapped entries",
+    verify: ["Duplicate", "No usable signal"],
+  },
+  {
+    file: "components/train/TrainingConsole.tsx",
+    expr: "ev.phase",
+    reason: "console parser phases are backend log text, English fallback by design",
+    verify: [],
+  },
 ];
 
 const args = process.argv.slice(2);
@@ -521,22 +599,20 @@ if (checkFile) {
       for (const r of review) console.error(`  ${r}`);
       process.exit(2);
     }
-    const { execFileSync } = await import("node:child_process");
     const candidates = Object.keys(dict).filter((k) => !keys.has(k));
     const removable = [];
-    for (const k of candidates) {
-      let hits = "";
-      try {
-        hits = execFileSync(
-          "grep",
-          ["-rlF", "--include=*.tsx", "--include=*.ts", "--exclude-dir=node_modules", "--exclude-dir=.next", k,
-            ...SCAN_DIRS, BACKEND_SRC],
-          { encoding: "utf8" },
-        ).trim();
-      } catch {
-        hits = ""; // grep exits 1 when nothing matches
+    // A conservative source-presence check must work on Windows too. Include
+    // native Rust sources so pruning never removes a native error/stage label.
+    const rustDir = path.join(root, "backend/rust-api/src");
+    const sources = [...SCAN_DIRS.flatMap((dir) => collectFiles(dir))];
+    if (fs.existsSync(rustDir))
+      for (const name of fs.readdirSync(rustDir)) {
+        if (name.endsWith(".rs")) sources.push(path.join(rustDir, name));
       }
-      if (hits) console.error(`KEEP (mentioned in source): ${k} <- ${hits.split("\n")[0]}`);
+    const texts = sources.map((file) => [file, fs.readFileSync(file, "utf8")]);
+    for (const k of candidates) {
+      const hit = texts.find(([, text]) => text.includes(k));
+      if (hit) console.error(`KEEP (mentioned in source): ${k} <- ${hit[0]}`);
       else removable.push(k);
     }
     for (const k of removable) {
@@ -570,7 +646,11 @@ if (checkFile) {
     const raw = fs.readFileSync(dictPath, "utf8");
     const nl = raw.includes("\r\n") ? "\r\n" : "\n";
     const data = JSON.parse(raw);
-    const ordered = Object.fromEntries(Object.keys(data).sort().map((k) => [k, data[k]]));
+    const ordered = Object.fromEntries(
+      Object.keys(data)
+        .sort()
+        .map((k) => [k, data[k]]),
+    );
     fs.writeFileSync(dictPath, `${JSON.stringify(ordered, null, 2).replaceAll("\n", nl)}${nl}`);
     JSON.parse(fs.readFileSync(dictPath, "utf8")); // validate
     console.error(`sorted ${checkFile} (${Object.keys(ordered).length} keys)`);

@@ -1,4 +1,4 @@
-// Typed client for the Express gateway (same-origin /api via Next.js rewrites).
+// Typed client for the Rust API (same-origin /api via Next.js rewrites).
 
 export function errMsg(err: unknown): string {
   if (err instanceof Error) {

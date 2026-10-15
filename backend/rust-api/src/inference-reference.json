@@ -1,0 +1,444 @@
+[
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth"
+    },
+    "success": true,
+    "params": {
+      "pthPath": "voice.pth",
+      "indexPath": "",
+      "pitch": 0,
+      "indexRate": 0.75,
+      "volumeEnvelope": 1,
+      "protect": 0.5,
+      "f0Method": "rmvpe",
+      "inferenceEngine": "torch",
+      "onnxPrecision": "auto",
+      "splitAudio": false,
+      "f0Autotune": false,
+      "f0AutotuneStrength": 1,
+      "proposedPitch": false,
+      "proposedPitchThreshold": 155,
+      "exportFormat": "WAV",
+      "embedderModel": "contentvec",
+      "embedderModelCustom": "",
+      "sid": 0,
+      "formantShifting": false,
+      "formantQfrency": 1,
+      "formantTimbre": 1
+    },
+    "args": [
+      "--pitch",
+      "0",
+      "--index-rate",
+      "0.75",
+      "--volume-envelope",
+      "1",
+      "--protect",
+      "0.5",
+      "--f0-method",
+      "rmvpe",
+      "--export-format",
+      "WAV",
+      "--embedder-model",
+      "contentvec",
+      "--sid",
+      "0",
+      "--f0-autotune-strength",
+      "1",
+      "--proposed-pitch-threshold",
+      "155",
+      "--inference-engine",
+      "torch",
+      "--onnx-precision",
+      "auto",
+      "--formant-qfrency",
+      "1",
+      "--formant-timbre",
+      "1"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "pitch": "-12",
+      "splitAudio": "false",
+      "cleanAudio": "0",
+      "f0Autotune": "yes",
+      "gain": "off",
+      "limiter": true,
+      "formantShifting": 1,
+      "reverb": "on",
+      "indexRate": "1e-2",
+      "unknown": "strip this"
+    },
+    "success": true,
+    "params": {
+      "pthPath": "voice.pth",
+      "indexPath": "",
+      "pitch": -12,
+      "indexRate": 0.01,
+      "volumeEnvelope": 1,
+      "protect": 0.5,
+      "f0Method": "rmvpe",
+      "inferenceEngine": "torch",
+      "onnxPrecision": "auto",
+      "splitAudio": false,
+      "f0Autotune": true,
+      "f0AutotuneStrength": 1,
+      "proposedPitch": false,
+      "proposedPitchThreshold": 155,
+      "exportFormat": "WAV",
+      "embedderModel": "contentvec",
+      "embedderModelCustom": "",
+      "sid": 0,
+      "formantShifting": true,
+      "formantQfrency": 1,
+      "formantTimbre": 1
+    },
+    "args": [
+      "--pitch",
+      "-12",
+      "--index-rate",
+      "0.01",
+      "--volume-envelope",
+      "1",
+      "--protect",
+      "0.5",
+      "--f0-method",
+      "rmvpe",
+      "--export-format",
+      "WAV",
+      "--embedder-model",
+      "contentvec",
+      "--sid",
+      "0",
+      "--f0-autotune",
+      "--f0-autotune-strength",
+      "1",
+      "--proposed-pitch-threshold",
+      "155",
+      "--inference-engine",
+      "torch",
+      "--onnx-precision",
+      "auto",
+      "--formant-shifting",
+      "--formant-qfrency",
+      "1",
+      "--formant-timbre",
+      "1"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "splitAudio": true,
+      "f0Autotune": true,
+      "proposedPitch": true,
+      "cleanAudio": true,
+      "formantShifting": true,
+      "postProcess": true,
+      "reverb": true,
+      "pitchShift": true,
+      "limiter": true,
+      "gain": true,
+      "distortion": true,
+      "chorus": true,
+      "bitcrush": true,
+      "clipping": true,
+      "compressor": true,
+      "delay": true,
+      "embedderModel": "custom",
+      "embedderModelCustom": "model with spaces/model.pt"
+    },
+    "success": true,
+    "params": {
+      "pthPath": "voice.pth",
+      "indexPath": "",
+      "pitch": 0,
+      "indexRate": 0.75,
+      "volumeEnvelope": 1,
+      "protect": 0.5,
+      "f0Method": "rmvpe",
+      "inferenceEngine": "torch",
+      "onnxPrecision": "auto",
+      "splitAudio": true,
+      "f0Autotune": true,
+      "f0AutotuneStrength": 1,
+      "proposedPitch": true,
+      "proposedPitchThreshold": 155,
+      "exportFormat": "WAV",
+      "embedderModel": "custom",
+      "embedderModelCustom": "model with spaces/model.pt",
+      "sid": 0,
+      "formantShifting": true,
+      "formantQfrency": 1,
+      "formantTimbre": 1
+    },
+    "args": [
+      "--pitch",
+      "0",
+      "--index-rate",
+      "0.75",
+      "--volume-envelope",
+      "1",
+      "--protect",
+      "0.5",
+      "--f0-method",
+      "rmvpe",
+      "--export-format",
+      "WAV",
+      "--embedder-model",
+      "custom",
+      "--sid",
+      "0",
+      "--split-audio",
+      "--f0-autotune",
+      "--f0-autotune-strength",
+      "1",
+      "--proposed-pitch",
+      "--proposed-pitch-threshold",
+      "155",
+      "--embedder-model-custom",
+      "model with spaces/model.pt",
+      "--inference-engine",
+      "torch",
+      "--onnx-precision",
+      "auto",
+      "--formant-shifting",
+      "--formant-qfrency",
+      "1",
+      "--formant-timbre",
+      "1"
+    ]
+  },
+  {
+    "mode": "tts",
+    "input": {
+      "pthPath": "voice.pth",
+      "ttsVoice": "en-US-JennyNeural",
+      "ttsText": "A line\nAnother line",
+      "ttsRate": "-15",
+      "cleanAudio": "false"
+    },
+    "success": true,
+    "params": {
+      "pthPath": "voice.pth",
+      "indexPath": "",
+      "pitch": 0,
+      "indexRate": 0.75,
+      "volumeEnvelope": 1,
+      "protect": 0.5,
+      "f0Method": "rmvpe",
+      "inferenceEngine": "torch",
+      "onnxPrecision": "auto",
+      "splitAudio": false,
+      "f0Autotune": false,
+      "f0AutotuneStrength": 1,
+      "proposedPitch": false,
+      "proposedPitchThreshold": 155,
+      "exportFormat": "WAV",
+      "embedderModel": "contentvec",
+      "embedderModelCustom": "",
+      "sid": 0,
+      "formantShifting": false,
+      "formantQfrency": 1,
+      "formantTimbre": 1,
+      "ttsText": "A line\nAnother line",
+      "ttsVoice": "en-US-JennyNeural",
+      "ttsRate": -15
+    },
+    "args": [
+      "--pitch",
+      "0",
+      "--index-rate",
+      "0.75",
+      "--volume-envelope",
+      "1",
+      "--protect",
+      "0.5",
+      "--f0-method",
+      "rmvpe",
+      "--export-format",
+      "WAV",
+      "--embedder-model",
+      "contentvec",
+      "--sid",
+      "0",
+      "--f0-autotune-strength",
+      "1",
+      "--proposed-pitch-threshold",
+      "155",
+      "--inference-engine",
+      "torch",
+      "--onnx-precision",
+      "auto",
+      "--formant-qfrency",
+      "1",
+      "--formant-timbre",
+      "1"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "pitch": 25
+    },
+    "success": false,
+    "fields": [
+      "pitch"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "indexRate": 1.1
+    },
+    "success": false,
+    "fields": [
+      "indexRate"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "protect": -1
+    },
+    "success": false,
+    "fields": [
+      "protect"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "f0Method": "not-a-method"
+    },
+    "success": false,
+    "fields": [
+      "f0Method"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "bitcrushBitDepth": 2.5
+    },
+    "success": true,
+    "params": {
+      "pthPath": "voice.pth",
+      "indexPath": "",
+      "pitch": 0,
+      "indexRate": 0.75,
+      "volumeEnvelope": 1,
+      "protect": 0.5,
+      "f0Method": "rmvpe",
+      "inferenceEngine": "torch",
+      "onnxPrecision": "auto",
+      "splitAudio": false,
+      "f0Autotune": false,
+      "f0AutotuneStrength": 1,
+      "proposedPitch": false,
+      "proposedPitchThreshold": 155,
+      "exportFormat": "WAV",
+      "embedderModel": "contentvec",
+      "embedderModelCustom": "",
+      "sid": 0,
+      "formantShifting": false,
+      "formantQfrency": 1,
+      "formantTimbre": 1
+    },
+    "args": [
+      "--pitch",
+      "0",
+      "--index-rate",
+      "0.75",
+      "--volume-envelope",
+      "1",
+      "--protect",
+      "0.5",
+      "--f0-method",
+      "rmvpe",
+      "--export-format",
+      "WAV",
+      "--embedder-model",
+      "contentvec",
+      "--sid",
+      "0",
+      "--f0-autotune-strength",
+      "1",
+      "--proposed-pitch-threshold",
+      "155",
+      "--inference-engine",
+      "torch",
+      "--onnx-precision",
+      "auto",
+      "--formant-qfrency",
+      "1",
+      "--formant-timbre",
+      "1"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": ""
+    },
+    "success": false,
+    "fields": [
+      "pthPath"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "sid": -1
+    },
+    "success": false,
+    "fields": [
+      "sid"
+    ]
+  },
+  {
+    "mode": "inference",
+    "input": {
+      "pthPath": "voice.pth",
+      "splitAudio": null
+    },
+    "success": false,
+    "fields": [
+      "splitAudio"
+    ]
+  },
+  {
+    "mode": "tts",
+    "input": {
+      "pthPath": "voice.pth"
+    },
+    "success": false,
+    "fields": [
+      "ttsVoice"
+    ]
+  },
+  {
+    "mode": "tts",
+    "input": {
+      "pthPath": "voice.pth",
+      "ttsVoice": "voice",
+      "ttsRate": 101
+    },
+    "success": false,
+    "fields": [
+      "ttsRate"
+    ]
+  }
+]

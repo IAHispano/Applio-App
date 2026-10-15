@@ -12,21 +12,12 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 function packagedRoots() {
   const explicit = process.argv[process.argv.indexOf("--packaged") + 1];
   if (explicit && !explicit.startsWith("--")) return [path.resolve(explicit)];
-  const directory = path.join(root, "frontend/desktop/dist-installers");
-  const result = [];
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const base = path.join(directory, entry.name);
-    const app = path.join(base, "resources/app");
-    if (fs.existsSync(path.join(app, "backend/api/dist/index.js"))) result.push(app);
-    for (const child of fs.readdirSync(base))
-      if (child.endsWith(".app")) {
-        const mac = path.join(base, child, "Contents/Resources/app");
-        if (fs.existsSync(path.join(mac, "backend/api/dist/index.js"))) result.push(mac);
-      }
-  }
-  assert.ok(result.length, "No unpacked release found. Build an installer first.");
-  return result;
+  const staged = path.join(root, "frontend/desktop/resources");
+  assert.ok(
+    fs.existsSync(path.join(staged, "frontend/web/.next/standalone/server.js")),
+    "Stage the Tauri resources first.",
+  );
+  return [staged];
 }
 async function freePort() {
   const server = net.createServer();
@@ -68,13 +59,27 @@ async function check(code) {
       PORT: webPort,
       HOSTNAME: "127.0.0.1",
     };
-    for (const entry of ["backend/api/dist/index.js", "frontend/web/.next/standalone/server.js"]) {
-      const child = spawn(process.execPath, [path.join(code, entry)], {
-        cwd: data,
-        env,
-        windowsHide: true,
-        stdio: ["ignore", "ignore", "pipe"],
-      });
+    const packaged = process.argv.includes("--packaged");
+    const node = packaged
+      ? path.join(code, process.platform === "win32" ? "node.exe" : "node")
+      : process.execPath;
+    const native = path.join(
+      root,
+      "target",
+      packaged ? "release" : "debug",
+      process.platform === "win32" ? "applio-api.exe" : "applio-api",
+    );
+    for (const entry of ["rust-api", "frontend/web/.next/standalone/server.js"]) {
+      const child = spawn(
+        entry === "rust-api" ? native : node,
+        entry === "rust-api" ? ["--shutdown-on-stdin-eof"] : [path.join(code, entry)],
+        {
+          cwd: data,
+          env,
+          windowsHide: true,
+          stdio: ["pipe", "ignore", "pipe"],
+        },
+      );
       children.push(child);
       child.stderr.on("data", (bytes) => {
         errors = (errors + bytes).slice(-8000);
@@ -96,7 +101,10 @@ async function check(code) {
     }
     const health = await (await fetchReady(`http://127.0.0.1:${apiPort}/api/health`)).json();
     assert.equal(health.ok, true);
+    assert.equal(health.service, "applio-rust-api");
     assert.equal(health.repoRoot, data);
+    assert.equal(health.compatibilityService, false);
+    assert.equal(health.runtime, "rust");
     const voices = await (await fetchReady(`http://127.0.0.1:${apiPort}/api/tts/voices`)).json();
     assert.ok(voices.voices.length > 100);
     const jobs = await (await fetchReady(`http://127.0.0.1:${apiPort}/api/jobs`)).json();
@@ -108,7 +116,8 @@ async function check(code) {
     for (const child of children) {
       if (child.exitCode !== null) continue;
       const closed = new Promise((resolve) => child.once("close", resolve));
-      child.kill();
+      if (child === children[0]) child.stdin.end();
+      else child.kill();
       await Promise.race([closed, delay(5000)]);
       if (child.exitCode === null) {
         child.kill("SIGKILL");

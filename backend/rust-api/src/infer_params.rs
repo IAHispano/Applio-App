@@ -1,0 +1,374 @@
+//! Conversion/TTS parameter validation and CLI argument construction. The JSON
+//! contract was exported from the existing API before removing its Zod schemas.
+use serde::{Deserialize, Serialize};
+use serde_json::{json, Map, Number, Value};
+use std::{collections::BTreeMap, sync::OnceLock};
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Contract {
+    inference: Vec<Field>,
+    tts: Vec<Field>,
+    cli_order: Vec<String>,
+}
+#[derive(Deserialize)]
+struct Field {
+    name: String,
+    #[serde(rename = "type")]
+    kind: String,
+    default: Option<Value>,
+    min: Option<f64>,
+    max: Option<f64>,
+    #[serde(default)]
+    integer: bool,
+    #[serde(default)]
+    values: Vec<String>,
+    #[serde(default)]
+    optional: bool,
+    pattern: Option<String>,
+    #[serde(default)]
+    trim: bool,
+}
+fn contract() -> &'static Contract {
+    static CONTRACT: OnceLock<Contract> = OnceLock::new();
+    CONTRACT.get_or_init(|| {
+        serde_json::from_str(include_str!("inference-schema.json"))
+            .expect("valid parameter contract")
+    })
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ValidationErrors {
+    pub form_errors: Vec<String>,
+    pub field_errors: BTreeMap<String, Vec<String>>,
+}
+impl std::fmt::Display for ValidationErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Invalid params")?;
+        for (key, errors) in &self.field_errors {
+            write!(f, "; {key}: {}", errors.join(", "))?;
+        }
+        Ok(())
+    }
+}
+impl std::error::Error for ValidationErrors {}
+impl ValidationErrors {
+    pub fn body(&self) -> Value {
+        json!({"error": "Invalid params", "details": self})
+    }
+}
+
+pub fn inference(input: &Value) -> Result<Value, ValidationErrors> {
+    normalize(input, false, false, true)
+}
+pub fn tts(input: &Value) -> Result<Value, ValidationErrors> {
+    normalize(input, true, false, true)
+}
+pub fn batch_base(input: &Value) -> Result<Value, ValidationErrors> {
+    normalize(input, false, false, false)
+}
+pub fn overrides(input: &Value) -> Result<Value, ValidationErrors> {
+    normalize(input, false, true, true)
+}
+
+pub struct ParameterSchema(Vec<Field>);
+impl ParameterSchema {
+    pub fn from_json(source: &str) -> Self {
+        Self(serde_json::from_str(source).expect("valid parameter schema"))
+    }
+    pub fn normalize(&self, input: &Value) -> Result<Value, ValidationErrors> {
+        let mut errors = ValidationErrors::default();
+        let Some(input) = input.as_object() else {
+            errors.form_errors.push("Expected an object".into());
+            return Err(errors);
+        };
+        let mut output = Map::new();
+        for field in &self.0 {
+            let value = input.get(&field.name).or(field.default.as_ref());
+            if field.optional && value.is_none() {
+                continue;
+            }
+            match value
+                .ok_or_else(|| "Required".to_string())
+                .and_then(|value| validate(field, value, false))
+            {
+                Ok(value) => {
+                    output.insert(field.name.clone(), value);
+                }
+                Err(error) => {
+                    errors
+                        .field_errors
+                        .entry(field.name.clone())
+                        .or_default()
+                        .push(error);
+                }
+            }
+        }
+        if errors.field_errors.is_empty() {
+            Ok(Value::Object(output))
+        } else {
+            Err(errors)
+        }
+    }
+}
+
+fn normalize(
+    input: &Value,
+    tts: bool,
+    partial: bool,
+    require_model: bool,
+) -> Result<Value, ValidationErrors> {
+    let mut errors = ValidationErrors::default();
+    let Some(input) = input.as_object() else {
+        errors.form_errors.push("Expected an object".into());
+        return Err(errors);
+    };
+    let mut output = Map::new();
+    let fields = contract()
+        .inference
+        .iter()
+        .chain(contract().tts.iter().filter(|_| tts));
+    for field in fields {
+        if partial && !input.contains_key(&field.name) {
+            continue;
+        }
+        let model_optional = field.name == "pthPath" && !require_model;
+        let value = input.get(&field.name).or(field.default.as_ref());
+        if model_optional && value.is_none() {
+            output.insert(field.name.clone(), json!(""));
+            continue;
+        }
+        let result = value
+            .ok_or_else(|| "Required".to_string())
+            .and_then(|value| validate(field, value, model_optional));
+        match result {
+            Ok(value) => {
+                output.insert(field.name.clone(), value);
+            }
+            Err(error) => {
+                errors
+                    .field_errors
+                    .entry(field.name.clone())
+                    .or_default()
+                    .push(error);
+            }
+        }
+    }
+    if errors.field_errors.is_empty() {
+        Ok(Value::Object(output))
+    } else {
+        Err(errors)
+    }
+}
+
+fn validate(field: &Field, value: &Value, allow_empty: bool) -> Result<Value, String> {
+    match field.kind.as_str() {
+        "string" => {
+            let value = value.as_str().ok_or("Expected string")?;
+            let value = if field.trim { value.trim() } else { value };
+            if field.pattern.as_ref().is_some_and(|pattern| {
+                !regex::Regex::new(pattern)
+                    .expect("valid schema pattern")
+                    .is_match(value)
+            }) {
+                return Err("Invalid string".into());
+            }
+            let size = value.encode_utf16().count() as f64;
+            if !allow_empty && field.min.is_some_and(|min| size < min) {
+                return Err(format!(
+                    "String must contain at least {} character(s)",
+                    field.min.unwrap()
+                ));
+            }
+            if field.max.is_some_and(|max| size > max) {
+                return Err(format!(
+                    "String must contain at most {} character(s)",
+                    field.max.unwrap()
+                ));
+            }
+            Ok(json!(value))
+        }
+        "enum" => {
+            let value = value.as_str().ok_or("Expected string")?;
+            if !field.values.iter().any(|item| item == value) {
+                return Err(format!("Expected one of {}", field.values.join(", ")));
+            }
+            Ok(json!(value))
+        }
+        "number" => {
+            let number = match value {
+                Value::Null => 0.0,
+                Value::Bool(value) => {
+                    if *value {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                }
+                Value::Number(value) => value.as_f64().ok_or("Expected number")?,
+                Value::String(value) => {
+                    let value = value.trim();
+                    if value.is_empty() {
+                        0.0
+                    } else {
+                        value.parse::<f64>().map_err(|_| "Expected number")?
+                    }
+                }
+                _ => return Err("Expected number".into()),
+            };
+            if !number.is_finite() {
+                return Err("Number must be finite".into());
+            }
+            if field.integer && number.fract() != 0.0 {
+                return Err("Expected integer".into());
+            }
+            if field.min.is_some_and(|min| number < min) {
+                return Err(format!(
+                    "Number must be greater than or equal to {}",
+                    field.min.unwrap()
+                ));
+            }
+            if field.max.is_some_and(|max| number > max) {
+                return Err(format!(
+                    "Number must be less than or equal to {}",
+                    field.max.unwrap()
+                ));
+            }
+            if number.fract() == 0.0 && number >= i64::MIN as f64 && number < i64::MAX as f64 {
+                Ok(json!(number as i64))
+            } else {
+                Ok(Value::Number(Number::from_f64(number).unwrap()))
+            }
+        }
+        "boolean" => {
+            let value = match value {
+                Value::Null => return Err("Required".into()),
+                Value::Bool(value) => *value,
+                Value::Number(value) => value.as_f64() != Some(0.0),
+                Value::String(value) => !matches!(
+                    value.trim().to_lowercase().as_str(),
+                    "false" | "0" | "no" | "off" | ""
+                ),
+                _ => true,
+            };
+            Ok(json!(value))
+        }
+        _ => Err("Unsupported parameter type".into()),
+    }
+}
+
+/// Arguments go directly to the child process, never through a shell. Preserve
+/// the existing flag order and the special custom-embedder condition.
+pub fn common_cli_args(params: &Value) -> Vec<String> {
+    let mut arguments = Vec::new();
+    for name in &contract().cli_order {
+        if name == "embedderModelCustom"
+            && (params["embedderModel"] != "custom"
+                || params[name].as_str().unwrap_or("").is_empty())
+        {
+            continue;
+        }
+        let Some(value) = params.get(name) else {
+            continue;
+        };
+        let mut flag = String::from("--");
+        for character in name.chars() {
+            if character.is_ascii_uppercase() {
+                flag.push('-');
+                flag.push(character.to_ascii_lowercase());
+            } else {
+                flag.push(character);
+            }
+        }
+        if let Value::Bool(enabled) = value {
+            if *enabled {
+                arguments.push(flag);
+            }
+        } else {
+            arguments.push(flag);
+            arguments.push(
+                value
+                    .as_str()
+                    .map(str::to_owned)
+                    .unwrap_or_else(|| value.to_string()),
+            );
+        }
+    }
+    arguments
+}
+
+#[cfg(test)]
+mod checks {
+    use super::*;
+    #[test]
+    fn retired_effects_are_ignored_while_formant_parameters_reach_the_engine() {
+        let params=inference(&json!({"pthPath":"voice.pth","cleanAudio":true,"cleanStrength":"obsolete","postProcess":true,"reverb":true,"bitcrushBitDepth":"obsolete","formantShifting":true,"formantQfrency":2.5,"formantTimbre":0.8})).unwrap();
+        for key in [
+            "cleanAudio",
+            "cleanStrength",
+            "postProcess",
+            "reverb",
+            "bitcrushBitDepth",
+        ] {
+            assert!(params.get(key).is_none(), "{key}");
+        }
+        let args = common_cli_args(&params);
+        assert!(args.iter().any(|arg| arg == "--formant-shifting"));
+        assert!(args
+            .windows(2)
+            .any(|args| args == ["--formant-qfrency", "2.5"]));
+        assert!(args
+            .windows(2)
+            .any(|args| args == ["--formant-timbre", "0.8"]));
+        assert!(!args.iter().any(|arg| arg.starts_with("--clean-")
+            || arg == "--post-process"
+            || arg == "--reverb"));
+    }
+    #[test]
+    fn parameters_and_cli_arguments_match_the_existing_node_api_reference() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("inference-reference.json")).unwrap();
+        for case in cases {
+            let normalized = if case["mode"] == "tts" {
+                tts(&case["input"])
+            } else {
+                inference(&case["input"])
+            };
+            assert_eq!(
+                normalized.is_ok(),
+                case["success"].as_bool().unwrap(),
+                "{}",
+                case["input"]
+            );
+            match normalized {
+                Ok(params) => {
+                    assert_eq!(params, case["params"]);
+                    assert_eq!(json!(common_cli_args(&params)), case["args"]);
+                }
+                Err(errors) => {
+                    let mut fields: Vec<_> = case["fields"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|name| name.as_str().unwrap().to_owned())
+                        .collect();
+                    fields.sort();
+                    assert_eq!(
+                        errors.field_errors.keys().cloned().collect::<Vec<_>>(),
+                        fields
+                    );
+                }
+            }
+        }
+    }
+    #[test]
+    fn batch_models_can_be_optional_and_overrides_do_not_inject_defaults() {
+        assert_eq!(batch_base(&json!({})).unwrap()["pthPath"], "");
+        assert_eq!(
+            overrides(&json!({"pitch": "-7", "cleanAudio": "false", "unknown": true})).unwrap(),
+            json!({"pitch": -7})
+        );
+        assert!(inference(&json!({"pthPath": "voice.pth", "volumeEnvelope": "NaN"})).is_err());
+    }
+}

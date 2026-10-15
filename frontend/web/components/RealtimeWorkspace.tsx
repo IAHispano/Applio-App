@@ -39,9 +39,9 @@ import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { useRealtimeTray } from "@/lib/useRealtimeTray";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { connectVoiceFocus, type VoiceFocusVariant } from "@/lib/voice-focus";
-import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "../../desktop/src/tray-menu";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
@@ -800,62 +800,40 @@ export default function RealtimeWorkspace() {
   const reconnectRef = useRef(startStream);
   reconnectRef.current = startStream;
   const beforeMuteGainRef = useRef(100);
-  const traySnapshotRef = useRef<RealtimeTraySnapshot | null>(null);
-  traySnapshotRef.current = {
-    connecting,
-    streaming,
-    model,
-    processingMs: latency,
-    roundTripMs: roundTrip,
-    muted: inGain === 0,
-    monitor: monitorSelf,
-  };
-  const trayCommandRef = useRef((_action: RealtimeTrayCommand) => {});
-  trayCommandRef.current = (action) => {
-    if (calibrationControllerRef.current && action !== "stop") return;
-    if (action === "start") void startStream();
-    else if (action === "stop") stopStream(false);
-    else if (streaming) {
-      if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
-      else if (action === "passthrough-toggle") setPassthrough((value) => !value);
-      else {
-        if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
-        const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
-        setInGain(gain);
-        void changeConfig("input_audio_gain", gain);
+  useRealtimeTray(
+    {
+      connecting,
+      streaming,
+      model,
+      processingMs: latency,
+      roundTripMs: roundTrip,
+      muted: inGain === 0,
+      monitor: monitorSelf,
+    },
+    (action) => {
+      if (calibrationControllerRef.current && action !== "stop") return;
+      if (action === "start") void startStream();
+      else if (action === "stop") stopStream(false);
+      else if (streaming) {
+        if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
+        else if (action === "passthrough-toggle") setPassthrough((value) => !value);
+        else {
+          if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
+          const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
+          setInGain(gain);
+          void changeConfig("input_audio_gain", gain);
+        }
       }
-    }
-  };
+    },
+  );
 
-  // Latest controls for tray-driven start/stop (Electron) and autostart.
+  // Latest controls for tray-driven start/stop (Tauri) and autostart.
   const controlRef = useRef({ start: () => {}, stop: (_silent?: boolean) => {} });
   controlRef.current = {
     start: () => void startStream(),
     stop: (silent = false) => stopStream(silent),
   };
   const trayAutoStartedRef = useRef(false);
-
-  // Tray commands from the desktop shell (no-op in the browser).
-  useEffect(() => {
-    const bridge = (
-      window as unknown as {
-        applio?: {
-          onRealtimeCommand?: (cb: (action: RealtimeTrayCommand) => void) => () => void;
-          reportRealtimeState?: (state: RealtimeTraySnapshot | null) => void;
-        };
-      }
-    ).applio;
-    const off = bridge?.onRealtimeCommand?.((action) => {
-      trayCommandRef.current(action);
-    });
-    bridge?.reportRealtimeState?.(traySnapshotRef.current);
-    const timer = setInterval(() => bridge?.reportRealtimeState?.(traySnapshotRef.current), 1000);
-    return () => {
-      clearInterval(timer);
-      off?.();
-      bridge?.reportRealtimeState?.(null);
-    };
-  }, []);
 
   useEffect(() => {
     if (streaming) sessRef.current?.playback.port.postMessage({ passthrough, inputGain: inGain / 100 });

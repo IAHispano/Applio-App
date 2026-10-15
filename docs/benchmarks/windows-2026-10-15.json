@@ -1,0 +1,2036 @@
+{
+  "createdAt": "2026-10-15T13:00:46.879Z",
+  "qualification": "Exploratory comparison: installed Electron release versus current uncommitted Tauri migration; different UI/API builds, not a controlled framework-only comparison.",
+  "methodology": {
+    "runsPerApp": 5,
+    "order": "One discarded warmup per app, then alternating Electron/Tauri and Tauri/Electron pairs.",
+    "startup": "Process spawn to API health HTTP 200 and main page document.readyState=complete with >100 visible text characters and at least one button. CDP polling at 100 ms; does not prove React hydration or first visible window.",
+    "profile": "Fresh isolated installation/profile per app; reused after warmup. OS file caches not flushed. APPLIO_NO_ENV=1; setup screen, no Python engine/model loaded.",
+    "idle": "10 seconds after document ready, then three process-tree samples 2 seconds apart; per-run median private bytes and working set.",
+    "memory": "All descendants of launcher via Win32_Process ParentProcessId, including Next.js, Node API (Electron), WebView2/GPU/renderer. Private bytes are process commit, not physical RAM. Summed working sets double-count shared pages.",
+    "cpu": "CPU deltas for surviving PIDs between first/last idle samples, normalized to all logical CPUs. Short-lived children between samples may be missed.",
+    "size": "Logical file bytes, excluding installation data, uninstaller and icon. Shared system WebView2 excluded. No matched Electron installer is available; download size not compared.",
+    "instrumentation": "Local CDP enabled on both apps for this run only; same sampling harness. No production app changes."
+  },
+  "machine": {
+    "cpu": "AMD Ryzen 5 5600 6-Core Processor              ",
+    "logicalCpus": 12,
+    "totalMemoryBytes": 34279395328,
+    "osRelease": "10.0.26300",
+    "arch": "x64",
+    "node": "v24.15.0"
+  },
+  "builds": {
+    "electron": {
+      "executableSha256": "7f1e76cccae95c55617a4f38ba4cc61db256d4871681563e51e10df9c5a52547",
+      "installedBytes": 469918237,
+      "version": "0.2.9",
+      "nextBuildId": "9TpetMZacluxlVJZTPnSY",
+      "engineRevision": "c6fc349fee0e4886811425ff3d9e61cd1b32a3d5",
+      "browser": "Chrome/130.0.6723.137"
+    },
+    "tauri": {
+      "executableSha256": "476975495f0f0cb094dbbb185f57fd8900bd9079b60776002e67c5c2d955e901",
+      "installedBytes": 471375930,
+      "version": "0.2.9",
+      "nextBuildId": "StVNcT494ryhdw62j1t5P",
+      "engineRevision": "67a38f6abab3e90a55efa534ea3185a222c102f0",
+      "installerBytes": 167012580,
+      "browser": "Edg/155.0.4283.45"
+    }
+  },
+  "samples": [
+    {
+      "kind": "electron",
+      "round": 1,
+      "startupMs": 4358.842499999999,
+      "privateBytes": 518348800,
+      "workingSetBytes": 606638080,
+      "processCount": 6,
+      "idleCpuPercent": 3.3214266494457,
+      "health": {
+        "ok": true,
+        "service": "applio-api",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\electron\\data\\runtime",
+        "python": "C:\\Users\\Pascal\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "time": "2026-10-15T13:02:55.534Z"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069386652,
+          "processes": [
+            {
+              "pid": 4512,
+              "name": "Applio",
+              "privateBytes": 87400448,
+              "workingSetBytes": 113565696,
+              "cpuSeconds": 1.125
+            },
+            {
+              "pid": 21184,
+              "name": "Applio",
+              "privateBytes": 175730688,
+              "workingSetBytes": 121057280,
+              "cpuSeconds": 6.734375
+            },
+            {
+              "pid": 1824,
+              "name": "Applio",
+              "privateBytes": 15798272,
+              "workingSetBytes": 54882304,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 23800,
+              "name": "Applio",
+              "privateBytes": 81399808,
+              "workingSetBytes": 86392832,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 22552,
+              "name": "Applio",
+              "privateBytes": 105603072,
+              "workingSetBytes": 111423488,
+              "cpuSeconds": 0.8125
+            },
+            {
+              "pid": 22504,
+              "name": "Applio",
+              "privateBytes": 52236288,
+              "workingSetBytes": 118824960,
+              "cpuSeconds": 1.328125
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069389732,
+          "processes": [
+            {
+              "pid": 4512,
+              "name": "Applio",
+              "privateBytes": 87384064,
+              "workingSetBytes": 113709056,
+              "cpuSeconds": 1.125
+            },
+            {
+              "pid": 21184,
+              "name": "Applio",
+              "privateBytes": 175730688,
+              "workingSetBytes": 120967168,
+              "cpuSeconds": 7.875
+            },
+            {
+              "pid": 1824,
+              "name": "Applio",
+              "privateBytes": 15798272,
+              "workingSetBytes": 54882304,
+              "cpuSeconds": 0.234375
+            },
+            {
+              "pid": 23800,
+              "name": "Applio",
+              "privateBytes": 81399808,
+              "workingSetBytes": 86392832,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 22552,
+              "name": "Applio",
+              "privateBytes": 105607168,
+              "workingSetBytes": 111489024,
+              "cpuSeconds": 0.8125
+            },
+            {
+              "pid": 22504,
+              "name": "Applio",
+              "privateBytes": 52428800,
+              "workingSetBytes": 119197696,
+              "cpuSeconds": 1.46875
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069392846,
+          "processes": [
+            {
+              "pid": 4512,
+              "name": "Applio",
+              "privateBytes": 87384064,
+              "workingSetBytes": 113774592,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 21184,
+              "name": "Applio",
+              "privateBytes": 175730688,
+              "workingSetBytes": 120872960,
+              "cpuSeconds": 8.921875
+            },
+            {
+              "pid": 1824,
+              "name": "Applio",
+              "privateBytes": 15798272,
+              "workingSetBytes": 54882304,
+              "cpuSeconds": 0.234375
+            },
+            {
+              "pid": 23800,
+              "name": "Applio",
+              "privateBytes": 81399808,
+              "workingSetBytes": 86392832,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 22552,
+              "name": "Applio",
+              "privateBytes": 105607168,
+              "workingSetBytes": 111489024,
+              "cpuSeconds": 0.8125
+            },
+            {
+              "pid": 22504,
+              "name": "Applio",
+              "privateBytes": 52441088,
+              "workingSetBytes": 119255040,
+              "cpuSeconds": 1.578125
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tauri",
+      "round": 1,
+      "startupMs": 1682.5371999999916,
+      "privateBytes": 369168384,
+      "workingSetBytes": 559296512,
+      "processCount": 9,
+      "idleCpuPercent": 2.7118427769270035,
+      "health": {
+        "compatibilityService": false,
+        "ok": true,
+        "python": "python",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\tauri\\data\\runtime",
+        "runtime": "rust",
+        "service": "applio-rust-api",
+        "time": "2026-10-15T13:03:16.202521200+00:00"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069407274,
+          "processes": [
+            {
+              "pid": 23088,
+              "name": "Applio",
+              "privateBytes": 10006528,
+              "workingSetBytes": 39268352,
+              "cpuSeconds": 0.265625
+            },
+            {
+              "pid": 22368,
+              "name": "msedgewebview2",
+              "privateBytes": 47546368,
+              "workingSetBytes": 146386944,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 23760,
+              "name": "msedgewebview2",
+              "privateBytes": 2650112,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 5608,
+              "name": "msedgewebview2",
+              "privateBytes": 144703488,
+              "workingSetBytes": 100229120,
+              "cpuSeconds": 4.390625
+            },
+            {
+              "pid": 21756,
+              "name": "msedgewebview2",
+              "privateBytes": 13721600,
+              "workingSetBytes": 47439872,
+              "cpuSeconds": 0.140625
+            },
+            {
+              "pid": 23208,
+              "name": "msedgewebview2",
+              "privateBytes": 7921664,
+              "workingSetBytes": 24420352,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 5060,
+              "name": "node",
+              "privateBytes": 90247168,
+              "workingSetBytes": 80662528,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 15888,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 13456,
+              "name": "msedgewebview2",
+              "privateBytes": 50741248,
+              "workingSetBytes": 98693120,
+              "cpuSeconds": 0.734375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069410527,
+          "processes": [
+            {
+              "pid": 23088,
+              "name": "Applio",
+              "privateBytes": 10055680,
+              "workingSetBytes": 39354368,
+              "cpuSeconds": 0.265625
+            },
+            {
+              "pid": 22368,
+              "name": "msedgewebview2",
+              "privateBytes": 47546368,
+              "workingSetBytes": 146419712,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 23760,
+              "name": "msedgewebview2",
+              "privateBytes": 2650112,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 5608,
+              "name": "msedgewebview2",
+              "privateBytes": 144850944,
+              "workingSetBytes": 100380672,
+              "cpuSeconds": 5.21875
+            },
+            {
+              "pid": 21756,
+              "name": "msedgewebview2",
+              "privateBytes": 13721600,
+              "workingSetBytes": 47439872,
+              "cpuSeconds": 0.140625
+            },
+            {
+              "pid": 23208,
+              "name": "msedgewebview2",
+              "privateBytes": 7921664,
+              "workingSetBytes": 24420352,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 5060,
+              "name": "node",
+              "privateBytes": 90247168,
+              "workingSetBytes": 80662528,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 15888,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 13456,
+              "name": "msedgewebview2",
+              "privateBytes": 50876416,
+              "workingSetBytes": 98762752,
+              "cpuSeconds": 0.90625
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069413804,
+          "processes": [
+            {
+              "pid": 23088,
+              "name": "Applio",
+              "privateBytes": 10092544,
+              "workingSetBytes": 39391232,
+              "cpuSeconds": 0.265625
+            },
+            {
+              "pid": 22368,
+              "name": "msedgewebview2",
+              "privateBytes": 47603712,
+              "workingSetBytes": 146636800,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 23760,
+              "name": "msedgewebview2",
+              "privateBytes": 2650112,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 5608,
+              "name": "msedgewebview2",
+              "privateBytes": 144850944,
+              "workingSetBytes": 100380672,
+              "cpuSeconds": 6.171875
+            },
+            {
+              "pid": 21756,
+              "name": "msedgewebview2",
+              "privateBytes": 13721600,
+              "workingSetBytes": 47439872,
+              "cpuSeconds": 0.15625
+            },
+            {
+              "pid": 23208,
+              "name": "msedgewebview2",
+              "privateBytes": 7921664,
+              "workingSetBytes": 24420352,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 5060,
+              "name": "node",
+              "privateBytes": 90308608,
+              "workingSetBytes": 80883712,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 15888,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 13456,
+              "name": "msedgewebview2",
+              "privateBytes": 50888704,
+              "workingSetBytes": 98836480,
+              "cpuSeconds": 1.0625
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tauri",
+      "round": 2,
+      "startupMs": 1832.7562000000034,
+      "privateBytes": 543449088,
+      "workingSetBytes": 586571776,
+      "processCount": 9,
+      "idleCpuPercent": 0.08235821210204512,
+      "health": {
+        "compatibilityService": false,
+        "ok": true,
+        "python": "python",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\tauri\\data\\runtime",
+        "runtime": "rust",
+        "service": "applio-rust-api",
+        "time": "2026-10-15T13:03:37.344367+00:00"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069428401,
+          "processes": [
+            {
+              "pid": 10544,
+              "name": "Applio",
+              "privateBytes": 9617408,
+              "workingSetBytes": 39108608,
+              "cpuSeconds": 0.421875
+            },
+            {
+              "pid": 23036,
+              "name": "msedgewebview2",
+              "privateBytes": 46338048,
+              "workingSetBytes": 140619776,
+              "cpuSeconds": 1.671875
+            },
+            {
+              "pid": 22536,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13828096,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 12944,
+              "name": "msedgewebview2",
+              "privateBytes": 315256832,
+              "workingSetBytes": 116428800,
+              "cpuSeconds": 4.21875
+            },
+            {
+              "pid": 3232,
+              "name": "msedgewebview2",
+              "privateBytes": 13434880,
+              "workingSetBytes": 43360256,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 22232,
+              "name": "msedgewebview2",
+              "privateBytes": 8351744,
+              "workingSetBytes": 24760320,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 24084,
+              "name": "node",
+              "privateBytes": 90677248,
+              "workingSetBytes": 81301504,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 19904,
+              "name": "conhost",
+              "privateBytes": 1294336,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 24512,
+              "name": "msedgewebview2",
+              "privateBytes": 73330688,
+              "workingSetBytes": 126820352,
+              "cpuSeconds": 1.3125
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069431521,
+          "processes": [
+            {
+              "pid": 10544,
+              "name": "Applio",
+              "privateBytes": 9662464,
+              "workingSetBytes": 39190528,
+              "cpuSeconds": 0.421875
+            },
+            {
+              "pid": 23036,
+              "name": "msedgewebview2",
+              "privateBytes": 46346240,
+              "workingSetBytes": 140656640,
+              "cpuSeconds": 1.6875
+            },
+            {
+              "pid": 22536,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13828096,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 12944,
+              "name": "msedgewebview2",
+              "privateBytes": 297381888,
+              "workingSetBytes": 107929600,
+              "cpuSeconds": 4.21875
+            },
+            {
+              "pid": 3232,
+              "name": "msedgewebview2",
+              "privateBytes": 13434880,
+              "workingSetBytes": 43360256,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 22232,
+              "name": "msedgewebview2",
+              "privateBytes": 8351744,
+              "workingSetBytes": 24797184,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 24084,
+              "name": "node",
+              "privateBytes": 90677248,
+              "workingSetBytes": 81301504,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 19904,
+              "name": "conhost",
+              "privateBytes": 1294336,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 24512,
+              "name": "msedgewebview2",
+              "privateBytes": 73330688,
+              "workingSetBytes": 126820352,
+              "cpuSeconds": 1.3125
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069434725,
+          "processes": [
+            {
+              "pid": 10544,
+              "name": "Applio",
+              "privateBytes": 9859072,
+              "workingSetBytes": 39292928,
+              "cpuSeconds": 0.421875
+            },
+            {
+              "pid": 23036,
+              "name": "msedgewebview2",
+              "privateBytes": 46383104,
+              "workingSetBytes": 140906496,
+              "cpuSeconds": 1.71875
+            },
+            {
+              "pid": 22536,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13828096,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 12944,
+              "name": "msedgewebview2",
+              "privateBytes": 297381888,
+              "workingSetBytes": 107929600,
+              "cpuSeconds": 4.21875
+            },
+            {
+              "pid": 3232,
+              "name": "msedgewebview2",
+              "privateBytes": 13438976,
+              "workingSetBytes": 43364352,
+              "cpuSeconds": 0.234375
+            },
+            {
+              "pid": 22232,
+              "name": "msedgewebview2",
+              "privateBytes": 8351744,
+              "workingSetBytes": 24797184,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 24084,
+              "name": "node",
+              "privateBytes": 90738688,
+              "workingSetBytes": 81567744,
+              "cpuSeconds": 1.171875
+            },
+            {
+              "pid": 19904,
+              "name": "conhost",
+              "privateBytes": 1294336,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 24512,
+              "name": "msedgewebview2",
+              "privateBytes": 73363456,
+              "workingSetBytes": 126861312,
+              "cpuSeconds": 1.3125
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "electron",
+      "round": 2,
+      "startupMs": 4576.397299999982,
+      "privateBytes": 516931584,
+      "workingSetBytes": 616067072,
+      "processCount": 7,
+      "idleCpuPercent": 4.5095553822152885,
+      "health": {
+        "ok": true,
+        "service": "applio-api",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\electron\\data\\runtime",
+        "python": "C:\\Users\\Pascal\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "time": "2026-10-15T13:04:03.017Z"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069454236,
+          "processes": [
+            {
+              "pid": 19012,
+              "name": "Applio",
+              "privateBytes": 88412160,
+              "workingSetBytes": 113598464,
+              "cpuSeconds": 1.15625
+            },
+            {
+              "pid": 1192,
+              "name": "Applio",
+              "privateBytes": 174166016,
+              "workingSetBytes": 121470976,
+              "cpuSeconds": 7.53125
+            },
+            {
+              "pid": 5632,
+              "name": "Applio",
+              "privateBytes": 15888384,
+              "workingSetBytes": 54697984,
+              "cpuSeconds": 0.15625
+            },
+            {
+              "pid": 14020,
+              "name": "Applio",
+              "privateBytes": 81666048,
+              "workingSetBytes": 86175744,
+              "cpuSeconds": 0.65625
+            },
+            {
+              "pid": 16900,
+              "name": "Applio",
+              "privateBytes": 103272448,
+              "workingSetBytes": 107507712,
+              "cpuSeconds": 0.890625
+            },
+            {
+              "pid": 21492,
+              "name": "Applio",
+              "privateBytes": 50360320,
+              "workingSetBytes": 118317056,
+              "cpuSeconds": 1.21875
+            },
+            {
+              "pid": 21104,
+              "name": "DiscordSystemHelper",
+              "privateBytes": 3063808,
+              "workingSetBytes": 13922304,
+              "cpuSeconds": 4.59375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069457411,
+          "processes": [
+            {
+              "pid": 19012,
+              "name": "Applio",
+              "privateBytes": 88453120,
+              "workingSetBytes": 113721344,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 1192,
+              "name": "Applio",
+              "privateBytes": 174166016,
+              "workingSetBytes": 121479168,
+              "cpuSeconds": 8.953125
+            },
+            {
+              "pid": 5632,
+              "name": "Applio",
+              "privateBytes": 15888384,
+              "workingSetBytes": 54697984,
+              "cpuSeconds": 0.15625
+            },
+            {
+              "pid": 14020,
+              "name": "Applio",
+              "privateBytes": 81674240,
+              "workingSetBytes": 86192128,
+              "cpuSeconds": 0.65625
+            },
+            {
+              "pid": 16900,
+              "name": "Applio",
+              "privateBytes": 103292928,
+              "workingSetBytes": 107610112,
+              "cpuSeconds": 0.890625
+            },
+            {
+              "pid": 21492,
+              "name": "Applio",
+              "privateBytes": 50393088,
+              "workingSetBytes": 118444032,
+              "cpuSeconds": 1.5
+            },
+            {
+              "pid": 21104,
+              "name": "DiscordSystemHelper",
+              "privateBytes": 3063808,
+              "workingSetBytes": 13922304,
+              "cpuSeconds": 4.625
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069460646,
+          "processes": [
+            {
+              "pid": 19012,
+              "name": "Applio",
+              "privateBytes": 88453120,
+              "workingSetBytes": 113819648,
+              "cpuSeconds": 1.328125
+            },
+            {
+              "pid": 1192,
+              "name": "Applio",
+              "privateBytes": 174166016,
+              "workingSetBytes": 121479168,
+              "cpuSeconds": 10.296875
+            },
+            {
+              "pid": 5632,
+              "name": "Applio",
+              "privateBytes": 15888384,
+              "workingSetBytes": 54697984,
+              "cpuSeconds": 0.15625
+            },
+            {
+              "pid": 14020,
+              "name": "Applio",
+              "privateBytes": 81674240,
+              "workingSetBytes": 86196224,
+              "cpuSeconds": 0.65625
+            },
+            {
+              "pid": 16900,
+              "name": "Applio",
+              "privateBytes": 103292928,
+              "workingSetBytes": 107610112,
+              "cpuSeconds": 0.890625
+            },
+            {
+              "pid": 21492,
+              "name": "Applio",
+              "privateBytes": 50421760,
+              "workingSetBytes": 118489088,
+              "cpuSeconds": 1.703125
+            },
+            {
+              "pid": 21104,
+              "name": "DiscordSystemHelper",
+              "privateBytes": 3063808,
+              "workingSetBytes": 13922304,
+              "cpuSeconds": 4.640625
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "electron",
+      "round": 3,
+      "startupMs": 7811.855199999991,
+      "privateBytes": 549789696,
+      "workingSetBytes": 625303552,
+      "processCount": 6,
+      "idleCpuPercent": 0.1459033669494691,
+      "health": {
+        "ok": true,
+        "service": "applio-api",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\electron\\data\\runtime",
+        "python": "C:\\Users\\Pascal\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "time": "2026-10-15T13:04:30.776Z"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069482125,
+          "processes": [
+            {
+              "pid": 19916,
+              "name": "Applio",
+              "privateBytes": 87310336,
+              "workingSetBytes": 114323456,
+              "cpuSeconds": 1.203125
+            },
+            {
+              "pid": 21872,
+              "name": "Applio",
+              "privateBytes": 346910720,
+              "workingSetBytes": 134410240,
+              "cpuSeconds": 6.984375
+            },
+            {
+              "pid": 22964,
+              "name": "Applio",
+              "privateBytes": 15728640,
+              "workingSetBytes": 54874112,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 19468,
+              "name": "Applio",
+              "privateBytes": 81305600,
+              "workingSetBytes": 86249472,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 24084,
+              "name": "Applio",
+              "privateBytes": 103325696,
+              "workingSetBytes": 107655168,
+              "cpuSeconds": 0.90625
+            },
+            {
+              "pid": 23416,
+              "name": "Applio",
+              "privateBytes": 67108864,
+              "workingSetBytes": 136478720,
+              "cpuSeconds": 1.4375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069485239,
+          "processes": [
+            {
+              "pid": 19916,
+              "name": "Applio",
+              "privateBytes": 87314432,
+              "workingSetBytes": 114413568,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 21872,
+              "name": "Applio",
+              "privateBytes": 195002368,
+              "workingSetBytes": 125632512,
+              "cpuSeconds": 7
+            },
+            {
+              "pid": 22964,
+              "name": "Applio",
+              "privateBytes": 15728640,
+              "workingSetBytes": 54874112,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 19468,
+              "name": "Applio",
+              "privateBytes": 81305600,
+              "workingSetBytes": 86249472,
+              "cpuSeconds": 0.78125
+            },
+            {
+              "pid": 24084,
+              "name": "Applio",
+              "privateBytes": 103325696,
+              "workingSetBytes": 107655168,
+              "cpuSeconds": 0.90625
+            },
+            {
+              "pid": 23416,
+              "name": "Applio",
+              "privateBytes": 67108864,
+              "workingSetBytes": 136478720,
+              "cpuSeconds": 1.4375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069488372,
+          "processes": [
+            {
+              "pid": 19916,
+              "name": "Applio",
+              "privateBytes": 87318528,
+              "workingSetBytes": 114487296,
+              "cpuSeconds": 1.28125
+            },
+            {
+              "pid": 21872,
+              "name": "Applio",
+              "privateBytes": 195002368,
+              "workingSetBytes": 124977152,
+              "cpuSeconds": 7
+            },
+            {
+              "pid": 22964,
+              "name": "Applio",
+              "privateBytes": 15728640,
+              "workingSetBytes": 54874112,
+              "cpuSeconds": 0.0625
+            },
+            {
+              "pid": 19468,
+              "name": "Applio",
+              "privateBytes": 81305600,
+              "workingSetBytes": 86327296,
+              "cpuSeconds": 0.78125
+            },
+            {
+              "pid": 24084,
+              "name": "Applio",
+              "privateBytes": 103325696,
+              "workingSetBytes": 107655168,
+              "cpuSeconds": 0.90625
+            },
+            {
+              "pid": 23416,
+              "name": "Applio",
+              "privateBytes": 67108864,
+              "workingSetBytes": 136478720,
+              "cpuSeconds": 1.4375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tauri",
+      "round": 3,
+      "startupMs": 1906.2442999999912,
+      "privateBytes": 402669568,
+      "workingSetBytes": 548974592,
+      "processCount": 9,
+      "idleCpuPercent": 0,
+      "health": {
+        "compatibilityService": false,
+        "ok": true,
+        "python": "python",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\tauri\\data\\runtime",
+        "runtime": "rust",
+        "service": "applio-rust-api",
+        "time": "2026-10-15T13:04:51.960897+00:00"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069503227,
+          "processes": [
+            {
+              "pid": 24384,
+              "name": "Applio",
+              "privateBytes": 10457088,
+              "workingSetBytes": 41652224,
+              "cpuSeconds": 0.453125
+            },
+            {
+              "pid": 20916,
+              "name": "msedgewebview2",
+              "privateBytes": 47599616,
+              "workingSetBytes": 141471744,
+              "cpuSeconds": 1.15625
+            },
+            {
+              "pid": 12792,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 9024,
+              "name": "msedgewebview2",
+              "privateBytes": 180465664,
+              "workingSetBytes": 97124352,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 9004,
+              "name": "msedgewebview2",
+              "privateBytes": 13660160,
+              "workingSetBytes": 45744128,
+              "cpuSeconds": 0.28125
+            },
+            {
+              "pid": 23216,
+              "name": "msedgewebview2",
+              "privateBytes": 7950336,
+              "workingSetBytes": 24358912,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 23924,
+              "name": "node",
+              "privateBytes": 90664960,
+              "workingSetBytes": 81035264,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 5368,
+              "name": "conhost",
+              "privateBytes": 1302528,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 3880,
+              "name": "msedgewebview2",
+              "privateBytes": 47886336,
+              "workingSetBytes": 95641600,
+              "cpuSeconds": 0.296875
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069506466,
+          "processes": [
+            {
+              "pid": 24384,
+              "name": "Applio",
+              "privateBytes": 10502144,
+              "workingSetBytes": 41734144,
+              "cpuSeconds": 0.453125
+            },
+            {
+              "pid": 20916,
+              "name": "msedgewebview2",
+              "privateBytes": 47599616,
+              "workingSetBytes": 141479936,
+              "cpuSeconds": 1.15625
+            },
+            {
+              "pid": 12792,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 9024,
+              "name": "msedgewebview2",
+              "privateBytes": 180465664,
+              "workingSetBytes": 97124352,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 9004,
+              "name": "msedgewebview2",
+              "privateBytes": 13660160,
+              "workingSetBytes": 45744128,
+              "cpuSeconds": 0.28125
+            },
+            {
+              "pid": 23216,
+              "name": "msedgewebview2",
+              "privateBytes": 7950336,
+              "workingSetBytes": 24358912,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 23924,
+              "name": "node",
+              "privateBytes": 90664960,
+              "workingSetBytes": 81035264,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 5368,
+              "name": "conhost",
+              "privateBytes": 1302528,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 3880,
+              "name": "msedgewebview2",
+              "privateBytes": 47886336,
+              "workingSetBytes": 95641600,
+              "cpuSeconds": 0.296875
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069509637,
+          "processes": [
+            {
+              "pid": 24384,
+              "name": "Applio",
+              "privateBytes": 10534912,
+              "workingSetBytes": 41766912,
+              "cpuSeconds": 0.453125
+            },
+            {
+              "pid": 20916,
+              "name": "msedgewebview2",
+              "privateBytes": 47640576,
+              "workingSetBytes": 141705216,
+              "cpuSeconds": 1.15625
+            },
+            {
+              "pid": 12792,
+              "name": "msedgewebview2",
+              "privateBytes": 2637824,
+              "workingSetBytes": 13832192,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 9024,
+              "name": "msedgewebview2",
+              "privateBytes": 180465664,
+              "workingSetBytes": 97124352,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 9004,
+              "name": "msedgewebview2",
+              "privateBytes": 13660160,
+              "workingSetBytes": 45744128,
+              "cpuSeconds": 0.28125
+            },
+            {
+              "pid": 23216,
+              "name": "msedgewebview2",
+              "privateBytes": 7950336,
+              "workingSetBytes": 24358912,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 23924,
+              "name": "node",
+              "privateBytes": 90726400,
+              "workingSetBytes": 81195008,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 5368,
+              "name": "conhost",
+              "privateBytes": 1302528,
+              "workingSetBytes": 8024064,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 3880,
+              "name": "msedgewebview2",
+              "privateBytes": 47898624,
+              "workingSetBytes": 95739904,
+              "cpuSeconds": 0.296875
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tauri",
+      "round": 4,
+      "startupMs": 1650.5836000000127,
+      "privateBytes": 414212096,
+      "workingSetBytes": 547549184,
+      "processCount": 9,
+      "idleCpuPercent": 0.06292284149484537,
+      "health": {
+        "compatibilityService": false,
+        "ok": true,
+        "python": "python",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\tauri\\data\\runtime",
+        "runtime": "rust",
+        "service": "applio-rust-api",
+        "time": "2026-10-15T13:05:12.981225+00:00"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069524095,
+          "processes": [
+            {
+              "pid": 23228,
+              "name": "Applio",
+              "privateBytes": 9785344,
+              "workingSetBytes": 39133184,
+              "cpuSeconds": 0.375
+            },
+            {
+              "pid": 15888,
+              "name": "msedgewebview2",
+              "privateBytes": 46866432,
+              "workingSetBytes": 141529088,
+              "cpuSeconds": 0.90625
+            },
+            {
+              "pid": 16008,
+              "name": "msedgewebview2",
+              "privateBytes": 2662400,
+              "workingSetBytes": 13844480,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 15720,
+              "name": "msedgewebview2",
+              "privateBytes": 193404928,
+              "workingSetBytes": 98369536,
+              "cpuSeconds": 1.40625
+            },
+            {
+              "pid": 17236,
+              "name": "msedgewebview2",
+              "privateBytes": 13557760,
+              "workingSetBytes": 45621248,
+              "cpuSeconds": 0.09375
+            },
+            {
+              "pid": 24448,
+              "name": "msedgewebview2",
+              "privateBytes": 7966720,
+              "workingSetBytes": 24367104,
+              "cpuSeconds": 0.03125
+            },
+            {
+              "pid": 5332,
+              "name": "node",
+              "privateBytes": 90222592,
+              "workingSetBytes": 80977920,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 22196,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8040448,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 22736,
+              "name": "msedgewebview2",
+              "privateBytes": 48582656,
+              "workingSetBytes": 95608832,
+              "cpuSeconds": 0.203125
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069527206,
+          "processes": [
+            {
+              "pid": 23228,
+              "name": "Applio",
+              "privateBytes": 9834496,
+              "workingSetBytes": 39219200,
+              "cpuSeconds": 0.375
+            },
+            {
+              "pid": 15888,
+              "name": "msedgewebview2",
+              "privateBytes": 46882816,
+              "workingSetBytes": 141565952,
+              "cpuSeconds": 0.9375
+            },
+            {
+              "pid": 16008,
+              "name": "msedgewebview2",
+              "privateBytes": 2662400,
+              "workingSetBytes": 13844480,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 15720,
+              "name": "msedgewebview2",
+              "privateBytes": 193077248,
+              "workingSetBytes": 98304000,
+              "cpuSeconds": 1.40625
+            },
+            {
+              "pid": 17236,
+              "name": "msedgewebview2",
+              "privateBytes": 13557760,
+              "workingSetBytes": 45621248,
+              "cpuSeconds": 0.09375
+            },
+            {
+              "pid": 24448,
+              "name": "msedgewebview2",
+              "privateBytes": 7966720,
+              "workingSetBytes": 24367104,
+              "cpuSeconds": 0.03125
+            },
+            {
+              "pid": 5332,
+              "name": "node",
+              "privateBytes": 90222592,
+              "workingSetBytes": 80977920,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 22196,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8040448,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 22736,
+              "name": "msedgewebview2",
+              "privateBytes": 48582656,
+              "workingSetBytes": 95608832,
+              "cpuSeconds": 0.203125
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069530303,
+          "processes": [
+            {
+              "pid": 23228,
+              "name": "Applio",
+              "privateBytes": 9867264,
+              "workingSetBytes": 39251968,
+              "cpuSeconds": 0.375
+            },
+            {
+              "pid": 15888,
+              "name": "msedgewebview2",
+              "privateBytes": 46882816,
+              "workingSetBytes": 141639680,
+              "cpuSeconds": 0.953125
+            },
+            {
+              "pid": 16008,
+              "name": "msedgewebview2",
+              "privateBytes": 2662400,
+              "workingSetBytes": 13844480,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 15720,
+              "name": "msedgewebview2",
+              "privateBytes": 193077248,
+              "workingSetBytes": 98304000,
+              "cpuSeconds": 1.40625
+            },
+            {
+              "pid": 17236,
+              "name": "msedgewebview2",
+              "privateBytes": 13561856,
+              "workingSetBytes": 45625344,
+              "cpuSeconds": 0.09375
+            },
+            {
+              "pid": 24448,
+              "name": "msedgewebview2",
+              "privateBytes": 7966720,
+              "workingSetBytes": 24367104,
+              "cpuSeconds": 0.03125
+            },
+            {
+              "pid": 5332,
+              "name": "node",
+              "privateBytes": 90300416,
+              "workingSetBytes": 81174528,
+              "cpuSeconds": 1.140625
+            },
+            {
+              "pid": 22196,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8040448,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 22736,
+              "name": "msedgewebview2",
+              "privateBytes": 48594944,
+              "workingSetBytes": 95694848,
+              "cpuSeconds": 0.203125
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "electron",
+      "round": 4,
+      "startupMs": 6966.116399999999,
+      "privateBytes": 473595904,
+      "workingSetBytes": 593604608,
+      "processCount": 6,
+      "idleCpuPercent": 0.06332063543524072,
+      "health": {
+        "ok": true,
+        "service": "applio-api",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\electron\\data\\runtime",
+        "python": "C:\\Users\\Pascal\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "time": "2026-10-15T13:05:39.561Z"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069550652,
+          "processes": [
+            {
+              "pid": 22972,
+              "name": "Applio",
+              "privateBytes": 88735744,
+              "workingSetBytes": 114917376,
+              "cpuSeconds": 1.1875
+            },
+            {
+              "pid": 23492,
+              "name": "Applio",
+              "privateBytes": 140673024,
+              "workingSetBytes": 119013376,
+              "cpuSeconds": 2.578125
+            },
+            {
+              "pid": 24216,
+              "name": "Applio",
+              "privateBytes": 15851520,
+              "workingSetBytes": 54329344,
+              "cpuSeconds": 0.078125
+            },
+            {
+              "pid": 22608,
+              "name": "Applio",
+              "privateBytes": 77565952,
+              "workingSetBytes": 82919424,
+              "cpuSeconds": 0.640625
+            },
+            {
+              "pid": 21024,
+              "name": "Applio",
+              "privateBytes": 102973440,
+              "workingSetBytes": 107364352,
+              "cpuSeconds": 0.859375
+            },
+            {
+              "pid": 23216,
+              "name": "Applio",
+              "privateBytes": 47681536,
+              "workingSetBytes": 114724864,
+              "cpuSeconds": 0.734375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069553728,
+          "processes": [
+            {
+              "pid": 22972,
+              "name": "Applio",
+              "privateBytes": 88805376,
+              "workingSetBytes": 115073024,
+              "cpuSeconds": 1.1875
+            },
+            {
+              "pid": 23492,
+              "name": "Applio",
+              "privateBytes": 140673024,
+              "workingSetBytes": 119017472,
+              "cpuSeconds": 2.578125
+            },
+            {
+              "pid": 24216,
+              "name": "Applio",
+              "privateBytes": 15851520,
+              "workingSetBytes": 54329344,
+              "cpuSeconds": 0.078125
+            },
+            {
+              "pid": 22608,
+              "name": "Applio",
+              "privateBytes": 77565952,
+              "workingSetBytes": 82923520,
+              "cpuSeconds": 0.640625
+            },
+            {
+              "pid": 21024,
+              "name": "Applio",
+              "privateBytes": 102977536,
+              "workingSetBytes": 107429888,
+              "cpuSeconds": 0.859375
+            },
+            {
+              "pid": 23216,
+              "name": "Applio",
+              "privateBytes": 47722496,
+              "workingSetBytes": 114962432,
+              "cpuSeconds": 0.765625
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069556821,
+          "processes": [
+            {
+              "pid": 22972,
+              "name": "Applio",
+              "privateBytes": 88805376,
+              "workingSetBytes": 115073024,
+              "cpuSeconds": 1.203125
+            },
+            {
+              "pid": 23492,
+              "name": "Applio",
+              "privateBytes": 140673024,
+              "workingSetBytes": 118878208,
+              "cpuSeconds": 2.578125
+            },
+            {
+              "pid": 24216,
+              "name": "Applio",
+              "privateBytes": 15851520,
+              "workingSetBytes": 54329344,
+              "cpuSeconds": 0.078125
+            },
+            {
+              "pid": 22608,
+              "name": "Applio",
+              "privateBytes": 77565952,
+              "workingSetBytes": 82931712,
+              "cpuSeconds": 0.640625
+            },
+            {
+              "pid": 21024,
+              "name": "Applio",
+              "privateBytes": 102977536,
+              "workingSetBytes": 107429888,
+              "cpuSeconds": 0.859375
+            },
+            {
+              "pid": 23216,
+              "name": "Applio",
+              "privateBytes": 47722496,
+              "workingSetBytes": 114962432,
+              "cpuSeconds": 0.765625
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "electron",
+      "round": 5,
+      "startupMs": 6997.804899999988,
+      "privateBytes": 471379968,
+      "workingSetBytes": 592601088,
+      "processCount": 6,
+      "idleCpuPercent": 0.1459033669494691,
+      "health": {
+        "ok": true,
+        "service": "applio-api",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\electron\\data\\runtime",
+        "python": "C:\\Users\\Pascal\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+        "time": "2026-10-15T13:06:06.101Z"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069577246,
+          "processes": [
+            {
+              "pid": 24072,
+              "name": "Applio",
+              "privateBytes": 86953984,
+              "workingSetBytes": 113487872,
+              "cpuSeconds": 1.265625
+            },
+            {
+              "pid": 13456,
+              "name": "Applio",
+              "privateBytes": 138539008,
+              "workingSetBytes": 118460416,
+              "cpuSeconds": 2.359375
+            },
+            {
+              "pid": 11740,
+              "name": "Applio",
+              "privateBytes": 15753216,
+              "workingSetBytes": 54788096,
+              "cpuSeconds": 0.125
+            },
+            {
+              "pid": 16308,
+              "name": "Applio",
+              "privateBytes": 77709312,
+              "workingSetBytes": 83124224,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 22604,
+              "name": "Applio",
+              "privateBytes": 103067648,
+              "workingSetBytes": 107442176,
+              "cpuSeconds": 0.9375
+            },
+            {
+              "pid": 10660,
+              "name": "Applio",
+              "privateBytes": 49340416,
+              "workingSetBytes": 115048448,
+              "cpuSeconds": 0.4375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069580356,
+          "processes": [
+            {
+              "pid": 24072,
+              "name": "Applio",
+              "privateBytes": 86953984,
+              "workingSetBytes": 113487872,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 13456,
+              "name": "Applio",
+              "privateBytes": 138539008,
+              "workingSetBytes": 118464512,
+              "cpuSeconds": 2.359375
+            },
+            {
+              "pid": 11740,
+              "name": "Applio",
+              "privateBytes": 15753216,
+              "workingSetBytes": 54788096,
+              "cpuSeconds": 0.125
+            },
+            {
+              "pid": 16308,
+              "name": "Applio",
+              "privateBytes": 77709312,
+              "workingSetBytes": 83124224,
+              "cpuSeconds": 0.765625
+            },
+            {
+              "pid": 22604,
+              "name": "Applio",
+              "privateBytes": 103071744,
+              "workingSetBytes": 107507712,
+              "cpuSeconds": 0.9375
+            },
+            {
+              "pid": 10660,
+              "name": "Applio",
+              "privateBytes": 49352704,
+              "workingSetBytes": 115253248,
+              "cpuSeconds": 0.4375
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069583493,
+          "processes": [
+            {
+              "pid": 24072,
+              "name": "Applio",
+              "privateBytes": 86953984,
+              "workingSetBytes": 113528832,
+              "cpuSeconds": 1.34375
+            },
+            {
+              "pid": 13456,
+              "name": "Applio",
+              "privateBytes": 138539008,
+              "workingSetBytes": 118390784,
+              "cpuSeconds": 2.359375
+            },
+            {
+              "pid": 11740,
+              "name": "Applio",
+              "privateBytes": 15753216,
+              "workingSetBytes": 54788096,
+              "cpuSeconds": 0.125
+            },
+            {
+              "pid": 16308,
+              "name": "Applio",
+              "privateBytes": 77709312,
+              "workingSetBytes": 83132416,
+              "cpuSeconds": 0.796875
+            },
+            {
+              "pid": 22604,
+              "name": "Applio",
+              "privateBytes": 103071744,
+              "workingSetBytes": 107507712,
+              "cpuSeconds": 0.9375
+            },
+            {
+              "pid": 10660,
+              "name": "Applio",
+              "privateBytes": 49352704,
+              "workingSetBytes": 115253248,
+              "cpuSeconds": 0.4375
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "tauri",
+      "round": 5,
+      "startupMs": 1717.8540999999968,
+      "privateBytes": 398557184,
+      "workingSetBytes": 553574400,
+      "processCount": 9,
+      "idleCpuPercent": 0.6841068301225921,
+      "health": {
+        "compatibilityService": false,
+        "ok": true,
+        "python": "python",
+        "repoRoot": "C:\\Users\\Pascal\\AppData\\Local\\Temp\\applio-benchmark-lYtJll\\tauri\\data\\runtime",
+        "runtime": "rust",
+        "service": "applio-rust-api",
+        "time": "2026-10-15T13:06:26.885303100+00:00"
+      },
+      "snapshots": [
+        {
+          "timestamp": 1792069597959,
+          "processes": [
+            {
+              "pid": 8384,
+              "name": "Applio",
+              "privateBytes": 10256384,
+              "workingSetBytes": 39546880,
+              "cpuSeconds": 0.546875
+            },
+            {
+              "pid": 9872,
+              "name": "msedgewebview2",
+              "privateBytes": 46362624,
+              "workingSetBytes": 141152256,
+              "cpuSeconds": 1.234375
+            },
+            {
+              "pid": 22912,
+              "name": "msedgewebview2",
+              "privateBytes": 2621440,
+              "workingSetBytes": 13824000,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 1816,
+              "name": "msedgewebview2",
+              "privateBytes": 175116288,
+              "workingSetBytes": 98299904,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 22364,
+              "name": "msedgewebview2",
+              "privateBytes": 13627392,
+              "workingSetBytes": 45735936,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 24416,
+              "name": "msedgewebview2",
+              "privateBytes": 7970816,
+              "workingSetBytes": 24383488,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 22816,
+              "name": "node",
+              "privateBytes": 91447296,
+              "workingSetBytes": 82096128,
+              "cpuSeconds": 1.015625
+            },
+            {
+              "pid": 23160,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8044544,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 16776,
+              "name": "msedgewebview2",
+              "privateBytes": 49856512,
+              "workingSetBytes": 100491264,
+              "cpuSeconds": 0.5
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069601111,
+          "processes": [
+            {
+              "pid": 8384,
+              "name": "Applio",
+              "privateBytes": 10305536,
+              "workingSetBytes": 39632896,
+              "cpuSeconds": 0.890625
+            },
+            {
+              "pid": 9872,
+              "name": "msedgewebview2",
+              "privateBytes": 46362624,
+              "workingSetBytes": 141160448,
+              "cpuSeconds": 1.234375
+            },
+            {
+              "pid": 22912,
+              "name": "msedgewebview2",
+              "privateBytes": 2621440,
+              "workingSetBytes": 13824000,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 1816,
+              "name": "msedgewebview2",
+              "privateBytes": 174874624,
+              "workingSetBytes": 98058240,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 22364,
+              "name": "msedgewebview2",
+              "privateBytes": 13627392,
+              "workingSetBytes": 45735936,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 24416,
+              "name": "msedgewebview2",
+              "privateBytes": 7970816,
+              "workingSetBytes": 24383488,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 22816,
+              "name": "node",
+              "privateBytes": 91447296,
+              "workingSetBytes": 82096128,
+              "cpuSeconds": 1.015625
+            },
+            {
+              "pid": 23160,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8044544,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 16776,
+              "name": "msedgewebview2",
+              "privateBytes": 49856512,
+              "workingSetBytes": 100491264,
+              "cpuSeconds": 0.5
+            }
+          ]
+        },
+        {
+          "timestamp": 1792069604240,
+          "processes": [
+            {
+              "pid": 8384,
+              "name": "Applio",
+              "privateBytes": 10358784,
+              "workingSetBytes": 39673856,
+              "cpuSeconds": 1.03125
+            },
+            {
+              "pid": 9872,
+              "name": "msedgewebview2",
+              "privateBytes": 46362624,
+              "workingSetBytes": 141213696,
+              "cpuSeconds": 1.234375
+            },
+            {
+              "pid": 22912,
+              "name": "msedgewebview2",
+              "privateBytes": 2621440,
+              "workingSetBytes": 13824000,
+              "cpuSeconds": 0
+            },
+            {
+              "pid": 1816,
+              "name": "msedgewebview2",
+              "privateBytes": 174874624,
+              "workingSetBytes": 98058240,
+              "cpuSeconds": 1.296875
+            },
+            {
+              "pid": 22364,
+              "name": "msedgewebview2",
+              "privateBytes": 13627392,
+              "workingSetBytes": 45735936,
+              "cpuSeconds": 0.21875
+            },
+            {
+              "pid": 24416,
+              "name": "msedgewebview2",
+              "privateBytes": 7970816,
+              "workingSetBytes": 24383488,
+              "cpuSeconds": 0.046875
+            },
+            {
+              "pid": 22816,
+              "name": "node",
+              "privateBytes": 91508736,
+              "workingSetBytes": 82309120,
+              "cpuSeconds": 1.03125
+            },
+            {
+              "pid": 23160,
+              "name": "conhost",
+              "privateBytes": 1298432,
+              "workingSetBytes": 8044544,
+              "cpuSeconds": 0.015625
+            },
+            {
+              "pid": 16776,
+              "name": "msedgewebview2",
+              "privateBytes": 50126848,
+              "workingSetBytes": 100638720,
+              "cpuSeconds": 0.515625
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "electron": {
+      "startupMs": {
+        "median": 6966.116399999999,
+        "min": 4358.842499999999,
+        "max": 7811.855199999991
+      },
+      "privateBytes": {
+        "median": 516931584,
+        "min": 471379968,
+        "max": 549789696
+      },
+      "workingSetBytes": {
+        "median": 606638080,
+        "min": 592601088,
+        "max": 625303552
+      },
+      "processCount": {
+        "median": 6,
+        "min": 6,
+        "max": 7
+      },
+      "idleCpuPercent": {
+        "median": 0.1459033669494691,
+        "min": 0.06332063543524072,
+        "max": 4.5095553822152885
+      }
+    },
+    "tauri": {
+      "startupMs": {
+        "median": 1717.8540999999968,
+        "min": 1650.5836000000127,
+        "max": 1906.2442999999912
+      },
+      "privateBytes": {
+        "median": 402669568,
+        "min": 369168384,
+        "max": 543449088
+      },
+      "workingSetBytes": {
+        "median": 553574400,
+        "min": 547549184,
+        "max": 586571776
+      },
+      "processCount": {
+        "median": 9,
+        "min": 9,
+        "max": 9
+      },
+      "idleCpuPercent": {
+        "median": 0.08235821210204512,
+        "min": 0,
+        "max": 2.7118427769270035
+      }
+    }
+  }
+}

@@ -200,8 +200,6 @@ def interactive_mode():
                     f0_autotune_strength=1.0,
                     proposed_pitch=False,
                     proposed_pitch_threshold=155.0,
-                    clean_audio=False,
-                    clean_strength=0.7,
                     export_format="WAV",
                     embedder_model="contentvec",
                 )
@@ -243,8 +241,6 @@ def interactive_mode():
                     f0_autotune_strength=1.0,
                     proposed_pitch=False,
                     proposed_pitch_threshold=155.0,
-                    clean_audio=False,
-                    clean_strength=0.7,
                     export_format="WAV",
                     embedder_model="contentvec",
                 )
@@ -289,8 +285,6 @@ def interactive_mode():
                     f0_autotune_strength=1.0,
                     proposed_pitch=False,
                     proposed_pitch_threshold=155.0,
-                    clean_audio=False,
-                    clean_strength=0.5,
                     export_format="WAV",
                     embedder_model="contentvec",
                 )
@@ -478,7 +472,7 @@ def interactive_mode():
             print("  applio f0-curve [options]         Extract F0 curve from audio")
             print("  applio tensorboard                Launch TensorBoard monitor")
             print("  applio web                        Start Web UI and API server")
-            print("  applio desktop                    Launch Desktop Electron app")
+            print("  applio desktop                    Launch Tauri desktop app")
             print("  applio menu                       Open this interactive menu\n")
 
 

@@ -3,9 +3,9 @@
 // Compatible with both npm (flat node_modules, real dirs) and pnpm
 // (symlinked node_modules, standalone tracing can leave broken symlinks).
 // Docs (verified with Playwright, HTTP 200):
-// - Next.js standalone: https://nextjs.org/docs/backend/api-reference/config/next-config-js/output
+// - Next.js standalone: https://nextjs.org/docs/app/api-reference/config/next-config-js/output
 // - pnpm symlinks: https://pnpm.io/motivation
-// - electron-builder FileSet: https://www.electron.build/docs/api/app-builder-lib.interface.fileset/
+// - Tauri resources: https://v2.tauri.app/develop/resources/
 import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -56,7 +56,7 @@ function copyDir(src: string, dest: string): void {
     const to = path.join(dest, entry.name);
     if (entry.isSymbolicLink()) {
       // Dereference (cp -rL equivalent): copy real file/dir, never the link.
-      // Required for Electron AppImage: links pointing to ../../.pnpm break.
+      // Required for Tauri AppImage: links pointing to ../../.pnpm break.
       let realFrom: string;
       try {
         realFrom = fs.realpathSync(from);
@@ -169,7 +169,7 @@ function ensureRealDep(dep: string, src: string): void {
   const target = path.join(standaloneModules, dep);
   const targetStat = fs.lstatSync(target, { throwIfNoEntry: false });
   if (targetStat?.isSymbolicLink()) {
-    // Broken or valid link -> replace with real copy for Electron/Docker.
+    // Broken or valid link -> replace with real copy for Tauri/Docker.
     const resolves = fs.existsSync(target); // follows link
     console.log(`[copy-static] replacing ${resolves ? "symlink" : "broken symlink"} ${dep}`);
     fs.unlinkSync(target);
