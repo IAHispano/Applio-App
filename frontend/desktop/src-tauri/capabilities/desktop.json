@@ -3,7 +3,7 @@
   "identifier": "desktop",
   "description": "Native commands for the main Applio window and its loopback UI only.",
   "windows": ["main"],
-  "local": true,
+  "local": false,
   "remote": { "urls": ["http://127.0.0.1:3000/*"] },
   "permissions": ["core:event:default", "allow-native"]
 }

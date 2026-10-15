@@ -82,54 +82,25 @@ fn valid_job_link(href: &str) -> bool {
 }
 
 fn focus(app: &AppHandle) {
-    if let Some(window) = app
-        .get_webview_window("splash")
-        .or_else(|| app.get_webview_window("main"))
-    {
+    if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
     }
 }
 
-fn show_splash(app: &AppHandle) -> tauri::Result<()> {
-    if let Some(window) = app.get_webview_window("splash") {
-        window.show()?;
-        return Ok(());
-    }
-    let window =
-        tauri::WebviewWindowBuilder::new(app, "splash", WebviewUrl::App("index.html".into()))
-            .title("Applio")
-            .inner_size(1140.0, 640.0)
-            .center()
-            .decorations(false)
-            .resizable(false)
-            .minimizable(false)
-            .maximizable(false)
-            .background_color(tauri::webview::Color(6, 6, 6, 255))
-            .data_directory(app.state::<AppState>().paths.config.join("session"))
-            .additional_browser_args(WEBVIEW_ARGS)
-            .devtools(false)
-            .initialization_script(desktop_policy::SCRIPT)
-            .visible(false)
-            .on_page_load(|window, payload| {
-                if payload.event() == tauri::webview::PageLoadEvent::Finished {
-                    let _ = window.show();
-                }
-            })
-            .on_navigation(|url| {
-                url.scheme() == "tauri"
-                    || (url.scheme() == "http" && url.host_str() == Some("tauri.localhost"))
-            })
-            .build()?;
-    desktop_policy::apply(&window)?;
-    let handle = app.clone();
-    window.on_window_event(move |event| {
-        if matches!(event, tauri::WindowEvent::CloseRequested { .. }) {
-            handle.exit(0);
+fn show_startup_error(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("main") {
+        let url = if cfg!(windows) {
+            "http://tauri.localhost/index.html"
+        } else {
+            "tauri://localhost/index.html"
+        };
+        if let Ok(url) = url.parse() {
+            let _ = window.navigate(url);
         }
-    });
-    Ok(())
+        focus(app);
+    }
 }
 
 async fn startup(app: AppHandle) -> Result<(), String> {
@@ -138,7 +109,6 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
     *state.startup_error.lock().unwrap() = None;
-    let _ = app.emit("startup-status", "Loading Applio…");
     let result: anyhow::Result<()> = async {
         state.stop().await;
         // Reserve the public API before starting any worker. A conflicting
@@ -146,7 +116,6 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:8000").await?;
         let web_reservation = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
         let environment = runtime::prepare(&state.paths)?;
-        let _ = app.emit("startup-status", "Starting engine…");
         let config = applio_api::ApiConfig {
             code_root: state.paths.code.clone(),
             data_root: state.paths.data.clone(),
@@ -178,7 +147,6 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         let host = Host::start(app.clone(), &state.paths).await?;
         *state.host.lock().await = Some(host.clone());
         runtime::wait_for_services().await?;
-        let _ = app.emit("startup-status", "Loading Applio…");
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| anyhow::anyhow!("Main window is missing"))?;
@@ -204,6 +172,7 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         );
         *state.startup_error.lock().unwrap() = Some(message.clone());
         let _ = app.emit("startup-error", &message);
+        show_startup_error(&app);
         let _ = tray::refresh(&app);
         return Err(message);
     }
@@ -479,7 +448,6 @@ fn main() {
                             .to_string_lossy()
                             .into_owned(),
                     )
-                    .with_denylist(&["splash"])
                     .with_state_flags(
                         tauri_plugin_window_state::StateFlags::SIZE
                             | tauri_plugin_window_state::StateFlags::POSITION
@@ -517,6 +485,7 @@ fn main() {
                     .inner_size(1280.0, 860.0)
                     .min_inner_size(960.0, 640.0)
                     .visible(false)
+                    .background_color(tauri::webview::Color(6, 6, 6, 255))
                     .data_directory(app.state::<AppState>().paths.config.join("session"))
                     .additional_browser_args(WEBVIEW_ARGS)
                     .devtools(false)
@@ -535,9 +504,6 @@ fn main() {
                             state.interface_loaded.notify_one();
                             let _ = window.show();
                             let _ = window.set_focus();
-                            if let Some(splash) = window.app_handle().get_webview_window("splash") {
-                                let _ = splash.destroy();
-                            }
                             let _ = tray::refresh(window.app_handle());
                         }
                     })
@@ -572,7 +538,6 @@ fn main() {
                 }
                 _ => {}
             });
-            show_splash(app.handle())?;
             tray::create(app.handle())?;
             let notification_handle = app.handle().clone();
             app.notification().on_action(move |event| {
@@ -606,17 +571,7 @@ fn main() {
                         "An application service stopped. Check the launcher log, then retry."
                             .to_string();
                     *handle.state::<AppState>().startup_error.lock().unwrap() = Some(message);
-                    if let Some(window) = handle.get_webview_window("main") {
-                        let url = if cfg!(windows) {
-                            "http://tauri.localhost/index.html"
-                        } else {
-                            "tauri://localhost/index.html"
-                        };
-                        if let Ok(url) = url.parse() {
-                            let _ = window.navigate(url);
-                        }
-                    }
-                    focus(&handle);
+                    show_startup_error(&handle);
                     let cleanup = handle.clone();
                     tauri::async_runtime::spawn(async move {
                         cleanup.state::<AppState>().stop().await;

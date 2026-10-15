@@ -62,11 +62,11 @@ for (const stream of [processHandle.stdout, processHandle.stderr])
     launcherOutput = (launcherOutput + bytes).slice(-10000);
   });
 let socket;
-let loadingSocket;
+let startupSocket;
 try {
   if (startupRetry) {
-    let loading;
-    for (let attempt = 0; attempt < 120 && !loading; attempt++) {
+    let failurePage;
+    for (let attempt = 0; attempt < 120 && !failurePage; attempt++) {
       if (processHandle.exitCode !== null)
         throw new Error(`Desktop exited: ${processHandle.exitCode} ${launcherOutput}`);
       let targets = [];
@@ -101,51 +101,43 @@ try {
           returnByValue: true,
           expression: "window.__TAURI_INTERNALS__?.metadata?.currentWindow?.label",
         });
-        if (label.result?.value === "splash") {
-          loading = { call };
-          loadingSocket = ws;
+        if (label.result?.value === "main") {
+          failurePage = { call };
+          startupSocket = ws;
           break;
         }
         ws.close();
       }
-      if (!loading) await delay(50);
+      if (!failurePage) await delay(50);
     }
-    assert.ok(loading, "The original splash window must be shown during startup");
-    const state = await loading.call("Runtime.evaluate", {
+    assert.ok(failurePage, "Startup failure must appear in the main window");
+    const state = await failurePage.call("Runtime.evaluate", {
       awaitPromise: true,
       returnByValue: true,
       expression: `(async()=>{
       for(let i=0;i<80&&!document.body.dataset.failed;i++)await new Promise(resolve=>setTimeout(resolve,50));
-      await document.fonts.load('700 82px Syne');
       let denied=false;try{await window.__TAURI__.core.invoke('bridge_command',{action:'status'});}catch{denied=true;}
-      return {failed:document.body.dataset.failed==='true',retry:!document.getElementById('retry').hidden,font:document.fonts.check('700 82px Syne'),brand:document.querySelector('.brand')?.textContent,grid:!!document.querySelector('.bg-lines'),denied};
+      return {failed:document.body.dataset.failed==='true',retry:!document.getElementById('retry').disabled,panel:!document.getElementById('startup-error').hidden,denied};
     })()`,
     });
     assert.deepEqual(state.result.value, {
       failed: true,
       retry: true,
-      font: true,
-      brand: "Applio",
-      grid: true,
+      panel: true,
       denied: true,
     });
     if (process.argv.includes("--snapshot")) {
-      await loading.call("Runtime.evaluate", {
-        expression:
-          "document.getElementById('retry').hidden=true; delete document.body.dataset.failed; window.setStatus('Loading Applio…');",
-      });
-      await delay(450);
-      const screenshot = await loading.call("Page.captureScreenshot", { format: "png" });
-      const output = path.join(root, ".applio-dev/splash-preview.png");
+      const screenshot = await failurePage.call("Page.captureScreenshot", { format: "png" });
+      const output = path.join(root, ".applio-dev/startup-error-preview.png");
       fs.mkdirSync(path.dirname(output), { recursive: true });
       fs.writeFileSync(output, Buffer.from(screenshot.data, "base64"));
-      console.log(`Splash preview: ${output}`);
+      console.log(`Startup error preview: ${output}`);
     }
     await new Promise((resolve) => blocker.close(resolve));
-    await loading.call("Runtime.evaluate", {
-      expression: "document.getElementById('retry').hidden=false; document.getElementById('retry').click();",
+    await failurePage.call("Runtime.evaluate", {
+      expression: "document.getElementById('retry').click();",
     });
-    console.log("Splash font, original artwork, restricted capabilities and startup retry verified.");
+    console.log("Main-window startup errors, restricted capabilities and retry verified.");
   }
   let target;
   for (let i = 0; i < 180; i++) {
@@ -296,13 +288,13 @@ try {
           (target.url.includes("tauri.localhost") || target.url.startsWith("tauri://")),
       ),
       false,
-      "The splash must close after the main interface loads",
+      "The startup error page must give way to the main interface",
     );
   }
   console.log("Tauri WebView2 smoke check passed:", JSON.stringify(value));
 } finally {
   socket?.close();
-  loadingSocket?.close();
+  startupSocket?.close();
   if (blocker?.listening) await new Promise((resolve) => blocker.close(resolve));
   // Test-only process tree; closing the native window normally hides it to tray.
   await new Promise((resolve) => {

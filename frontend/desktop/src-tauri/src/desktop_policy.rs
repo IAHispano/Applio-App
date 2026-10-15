@@ -64,6 +64,27 @@ mod checks {
     use super::*;
 
     #[test]
+    fn startup_error_page_only_receives_retry_permissions_in_the_main_window() {
+        let desktop: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/desktop.json")).unwrap();
+        let startup: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/startup.json")).unwrap();
+        assert_eq!(desktop["local"], false);
+        assert_eq!(startup["windows"], serde_json::json!(["main"]));
+        assert_eq!(startup["local"], true);
+        assert_eq!(
+            startup["permissions"],
+            serde_json::json!(["core:event:default", "allow-startup"])
+        );
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(
+            config["app"]["security"]["capabilities"],
+            serde_json::json!(["desktop", "startup"])
+        );
+    }
+
+    #[test]
     fn app_permissions_do_not_prompt_or_extend_to_tensorboard_and_remote_pages() {
         use tauri::webview::{PermissionKind, PermissionResponse};
         let app: tauri::Url = "http://127.0.0.1:3000/realtime".parse().unwrap();

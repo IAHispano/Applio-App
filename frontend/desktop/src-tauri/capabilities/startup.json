@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "startup",
+  "description": "Local startup failure page: error details and retry only.",
+  "windows": ["main"],
+  "local": true,
+  "permissions": ["core:event:default", "allow-startup"]
+}

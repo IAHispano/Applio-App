@@ -1,6 +1,7 @@
 // Automated, headless navigation against the exported UI and real Rust HTTP host.
 import assert from "node:assert/strict";
 import { checkDashboard } from "./check-dashboard.mjs";
+import { checkStartupPage } from "./check-startup.mjs";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -206,6 +207,7 @@ export async function checkBrowser(origin, temporary) {
     console.log(
       "Update dialog passed: one subscription/check, download completion, explicit install, failed fallback.",
     );
+    await checkStartupPage(call);
     await call("Browser.close");
   } finally {
     socket?.close();
