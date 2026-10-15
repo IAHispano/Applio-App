@@ -75,6 +75,7 @@ async fn status(
     }
     if query.get("refresh").is_some_and(|v| v == "1") {
         state.engine.runtime.package_probe.invalidate().await;
+        state.engine.runtime.toolchain.invalidate();
     }
     let token = state.engine.cancellation_token();
     let value = compute(&state.engine, None, false, &token)
@@ -337,8 +338,10 @@ async fn install(State(state): State<Arc<Setup>>) -> Accepted {
             move |engine, job, token| async move {
                 setup.revision.fetch_add(1, Ordering::SeqCst);
                 engine.runtime.package_probe.invalidate().await;
+                engine.runtime.toolchain.invalidate();
                 let result = crate::setup_install::install(&engine, &job.id, &token).await;
                 engine.runtime.package_probe.invalidate().await;
+                engine.runtime.toolchain.invalidate();
                 setup.revision.fetch_add(1, Ordering::SeqCst);
                 result
             },

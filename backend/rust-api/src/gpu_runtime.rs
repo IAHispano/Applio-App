@@ -7,7 +7,8 @@ use std::{
     collections::BTreeMap,
     ffi::OsString,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Mutex, OnceLock},
+    time::{Duration, Instant},
 };
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -212,6 +213,37 @@ pub struct Msvc {
     pub bin: PathBuf,
     pub includes: Vec<PathBuf>,
 }
+
+// vswhere can take seconds. Share discovery across every script and cloned
+// runtime, while retrying missing tools promptly after a user installs them.
+#[derive(Default)]
+pub(crate) struct ToolchainCache(Mutex<Option<ToolchainEntry>>);
+struct ToolchainEntry {
+    root: Option<PathBuf>,
+    at: Instant,
+    msvc: Option<Msvc>,
+}
+impl ToolchainCache {
+    pub(crate) fn invalidate(&self) {
+        *self.0.lock().unwrap() = None;
+    }
+    fn msvc(&self, root: Option<&Path>, discover: impl FnOnce() -> Option<Msvc>) -> Option<Msvc> {
+        let mut cache = self.0.lock().unwrap();
+        if let Some(entry) = &*cache {
+            let ttl = if entry.msvc.is_some() { 600 } else { 5 };
+            if entry.root.as_deref() == root && entry.at.elapsed() < Duration::from_secs(ttl) {
+                return entry.msvc.clone();
+            }
+        }
+        let msvc = discover();
+        *cache = Some(ToolchainEntry {
+            root: root.map(Path::to_path_buf),
+            at: Instant::now(),
+            msvc: msvc.clone(),
+        });
+        msvc
+    }
+}
 fn newest(directory: &Path) -> Option<PathBuf> {
     let mut paths = std::fs::read_dir(directory)
         .ok()?
@@ -358,12 +390,10 @@ pub fn apply_to_command(
     }
     inherited.extend(spec.env.clone());
     let hip = find_hip();
-    let msvc = find_msvc_in(
-        runtime
-            .env("ProgramFiles(x86)")
-            .map(PathBuf::from)
-            .as_deref(),
-    );
+    let pf86 = runtime.env("ProgramFiles(x86)").map(PathBuf::from);
+    let msvc = runtime
+        .toolchain
+        .msvc(pf86.as_deref(), || find_msvc_in(pf86.as_deref()));
     spec.env = rocm_environment(&venv, &target, hip.as_deref(), msvc.as_ref(), &inherited)?;
     spec.env_remove.push("ZLUDA_COMGR_LOG_LEVEL".into());
     Ok(())
@@ -513,6 +543,41 @@ pub fn find_hip() -> Option<PathBuf> {
 #[cfg(test)]
 mod checks {
     use super::*;
+    #[test]
+    fn toolchain_discovery_is_shared_expires_and_recovers_after_installation() {
+        let cache = std::sync::Arc::new(ToolchainCache::default());
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let discover = || {
+            calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Some(Msvc {
+                bin: "compiler".into(),
+                includes: vec![],
+            })
+        };
+        std::thread::scope(|scope| {
+            for _ in 0..8 {
+                let cache = cache.clone();
+                let discover = &discover;
+                scope.spawn(move || {
+                    assert!(cache.msvc(Some(Path::new("tools")), discover).is_some())
+                });
+            }
+        });
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        cache.0.lock().unwrap().as_mut().unwrap().at = Instant::now() - Duration::from_secs(601);
+        cache.msvc(Some(Path::new("tools")), discover);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 2);
+        cache.msvc(Some(Path::new("other-tools")), discover);
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 3);
+        cache.invalidate();
+        assert!(cache.msvc(None, || None).is_none());
+        assert!(cache.msvc(None, discover).is_none());
+        cache.0.lock().unwrap().as_mut().unwrap().at = Instant::now() - Duration::from_secs(6);
+        assert!(cache.msvc(None, discover).is_some());
+        cache.invalidate();
+        assert!(cache.msvc(None, discover).is_some());
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 5);
+    }
     #[test]
     fn amd_targets_match_the_original_api_for_marketing_names_pci_ids_and_overrides() {
         let data: Value = serde_json::from_str(include_str!("gpu-reference.json")).unwrap();

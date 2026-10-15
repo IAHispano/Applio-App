@@ -11,6 +11,68 @@ use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
+async fn pinned_worker_defers_conversion_imports_and_reuses_the_converter() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let python = std::env::var_os("PYTHON_BIN")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(if cfg!(windows) { "python" } else { "python3" }));
+    let spec =
+        CommandSpec::new(python, directory.path()).args([root.join("bin/check-python-startup.py")]);
+    let output = tokio::time::timeout(
+        Duration::from_secs(30),
+        ManagedProcess::run(&spec, &CancellationToken::new(), |_, _| {}),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    output.ensure_success().unwrap();
+    assert!(output
+        .stdout
+        .contains("conversion/preload reuse one converter"));
+}
+
+#[tokio::test]
+#[ignore = "Requires APPLIO_ENGINE_TEST_PYTHON pointing to installed engine Python"]
+async fn real_python_command_preparation_and_first_output_timings() {
+    let fixture = crate::processing_checks::Fixture::new(true);
+    let runtime = &fixture.engine.runtime;
+    let config = crate::ApiConfig {
+        code_root: runtime.code.clone(),
+        data_root: runtime.data.clone(),
+        config_dir: runtime.config_dir.clone(),
+    };
+    let runtime = crate::engine_runtime::EngineRuntime::with_python(
+        &config,
+        Some(
+            std::env::var_os("APPLIO_ENGINE_TEST_PYTHON")
+                .expect("engine Python")
+                .into(),
+        ),
+    )
+    .unwrap();
+    for sample in 1..=5 {
+        let start = std::time::Instant::now();
+        let spec = runtime.python_command(["-c", "print('READY')"]).unwrap();
+        let prepared = start.elapsed();
+        let mut first = None;
+        let output = ManagedProcess::run(&spec, &CancellationToken::new(), |_, _| {
+            first.get_or_insert_with(|| start.elapsed());
+        })
+        .await
+        .unwrap();
+        output.ensure_success().unwrap();
+        assert_eq!(output.stdout.trim(), "READY");
+        println!(
+            "Python launch {sample}: prepare {prepared:?}, first output {:?}, total {:?}",
+            first.unwrap(),
+            start.elapsed()
+        );
+    }
+    fixture.engine.shutdown().await.unwrap();
+}
+
+#[tokio::test]
 async fn terminal_jobs_reject_late_results_and_activity_does_not_expose_paths() {
     let directory = tempfile::tempdir().unwrap();
     let jobs = JobStore::open(directory.path().join("jobs.json")).unwrap();

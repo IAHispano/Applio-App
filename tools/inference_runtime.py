@@ -20,6 +20,11 @@ def main():
             "Usage: inference_runtime.py {worker|infer} [inference options]"
         )
     mode = sys.argv.pop(1)
+    if mode == "worker":
+        from tools.worker_runtime import run
+
+        run(backend)
+        return
     from tools.optimized_inference import install
 
     install()

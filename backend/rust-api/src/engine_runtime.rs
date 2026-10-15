@@ -162,6 +162,7 @@ pub struct EngineRuntime {
     pub environment: std::collections::BTreeMap<OsString, OsString>,
     python: PathBuf,
     pub(crate) package_probe: Arc<crate::engine::PackageProbe>,
+    pub(crate) toolchain: Arc<crate::gpu_runtime::ToolchainCache>,
 }
 impl EngineRuntime {
     pub fn open(config: &ApiConfig) -> Result<Self> {
@@ -219,6 +220,7 @@ impl EngineRuntime {
             environment,
             python,
             package_probe: Arc::default(),
+            toolchain: Arc::default(),
         })
     }
 
