@@ -650,7 +650,8 @@ pub(crate) async fn install(
     )
     .await
     .unwrap_or_default();
-    let amd_gpu = hardware.amd() || engine.runtime.env("APPLIO_ROCM_GFX").is_some();
+    let explicit_gfx = engine.runtime.env("APPLIO_ROCM_GFX");
+    let amd_gpu = hardware.use_rocm(explicit_gfx.as_ref().and_then(|v| v.to_str()));
     let (nvidia, driver) = if cfg!(target_os = "macos") || cfg!(windows) && amd_gpu {
         (Vec::new(), None)
     } else {
@@ -664,7 +665,7 @@ pub(crate) async fn install(
     engine
         .jobs
         .log(id, &format!("Torch installation policy: {policy:?}"));
-    let inspect="import importlib.metadata as m,json; print('APPLIO_JSON:'+json.dumps([(d.metadata.get('Name') or '').lower() for d in m.distributions() if (d.metadata.get('Name') or '').lower() in ('onnxruntime','onnxruntime-gpu','swift-f0')]))";
+    let inspect="import importlib.metadata as m,json; print('APPLIO_JSON:'+json.dumps([(d.metadata.get('Name') or '').lower() for d in m.distributions() if (d.metadata.get('Name') or '').lower() in ('onnxruntime','onnxruntime-gpu','swift-f0') or (d.metadata.get('Name') or '').lower().startswith('amd-')]))";
     let output = setup_routes::run_check(
         &python.command(&engine.runtime, ["-c", inspect])?,
         token,
@@ -676,6 +677,49 @@ pub(crate) async fn install(
     let installed = installed
         .as_array()
         .context("Invalid installed package list")?;
+    if cfg!(windows)
+        && !policy.amd
+        && gpu_runtime::rocm_installed(&engine.runtime.data.join(".venv"))
+    {
+        engine.jobs.log(
+            id,
+            "Removing AMD ROCm packages before installing the selected CPU/CUDA runtime.",
+        );
+        let mut packages = vec![
+            "-m",
+            "pip",
+            "uninstall",
+            "-y",
+            "torch",
+            "torchaudio",
+            "torchvision",
+        ];
+        packages.extend(
+            installed
+                .iter()
+                .filter_map(Value::as_str)
+                .filter(|name| name.starts_with("amd-")),
+        );
+        run(
+            engine,
+            id,
+            &python.command(&engine.runtime, packages)?,
+            token,
+            180,
+        )
+        .await?;
+        for marker in [
+            ".venv/.rocm-installed",
+            ".venv/Lib/site-packages/torch/lib/.rocm-installed",
+        ] {
+            match tokio::fs::remove_file(engine.runtime.data.join(marker)).await {
+                Ok(()) => {}
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        engine.runtime.toolchain.invalidate();
+    }
     if installed.iter().any(|name| name == "swift-f0") {
         run(
             engine,

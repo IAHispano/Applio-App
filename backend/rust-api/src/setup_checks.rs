@@ -302,6 +302,59 @@ fn rebuilding_a_virtualenv_requires_a_real_owned_directory() {
     assert!(crate::setup_install::validate_venv_rebuild(data, &venv).is_ok());
 }
 
+#[cfg(windows)]
+#[tokio::test]
+async fn mixed_gpu_setup_repairs_stale_rocm_and_installs_cuda() {
+    let fixture = fixture().await;
+    let data = &fixture.engine.runtime.data;
+    std::fs::write(data.join("mixed-gpus"), "").unwrap();
+    let library = data.join(".venv/Lib/site-packages/torch/lib");
+    std::fs::create_dir_all(&library).unwrap();
+    for marker in [
+        data.join(".venv/.rocm-installed"),
+        library.join(".rocm-installed"),
+    ] {
+        std::fs::write(marker, r#"{"gfxTarget":"gfx1150"}"#).unwrap();
+    }
+    let id = fixture.start("/api/setup/install", json!({})).await;
+    let job = fixture.finish(&id).await;
+    assert_eq!(
+        job.status,
+        crate::jobs::JobStatus::Done,
+        "{:?}\n{:?}",
+        job.error,
+        job.logs
+    );
+    let log = std::fs::read_to_string(data.join("setup-commands")).unwrap();
+    assert!(
+        log.contains("uninstall")
+            && log.contains("amd-torch-device-gfx1150")
+            && log.contains("amd-torchvision-device-gfx1150"),
+        "{log}"
+    );
+    assert!(
+        log.contains("https://download.pytorch.org/whl/cu126"),
+        "{log}"
+    );
+    assert!(!data.join(".venv/.rocm-installed").exists());
+    assert!(!library.join(".rocm-installed").exists());
+    let requirements = std::fs::read_to_string(data.join(".requirements-resolved.txt")).unwrap();
+    assert!(requirements.contains("torch==2.7.1"));
+    let (_, status) = fixture
+        .send(
+            Request::get("/api/setup/status?refresh=1")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert!(!status["checks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|check| matches!(check["id"].as_str(), Some("rocm" | "msvc_tools"))));
+    fixture.engine.shutdown().await.unwrap();
+}
+
 const PROGRAM: &str = r#"
 use std::{env,fs,io::Write,path::PathBuf,time::Duration};
 fn main(){
@@ -310,7 +363,7 @@ fn main(){
  if name=="vswhere"{let exe=env::current_exe().unwrap();let root=exe.parent().unwrap().parent().unwrap().parent().unwrap().parent().unwrap();println!("{}",root.join("fake-msvc").display());return;}
  let root=env::var_os("APPLIO_ROOT").map(PathBuf::from).unwrap_or_else(||env::current_dir().unwrap());
  if let Ok(mut log)=fs::OpenOptions::new().append(true).create(true).open(root.join("setup-commands")){writeln!(log,"{name}: {args:?}").unwrap();}
- if name=="powershell" {println!("[]");return;}
+ if name=="powershell" {if root.join("mixed-gpus").is_file(){println!("[{{\"Name\":\"AMD Radeon 890M\"}},{{\"Name\":\"NVIDIA RTX 4060 Laptop GPU\"}}]");}else{println!("[]");}return;}
  if name=="reg" {println!("Installed REG_DWORD 0x1");return;}
  if name=="nvidia-smi" {if args.iter().any(|a|a.contains("query-gpu")){println!("NVIDIA RTX 3060, 8.6");}else{println!("CUDA Version: 12.6");}return;}
  if name=="ffmpeg" {println!("ffmpeg version fixture");return;}
@@ -327,7 +380,7 @@ fn main(){
  }
  if args==["--version"]{println!("Python 3.12.12");return;}
  if args.first().map(String::as_str)==Some("-c"){
-  if args[1].contains("distributions()"){println!("APPLIO_JSON:[]");}else{println!("OK|2.7.1");}return;
+  if args[1].contains("distributions()"){if root.join("mixed-gpus").is_file(){println!("APPLIO_JSON:[\"amd-torch-device-gfx1150\",\"amd-torchvision-device-gfx1150\"]");}else{println!("APPLIO_JSON:[]");}}else{println!("OK|2.7.1");}return;
  }
  if args.first().is_some_and(|arg|arg.ends_with("prerequisites_download.py")){
   if root.join("missing-pretrains").is_file(){println!("fixture exits successfully without required pretrains");return;}

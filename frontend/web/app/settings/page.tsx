@@ -1020,13 +1020,13 @@ export default function SettingsPage() {
           icon={<HardDrive size={18} />}
           title={t("Disk & Cache Storage")}
           description={t(
-            "Manage temporary audio outputs, cached files, and upload storage to free up disk space.",
+            "Choose where training data is stored, and manage temporary audio outputs, cached files, and upload storage to free up disk space.",
           )}
         />
 
         <div className="space-y-3">
           <FormField
-            label={t("Logs & Models Folder")}
+            label={t("Training Data Folder")}
             htmlFor="settings-logs-dir"
             description={t(SETTING_HELP.storage)}
           >

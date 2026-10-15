@@ -807,7 +807,11 @@ async fn run(
         if kind == "train" || pipeline {
             engine.jobs.log(
                 &job.id,
-                &format!(">>> Generating Index ({})...", string(&p, "indexAlgorithm")),
+                &format!(
+                    ">>> {}Generating Index ({})...",
+                    if pipeline { "[4/4] " } else { "" },
+                    string(&p, "indexAlgorithm")
+                ),
             );
         }
         step(

@@ -286,7 +286,8 @@ pub(crate) async fn compute(
         )
         .await
         .unwrap_or_default();
-        if hardware.amd() || runtime.env("APPLIO_ROCM_GFX").is_some() {
+        let explicit_gfx = runtime.env("APPLIO_ROCM_GFX");
+        if hardware.use_rocm(explicit_gfx.as_ref().and_then(|v| v.to_str())) {
             let rocm = crate::gpu_runtime::rocm_installed(&runtime.data.join(".venv"));
             checks.push(Check::new(
                 "rocm",

@@ -92,7 +92,7 @@ export const SETTING_HELP = {
   highMode: "Choose how extended RMVPE pitch detection handles high-register audio.",
   ceiling: "Set the highest pitch RMVPE should detect, in Hz.",
   storage:
-    "Choose the folder for models and training files. Moving an existing folder takes effect after restart.",
+    "Location for trained models and training runs (checkpoints, indexes, sliced audio, extracted features). Source datasets, uploads and temporary outputs stay in the app data folder. Takes effect after restart.",
   filterBox: "Show search boxes for finding models and index files more quickly.",
   discord: "Show your Applio activity in Discord Rich Presence.",
   language: "Choose the interface language. Auto follows your operating system language.",

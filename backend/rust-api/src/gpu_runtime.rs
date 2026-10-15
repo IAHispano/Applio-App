@@ -18,6 +18,18 @@ pub struct Hardware {
     pub pnp_ids: Vec<String>,
 }
 impl Hardware {
+    pub fn nvidia(&self) -> bool {
+        self.names
+            .iter()
+            .any(|name| name.to_ascii_lowercase().contains("nvidia"))
+            || self
+                .pnp_ids
+                .iter()
+                .any(|id| id.to_ascii_uppercase().contains("VEN_10DE"))
+    }
+    pub fn use_rocm(&self, explicit: Option<&str>) -> bool {
+        explicit.is_some_and(|value| !value.trim().is_empty()) || self.amd() && !self.nvidia()
+    }
     pub fn amd(&self) -> bool {
         self.names.iter().any(|name| {
             let name = name.to_ascii_lowercase();
@@ -348,6 +360,15 @@ pub fn apply_to_command(
     if !rocm_installed(&venv) && explicit.is_none() {
         return Ok(());
     }
+    // A stale ROCm installation must not override an NVIDIA discrete GPU.
+    // Keep the explicit override available for users who choose their AMD GPU.
+    if explicit
+        .as_ref()
+        .is_none_or(|value| value.trim().is_empty())
+        && cached_hardware().nvidia()
+    {
+        return Ok(());
+    }
     let marker = [
         venv.join(".rocm-installed"),
         venv.join("Lib/site-packages/torch/lib/.rocm-installed"),
@@ -544,6 +565,24 @@ pub fn find_hip() -> Option<PathBuf> {
 mod checks {
     use super::*;
     #[test]
+    fn nvidia_takes_precedence_over_amd_integrated_graphics_unless_forced() {
+        let mut hardware = Hardware {
+            names: vec![
+                "AMD Radeon 890M".into(),
+                "NVIDIA RTX 4060 Laptop GPU".into(),
+            ],
+            pnp_ids: vec![],
+        };
+        assert!(!hardware.use_rocm(None));
+        assert!(!hardware.use_rocm(Some("")));
+        assert!(hardware.use_rocm(Some("gfx1150")));
+        hardware.names.pop();
+        assert!(hardware.use_rocm(None));
+        hardware.pnp_ids.push(r"PCI\VEN_10DE&DEV_28A0".into());
+        assert!(!hardware.use_rocm(None));
+        assert!(!Hardware::default().use_rocm(None));
+    }
+    #[test]
     fn toolchain_discovery_is_shared_expires_and_recovers_after_installation() {
         let cache = std::sync::Arc::new(ToolchainCache::default());
         let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
@@ -695,7 +734,11 @@ mod checks {
         let venv = fixture.engine.runtime.data.join(".venv");
         std::fs::create_dir_all(&venv).unwrap();
         std::fs::write(venv.join(".rocm-installed"), r#"{"gfxTarget":"gfx1151"}"#).unwrap();
-        let mut spec=fixture.engine.runtime.python_command(["-c","import json,os; print('APPLIO_JSON:'+json.dumps({key:os.environ.get(key) for key in ['HIP_VISIBLE_DEVICES','HSA_OVERRIDE_GFX_VERSION','ZLUDA_COMGR_LOG_LEVEL']}))"]).unwrap();
+        let mut runtime = fixture.engine.runtime.clone();
+        runtime
+            .environment
+            .insert("APPLIO_ROCM_GFX".into(), "gfx1151".into());
+        let mut spec=runtime.python_command(["-c","import json,os; print('APPLIO_JSON:'+json.dumps({key:os.environ.get(key) for key in ['HIP_VISIBLE_DEVICES','HSA_OVERRIDE_GFX_VERSION','ZLUDA_COMGR_LOG_LEVEL']}))"]).unwrap();
         // env_remove must remove even a value in the inherited/explicit map,
         // without modifying the Rust host's environment.
         spec.env
