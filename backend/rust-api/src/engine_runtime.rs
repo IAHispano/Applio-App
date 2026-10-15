@@ -251,6 +251,14 @@ impl EngineRuntime {
             }
         }
         let mut spec = CommandSpec::new(&self.python, &self.data).args(args);
+        // The AppImage type-2 runtime always exports PYTHONHOME=$APPDIR/usr
+        // (plus an AppDir PYTHONPATH), even though the bundle ships no
+        // Python. Any inherited PYTHONHOME hijacks sys.prefix of the spawned
+        // .venv interpreter and it dies before running anything with
+        // "No module named 'encodings'". Remove it outright: an empty value
+        // is not reliably ignored, and -E/-I would also drop the PYTHONPATH
+        // and unbuffered-IO settings this spec sets on purpose.
+        spec.env_remove.push("PYTHONHOME".into());
         for (key, value) in [
             ("APPLIO_ROOT", self.data.as_os_str()),
             ("APPLIO_CODE_ROOT", self.code.as_os_str()),
