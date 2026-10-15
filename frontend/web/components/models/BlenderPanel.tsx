@@ -11,16 +11,17 @@ import { errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { usePersistentJobId } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 export default function BlenderPanel() {
   const { t } = useI18n();
-  const [models, setModels] = useState<string[]>([]);
-  const [name, setName] = useState("");
-  const [p1, setP1] = useState("");
-  const [p2, setP2] = useState("");
-  const [f1, setF1] = useState<File | null>(null);
-  const [f2, setF2] = useState<File | null>(null);
-  const [ratio, setRatio] = useState(0.5);
+  const [models, setModels] = useWorkspaceState<string[]>("BlenderPanel:models:models", []);
+  const [name, setName] = useWorkspaceState("BlenderPanel:models:name", "");
+  const [p1, setP1] = useWorkspaceState("BlenderPanel:models:p1", "");
+  const [p2, setP2] = useWorkspaceState("BlenderPanel:models:p2", "");
+  const [f1, setF1] = useWorkspaceState<File | null>("BlenderPanel:models:f1", null);
+  const [f2, setF2] = useWorkspaceState<File | null>("BlenderPanel:models:f2", null);
+  const [ratio, setRatio] = useWorkspaceState("BlenderPanel:models:ratio", 0.5);
   const [jobId, setJobId] = usePersistentJobId("blender");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -30,11 +31,11 @@ export default function BlenderPanel() {
       .then((m) => {
         const checkpoints = m.models.filter((model) => model.toLowerCase().endsWith(".pth"));
         setModels(checkpoints);
-        if (checkpoints[0]) setP1(checkpoints[0]);
-        if (checkpoints[1]) setP2(checkpoints[1]);
+        if (checkpoints[0]) setP1((current) => current || checkpoints[0]);
+        if (checkpoints[1]) setP2((current) => current || checkpoints[1]);
       })
       .catch(() => {});
-  }, []);
+  }, [setP2, setP1, setModels]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();

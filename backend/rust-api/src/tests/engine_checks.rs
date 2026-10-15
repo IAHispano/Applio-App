@@ -11,6 +11,59 @@ use tempfile::TempDir;
 use tokio_util::sync::CancellationToken;
 
 #[tokio::test]
+async fn foreground_gpu_work_preempts_background_and_waits_for_its_cleanup() {
+    let scheduler = Scheduler::default();
+    let background = CancellationToken::new();
+    let preload = scheduler
+        .try_background_gpu("preload", &background)
+        .unwrap();
+    let foreground = CancellationToken::new();
+    let mut convert = Box::pin(scheduler.acquire("convert", Resource::Gpu, &foreground));
+    assert!(futures_util::poll!(convert.as_mut()).is_pending());
+    assert!(background.is_cancelled());
+    assert_eq!(scheduler.status().active, vec!["preload"]);
+    drop(preload);
+    let convert = convert.await.unwrap().unwrap();
+    let read = CancellationToken::new();
+    let mut metadata = Box::pin(scheduler.acquire_background_gpu("metadata", &read));
+    assert!(futures_util::poll!(metadata.as_mut()).is_pending());
+    let mut next = Box::pin(scheduler.acquire("next", Resource::Gpu, &foreground));
+    assert!(futures_util::poll!(next.as_mut()).is_pending());
+    assert_eq!(scheduler.status().queued, vec!["next", "metadata"]);
+    drop(convert);
+    let next = next.await.unwrap().unwrap();
+    assert!(futures_util::poll!(metadata.as_mut()).is_pending());
+    drop(next);
+    drop(metadata.await.unwrap().unwrap());
+    assert!(scheduler.status().active.is_empty());
+}
+
+#[tokio::test]
+async fn realtime_preempts_speculation_but_never_interrupts_a_user_job() {
+    let scheduler = Scheduler::default();
+    let token = CancellationToken::new();
+    let background = CancellationToken::new();
+    let preload = scheduler
+        .try_background_gpu("preload", &background)
+        .unwrap();
+    let mut prepare = Box::pin(scheduler.preempt_background_gpu(&token));
+    assert!(futures_util::poll!(prepare.as_mut()).is_pending());
+    assert!(background.is_cancelled());
+    assert!(scheduler.begin_realtime().is_none());
+    drop(preload);
+    prepare.await.unwrap();
+    let realtime = scheduler.begin_realtime().unwrap();
+    assert!(scheduler
+        .try_background_gpu("read", &CancellationToken::new())
+        .is_none());
+    drop(realtime);
+    let convert = scheduler.try_gpu("conversion").unwrap();
+    scheduler.preempt_background_gpu(&token).await.unwrap();
+    assert!(scheduler.begin_realtime().is_none());
+    drop(convert);
+}
+
+#[tokio::test]
 async fn pinned_worker_defers_conversion_imports_and_reuses_the_converter() {
     let directory = tempfile::tempdir().unwrap();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");

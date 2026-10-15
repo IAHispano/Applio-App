@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, FileText, LineChart, Loader2, RefreshCw, StopCircle } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { JobError } from "@/components/JobStatus";
 import { Button, IconButton, SegmentedControl, StatTile } from "@/components/ui";
 import SettingHelp from "@/components/ui/SettingHelp";
@@ -9,6 +9,7 @@ import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface F0CurveExtractorProps {
   file: File | null;
@@ -19,15 +20,16 @@ type MethodType = "rmvpe" | "fcpe" | "crepe" | "swift";
 
 export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtractorProps) {
   const { t } = useI18n();
-  const [method, setMethod] = useState<MethodType>("rmvpe");
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [localError, setLocalError] = useState("");
+  const [method, setMethod] = useWorkspaceState<MethodType>("F0CurveExtractor:extra:method", "rmvpe");
+  const [jobId, setJobId] = useWorkspaceState<string | null>("F0CurveExtractor:extra:jobId", null);
+  const [localError, setLocalError] = useWorkspaceState("F0CurveExtractor:extra:localError", "");
   const { job, error: jobError, setError: setJobError } = useJob(jobId);
 
   // Track the current active job ID and request sequence
-  const activeJobIdRef = useRef<string | null>(null);
+  const activeJobIdRef = useRef<string | null>(jobId);
   const reqSeqRef = useRef(0);
-  const lastRequestedKeyRef = useRef<string>("");
+  const [requestedKey, setRequestedKey] = useWorkspaceState("F0CurveExtractor:extra:requestedKey", "");
+  const lastRequestedKeyRef = useRef(requestedKey);
 
   const hasAudio = Boolean(file || fallbackPath);
 
@@ -76,7 +78,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
         }
       }
     },
-    [],
+    [setLocalError, setJobId],
   );
 
   // Automatically trigger extraction ONLY when audio source or method changes
@@ -85,6 +87,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
       setJobId(null);
       setLocalError("");
       lastRequestedKeyRef.current = "";
+      setRequestedKey("");
       return;
     }
 
@@ -95,9 +98,10 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
       return;
     }
     lastRequestedKeyRef.current = currentKey;
+    setRequestedKey(currentKey);
 
     void runExtraction(file, fallbackPath, method);
-  }, [file, fallbackPath, method, runExtraction]);
+  }, [file, fallbackPath, method, runExtraction, setLocalError, setJobId, setRequestedKey]);
 
   const handleManualRefresh = useCallback(() => {
     lastRequestedKeyRef.current = "";

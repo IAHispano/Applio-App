@@ -2,6 +2,7 @@
 
 import type React from "react";
 import { forwardRef, memo } from "react";
+import Link from "@/components/layout/IntentLink";
 import { useI18n } from "@/lib/i18n";
 
 export type ButtonVariant = "primary" | "ghost" | "danger";
@@ -107,6 +108,27 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     );
 
     if (href !== undefined) {
+      if (
+        href.startsWith("/") &&
+        !href.startsWith("//") &&
+        !/^\/(api|bridge)(\/|$)/.test(href) &&
+        !download &&
+        !target
+      ) {
+        return (
+          <Link
+            ref={ref as unknown as React.Ref<HTMLAnchorElement>}
+            href={href}
+            aria-disabled={isDisabled || undefined}
+            aria-busy={loading || undefined}
+            tabIndex={isDisabled ? -1 : undefined}
+            onClick={isDisabled ? (event) => event.preventDefault() : onClick}
+            className={classes}
+          >
+            {content}
+          </Link>
+        );
+      }
       return (
         <a
           ref={ref as unknown as React.Ref<HTMLAnchorElement>}

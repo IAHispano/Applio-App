@@ -30,6 +30,8 @@ export interface VoiceModelFieldProps {
   onSelect: (modelPath: string) => void;
   onUnload: () => void;
   onRefresh: () => void;
+  /** Revalidate cached lists when a picker opens, without forcing a scan. */
+  onOpen?: () => void;
   /** Index selection handler */
   onIndexChange: (value: string) => void;
 }
@@ -51,6 +53,7 @@ export default function VoiceModelField({
   onSelect,
   onUnload,
   onRefresh,
+  onOpen,
   onIndexChange,
 }: VoiceModelFieldProps) {
   const { t } = useI18n();
@@ -71,7 +74,7 @@ export default function VoiceModelField({
               aria-describedby={`${dropdownId}-help`}
               value={selectedModel}
               placeholder={t("Select a voice model…")}
-              onOpen={onRefresh}
+              onOpen={onOpen ?? onRefresh}
               onValueChange={onSelect}
               options={models.map((model) => ({
                 value: model,
@@ -89,7 +92,7 @@ export default function VoiceModelField({
               indexes={indexes}
               onSelect={onSelect}
               onUnload={onUnload}
-              onRefresh={onRefresh}
+              onRefresh={onOpen ?? onRefresh}
             />
           )}
           <div className={compact ? "sr-only" : undefined}>
@@ -107,7 +110,7 @@ export default function VoiceModelField({
               aria-describedby={compact ? `${indexSelectId}-help` : undefined}
               value={indexPath}
               disabled={!selectedModel}
-              onOpen={onRefresh}
+              onOpen={onOpen ?? onRefresh}
               onChange={(e) => onIndexChange(e.target.value)}
               className="w-full"
               options={[

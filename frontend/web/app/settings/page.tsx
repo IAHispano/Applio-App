@@ -30,6 +30,7 @@ import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { applyTheme, fontCss, type ThemeFile } from "@/lib/theme";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface FontOption {
   id: string;
@@ -176,7 +177,7 @@ interface DesktopUpdaterState {
 
 export default function SettingsPage() {
   const { t } = useI18n();
-  const [cfg, setCfg] = useState<AppConfig | null>(null);
+  const [cfg, setCfg] = useWorkspaceState<AppConfig | null>("page:settings:cfg", null);
   useEffect(() => {
     const synchronizeTheme = (event: Event) => {
       const file = (event as CustomEvent<{ file?: string }>).detail?.file;
@@ -195,7 +196,7 @@ export default function SettingsPage() {
     };
     window.addEventListener("applio:theme-changed", synchronizeTheme);
     return () => window.removeEventListener("applio:theme-changed", synchronizeTheme);
-  }, []);
+  }, [setCfg]);
   const [langs, setLangs] = useState<Array<{ code: string; name: string }>>([]);
   const [themes, setThemes] = useState<
     Array<{
@@ -206,8 +207,8 @@ export default function SettingsPage() {
       example: boolean;
     }>
   >([]);
-  const [ver, setVer] = useState<VersionCheck | null>(null);
-  const [localVer, setLocalVer] = useState("");
+  const [ver, setVer] = useWorkspaceState<VersionCheck | null>("page:settings:ver", null);
+  const [localVer, setLocalVer] = useWorkspaceState("page:settings:localVer", "");
   const [updaterState, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
@@ -223,9 +224,12 @@ export default function SettingsPage() {
   } | null>(null);
   const [cleaning, setCleaning] = useState(false);
   const [cleanMsg, setCleanMsg] = useState<string | null>(null);
-  const [logsDirInput, setLogsDirInput] = useState("");
-  const [activeLogsDir, setActiveLogsDir] = useState("");
-  const [defaultLogsDir, setDefaultLogsDir] = useState("");
+  const [logsDirInput, setLogsDirInput] = useWorkspaceState<string | null>(
+    "page:settings:logsDirInput",
+    null,
+  );
+  const [activeLogsDir, setActiveLogsDir] = useWorkspaceState("page:settings:activeLogsDir", "");
+  const [defaultLogsDir, setDefaultLogsDir] = useWorkspaceState("page:settings:defaultLogsDir", "");
   const [savingLogsDir, setSavingLogsDir] = useState(false);
   const [logsDirMessage, setLogsDirMessage] = useState("");
   const [canPickFolder, setCanPickFolder] = useState(false);
@@ -266,7 +270,7 @@ export default function SettingsPage() {
     setError("");
     try {
       const r = await apiSend<{ config: AppConfig }>("/api/settings", "PUT", {
-        logs_dir: logsDirInput.trim(),
+        logs_dir: (logsDirInput ?? "").trim(),
       });
       setCfg(r.config);
       setLogsDirInput(r.config.logs_dir || "");
@@ -324,7 +328,7 @@ export default function SettingsPage() {
         logsMoveError?: string;
       }>("/api/settings");
       setCfg(c.config);
-      setLogsDirInput(c.config.logs_dir || "");
+      setLogsDirInput((draft) => draft ?? c.config.logs_dir ?? "");
       setActiveLogsDir(c.logsDir);
       setDefaultLogsDir(c.defaultLogsDir);
       if (c.logsMoveError) setError(c.logsMoveError);
@@ -356,7 +360,7 @@ export default function SettingsPage() {
     } catch (e) {
       setError(errMsg(e));
     }
-  }, []);
+  }, [setLogsDirInput, setDefaultLogsDir, setCfg, setActiveLogsDir]);
 
   const checkVersion = useCallback(async () => {
     setError("");
@@ -391,7 +395,7 @@ export default function SettingsPage() {
     } catch (e) {
       setVer({ error: errMsg(e) });
     }
-  }, []);
+  }, [setVer]);
 
   useEffect(() => {
     load();
@@ -424,7 +428,7 @@ export default function SettingsPage() {
         return unsub;
       }
     }
-  }, [load, checkVersion, fetchStorage]);
+  }, [load, checkVersion, fetchStorage, setLocalVer]);
 
   async function save(patch: unknown) {
     setError("");
@@ -466,7 +470,7 @@ export default function SettingsPage() {
 
   // Full Google Fonts catalog (~1900 entries): split out of the initial
   // bundle via dynamic import; the dropdown fills in once loaded.
-  const [catalogFonts, setCatalogFonts] = useState<FontOption[]>([]);
+  const [catalogFonts, setCatalogFonts] = useWorkspaceState<FontOption[]>("page:settings:catalogFonts", []);
   useEffect(() => {
     let live = true;
     import("@/lib/google-fonts")
@@ -484,7 +488,7 @@ export default function SettingsPage() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [setCatalogFonts]);
   const fontOptions = useMemo(() => [...BASE_FONT_OPTIONS, ...catalogFonts], [catalogFonts]);
 
   if (!cfg)
@@ -1034,7 +1038,7 @@ export default function SettingsPage() {
               <input
                 id="settings-logs-dir"
                 type="text"
-                value={logsDirInput}
+                value={logsDirInput ?? ""}
                 onChange={(e) => setLogsDirInput(e.target.value)}
                 placeholder={defaultLogsDir}
                 readOnly={canPickFolder}
@@ -1071,7 +1075,9 @@ export default function SettingsPage() {
               size="md"
               variant="ghost"
               onClick={saveLogsDir}
-              disabled={savingLogsDir || pickingFolder || logsDirInput.trim() === (cfg.logs_dir || "")}
+              disabled={
+                savingLogsDir || pickingFolder || (logsDirInput ?? "").trim() === (cfg.logs_dir || "")
+              }
             >
               {savingLogsDir ? t("Saving…") : t("Save Folder")}
             </Button>

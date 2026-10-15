@@ -582,56 +582,6 @@ hr {
   height: auto;
   display: flex;
   flex-direction: column;
-  animation: pageEnter 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-/* Staggered rise for the page's top-level sections on every tab switch.
-   Delays stay tiny so the whole page settles in ~350ms. */
-.page-transition > * > * {
-  animation: pageChildIn 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.page-transition > * > *:nth-child(2) {
-  animation-delay: 25ms;
-}
-.page-transition > * > *:nth-child(3) {
-  animation-delay: 50ms;
-}
-.page-transition > * > *:nth-child(4) {
-  animation-delay: 75ms;
-}
-.page-transition > * > *:nth-child(5) {
-  animation-delay: 100ms;
-}
-.page-transition > * > *:nth-child(n + 6) {
-  animation-delay: 120ms;
-}
-
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.998);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes pageChildIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-transition {
-    animation: none;
-  }
 }
 
 @keyframes borealisBar {

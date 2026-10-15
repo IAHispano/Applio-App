@@ -1,12 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiGet } from "@/lib/api";
+import { apiGet, peekApiCache } from "@/lib/api";
 
 // Speaker IDs for multi-speaker models (Gradio get_speakers_id parity).
 // Falls back to [0] while loading or for single-speaker models.
 export function useSpeakers(pthPath: string): number[] {
-  const [speakers, setSpeakers] = useState<number[]>([0]);
+  const [speakers, setSpeakers] = useState<number[]>(
+    () =>
+      peekApiCache<{ speakers: number[] }>(`/api/models/speakers?pthPath=${encodeURIComponent(pthPath)}`)
+        ?.speakers ?? [0],
+  );
   useEffect(() => {
     if (!pthPath) {
       setSpeakers([0]);

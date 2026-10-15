@@ -2,7 +2,7 @@
 
 import { Activity, AudioWaveform, LineChart } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardHeader, CustomSelect } from "@/components/ui";
@@ -10,6 +10,7 @@ import { fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 function ExtraLoading({ analyzer }: { analyzer: boolean }) {
   const { t } = useI18n();
@@ -32,9 +33,9 @@ const F0CurveExtractor = dynamic(() => import("@/components/extra/F0CurveExtract
 
 export default function ExtraPage() {
   const { t } = useI18n();
-  const [audio, setAudio] = useState<File | null>(null);
-  const [inputPath, setInputPath] = useState("");
-  const [audios, setAudios] = useState<string[]>([]);
+  const [audio, setAudio] = useWorkspaceState<File | null>("page:extra:audio", null);
+  const [inputPath, setInputPath] = useWorkspaceState("page:extra:inputPath", "");
+  const [audios, setAudios] = useWorkspaceState<string[]>("page:extra:audios", []);
 
   const refreshAudios = useCallback(async () => {
     try {
@@ -46,7 +47,7 @@ export default function ExtraPage() {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [setInputPath, setAudios]);
 
   useEffect(() => {
     refreshAudios();

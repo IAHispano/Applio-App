@@ -59,6 +59,11 @@ async fn prewarm(State(engine): State<Arc<NativeEngine>>) -> Result<Json<Value>,
     }
 }
 async fn start(State(engine): State<Arc<NativeEngine>>) -> Result<Json<Value>, Error> {
+    engine
+        .scheduler
+        .preempt_background_gpu(&engine.cancellation_token())
+        .await
+        .map_err(Error::internal)?;
     let generation = engine.realtime.generation();
     if engine.scheduler.gpu_busy() {
         return Err(Error(
@@ -182,6 +187,9 @@ async fn socket(engine: Arc<NativeEngine>, ws: WebSocketUpgrade, audio: bool) ->
         .into_response();
     };
     let session = if audio {
+        if let Err(error) = engine.scheduler.preempt_background_gpu(&cancelled).await {
+            return Error::internal(error).into_response();
+        }
         let Some(guard) = engine.realtime.begin_audio(&engine) else {
             return Error(StatusCode::CONFLICT, json!({"error":"GPU is busy."})).into_response();
         };

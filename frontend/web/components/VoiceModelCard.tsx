@@ -9,7 +9,7 @@ import { Alert, Badge, Card, CardHeader, VoiceModelField } from "@/components/ui
 import CustomSelect from "@/components/ui/CustomSelect";
 import IconButton from "@/components/ui/IconButton";
 import type { VoiceModelFieldProps } from "@/components/ui/VoiceModelField";
-import { apiGet, apiSend, errMsg, fileBasename } from "@/lib/api";
+import { apiGet, cachedModelInspection, errMsg, fileBasename, inspectModel } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { loadModelPresets } from "@/lib/model-presets";
 import { SETTING_HELP } from "@/lib/setting-help";
@@ -46,6 +46,7 @@ export default function VoiceModelCard({
   onSelect: handleModelSelect,
   onUnload: handleUnloadModel,
   onRefresh,
+  onOpen,
   onIndexChange: setIndexPath,
   speakers,
   sid,
@@ -71,7 +72,7 @@ export default function VoiceModelCard({
   // biome-ignore lint/correctness/useExhaustiveDependencies: reload filesystem metadata when the model changes or the user refreshes
   useEffect(() => {
     let active = true;
-    apiGet<{ models: ModelDetail[] }>("/api/models/library", { force: true })
+    apiGet<{ models: ModelDetail[] }>("/api/models/library", { force: refreshVersion > 0 })
       .then((result) => {
         if (active) setLibrary(result.models || []);
       })
@@ -98,11 +99,12 @@ export default function VoiceModelCard({
     let cancelled = false;
     // Clear previous model's details immediately so stale arch info never
     // lingers while the new checkpoint inspects (skeletons show instead).
-    setInspectMeta(null);
-    setInspectLoading(true);
+    const cached = cachedModelInspection<{ metadata: ModelMetadata }>(pthPath);
+    setInspectMeta(cached?.metadata ?? null);
+    setInspectLoading(!cached);
     setInspectError("");
 
-    apiSend<{ ok: boolean; metadata: ModelMetadata }>("/api/models/inspect", "POST", { pthPath })
+    inspectModel<{ ok: boolean; metadata: ModelMetadata }>(pthPath, refreshVersion > 0)
       .then(async (res) => {
         await loadModelPresets();
         if (cancelled) return;
@@ -125,7 +127,7 @@ export default function VoiceModelCard({
     return () => {
       cancelled = true;
     };
-  }, [pthPath]);
+  }, [pthPath, refreshVersion]);
 
   return (
     <Card className={`flex flex-col ${className}`}>
@@ -156,6 +158,7 @@ export default function VoiceModelCard({
         onSelect={handleModelSelect}
         onUnload={handleUnloadModel}
         onRefresh={refreshModels}
+        onOpen={onOpen}
         onIndexChange={setIndexPath}
       />
       <ModelPresetStatus />

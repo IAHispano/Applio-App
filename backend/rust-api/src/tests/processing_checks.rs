@@ -735,10 +735,12 @@ if len(sys.argv)>1 and sys.argv[1]=='worker':
             if 'corrupt' in p['pthPath']:
                 emit({'type':'error','id':id,'error':'LOAD_FAILED: corrupt fixture'}); continue
             with open('inspect-count','a') as f: f.write('inspect\n')
+            if Path('slow-inspect').exists(): Path('slow-inspect').unlink(); write('inspect-started'); time.sleep(60)
             if 'slow' in p['pthPath']: time.sleep(0.25)
             sidecar=Path(p['pthPath']).parent/'model_info.json'
             r['metadata']={'model_name':'Fixture','speakers_id':'3',**(json.loads(sidecar.read_text()) if sidecar.is_file() else {})}
         elif c=='preload_model':
+            if Path('slow-preload').exists(): write('preload-started'); time.sleep(60)
             write(Path('preloaded')/Path(p['pthPath']).name)
         elif c=='model_blender':
             assert p['pth1'].endswith('.pth') and p['pth2'].endswith('.pth')

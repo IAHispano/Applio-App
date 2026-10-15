@@ -5,7 +5,6 @@ use crate::{
     metadata_cache::MetadataCache,
     process::ManagedProcess,
     processing_routes::{path_string, string, Error},
-    scheduler::Resource,
     uploads,
 };
 use anyhow::{bail, Context, Result};
@@ -166,49 +165,72 @@ async fn metadata(state: &Models, path: &Path) -> Result<(Value, bool)> {
         .cache
         .get(path, || async {
             let engine = &state.engine;
-            let token = engine.cancellation_token();
+            let shutdown = engine.cancellation_token();
             let id = format!("inspect-{}", Uuid::new_v4());
-            let _lease = engine
-                .scheduler
-                .acquire(&id, Resource::Gpu, &token)
-                .await?
-                .context("Applio is shutting down")?;
-            let value = match engine
-                .worker
-                .request(
-                    json!({"command":"inspect_model","pthPath":path}),
-                    &token,
-                    |_| {},
-                )
-                .await
-            {
-                Ok(response) => response["metadata"].clone(),
-                Err(error) => {
-                    if token.is_cancelled() {
+            loop {
+                let token = shutdown.child_token();
+                let Some(lease) = engine.scheduler.acquire_background_gpu(&id, &token).await?
+                else {
+                    if shutdown.is_cancelled() {
                         bail!("Applio is shutting down");
                     }
-                    engine.worker.stop().await?;
-                    let spec =
-                        engine
-                            .runtime
-                            .python_command(["-c", INSPECT_CODE, &path_string(path)])?;
-                    let result = ManagedProcess::run(&spec, &token, |_, _| {}).await?;
-                    result
-                        .ensure_success()
-                        .with_context(|| format!("Checkpoint reader fallback after {error}"))?;
-                    let json = result
-                        .stdout
-                        .lines()
-                        .rev()
-                        .find_map(|line| line.split_once("APPLIO_JSON:").map(|(_, json)| json))
-                        .context("Checkpoint reader did not report metadata")?;
-                    serde_json::from_str(json)?
+                    continue;
+                };
+                let result: Result<Value> = async {
+                    let value = match engine
+                        .worker
+                        .request(
+                            json!({"command":"inspect_model","pthPath":path}),
+                            &token,
+                            |_| {},
+                        )
+                        .await
+                    {
+                        Ok(response) => response["metadata"].clone(),
+                        Err(error) => {
+                            if token.is_cancelled() {
+                                bail!("Applio is shutting down");
+                            }
+                            engine.worker.stop().await?;
+                            let spec = engine.runtime.python_command([
+                                "-c",
+                                INSPECT_CODE,
+                                &path_string(path),
+                            ])?;
+                            let result = ManagedProcess::run(&spec, &token, |_, _| {}).await?;
+                            result.ensure_success().with_context(|| {
+                                format!("Checkpoint reader fallback after {error}")
+                            })?;
+                            let json = result
+                                .stdout
+                                .lines()
+                                .rev()
+                                .find_map(|line| {
+                                    line.split_once("APPLIO_JSON:").map(|(_, json)| json)
+                                })
+                                .context("Checkpoint reader did not report metadata")?;
+                            serde_json::from_str(json)?
+                        }
+                    };
+                    Ok(value)
                 }
-            };
-            if !value.is_object() {
-                bail!("Checkpoint reader returned invalid metadata");
+                .await;
+                drop(lease);
+                if token.is_cancelled() && !shutdown.is_cancelled() {
+                    // Let the requested action finish admission before retrying
+                    // this optional read; foreground GPU work stays ahead.
+                    tokio::select! {
+                        _ = shutdown.cancelled() => bail!("Applio is shutting down"),
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(250)) => {},
+                    }
+                    continue;
+                }
+                let value = result?;
+                if !value.is_object() {
+                    bail!("Checkpoint reader returned invalid metadata");
+                }
+                return Ok(value);
             }
-            Ok(value)
         })
         .await
 }
@@ -293,8 +315,8 @@ async fn preload(State(state): State<Arc<Models>>, request: Request) -> Result<J
         .into_owned();
     let engine = state.engine.clone();
     let id = format!("preload-{}", Uuid::new_v4());
-    if let Some(lease) = engine.scheduler.try_gpu(&id) {
-        let token = engine.cancellation_token();
+    let token = engine.cancellation_token();
+    if let Some(lease) = engine.scheduler.try_background_gpu(&id, &token) {
         let background = engine.clone();
         engine
             .spawn_background(async move {
@@ -308,7 +330,9 @@ async fn preload(State(state): State<Arc<Models>>, request: Request) -> Result<J
                     )
                     .await
                 {
-                    eprintln!("Model preload: {error}");
+                    if !token.is_cancelled() {
+                        eprintln!("Model preload: {error}");
+                    }
                 }
             })
             .await

@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { checkDashboard } from "./check-dashboard.mjs";
 import { checkStartupPage } from "./check-startup.mjs";
+import { checkResponsiveness } from "./check-responsiveness.mjs";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -132,6 +133,7 @@ export async function checkBrowser(origin, temporary) {
     console.log(
       "Headless static UI: SPA navigation, component responses, hydration and legacy job links passed.",
     );
+    await checkResponsiveness(call, origin);
     await checkDashboard(call, origin);
     // Exercise the actual React update dialog with an isolated native bridge fixture.
     await call("Page.addScriptToEvaluateOnNewDocument", {

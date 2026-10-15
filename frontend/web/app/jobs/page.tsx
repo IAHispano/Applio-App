@@ -12,16 +12,17 @@ import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
 import { jobHref } from "@/lib/job-url";
 import { cleanJobLogs } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 export default function JobsPage() {
   const { t } = useI18n();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useWorkspaceState<Job[]>("page:jobs:jobs", []);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [query, setQuery] = useState("");
-  const [state, setState] = useState("all");
-  const [type, setType] = useState("all");
+  const [query, setQuery] = useWorkspaceState("page:jobs:query", "");
+  const [state, setState] = useWorkspaceState("page:jobs:state", "all");
+  const [type, setType] = useWorkspaceState("page:jobs:type", "all");
   const fetching = useRef(false);
   const mounted = useRef(false);
   const refresh = useCallback(async () => {
@@ -43,7 +44,7 @@ export default function JobsPage() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [setJobs]);
   useEffect(() => {
     mounted.current = true;
     void refresh();

@@ -26,11 +26,12 @@ import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
 import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
-import { apiGet, apiSend, displayVersion, errMsg, fileBasename, type Job } from "@/lib/api";
+import { apiGet, apiSend, displayVersion, errMsg, fetchModels, fileBasename, type Job } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { jobHref } from "@/lib/job-url";
 import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface ModelsSummary {
   models: string[];
@@ -95,15 +96,15 @@ export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
   const { status, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
-  const [modelsData, setModelsData] = useState<ModelsSummary | null>(null);
-  const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
-  const [library, setLibrary] = useState<LibraryModel[] | null>(null);
-  const [jobs, setJobs] = useState<Job[] | null>(null);
-  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
+  const [modelsData, setModelsData] = useWorkspaceState<ModelsSummary | null>("page:app:modelsData", null);
+  const [sysInfo, setSysInfo] = useWorkspaceState<SystemInfo | null>("page:app:sysInfo", null);
+  const [library, setLibrary] = useWorkspaceState<LibraryModel[] | null>("page:app:library", null);
+  const [jobs, setJobs] = useWorkspaceState<Job[] | null>("page:app:jobs", null);
+  const [versionInfo, setVersionInfo] = useWorkspaceState<VersionInfo | null>("page:app:versionInfo", null);
+  const [showDetails, setShowDetails] = useWorkspaceState("page:app:showDetails", false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(true);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useWorkspaceState<string | null>("page:app:jobId", null);
   const [forceSetup, setForceSetup] = useState(false);
   const requests = useRef<AbortController | null>(null);
   const activity = useJob(jobId);
@@ -127,7 +128,10 @@ export default function Home() {
       setError("");
       const load = async <T,>(path: string, update: (value: T) => void) => {
         try {
-          const value = await apiGet<T>(path, { force, signal: controller.signal });
+          const value =
+            path === "/api/models"
+              ? ((await fetchModels(force)) as T)
+              : await apiGet<T>(path, { force, signal: controller.signal });
           if (!controller.signal.aborted) update(value);
         } catch {
           // Optional sections remain usable when another service is unavailable.
@@ -144,7 +148,7 @@ export default function Home() {
       ]);
       if (!controller.signal.aborted) setRefreshing(false);
     },
-    [refreshSetup],
+    [refreshSetup, setSysInfo, setVersionInfo, setModelsData, setLibrary, setJobs],
   );
 
   useEffect(() => {
@@ -184,7 +188,7 @@ export default function Home() {
       controller.abort();
       document.removeEventListener("visibilitychange", resume);
     };
-  }, []);
+  }, [setJobs]);
 
   async function prerequisites() {
     setError("");

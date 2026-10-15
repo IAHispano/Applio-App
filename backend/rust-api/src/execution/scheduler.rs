@@ -40,15 +40,17 @@ struct Waiting {
     id: String,
     resource: Resource,
     ready: oneshot::Sender<()>,
+    background: Option<CancellationToken>,
 }
 #[derive(Default)]
 struct State {
     active: HashMap<String, Resource>,
     waiting: VecDeque<Waiting>,
     realtime: bool,
+    background: HashMap<String, CancellationToken>,
 }
 #[derive(Clone, Default)]
-pub struct Scheduler(Arc<Mutex<State>>);
+pub struct Scheduler(Arc<Mutex<State>>, Arc<tokio::sync::Notify>);
 
 impl Scheduler {
     pub fn status(&self) -> SchedulingStatus {
@@ -76,6 +78,24 @@ impl Scheduler {
         resource: Resource,
         cancelled: &CancellationToken,
     ) -> Result<Option<Lease>> {
+        self.acquire_inner(id, resource, cancelled, false).await
+    }
+
+    pub async fn acquire_background_gpu(
+        &self,
+        id: &str,
+        token: &CancellationToken,
+    ) -> Result<Option<Lease>> {
+        self.acquire_inner(id, Resource::Gpu, token, true).await
+    }
+
+    async fn acquire_inner(
+        &self,
+        id: &str,
+        resource: Resource,
+        cancelled: &CancellationToken,
+        background: bool,
+    ) -> Result<Option<Lease>> {
         if cancelled.is_cancelled() {
             return Ok(None);
         }
@@ -85,11 +105,27 @@ impl Scheduler {
             if state.active.contains_key(id) || state.waiting.iter().any(|w| w.id == id) {
                 bail!("Job already owns or is waiting for a resource: {id}");
             }
-            state.waiting.push_back(Waiting {
+            if resource == Resource::Gpu && !background {
+                for token in state.background.values() {
+                    token.cancel();
+                }
+            }
+            let waiting = Waiting {
                 id: id.to_owned(),
                 resource,
                 ready,
-            });
+                background: background.then(|| cancelled.clone()),
+            };
+            if !background && resource == Resource::Gpu {
+                let position = state
+                    .waiting
+                    .iter()
+                    .position(|item| item.background.is_some())
+                    .unwrap_or(state.waiting.len());
+                state.waiting.insert(position, waiting);
+            } else {
+                state.waiting.push_back(waiting);
+            }
             drain(&mut state);
         }
         // A future can be dropped while queued OR after admission but before it
@@ -127,6 +163,10 @@ impl Scheduler {
 
     /// Speculative preloading must never queue ahead of requested GPU work.
     pub fn try_gpu(&self, id: &str) -> Option<Lease> {
+        self.try_gpu_inner(id, None)
+    }
+
+    fn try_gpu_inner(&self, id: &str, background: Option<CancellationToken>) -> Option<Lease> {
         let mut state = self.0.lock().unwrap();
         if state.realtime
             || state.active.contains_key(id)
@@ -142,17 +182,47 @@ impl Scheduler {
             return None;
         }
         state.active.insert(id.to_owned(), Resource::Gpu);
+        if let Some(token) = background {
+            state.background.insert(id.to_owned(), token);
+        }
         Some(Lease {
             scheduler: self.clone(),
             id: id.to_owned(),
         })
     }
 
+    pub fn try_background_gpu(&self, id: &str, token: &CancellationToken) -> Option<Lease> {
+        self.try_gpu_inner(id, Some(token.clone()))
+    }
+
+    pub async fn preempt_background_gpu(&self, stopped: &CancellationToken) -> Result<()> {
+        loop {
+            let changed = self.1.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            {
+                let state = self.0.lock().unwrap();
+                for token in state.background.values() {
+                    token.cancel();
+                }
+                if state.background.is_empty() {
+                    return Ok(());
+                }
+            }
+            tokio::select! {
+                _ = stopped.cancelled() => bail!("Stopped by user"),
+                _ = changed => {},
+            }
+        }
+    }
+
     fn remove(&self, id: &str) {
         let mut state = self.0.lock().unwrap();
         state.waiting.retain(|w| w.id != id);
         state.active.remove(id);
+        state.background.remove(id);
         drain(&mut state);
+        self.1.notify_waiters();
     }
 }
 
@@ -177,8 +247,12 @@ fn drain(state: &mut State) {
         }
         let waiting = state.waiting.remove(index).unwrap();
         state.active.insert(waiting.id.clone(), waiting.resource);
+        if let Some(token) = waiting.background {
+            state.background.insert(waiting.id.clone(), token);
+        }
         if waiting.ready.send(()).is_err() {
             state.active.remove(&waiting.id);
+            state.background.remove(&waiting.id);
         }
     }
 }

@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type {
   ConversionParameterSetters,
   ConversionParameterValues,
 } from "@/components/ConversionParameters";
 import { modelPresetKey, saveModelPreset, useModelPresets } from "@/lib/model-presets";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 export const CONVERSION_DEFAULTS: ConversionParameterValues = {
   pitch: 0,
@@ -28,9 +29,12 @@ export const CONVERSION_DEFAULTS: ConversionParameterValues = {
   formantTimbre: 1,
 };
 
-export function useConversionParameters(model = "") {
+export function useConversionParameters(model = "", workspace = "conversion") {
   const presets = useModelPresets();
-  const [sessionValues, setValues] = useState<ConversionParameterValues>(() => ({ ...CONVERSION_DEFAULTS }));
+  const [sessionValues, setValues] = useWorkspaceState<ConversionParameterValues>(
+    `${workspace}:session`,
+    () => ({ ...CONVERSION_DEFAULTS }),
+  );
   const saved = presets.presets[modelPresetKey("conversion", model)];
   const values = model ? ({ ...CONVERSION_DEFAULTS, ...saved } as ConversionParameterValues) : sessionValues;
   const modelRef = useRef(model);
@@ -55,12 +59,12 @@ export function useConversionParameters(model = "") {
           ];
         }),
       ) as ConversionParameterSetters,
-    [],
+    [setValues],
   );
   const reset = useCallback(() => {
     const current = modelRef.current;
     if (current) saveModelPreset("conversion", current, { ...CONVERSION_DEFAULTS });
     else setValues({ ...CONVERSION_DEFAULTS });
-  }, []);
+  }, [setValues]);
   return { values, setters, reset, loaded: presets.loaded, error: presets.error };
 }

@@ -22,6 +22,7 @@ import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface UvrModel {
   filename: string;
@@ -47,38 +48,44 @@ function pickDefaultModel(models: UvrModel[]): string {
 
 export default function UvrPage() {
   const { t } = useI18n();
-  const [models, setModels] = useState<UvrModel[]>([]);
+  const [models, setModels] = useWorkspaceState<UvrModel[]>("page:audio-separator:models", []);
   const [modelsLoading, setModelsLoading] = useState(true);
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [inputPath, setInputPath] = useState("");
-  const [sampleAudios, setSampleAudios] = useState<string[]>([]);
-  const [model, setModel] = useState(DEFAULT_MODEL);
-  const [format, setFormat] = useState("WAV");
-  const [stemMode, setStemMode] = useState("all");
-  const [vrAggression, setVrAggression] = useState(5);
-  const [vrWindow, setVrWindow] = useState(512);
-  const [vrBatch, setVrBatch] = useState(1);
-  const [vrTta, setVrTta] = useState(false);
-  const [vrHighEnd, setVrHighEnd] = useState(false);
-  const [vrPostProcess, setVrPostProcess] = useState(false);
-  const [vrPostThreshold, setVrPostThreshold] = useState(0.2);
-  const [mdxSegment, setMdxSegment] = useState(256);
-  const [mdxOverlap, setMdxOverlap] = useState(0.25);
-  const [mdxBatch, setMdxBatch] = useState(1);
-  const [mdxHop, setMdxHop] = useState(1024);
-  const [mdxDenoise, setMdxDenoise] = useState(false);
-  const [mdxcSegment, setMdxcSegment] = useState(256);
-  const [mdxcOverlap, setMdxcOverlap] = useState(8);
-  const [mdxcBatch, setMdxcBatch] = useState(1);
-  const [demucsSegment, setDemucsSegment] = useState("");
-  const [demucsShifts, setDemucsShifts] = useState(2);
-  const [demucsOverlap, setDemucsOverlap] = useState(0.25);
-  const [demucsSplit, setDemucsSplit] = useState(true);
-  const [roformerChunk, setRoformerChunk] = useState("");
-  const [roformerOverlap, setRoformerOverlap] = useState(2);
-  const [roformerBatch, setRoformerBatch] = useState(1);
-  const [device, setDevice] = useState("auto");
-  const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
+  const [audioFile, setAudioFile] = useWorkspaceState<File | null>("page:audio-separator:audioFile", null);
+  const [inputPath, setInputPath] = useWorkspaceState("page:audio-separator:inputPath", "");
+  const [sampleAudios, setSampleAudios] = useWorkspaceState<string[]>(
+    "page:audio-separator:sampleAudios",
+    [],
+  );
+  const [model, setModel] = useWorkspaceState("page:audio-separator:model", DEFAULT_MODEL);
+  const [format, setFormat] = useWorkspaceState("page:audio-separator:format", "WAV");
+  const [stemMode, setStemMode] = useWorkspaceState("page:audio-separator:stemMode", "all");
+  const [vrAggression, setVrAggression] = useWorkspaceState("page:audio-separator:vrAggression", 5);
+  const [vrWindow, setVrWindow] = useWorkspaceState("page:audio-separator:vrWindow", 512);
+  const [vrBatch, setVrBatch] = useWorkspaceState("page:audio-separator:vrBatch", 1);
+  const [vrTta, setVrTta] = useWorkspaceState("page:audio-separator:vrTta", false);
+  const [vrHighEnd, setVrHighEnd] = useWorkspaceState("page:audio-separator:vrHighEnd", false);
+  const [vrPostProcess, setVrPostProcess] = useWorkspaceState("page:audio-separator:vrPostProcess", false);
+  const [vrPostThreshold, setVrPostThreshold] = useWorkspaceState(
+    "page:audio-separator:vrPostThreshold",
+    0.2,
+  );
+  const [mdxSegment, setMdxSegment] = useWorkspaceState("page:audio-separator:mdxSegment", 256);
+  const [mdxOverlap, setMdxOverlap] = useWorkspaceState("page:audio-separator:mdxOverlap", 0.25);
+  const [mdxBatch, setMdxBatch] = useWorkspaceState("page:audio-separator:mdxBatch", 1);
+  const [mdxHop, setMdxHop] = useWorkspaceState("page:audio-separator:mdxHop", 1024);
+  const [mdxDenoise, setMdxDenoise] = useWorkspaceState("page:audio-separator:mdxDenoise", false);
+  const [mdxcSegment, setMdxcSegment] = useWorkspaceState("page:audio-separator:mdxcSegment", 256);
+  const [mdxcOverlap, setMdxcOverlap] = useWorkspaceState("page:audio-separator:mdxcOverlap", 8);
+  const [mdxcBatch, setMdxcBatch] = useWorkspaceState("page:audio-separator:mdxcBatch", 1);
+  const [demucsSegment, setDemucsSegment] = useWorkspaceState("page:audio-separator:demucsSegment", "");
+  const [demucsShifts, setDemucsShifts] = useWorkspaceState("page:audio-separator:demucsShifts", 2);
+  const [demucsOverlap, setDemucsOverlap] = useWorkspaceState("page:audio-separator:demucsOverlap", 0.25);
+  const [demucsSplit, setDemucsSplit] = useWorkspaceState("page:audio-separator:demucsSplit", true);
+  const [roformerChunk, setRoformerChunk] = useWorkspaceState("page:audio-separator:roformerChunk", "");
+  const [roformerOverlap, setRoformerOverlap] = useWorkspaceState("page:audio-separator:roformerOverlap", 2);
+  const [roformerBatch, setRoformerBatch] = useWorkspaceState("page:audio-separator:roformerBatch", 1);
+  const [device, setDevice] = useWorkspaceState("page:audio-separator:device", "auto");
+  const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:audio-separator:gpuDevices", []);
   const [jobId, setJobId] = usePersistentJobId("uvr");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -97,7 +104,7 @@ export default function UvrPage() {
     } finally {
       setModelsLoading(false);
     }
-  }, []);
+  }, [setModels, setModel]);
 
   const refreshSampleAudios = useCallback(async () => {
     try {
@@ -106,7 +113,7 @@ export default function UvrPage() {
     } catch {
       /* ignore */
     }
-  }, []);
+  }, [setSampleAudios]);
 
   useEffect(() => {
     loadModels();
@@ -137,7 +144,7 @@ export default function UvrPage() {
         }
       })
       .catch(() => setGpuDevices([]));
-  }, []);
+  }, [setGpuDevices]);
 
   const selectedModel = useMemo(() => models.find((m) => m.filename === model), [models, model]);
   const modelStems = useMemo(() => {

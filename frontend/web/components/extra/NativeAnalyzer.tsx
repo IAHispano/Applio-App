@@ -6,6 +6,7 @@ import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
 import { Button, StatTile } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface NativeAnalyzerProps {
   file: File | null;
@@ -87,8 +88,8 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState("");
-  const [stats, setStats] = useState<AudioStats | null>(null);
-  const [zoomLabel, setZoomLabel] = useState("Fit");
+  const [stats, setStats] = useWorkspaceState<AudioStats | null>("NativeAnalyzer:extra:stats", null);
+  const [zoomLabel, setZoomLabel] = useWorkspaceState("NativeAnalyzer:extra:zoomLabel", "Fit");
 
   const durationRef = useRef(0);
   const zoomBaseRef = useRef(0);
@@ -146,7 +147,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       setZoomLabel(mult <= 1 ? t("Fit") : `${Math.round(mult * 100)}%`);
       requestAnimationFrame(() => drawRuler());
     },
-    [fitPxPerSec, drawRuler, t],
+    [fitPxPerSec, drawRuler, t, setZoomLabel],
   );
 
   const zoomStep = useCallback(
@@ -332,7 +333,18 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       if (blobUrl) URL.revokeObjectURL(blobUrl);
       if (zoomHost && onWheel) zoomHost.removeEventListener("wheel", onWheel);
     };
-  }, [file, fallbackPath, t, movePlayhead, zoomStep, drawRuler, fitPxPerSec, drawFreqAxis]);
+  }, [
+    file,
+    fallbackPath,
+    t,
+    movePlayhead,
+    zoomStep,
+    drawRuler,
+    fitPxPerSec,
+    drawFreqAxis,
+    setZoomLabel,
+    setStats,
+  ]);
 
   useEffect(() => {
     function onResize() {

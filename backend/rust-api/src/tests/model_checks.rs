@@ -12,8 +12,109 @@ use std::{
     time::Duration,
 };
 
+#[tokio::test]
+async fn an_explicit_conversion_interrupts_slow_speculative_model_loading() {
+    let fixture = Fixture::new(true);
+    std::fs::write(fixture.engine.runtime.data.join("slow-preload"), "").unwrap();
+    fixture
+        .request("/api/models/preload", json!({"pthPath":"voice.pth"}))
+        .await;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !fixture
+            .engine
+            .runtime
+            .data
+            .join("preload-started")
+            .is_file()
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let old_pid = fixture.engine.worker.pid().unwrap();
+    let id = fixture
+        .start(
+            "/api/inference",
+            json!({"pthPath":"voice.pth","inputPath":"input.wav","exportFormat":"WAV"}),
+        )
+        .await;
+    let job = tokio::time::timeout(Duration::from_secs(5), fixture.finish(&id))
+        .await
+        .unwrap();
+    assert_eq!(job.status, crate::jobs::JobStatus::Done, "{:?}", job.error);
+    assert_ne!(fixture.engine.worker.pid(), Some(old_pid));
+    assert!(!fixture
+        .engine
+        .runtime
+        .data
+        .join("preloaded/voice.pth")
+        .exists());
+    fixture.engine.shutdown().await.unwrap();
+}
+
 fn get(path: &str) -> Request<Body> {
     Request::get(path).body(Body::empty()).unwrap()
+}
+
+#[tokio::test]
+async fn interrupted_metadata_reads_resume_after_the_requested_conversion() {
+    use tower::ServiceExt;
+    let fixture = Fixture::new(true);
+    std::fs::write(fixture.engine.runtime.data.join("slow-inspect"), "").unwrap();
+    let app = fixture.app.clone();
+    let inspect = tokio::spawn(async move {
+        app.oneshot(
+            Request::post("/api/models/inspect")
+                .header("content-type", "application/json")
+                .body(Body::from(json!({"pthPath":"voice.pth"}).to_string()))
+                .unwrap(),
+        )
+        .await
+        .unwrap()
+    });
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !fixture
+            .engine
+            .runtime
+            .data
+            .join("inspect-started")
+            .is_file()
+        {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    let id = fixture
+        .start(
+            "/api/inference",
+            json!({"pthPath":"voice.pth","inputPath":"input.wav","exportFormat":"WAV"}),
+        )
+        .await;
+    let job = tokio::time::timeout(Duration::from_secs(5), fixture.finish(&id))
+        .await
+        .unwrap();
+    assert_eq!(job.status, crate::jobs::JobStatus::Done, "{:?}", job.error);
+    let response = tokio::time::timeout(Duration::from_secs(5), inspect)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = axum::body::to_bytes(response.into_body(), 1024 * 1024)
+        .await
+        .unwrap();
+    let body: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(body["metadata"]["model_name"], "Fixture");
+    assert_eq!(
+        std::fs::read_to_string(fixture.engine.runtime.data.join("inspect-count"))
+            .unwrap()
+            .lines()
+            .count(),
+        2
+    );
+    assert!(!fixture.engine.scheduler.gpu_busy());
+    fixture.engine.shutdown().await.unwrap();
 }
 fn delete(path: &str) -> Request<Body> {
     Request::delete(path).body(Body::empty()).unwrap()

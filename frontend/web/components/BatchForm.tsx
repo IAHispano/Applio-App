@@ -19,6 +19,7 @@ import { SETTING_HELP } from "@/lib/setting-help";
 import { CONVERSION_DEFAULTS, useConversionParameters } from "@/lib/useConversionParameters";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 type ConversionParameterSetters = {
   [K in keyof ConversionParameterValues]: (value: ConversionParameterValues[K]) => void;
@@ -48,27 +49,48 @@ function loadBatchConfig(): {
 }
 
 export default function BatchForm() {
-  const [models, setModels] = useState<string[]>([]);
-  const [indexes, setIndexes] = useState<string[]>([]);
+  const [models, setModels] = useWorkspaceState<string[]>("BatchForm:components:models", []);
+  const [indexes, setIndexes] = useWorkspaceState<string[]>("BatchForm:components:indexes", []);
   const { t } = useI18n();
-  const [inputFolder, setInputFolder] = useState("assets/audios");
-  const [inputPath, setInputPath] = useState("");
-  const [sourceMode, setSourceMode] = useState<"folder" | "file">("folder");
+  const [inputFolder, setInputFolder] = useWorkspaceState(
+    "BatchForm:components:inputFolder",
+    "assets/audios",
+  );
+  const [inputPath, setInputPath] = useWorkspaceState("BatchForm:components:inputPath", "");
+  const [sourceMode, setSourceMode] = useWorkspaceState<"folder" | "file">(
+    "BatchForm:components:sourceMode",
+    "folder",
+  );
   const [sourceFiles, setSourceFiles] = useState<{ name: string; bytes: number }[] | null>(null);
-  const [excludedFiles, setExcludedFiles] = useState<string[]>([]);
+  const [excludedFiles, setExcludedFiles] = useWorkspaceState<string[]>(
+    "BatchForm:components:excludedFiles",
+    [],
+  );
   const [scanning, setScanning] = useState(false);
   const [canBrowse, setCanBrowse] = useState(false);
   const [sourceError, setSourceError] = useState("");
-  const [continueOnError, setContinueOnError] = useState(true);
+  const [continueOnError, setContinueOnError] = useWorkspaceState(
+    "BatchForm:components:continueOnError",
+    true,
+  );
   const scanVersion = useRef(0);
-  const [selectedModels, setSelectedModels] = useState<string[]>([]);
-  const [modelQuery, setModelQuery] = useState("");
-  const [modelIndexes, setModelIndexes] = useState<Record<string, string>>(() => loadBatchConfig().indexes);
+  const [selectedModels, setSelectedModels] = useWorkspaceState<string[]>(
+    "BatchForm:components:selectedModels",
+    [],
+  );
+  const [modelQuery, setModelQuery] = useWorkspaceState("BatchForm:components:modelQuery", "");
+  const [modelIndexes, setModelIndexes] = useWorkspaceState<Record<string, string>>(
+    "BatchForm:components:modelIndexes",
+    () => loadBatchConfig().indexes,
+  );
   const [legacyOverrides] = useState(() => loadBatchConfig().overrides);
   const migratedPresets = useRef(false);
   const [editingTarget, setEditingTarget] = useState<string>("global");
-  const [outputFolder, setOutputFolder] = useState("assets/audios/batch_output");
-  const conversion = useConversionParameters(selectedModels.length === 1 ? selectedModels[0] : "");
+  const [outputFolder, setOutputFolder] = useWorkspaceState(
+    "BatchForm:components:outputFolder",
+    "assets/audios/batch_output",
+  );
+  const conversion = useConversionParameters(selectedModels.length === 1 ? selectedModels[0] : "", "batch");
   const {
     pitch,
     indexRate,
@@ -89,7 +111,7 @@ export default function BatchForm() {
     formantQfrency,
     formantTimbre,
   } = conversion.values;
-  const [sid, setSid] = useState(0);
+  const [sid, setSid] = useWorkspaceState("BatchForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("batch");
   const { job, error, setError } = useJob(jobId);
   const [busy, setBusy] = useState(false);
@@ -153,19 +175,22 @@ export default function BatchForm() {
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
-  }, [speakers, sid]);
+  }, [speakers, sid, setSid]);
 
-  const loadAvailableModels = useCallback((force = true) => {
-    fetchModels(force)
-      .then((m) => {
-        setModels(m.models);
-        setIndexes(m.indexes);
-        if (m.models[0]) {
-          setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const loadAvailableModels = useCallback(
+    (force = true) => {
+      fetchModels(force)
+        .then((m) => {
+          setModels(m.models);
+          setIndexes(m.indexes);
+          if (m.models[0]) {
+            setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
+          }
+        })
+        .catch(() => {});
+    },
+    [setSelectedModels, setModels, setIndexes],
+  );
 
   useEffect(() => {
     loadAvailableModels(true);
