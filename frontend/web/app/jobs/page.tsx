@@ -10,6 +10,7 @@ import { Alert, Badge, Button, Card, CustomSelect, StatTile } from "@/components
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
+import { jobHref } from "@/lib/job-url";
 import { cleanJobLogs } from "@/lib/useJob";
 
 export default function JobsPage() {
@@ -116,7 +117,7 @@ export default function JobsPage() {
                 <Card className="space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/jobs/${job.id}`} className="font-semibold text-sm hover:underline">
+                      <Link href={jobHref(job.id)} className="font-semibold text-sm hover:underline">
                         {t(job.label || job.type)}
                       </Link>
                       <p className="m-0 mt-1 text-xs text-[var(--muted)]">
@@ -171,12 +172,7 @@ export default function JobsPage() {
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      href={`/jobs/${job.id}`}
-                      icon={<ArrowRight size={13} />}
-                    >
+                    <Button variant="ghost" size="xs" href={jobHref(job.id)} icon={<ArrowRight size={13} />}>
                       {t("Open activity")}
                     </Button>
                     {job.status === "done" && job.outputFile && (

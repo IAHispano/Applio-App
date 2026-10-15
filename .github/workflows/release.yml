@@ -109,6 +109,21 @@ jobs:
       - name: Collect Tauri installers
         run: node bin/collect-tauri-artifacts.mjs
 
+      - name: Verify signed Windows update and Electron migration
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          node bin/check-installer-migration.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node bin/check-update-feeds.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node bin/check-runtime.mjs --packaged frontend/desktop/resources --browser
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          $env:APPLIO_UPDATE_ARTIFACT = (Resolve-Path "frontend/desktop/dist-installers/Applio_${version}_x64-setup.exe").Path
+          node bin/cargo.mjs test -p applio-desktop signed_update_download -- --ignored --nocapture
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Upload build artifacts
         # Installers are already compressed (.exe/.dmg/.AppImage/.deb), so
         # upload them directly instead of re-zipping (saves CPU on every job

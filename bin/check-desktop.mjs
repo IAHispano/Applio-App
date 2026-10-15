@@ -45,11 +45,9 @@ const processHandle = spawn(executable, [], {
   stdio: ["ignore", "pipe", "pipe"],
   env: {
     ...process.env,
-    APPLIO_NODE: process.execPath,
     APPLIO_ROOT: path.join(temporary, "runtime"),
     APPLIO_CONFIG_DIR: path.join(temporary, "config"),
     APPLIO_NO_ENV: "1",
-    APPLIO_STANDALONE_WEB: "1",
     ...(release
       ? { APPDATA: path.join(temporary, "roaming"), LOCALAPPDATA: path.join(temporary, "local") }
       : {}),

@@ -49,7 +49,7 @@ checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
 name = "applio-api"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -86,10 +86,11 @@ dependencies = [
 
 [[package]]
 name = "applio-desktop"
-version = "0.2.9"
+version = "0.2.10"
 dependencies = [
  "anyhow",
  "applio-api",
+ "axum",
  "dunce",
  "reqwest 0.12.28",
  "serde_json",

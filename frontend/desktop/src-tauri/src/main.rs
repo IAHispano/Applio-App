@@ -40,7 +40,7 @@ pub struct AppState {
     hotkey: Mutex<String>,
     realtime: Mutex<Option<(Value, Instant)>>,
     notified: Mutex<HashSet<String>>,
-    updates: tokio::sync::Mutex<updater::UpdateState>,
+    updates: updater::UpdateState,
 }
 impl AppState {
     async fn stop(&self) {
@@ -67,6 +67,18 @@ impl AppState {
             .clone()
             .ok_or_else(|| "The engine is not running".into())
     }
+}
+
+fn valid_job_link(href: &str) -> bool {
+    href.strip_prefix("/jobs/view?id=")
+        .or_else(|| href.strip_prefix("/jobs/"))
+        .is_some_and(|id| {
+            !id.is_empty()
+                && id.len() <= 100
+                && id
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+        })
 }
 
 fn focus(app: &AppHandle) {
@@ -147,8 +159,9 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         *state.server.lock().unwrap() = Some((
             stop,
             tauri::async_runtime::spawn(async move {
-                if let Err(error) = applio_api::native_host::serve_with_environment(
+                if let Err(error) = applio_api::native_host::serve_with_ui(
                     listener,
+                    Some(web_reservation),
                     config,
                     server_stop.clone(),
                     server_env,
@@ -162,10 +175,9 @@ async fn startup(app: AppHandle) -> Result<(), String> {
                 }
             }),
         ));
-        drop(web_reservation);
-        let host = Host::start(app.clone(), &state.paths, environment).await?;
+        let host = Host::start(app.clone(), &state.paths).await?;
         *state.host.lock().await = Some(host.clone());
-        runtime::wait_for_services(&host).await?;
+        runtime::wait_for_services().await?;
         let _ = app.emit("startup-status", "Loading Applio…");
         let window = app
             .get_webview_window("main")
@@ -346,7 +358,7 @@ async fn notify_job(
         || !id
             .chars()
             .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        || href != format!("/jobs/{id}")
+        || (href != format!("/jobs/{id}") && href != format!("/jobs/view?id={id}"))
     {
         return Err("Invalid job notification".into());
     }
@@ -487,7 +499,7 @@ fn main() {
                 hotkey: Mutex::new(String::new()),
                 realtime: Mutex::new(None),
                 notified: Mutex::new(HashSet::new()),
-                updates: tokio::sync::Mutex::new(updater::UpdateState::default()),
+                updates: updater::UpdateState::default(),
             });
             let platform = if cfg!(windows) {
                 "win32"
@@ -572,9 +584,7 @@ fn main() {
                 let Some(href) = notification.extra().get("href").and_then(Value::as_str) else {
                     return;
                 };
-                if href == "/settings"
-                    || (href.starts_with("/jobs/") && !href.contains(['\\', '?', '#']))
-                {
+                if href == "/settings" || valid_job_link(href) {
                     focus(&notification_handle);
                     let event = if href.starts_with("/jobs/") {
                         "job-open"

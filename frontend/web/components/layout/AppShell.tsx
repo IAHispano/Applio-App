@@ -12,6 +12,7 @@ import SupportLink from "@/components/SupportLink";
 import SetupBarrier from "@/components/setup/SetupBarrier";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
+import { normalizeJobHref } from "@/lib/job-url";
 import { useSetup } from "@/lib/setup";
 
 const RealtimeWorkspace = dynamic(() => import("@/components/RealtimeWorkspace"), { ssr: false });
@@ -62,7 +63,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       window as unknown as { applio?: { onNavigate?: (listener: (href: string) => void) => () => void } }
     ).applio;
     return bridge?.onNavigate?.((href) => {
-      if (href.startsWith("/") && !href.startsWith("//")) router.push(href);
+      if (href.startsWith("/") && !href.startsWith("//")) router.push(normalizeJobHref(href));
     });
   }, [router]);
   const { isReady, loading } = useSetup();

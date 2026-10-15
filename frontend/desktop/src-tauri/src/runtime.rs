@@ -2,12 +2,10 @@ use anyhow::{bail, Context, Result};
 use applio_api::{
     app_runtime::{self, Environment},
     bridge_mode::{BridgeMode, Options},
-    process::{CommandSpec, ManagedProcess, ProcessEvent},
 };
 use serde_json::Value;
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tauri::{AppHandle, Emitter};
-use tokio::sync::Mutex;
+use tauri::AppHandle;
 use tokio_util::sync::CancellationToken;
 
 pub struct Paths {
@@ -15,7 +13,6 @@ pub struct Paths {
     pub data: PathBuf,
     pub config: PathBuf,
     pub legacy_config: PathBuf,
-    pub node: PathBuf,
 }
 impl Paths {
     pub fn resolve(app: &AppHandle) -> Result<Self> {
@@ -62,20 +59,12 @@ impl Paths {
         } else {
             code.clone()
         };
-        let node = if packaged {
-            code.join(if cfg!(windows) { "node.exe" } else { "node" })
-        } else {
-            std::env::var_os("APPLIO_NODE")
-                .map(PathBuf::from)
-                .unwrap_or(PathBuf::from("node"))
-        };
         std::fs::create_dir_all(config.join("app-logs"))?;
         Ok(Self {
             code: dunce::simplified(&code).to_path_buf(),
             data: dunce::simplified(&data).to_path_buf(),
             config: dunce::simplified(&config).to_path_buf(),
             legacy_config: dunce::simplified(&legacy_config).to_path_buf(),
-            node: dunce::simplified(&node).to_path_buf(),
         })
     }
 }
@@ -95,7 +84,6 @@ pub fn prepare(paths: &Paths) -> Result<Environment> {
         local,
         &legacy,
     )?;
-    env.insert("APPLIO_NODE".into(), paths.node.as_os_str().to_owned());
     env.insert(
         "APPLIO_LOCALE".into(),
         sys_locale::get_locale()
@@ -108,57 +96,9 @@ pub fn prepare(paths: &Paths) -> Result<Environment> {
 pub struct Host {
     bridge: Arc<BridgeMode>,
     stop: CancellationToken,
-    task: Mutex<Option<tokio::task::JoinHandle<()>>>,
 }
 impl Host {
-    pub async fn start(
-        app: AppHandle,
-        paths: &Paths,
-        environment: Environment,
-    ) -> Result<Arc<Self>> {
-        let standalone =
-            !cfg!(debug_assertions) || std::env::var("APPLIO_STANDALONE_WEB").as_deref() == Ok("1");
-        let web = paths.code.join("frontend/web");
-        let entry = if standalone {
-            web.join(".next/standalone/server.js")
-        } else {
-            web.join("node_modules/next/dist/bin/next")
-        };
-        let mut command = CommandSpec::new(
-            &paths.node,
-            if standalone {
-                entry.parent().unwrap().to_path_buf()
-            } else {
-                web
-            },
-        );
-        command.args.push(entry.into_os_string());
-        if !standalone {
-            command
-                .args
-                .extend(["dev", "-p", "3000", "-H", "127.0.0.1"].map(Into::into));
-        }
-        command.env = environment;
-        for (key, value) in [
-            ("PORT", "3000"),
-            ("HOSTNAME", "127.0.0.1"),
-            ("NEXT_PUBLIC_API_URL", "http://127.0.0.1:8000"),
-            (
-                "NODE_ENV",
-                if standalone {
-                    "production"
-                } else {
-                    "development"
-                },
-            ),
-        ] {
-            command.env.insert(key.into(), value.into());
-        }
-        command
-            .env_remove
-            .extend(["ELECTRON_RUN_AS_NODE", "NODE_OPTIONS"].map(Into::into));
-        let mut child =
-            ManagedProcess::spawn(&command).context("Could not start the Next.js interface")?;
+    pub async fn start(app: AppHandle, paths: &Paths) -> Result<Arc<Self>> {
         let stop = CancellationToken::new();
         let config = paths.config.clone();
         let code = paths.code.clone();
@@ -186,32 +126,7 @@ impl Host {
             },
             stop.child_token(),
         );
-        let token = stop.clone();
-        let log_path = paths.config.join("app-logs/launcher.log");
-        let task = tokio::spawn(async move {
-            use std::io::Write;
-            let mut log = std::fs::OpenOptions::new()
-                .create(true)
-                .append(true)
-                .open(log_path)
-                .ok();
-            loop {
-                tokio::select! {
-                    _=token.cancelled()=>{let _=child.stop().await;break;},
-                    event=child.next_event()=> match event {
-                        Ok(ProcessEvent::Line(_,line))=>{if let Some(log)=log.as_mut(){let _=writeln!(log,"{line}");}},
-                        Ok(ProcessEvent::Exited(code))=>{if let Some(log)=log.as_mut(){let _=writeln!(log,"Next.js exited: {code:?}");}let _=app.emit("host-stopped",());break;},
-                        Ok(ProcessEvent::OutputClosed)=>{tokio::select!{_=token.cancelled()=>{let _=child.stop().await;},_=child.wait()=>{let _=app.emit("host-stopped",());}}break;}
-                        Err(error)=>{if let Some(log)=log.as_mut(){let _=writeln!(log,"Next.js process error: {error:#}");}let _=child.stop().await;let _=app.emit("host-stopped",());break;}
-                    }
-                }
-            }
-        });
-        Ok(Arc::new(Self {
-            bridge,
-            stop,
-            task: Mutex::new(Some(task)),
-        }))
+        Ok(Arc::new(Self { bridge, stop }))
     }
     pub async fn call(&self, action: &str, value: Option<String>) -> Result<Value, String> {
         let result: Result<Value> = async {
@@ -261,25 +176,9 @@ impl Host {
         .await;
         result.map_err(|error| format!("{error:#}"))
     }
-    pub async fn exited(&self) -> bool {
-        self.task
-            .lock()
-            .await
-            .as_ref()
-            .is_none_or(|t| t.is_finished())
-    }
     pub async fn stop(&self) {
         let _ = self.bridge.stop().await;
         self.stop.cancel();
-        if let Some(mut task) = self.task.lock().await.take() {
-            if tokio::time::timeout(Duration::from_secs(10), &mut task)
-                .await
-                .is_err()
-            {
-                task.abort();
-                let _ = task.await;
-            }
-        }
     }
 }
 impl Drop for Host {
@@ -288,16 +187,13 @@ impl Drop for Host {
     }
 }
 
-pub async fn wait_for_services(host: &Host) -> Result<()> {
+pub async fn wait_for_services() -> Result<()> {
     let client = reqwest::Client::builder()
         .no_proxy()
         .timeout(Duration::from_secs(2))
         .build()?;
     let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
     while tokio::time::Instant::now() < deadline {
-        if host.exited().await {
-            bail!("Next.js exited. See launcher.log for details.");
-        }
         let (api, web) = tokio::join!(
             client.get("http://127.0.0.1:8000/api/health").send(),
             client.get("http://127.0.0.1:3000/").send()

@@ -40,7 +40,7 @@ async fn send(app: &Router, path: &str, post: bool) -> (StatusCode, Value) {
 }
 async fn wait_file(path: &Path) {
     tokio::time::timeout(Duration::from_secs(5), async {
-        while !path.exists() {
+        while !std::fs::metadata(path).is_ok_and(|metadata| metadata.len() > 0) {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     })

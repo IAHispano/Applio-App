@@ -85,6 +85,7 @@ pub mod uvr_routes;
 #[cfg(test)]
 mod version_checks;
 pub mod version_routes;
+pub mod web_host;
 pub mod worker;
 
 pub async fn serve(listener: tokio::net::TcpListener, router: Router) -> anyhow::Result<()> {

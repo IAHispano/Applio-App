@@ -1,10 +1,11 @@
-// Browser launcher: the Rust API and Next.js UI are the only services.
+// Development launcher; production serves the exported UI directly from Rust.
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import os from "node:os";
 import { rustEnvironment } from "./rust-env.mjs";
+
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const production = process.argv.includes("--production");
 const config =
@@ -21,6 +22,8 @@ const env = {
   APPLIO_CONFIG_DIR: config,
   API_PORT: process.env.API_PORT || "8000",
   NODE_ENV: production ? "production" : "development",
+  APPLIO_SERVE_WEB: production && !process.argv.includes("--no-web") ? "1" : "0",
+  WEB_PORT: process.env.WEB_PORT || "3000",
 };
 const executable = path.join(
   root,
@@ -48,27 +51,21 @@ const api = spawn(executable, ["--shutdown-on-stdin-eof"], {
   windowsHide: true,
 });
 const children = [api];
-if (!process.argv.includes("--no-web")) {
+if (!production && !process.argv.includes("--no-web")) {
   const web = path.join(root, "frontend/web");
-  const entry = production
-    ? path.join(web, ".next/standalone/server.js")
-    : createRequire(path.join(web, "package.json")).resolve("next/dist/bin/next");
+  const entry = createRequire(path.join(web, "package.json")).resolve("next/dist/bin/next");
   children.push(
-    spawn(
-      process.execPath,
-      [entry, ...(production ? [] : ["dev", "-p", process.env.WEB_PORT || "3000", "-H", "127.0.0.1"])],
-      {
-        cwd: production ? path.dirname(entry) : web,
-        windowsHide: true,
-        stdio: "inherit",
-        env: {
-          ...env,
-          PORT: process.env.WEB_PORT || "3000",
-          HOSTNAME: "127.0.0.1",
-          NEXT_PUBLIC_API_URL: `http://127.0.0.1:${env.API_PORT}`,
-        },
+    spawn(process.execPath, [entry, "dev", "-p", env.WEB_PORT, "-H", "127.0.0.1"], {
+      cwd: web,
+      windowsHide: true,
+      stdio: "inherit",
+      env: {
+        ...env,
+        PORT: process.env.WEB_PORT || "3000",
+        HOSTNAME: "127.0.0.1",
+        NEXT_PUBLIC_API_URL: `http://127.0.0.1:${env.API_PORT}`,
       },
-    ),
+    }),
   );
 }
 let stopping = false;

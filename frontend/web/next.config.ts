@@ -1,15 +1,11 @@
 import type { NextConfig } from "next";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-
 const nextConfig: NextConfig = {
   devIndicators: false,
   // Keep the running development server from replacing release build files.
   distDir: process.env.NODE_ENV === "development" ? ".next-dev" : ".next",
-  // Single-folder deploy for Tauri resources + Docker + Colab.
-  // The tracing root keeps the flat classic layout in monorepos.
-  output: "standalone",
-  outputFileTracingRoot: import.meta.dirname,
+  // Rust serves the exported UI and native API; production needs no Node server.
+  output: "export",
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
   experimental: {
@@ -20,19 +16,18 @@ const nextConfig: NextConfig = {
     // truncated to the first 10MB and imports fail.
     middlewareClientMaxBodySize: "1024mb",
   },
-  async rewrites() {
-    return [
-      { source: "/api/:path*", destination: `${API_URL}/api/:path*` },
-      { source: "/outputs/:path*", destination: `${API_URL}/outputs/:path*` },
-      { source: "/assets/:path*", destination: `${API_URL}/assets/:path*` },
-    ];
-  },
-  async redirects() {
-    return [
-      { source: "/convert", destination: "/inference", permanent: true },
-      { source: "/tools", destination: "/extra", permanent: true },
-    ];
-  },
+  // Next dev still proxies local requests; exported production routes live in Rust.
+  ...(process.env.NODE_ENV === "development"
+    ? {
+        async rewrites() {
+          const api = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+          return ["api", "outputs", "assets"].map((prefix) => ({
+            source: `/${prefix}/:path*`,
+            destination: `${api}/${prefix}/:path*`,
+          }));
+        },
+      }
+    : {}),
 };
 
 export default nextConfig;

@@ -1,12 +1,12 @@
 {
   "name": "@applio/desktop",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "private": true,
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "author": "AI Hispano",
   "homepage": "https://github.com/IAHispano/Applio-app",
   "scripts": {
-    "prepare:dev": "pnpm -w backend:check:dev",
+    "prepare:dev": "pnpm -w backend:check:dev && pnpm --filter @applio/web build",
     "prepare:release": "pnpm -w build:web-services && node scripts/stage-resources.mjs",
     "build": "node scripts/tauri-build.mjs --no-bundle",
     "typecheck": "tsc --noEmit -p tsconfig.json",

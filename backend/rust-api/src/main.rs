@@ -32,8 +32,17 @@ async fn main() -> anyhow::Result<()> {
         false,
         &[],
     )?;
-    let host = applio_api::native_host::serve_with_environment(
+    let web_listener = if std::env::var("APPLIO_SERVE_WEB").as_deref() == Ok("1") {
+        let port: u16 = std::env::var("WEB_PORT")
+            .unwrap_or_else(|_| "3000".into())
+            .parse()?;
+        Some(tokio::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).await?)
+    } else {
+        None
+    };
+    let host = applio_api::native_host::serve_with_ui(
         listener,
+        web_listener,
         config,
         stop.clone(),
         environment,

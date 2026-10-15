@@ -28,6 +28,7 @@ import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, displayVersion, errMsg, fileBasename, type Job } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { jobHref } from "@/lib/job-url";
 import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
 
@@ -439,7 +440,7 @@ export default function Home() {
               {recentJobs.map((job) => (
                 <li key={job.id}>
                   <Link
-                    href={`/jobs/${encodeURIComponent(job.id)}`}
+                    href={jobHref(job.id)}
                     className="block py-3 space-y-2 rounded-lg hover:bg-[var(--surface)] px-2 -mx-2 transition-colors"
                   >
                     <p className="text-sm font-medium text-[var(--heading)] truncate m-0">

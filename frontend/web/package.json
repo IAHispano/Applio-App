@@ -1,13 +1,12 @@
 {
   "name": "@applio/web",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "private": true,
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "postbuild": "node scripts/copy-static.mts",
-    "start": "next start -p 3000",
+    "start": "node ../../bin/run-services.mjs --production",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

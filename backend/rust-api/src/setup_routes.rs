@@ -145,7 +145,6 @@ pub(crate) async fn compute(
     if engine.no_env() {
         let checks = [
             ("rust", "Rust API"),
-            ("node", "Web runtime"),
             ("web", "Web interface build"),
             ("python", "Python (3.11 / 3.12)"),
             ("engine", "Engine packages (torch, uvicorn, librosa)"),
@@ -159,57 +158,10 @@ pub(crate) async fn compute(
     }
     let runtime = &engine.runtime;
     let mut checks = vec![Check::new("rust", "Rust API", "ok", "native runtime ready")];
-    let bundled = runtime
-        .code
-        .join(if cfg!(windows) { "node.exe" } else { "node" });
-    let node = runtime
-        .env("APPLIO_NODE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            if bundled.is_file() {
-                bundled
-            } else {
-                "node".into()
-            }
-        });
-    let mut node_spec = CommandSpec::new(node, &runtime.data).args(["--version"]);
-    node_spec
-        .env
-        .extend(runtime.python_command(Vec::<String>::new())?.env);
-    let node = run_check(&node_spec, token, 15).await;
-    let (node_ok, node_version) = node
-        .map(|r| {
-            let text = r.stdout.trim().to_owned();
-            (
-                r.success
-                    && text
-                        .trim_start_matches('v')
-                        .split('.')
-                        .next()
-                        .and_then(|n| n.parse::<u32>().ok())
-                        .is_some_and(|major| major >= 20),
-                text,
-            )
-        })
-        .unwrap_or((false, "not found".into()));
-    checks.push(Check::new(
-        "node",
-        format!("Node.js {node_version}"),
-        if node_ok { "ok" } else { "missing" },
-        if node_ok {
-            "web runtime ready"
-        } else {
-            "Node.js 20+ is required for the web interface"
-        },
-    ));
     let web = runtime.code.join("frontend/web");
-    let web_ok = [
-        ".next/standalone/server.js",
-        ".next/BUILD_ID",
-        "package.json",
-    ]
-    .iter()
-    .any(|path| web.join(path).is_file());
+    let web_ok = ["out/index.html", "package.json"]
+        .iter()
+        .any(|path| web.join(path).is_file());
     checks.push(Check::new(
         "web",
         "Web interface build",

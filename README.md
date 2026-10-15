@@ -23,7 +23,24 @@ pnpm desktop:dev
 Use `pnpm dev` for the browser UI, `pnpm build:all` to build, and `pnpm typecheck` to check types.
 
 The desktop shell uses Tauri 2. The API, job scheduling, setup, and Bridge Mode
-run in Rust. Node.js runs the Next.js UI; the voice engine remains Python.
-See [migration status and build instructions](docs/tauri-migration.md).
+run in Rust. Rust also serves the statically exported Next.js UI. Installed builds
+include no Node runtime or Node service; Node is needed only for development and
+build tooling. The voice engine remains Python.
+
+Build installers with `pnpm build:win`, `pnpm build:mac` or `pnpm build:linux`
+on the corresponding platform. Run `pnpm test:rust` and `pnpm release:check`
+after staging release resources.
+
+## Releases
+
+The release workflow requires `TAURI_SIGNING_PRIVATE_KEY` and, for encrypted keys,
+`TAURI_SIGNING_PRIVATE_KEY_PASSWORD` in GitHub Actions secrets. The key must match
+the public identity in `frontend/desktop/src-tauri/tauri.conf.json`. Back it up
+securely outside the repository. Local builds can use `APPLIO_SIGNING_KEY_FILE`
+or `~/.applio-signing/updater.key`.
+
+Publish the generated signed artifacts and updater feeds together. The Windows
+installer supports the first Electron-to-Tauri transition while retaining user
+data and Python; macOS Electron users need a manual first migration.
 
 [MIT License](LICENSE) · [Terms of Use](TERMS_OF_USE.md) · Built on [Applio](https://github.com/IAHispano/Applio).

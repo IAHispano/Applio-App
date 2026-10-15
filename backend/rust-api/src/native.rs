@@ -110,7 +110,7 @@ mod checks {
                 response
             }));
         let inventory: serde_json::Value =
-            serde_json::from_str(include_str!("../../../docs/api-route-inventory.json")).unwrap();
+            serde_json::from_str(include_str!("api-route-inventory.json")).unwrap();
         for route in inventory["routes"].as_array().unwrap() {
             let path = route["path"]
                 .as_str()

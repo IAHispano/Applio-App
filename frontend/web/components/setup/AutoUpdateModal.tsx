@@ -61,6 +61,8 @@ export default function AutoUpdateModal() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const autoTriggeredRef = useRef(false);
+  const versionRef = useRef<VersionCheckData | null>(null);
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   // Desktop bridge reference
   const getBridge = useCallback(() => {
@@ -93,23 +95,27 @@ export default function AutoUpdateModal() {
     // 1. If Tauri Desktop updater is available and functional
     if (bridge?.updater) {
       try {
-        const currentStatus = await bridge.updater.getStatus();
+        let currentStatus = await bridge.updater.getStatus();
+        if (currentStatus.status !== "available" && currentStatus.status !== "downloaded") {
+          await bridge.updater.check();
+          currentStatus = await bridge.updater.getStatus();
+        }
         if (currentStatus.status === "downloaded") {
           setUpdateStep("ready");
           setStatusMessage(t("Update downloaded. Restarting Applio…"));
-          setTimeout(() => {
-            bridge.updater?.quitAndInstall();
-          }, 1200);
+          timersRef.current.push(
+            setTimeout(() => {
+              bridge.updater?.quitAndInstall();
+            }, 1200),
+          );
           return;
         }
 
-        // Trigger download if available
-        if (bridge.updater.download) {
+        if (currentStatus.status === "available" && bridge.updater.download) {
           await bridge.updater.download();
         } else {
-          await bridge.updater.check();
+          throw new Error(currentStatus.message || t("Download failed"));
         }
-        setStatusMessage(t("Downloading update in background…"));
         return;
       } catch {
         // Fallback to git / API update below if desktop updater fails
@@ -131,23 +137,25 @@ export default function AutoUpdateModal() {
       if (res.success && res.method === "git") {
         setUpdateStep("done");
         setStatusMessage(t("Applio updated successfully! Restart the application to load the new version."));
-      } else if (res.downloadUrl || versionData?.downloadUrl) {
-        const url = res.downloadUrl || versionData?.downloadUrl;
+      } else if (res.downloadUrl || versionRef.current?.downloadUrl) {
+        const url = res.downloadUrl || versionRef.current?.downloadUrl;
         if (url && typeof window !== "undefined") {
           window.open(url, "_blank");
         }
-        setUpdateStep("ready");
+        setUpdating(false);
+        setUpdateStep("done");
         setStatusMessage(t("Installer opened in your browser. Run the installer to complete the update."));
       } else {
-        setUpdateStep("done");
-        setStatusMessage(res.message || t("Update completed."));
+        setUpdateStep("error");
+        setErrorMsg(res.message || t("Download failed"));
+        setUpdating(false);
       }
     } catch (err) {
       setUpdateStep("error");
       setErrorMsg(errMsg(err));
       setUpdating(false);
     }
-  }, [getBridge, t, versionData?.downloadUrl]);
+  }, [getBridge, t]);
 
   // Check version on startup
   const checkForUpdates = useCallback(async () => {
@@ -178,6 +186,7 @@ export default function AutoUpdateModal() {
         return;
       }
 
+      versionRef.current = data;
       setVersionData(data);
 
       if (data.status === "behind") {
@@ -197,9 +206,11 @@ export default function AutoUpdateModal() {
           if (!autoTriggeredRef.current) {
             autoTriggeredRef.current = true;
             // Short delay to let modal render and show notice
-            setTimeout(() => {
-              void startUpdate();
-            }, 800);
+            timersRef.current.push(
+              setTimeout(() => {
+                void startUpdate();
+              }, 800),
+            );
           }
         }
       }
@@ -207,43 +218,41 @@ export default function AutoUpdateModal() {
       /* non-fatal if offline */
     }
 
-    // Connect desktop updater listener if running inside Tauri
-    if (bridge?.updater) {
-      bridge.updater
-        .getStatus()
-        .then((st) => {
-          if (st) setUpdaterState(st);
-        })
-        .catch(() => {});
+    if (bridge?.updater) void bridge.updater.check().catch(() => {});
+  }, [getBridge, startUpdate]);
 
-      bridge.updater.onStatusChange((st) => {
-        setUpdaterState(st);
-        if (st.status === "downloading") {
-          setUpdating(true);
-          setUpdateStep("downloading");
-          setUpdateProgress(st.percent ?? null);
-          setStatusMessage(t("Downloading update…"));
-        } else if (st.status === "downloaded") {
-          setUpdating(false);
-          setUpdateStep("ready");
-          setStatusMessage(t("Update ready to install."));
-          // If critical outdated, restart to apply
-          if (versionData?.isOutdated) {
-            setTimeout(() => {
-              bridge.updater?.quitAndInstall();
-            }, 1500);
-          }
-        } else if (st.status === "error") {
-          setUpdating(false);
-          setUpdateStep("error");
-          setErrorMsg(st.message || t("Download failed"));
+  useEffect(() => {
+    const bridge = getBridge();
+    if (!bridge?.updater) return;
+    const unsubscribe = bridge.updater.onStatusChange((st) => {
+      setUpdaterState(st);
+      if (st.status === "downloading") {
+        setUpdating(true);
+        setUpdateStep("downloading");
+        setUpdateProgress(st.percent ?? null);
+        setStatusMessage(t("Downloading update…"));
+      } else if (st.status === "downloaded") {
+        setUpdating(false);
+        setUpdateStep("ready");
+        setStatusMessage(t("Update ready to install."));
+        if (versionRef.current?.isOutdated) {
+          timersRef.current.push(setTimeout(() => bridge.updater?.quitAndInstall(), 1500));
         }
-      });
+      } else if (st.status === "error") {
+        setUpdating(false);
+        setUpdateStep("error");
+        setErrorMsg(st.message || t("Download failed"));
+      }
+    });
+    return unsubscribe;
+  }, [getBridge, t]);
 
-      // Trigger check
-      bridge.updater.check().catch(() => {});
-    }
-  }, [getBridge, startUpdate, t, versionData?.isOutdated]);
+  useEffect(
+    () => () => {
+      for (const timer of timersRef.current) clearTimeout(timer);
+    },
+    [],
+  );
 
   useEffect(() => {
     // Never run auto-update timer in development mode

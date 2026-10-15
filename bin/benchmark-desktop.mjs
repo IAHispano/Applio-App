@@ -266,7 +266,12 @@ try {
     report.builds[kind] = {
       executableSha256: hash(path.join(folder, "Applio.exe")),
       installedBytes: footprint(folder),
-      version: "0.2.9",
+      version: JSON.parse(
+        fs.readFileSync(
+          path.join(folder, kind === "electron" ? "resources/app/package.json" : "app/package.json"),
+          "utf8",
+        ),
+      ).version,
     };
     fs.mkdirSync(path.join(folder, "data"));
     fs.writeFileSync(
@@ -275,6 +280,7 @@ try {
     );
     const code = kind === "electron" ? path.join(folder, "resources/app") : path.join(folder, "app");
     const buildId = path.join(code, "frontend/web/.next/standalone/.next/BUILD_ID");
+    report.builds[kind].staticExport = fs.existsSync(path.join(code, "frontend/web/out/index.html"));
     report.builds[kind].nextBuildId = fs.existsSync(buildId) ? fs.readFileSync(buildId, "utf8").trim() : null;
     const revision = path.join(code, "backend/revision.json");
     report.builds[kind].engineRevision = fs.existsSync(revision)
@@ -282,7 +288,7 @@ try {
       : null;
   }
   report.builds.tauri.installerBytes = fs.statSync(
-    path.join(root, "frontend/desktop/dist-installers/Applio_0.2.9_x64-setup.exe"),
+    path.join(root, `frontend/desktop/dist-installers/Applio_${report.builds.tauri.version}_x64-setup.exe`),
   ).size;
   for (const kind of ["electron", "tauri"]) await run(kind, "discarded-warmup");
   for (let i = 0; i < runs; i++) {

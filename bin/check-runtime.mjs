@@ -7,6 +7,7 @@ import os from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
+import { checkBrowser } from "./check-browser.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 function packagedRoots() {
@@ -14,7 +15,7 @@ function packagedRoots() {
   if (explicit && !explicit.startsWith("--")) return [path.resolve(explicit)];
   const staged = path.join(root, "frontend/desktop/resources");
   assert.ok(
-    fs.existsSync(path.join(staged, "frontend/web/.next/standalone/server.js")),
+    fs.existsSync(path.join(staged, "frontend/web/out/index.html")),
     "Stage the Tauri resources first.",
   );
   return [staged];
@@ -25,6 +26,11 @@ async function freePort() {
   const port = server.address().port;
   await new Promise((resolve) => server.close(resolve));
   return String(port);
+}
+function cleanTemporary(directory) {
+  if (!path.resolve(directory).startsWith(path.join(path.resolve(os.tmpdir()), "applio-startup-")))
+    throw new Error("Invalid runtime test cleanup root");
+  fs.rmSync(directory, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
 async function check(code) {
   const temporary = fs.mkdtempSync(path.join(os.tmpdir(), "applio-startup-"));
@@ -48,6 +54,18 @@ async function check(code) {
     const webPort = await freePort();
     const data = path.join(temporary, "data");
     fs.mkdirSync(data);
+    if (process.argv.includes("--packaged")) {
+      const inspect = (directory) => {
+        for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+          assert.ok(
+            !["node.exe", "node_modules", "standalone"].includes(entry.name),
+            `Node runtime resource shipped: ${path.join(directory, entry.name)}`,
+          );
+          if (entry.isDirectory()) inspect(path.join(directory, entry.name));
+        }
+      };
+      inspect(code);
+    }
     const env = {
       ...process.env,
       APPLIO_NO_ENV: "1",
@@ -57,29 +75,27 @@ async function check(code) {
       APPLIO_CONFIG_DIR: temporary,
       API_PORT: apiPort,
       PORT: webPort,
+      WEB_PORT: webPort,
+      APPLIO_SERVE_WEB: "1",
       HOSTNAME: "127.0.0.1",
+      // The native runtime must start when Node cannot be resolved from PATH.
+      PATH: process.platform === "win32" ? path.join(process.env.SystemRoot, "System32") : "/usr/bin:/bin",
+      APPLIO_NODE: path.join(temporary, "node-must-not-exist"),
     };
     const packaged = process.argv.includes("--packaged");
-    const node = packaged
-      ? path.join(code, process.platform === "win32" ? "node.exe" : "node")
-      : process.execPath;
     const native = path.join(
       root,
       "target",
       packaged ? "release" : "debug",
       process.platform === "win32" ? "applio-api.exe" : "applio-api",
     );
-    for (const entry of ["rust-api", "frontend/web/.next/standalone/server.js"]) {
-      const child = spawn(
-        entry === "rust-api" ? native : node,
-        entry === "rust-api" ? ["--shutdown-on-stdin-eof"] : [path.join(code, entry)],
-        {
-          cwd: data,
-          env,
-          windowsHide: true,
-          stdio: ["pipe", "ignore", "pipe"],
-        },
-      );
+    {
+      const child = spawn(native, ["--shutdown-on-stdin-eof"], {
+        cwd: data,
+        env,
+        windowsHide: true,
+        stdio: ["pipe", "ignore", "pipe"],
+      });
       children.push(child);
       child.stderr.on("data", (bytes) => {
         errors = (errors + bytes).slice(-8000);
@@ -99,6 +115,7 @@ async function check(code) {
       }
       throw new Error(`Startup timed out for ${url}:\n${errors}`);
     }
+    console.log("Checking native runtime without Node on PATH…");
     const health = await (await fetchReady(`http://127.0.0.1:${apiPort}/api/health`)).json();
     assert.equal(health.ok, true);
     assert.equal(health.service, "applio-rust-api");
@@ -109,8 +126,40 @@ async function check(code) {
     assert.ok(voices.voices.length > 100);
     const jobs = await (await fetchReady(`http://127.0.0.1:${apiPort}/api/jobs`)).json();
     assert.deepEqual(jobs.jobs, []);
-    for (const page of ["/", "/jobs", "/realtime"])
-      assert.equal((await fetchReady(`http://127.0.0.1:${webPort}${page}`)).status, 200);
+    const origin = `http://127.0.0.1:${webPort}`;
+    for (const page of [
+      "/",
+      "/inference",
+      "/realtime",
+      "/tts",
+      "/models",
+      "/train",
+      "/voice-blender",
+      "/tensorboard",
+      "/extra",
+      "/audio-separator",
+      "/jobs",
+      "/jobs/view",
+      "/settings",
+      "/report",
+      "/setup",
+    ]) {
+      if (process.env.APPLIO_CHECK_VERBOSE) console.log(`Checking ${page}`);
+      const response = await fetchReady(`${origin}${page}`);
+      assert.match(response.headers.get("content-type"), /text\/html/);
+      assert.match(await response.text(), /<html/);
+      const component = await fetch(`${origin}${page === "/" ? "/index" : page}.txt?_rsc=test`);
+      assert.equal(component.status, 200, `Missing navigation component: ${page}`);
+      assert.match(component.headers.get("content-type"), /text\/x-component/);
+    }
+    const legacy = await fetch(`${origin}/jobs/old-job`, { redirect: "manual" });
+    assert.equal(legacy.headers.get("location"), "/jobs/view?id=old-job");
+    const webHealth = await (await fetch(`${origin}/api/health`)).json();
+    assert.equal(webHealth.repoRoot, health.repoRoot);
+    assert.equal(webHealth.runtime, "rust");
+    const status = await (await fetch(`${origin}/api/setup/status`)).json();
+    assert.ok(!status.checks.some((check) => check.id === "node"), "Setup still requires Node");
+    if (process.argv.includes("--browser")) await checkBrowser(origin, temporary);
     console.log(`Runtime passed: ${code} (engine ${manifest.commit.slice(0, 8)})`);
   } finally {
     for (const child of children) {
@@ -124,7 +173,12 @@ async function check(code) {
         await closed;
       }
     }
-    fs.rmSync(temporary, { recursive: true, force: true });
+    cleanTemporary(temporary);
   }
 }
-for (const code of process.argv.includes("--packaged") ? packagedRoots() : [root]) await check(code);
+try {
+  for (const code of process.argv.includes("--packaged") ? packagedRoots() : [root]) await check(code);
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
+}

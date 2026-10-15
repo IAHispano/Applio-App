@@ -41,14 +41,7 @@ async fn fixture() -> Fixture {
     let bin = root.join("fixture-bin");
     std::fs::create_dir(&bin).unwrap();
     let extension = if cfg!(windows) { ".exe" } else { "" };
-    for name in [
-        "python",
-        "node",
-        "nvidia-smi",
-        "powershell",
-        "reg",
-        "ffmpeg",
-    ] {
+    for name in ["python", "nvidia-smi", "powershell", "reg", "ffmpeg"] {
         std::fs::copy(&binary, bin.join(format!("{name}{extension}"))).unwrap();
     }
     let tools = root.join("fixture-tools");
@@ -94,10 +87,6 @@ async fn fixture() -> Fixture {
     runtime
         .environment
         .insert("UV_INSTALL_DIR".into(), tools.into_os_string());
-    runtime.environment.insert(
-        "APPLIO_NODE".into(),
-        bin.join(format!("node{extension}")).into_os_string(),
-    );
     runtime
         .environment
         .insert("APPLIO_TORCH_CUDA".into(), "cu126".into());
@@ -324,7 +313,6 @@ fn main(){
  if name=="powershell" {println!("[]");return;}
  if name=="reg" {println!("Installed REG_DWORD 0x1");return;}
  if name=="nvidia-smi" {if args.iter().any(|a|a.contains("query-gpu")){println!("NVIDIA RTX 3060, 8.6");}else{println!("CUDA Version: 12.6");}return;}
- if name=="node" {println!("v22.22.0");return;}
  if name=="ffmpeg" {println!("ffmpeg version fixture");return;}
  if name=="uv" {
   if args==["--version"]{println!("uv fixture");return;}
