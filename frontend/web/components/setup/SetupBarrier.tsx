@@ -61,7 +61,7 @@ export default function SetupBarrier() {
         <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
           <Button
             size="md"
-            onClick={() => router.push("/")}
+            onClick={() => router.push("/setup")}
             icon={<Sparkles size={16} />}
             iconAfter={<ArrowRight size={14} />}
             className="w-full sm:w-auto"

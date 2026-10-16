@@ -65,7 +65,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
             {t("Core engine dependencies are incomplete.")}
           </p>
           <Link
-            href="/"
+            href="/setup"
             onClick={onNavigate}
             className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-amber-300 hover:text-amber-200 transition-colors"
           >
