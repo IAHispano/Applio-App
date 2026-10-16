@@ -92,7 +92,7 @@ function ActionCard({
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const { status, refresh: refreshSetup } = useSetup();
+  const { status, loading: setupLoading, error: setupError, refresh: refreshSetup } = useSetup();
   const [modelsData, setModelsData] = useState<ModelsSummary | null>(null);
   const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
   const [library, setLibrary] = useState<LibraryModel[] | null>(null);
@@ -103,6 +103,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(true);
   const [jobId, setJobId] = useState<string | null>(null);
   const [forceSetup, setForceSetup] = useState(false);
+  const [stuck, setStuck] = useState(false);
   const activity = useJob(jobId);
   const { job: prereqJob, isActive: prereqRunning } = activity;
 
@@ -145,6 +146,19 @@ export default function Home() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // If /api/setup/status never resolves (backend warming torch, EPERM-locked
+  // .venv, offline port), the skeleton below would otherwise look like a dead
+  // black screen forever. Surface a fallback with direct access to /setup.
+  useEffect(() => {
+    if (status) {
+      setStuck(false);
+      return;
+    }
+    setStuck(false);
+    const timer = setTimeout(() => setStuck(true), 20000);
+    return () => clearTimeout(timer);
+  }, [status]);
 
   useEffect(() => {
     let disposed = false;
@@ -189,14 +203,23 @@ export default function Home() {
   const currentVersion = displayVersion(sysInfo?.version || versionInfo?.local);
 
   if (!status) {
-    if (error) {
+    const combinedError = error || setupError;
+    if (combinedError) {
       return (
         <div className="h-full w-full min-h-[300px] flex flex-col items-center justify-center p-6">
           <div className="max-w-md w-full space-y-4 text-center">
-            <Alert variant="error">{error}</Alert>
-            <Button onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
-              {t("Retry Connection")}
-            </Button>
+            <Alert variant="error">{combinedError}</Alert>
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              <Button onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
+                {t("Retry Connection")}
+              </Button>
+              <Button variant="ghost" href="/setup">
+                {t("Go to Setup")}
+              </Button>
+            </div>
+            <p className="text-xs text-[var(--muted)] m-0">
+              {t("If this persists, open Settings → Report a Bug and attach the backend log.")}
+            </p>
           </div>
         </div>
       );
@@ -210,6 +233,21 @@ export default function Home() {
           <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
           <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
         </div>
+        {(stuck || !setupLoading) && (
+          <div className="flex flex-col items-center gap-2 pt-4 animate-none">
+            <p className="text-xs text-[var(--muted)] m-0 text-center">
+              {t("Still checking engine status… the first torch import can take a few minutes.")}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap justify-center">
+              <Button size="sm" variant="ghost" onClick={() => refresh(true)} icon={<RefreshCw size={13} />}>
+                {t("Retry Check")}
+              </Button>
+              <Button size="sm" href="/setup">
+                {t("Go to Setup")}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
