@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { rustEnvironment } from "../../../bin/rust-env.mjs";
+import { rustEnvironment } from "../../../scripts/rust-env.mjs";
 
 Object.assign(process.env, rustEnvironment());
 

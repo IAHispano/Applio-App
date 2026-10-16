@@ -30,7 +30,3 @@ dunce = "1"
 [target.'cfg(windows)'.dependencies]
 webview2-com = "0.39"
 windows-core = "0.62"
-
-[dev-dependencies]
-tauri = { version = "2", features = ["test"] }
-axum = "0.8"

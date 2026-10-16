@@ -4,11 +4,11 @@
 // coverage rules. Dynamic sites it cannot prove land in REVIEW, never in keys.
 //
 // Usage (repo root):
-//   node bin/i18n-extract.mjs                                   # print keys + REVIEW
-//   node bin/i18n-extract.mjs --check <dict.json>               # report MISSING, exit 1 if any
-//   node bin/i18n-extract.mjs --check <dict> --fix              # append missing (identity), keep file order
-//   node bin/i18n-extract.mjs --check <dict> --prune            # delete unused (refuses if REVIEW pending)
-//   node bin/i18n-extract.mjs --check <dict> --sort              # sort keys A-Z, keep EOL style
+//   node scripts/i18n-extract.mjs                                   # print keys + REVIEW
+//   node scripts/i18n-extract.mjs --check <dict.json>               # report MISSING, exit 1 if any
+//   node scripts/i18n-extract.mjs --check <dict> --fix              # append missing (identity), keep file order
+//   node scripts/i18n-extract.mjs --check <dict> --prune            # delete unused (refuses if REVIEW pending)
+//   node scripts/i18n-extract.mjs --check <dict> --sort              # sort keys A-Z, keep EOL style
 // Combine --fix/--prune/--sort freely; --prune runs before --sort.
 import fs from "node:fs";
 import path from "node:path";
@@ -19,7 +19,6 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const WEB = path.join(root, "frontend", "web");
 const SCAN_DIRS = ["app", "components", "lib"].map((d) => path.join(WEB, d));
 SCAN_DIRS.push(path.join(root, "frontend", "desktop", "src"));
-const BACKEND_SRC = path.join(root, "backend", "api", "src");
 const SKIP_DIRS = new Set(["node_modules", ".next", "dist"]);
 
 function collectFiles(dir, out = []) {
@@ -167,12 +166,6 @@ function resolveDisplayArg(source, file, arg, found, rel) {
   if (ts.isCallExpression(arg) && ts.isIdentifier(arg.expression)) {
     const name = arg.expression.text;
     const roots = [source];
-    if (fs.existsSync(BACKEND_SRC)) {
-      for (const f of collectFiles(BACKEND_SRC)) {
-        if (f === file) continue;
-        roots.push(parse(f).source);
-      }
-    }
     let hit = false;
     for (const r of roots) {
       (function walk(n) {
@@ -436,19 +429,6 @@ for (const pool of POOL_FILES) {
   const { source } = parse(file);
   const rel = path.relative(root, file).replaceAll("\\", "/");
   for (const [key, line] of pickPool(pool, source)) add(key, `${rel}:${line} [pool]`);
-}
-
-if (fs.existsSync(BACKEND_SRC)) {
-  for (const file of collectFiles(BACKEND_SRC)) {
-    const { source } = parse(file);
-    const rel = path.relative(root, file).replaceAll("\\", "/");
-    const disp = [];
-    collectDisplayed(source, file, rel, disp);
-    for (const [k, loc] of disp) {
-      if (k === null) review.push(loc);
-      else add(k, loc);
-    }
-  }
 }
 
 // Rust menu and job labels are explicit carriers outside the TypeScript AST.

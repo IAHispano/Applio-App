@@ -1,0 +1,57 @@
+name: Validate migration
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [exp/tauri]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.15.0
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux native dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Check types and native compilation
+        run: pnpm typecheck
+      - name: Check Rust formatting
+        run: node scripts/cargo.mjs fmt --all -- --check
+      - name: Build desktop and exported interface
+        # Unsigned builds keep validation available to forked PRs. Release
+        # signing and installer generation remain in the release workflow.
+        working-directory: frontend/desktop
+        run: pnpm exec tauri build --debug --no-bundle
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096

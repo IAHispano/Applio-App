@@ -52,8 +52,6 @@ frontend/desktop/dist
 # Local development artifacts
 test/
 tests/
-!backend/rust-api/src/tests/
-!backend/rust-api/src/tests/**
 __tests__/
 *.test.*
 *.spec.*

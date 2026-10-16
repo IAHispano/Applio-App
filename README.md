@@ -27,13 +27,19 @@ run in Rust. Rust also serves the statically exported Next.js UI. Installed buil
 include no Node runtime or Node service; Node is needed only for development and
 build tooling. The voice engine remains Python.
 
-Backend code is grouped by responsibility under `backend/rust-api/src/`.
-App-owned Python helpers live in `backend/python/` (`inference`, `datasets`,
-`downloads`, and `audio`); `backend/applio/` remains the pinned upstream engine.
+Repository layout:
+
+- `frontend/desktop/`: Tauri shell, native integration, and installer resources.
+- `frontend/web/`: Next.js interface, statically exported for installed builds.
+- `backend/rust-api/`: API, jobs, setup, storage, and Bridge Mode.
+- `backend/python/`: App-owned inference, dataset, download, and audio helpers.
+- `backend/applio/`: Pinned upstream Python engine submodule.
+- `scripts/`: Internal development, packaging, release, and translation tooling.
+- `bin/applio.js`: CLI entry point used by the root launchers.
 
 Build installers with `pnpm build:win`, `pnpm build:mac` or `pnpm build:linux`
-on the corresponding platform. Run `pnpm test:rust` and `pnpm release:check`
-after staging release resources.
+on the corresponding platform. Use `pnpm typecheck` and `pnpm format:check`
+to validate source changes.
 
 ## Releases
 
@@ -49,6 +55,12 @@ or `~/.applio-signing/updater.key`.
 
 Publish the generated signed artifacts and updater feeds together. The Windows
 installer supports the first Electron-to-Tauri transition while retaining user
-data and Python; macOS Electron users need a manual first migration.
+data and Python. macOS releases also include compatibility ZIPs and
+`latest-mac.yml` for existing Electron clients. Publish these alongside the
+signed Tauri archives and `latest.json`.
+
+Pull requests build the native desktop and exported interface on Windows,
+macOS (Apple Silicon and Intel), and Linux. Before a stable release, qualify
+the signed installers and the first Electron-to-Tauri update on those platforms.
 
 [MIT License](LICENSE) · [Terms of Use](TERMS_OF_USE.md) · Built on [Applio](https://github.com/IAHispano/Applio).

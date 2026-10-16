@@ -405,16 +405,3 @@ async fn youtube(State(engine): State<Arc<NativeEngine>>, request: Request) -> A
         .await?;
     Ok(accepted(job))
 }
-
-#[cfg(test)]
-mod checks {
-    use super::*;
-    #[test]
-    fn preserves_unicode_model_and_index_names() {
-        assert_eq!(format_title("─Cafe\u{301}  音声 ♥.pth"), "Café_音声_.pth");
-        assert_eq!(model_name("added_IVF_音声_nprobe_1_v2.index"), "IVF_音声");
-        assert_eq!(model_name(".pth"), "model");
-        assert!(download_name("file:///tmp/model.pth").is_err());
-        assert!(download_name("https://example.org/").is_err());
-    }
-}

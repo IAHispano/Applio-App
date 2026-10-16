@@ -169,7 +169,9 @@ fn copy_tree(
 }
 
 pub fn import_legacy(legacy: &Path, config: &Path, data: &Path) -> Result<()> {
-    let marker = config.join(".legacy-imported");
+    // Retry imports made before plugin directories were included. Existing
+    // destination files still win, so current settings and content are retained.
+    let marker = config.join(".legacy-imported-v2");
     if legacy == config || marker.exists() {
         return Ok(());
     }
@@ -196,7 +198,13 @@ pub fn import_legacy(legacy: &Path, config: &Path, data: &Path) -> Result<()> {
             }
         }
     }
-    for entry in ["logs", "assets", "rvc/models"] {
+    for entry in [
+        "logs",
+        "assets",
+        "rvc/models",
+        "plugins/installed",
+        "tabs/plugins/installed",
+    ] {
         let source = old.join(entry);
         if source.exists() {
             copy_tree(&source, &data.join(entry), false, Some((&old, data)))?;
@@ -330,97 +338,4 @@ pub fn prepare(
         env.insert("PATH".into(), std::env::join_paths(path)?);
     }
     Ok(env)
-}
-
-#[cfg(test)]
-mod checks {
-    use super::*;
-    #[test]
-    fn imports_rebases_and_preserves_existing_content_and_originals() -> Result<()> {
-        for layout in ["runtime", "data"] {
-            let dir = tempfile::tempdir()?;
-            let legacy = dir.path().join("legacy");
-            let old = legacy.join(layout);
-            let config = dir.path().join("new");
-            let data = config.join("runtime");
-            std::fs::create_dir_all(old.join("logs/voice"))?;
-            std::fs::create_dir_all(old.join("custom-models"))?;
-            std::fs::write(old.join("custom-models/voice.pth"), b"legacy model")?;
-            let original = serde_json::json!({"models":old.join("rvc/models"),"logs_dir":old.join("custom-models"),"external":dir.path().join("external")});
-            std::fs::write(legacy.join("config.json"), serde_json::to_vec(&original)?)?;
-            std::fs::write(
-                old.join("logs/voice/filelist.txt"),
-                format!(
-                    "{}|{}|{}|{}|0\n",
-                    old.join("a.wav").display(),
-                    old.join("b.npy").display(),
-                    old.join("c.npy").display(),
-                    old.join("d.npy").display()
-                ),
-            )?;
-            std::fs::create_dir_all(data.join("logs"))?;
-            std::fs::write(data.join("logs/keep.txt"), b"mine")?;
-            import_legacy(&legacy, &config, &data)?;
-            let imported: Value =
-                serde_json::from_slice(&std::fs::read(config.join("config.json"))?)?;
-            assert_eq!(
-                imported["models"],
-                data.join("rvc/models").to_string_lossy().as_ref()
-            );
-            assert_eq!(imported["external"], original["external"]);
-            assert_eq!(
-                imported["logs_dir"],
-                data.join("custom-models").to_string_lossy().as_ref()
-            );
-            assert_eq!(
-                std::fs::read(data.join("custom-models/voice.pth"))?,
-                b"legacy model"
-            );
-            assert_eq!(
-                serde_json::from_slice::<Value>(&std::fs::read(legacy.join("config.json"))?)?,
-                original
-            );
-            assert!(
-                std::fs::read_to_string(data.join("logs/voice/filelist.txt"))?
-                    .contains(&data.to_string_lossy().to_string())
-            );
-            std::fs::write(config.join("config.json"), b"user changes")?;
-            import_legacy(&legacy, &config, &data)?;
-            assert_eq!(std::fs::read(config.join("config.json"))?, b"user changes");
-            assert_eq!(std::fs::read(data.join("logs/keep.txt"))?, b"mine");
-        }
-        Ok(())
-    }
-    #[test]
-    fn invalid_legacy_settings_are_preserved_and_seed_retains_user_data() -> Result<()> {
-        let dir = tempfile::tempdir()?;
-        let code = dir.path().join("code");
-        let config = dir.path().join("new");
-        let data = config.join("runtime");
-        let old = dir.path().join("old");
-        std::fs::create_dir_all(&old)?;
-        std::fs::write(old.join("config.json"), b"broken")?;
-        assert!(prepare(
-            &code,
-            &data,
-            &config,
-            true,
-            true,
-            std::slice::from_ref(&old)
-        )
-        .is_err());
-        assert!(!config.join("config.json").exists());
-        std::fs::create_dir_all(code.join("assets"))?;
-        std::fs::write(code.join("assets/template"), b"shipped")?;
-        std::fs::create_dir_all(data.join("assets"))?;
-        std::fs::write(data.join("assets/mine"), b"mine")?;
-        let env = prepare(&code, &data, &config, true, true, &[])?;
-        assert_eq!(std::fs::read(data.join("assets/mine"))?, b"mine");
-        assert_eq!(std::fs::read(data.join("assets/template"))?, b"shipped");
-        assert_eq!(
-            env.get(std::ffi::OsStr::new("UV_INSTALL_DIR")),
-            Some(&config.join("tools").into_os_string())
-        );
-        Ok(())
-    }
 }

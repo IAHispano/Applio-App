@@ -66,15 +66,6 @@ pub async fn serve_with_ui(
     })
     .await
 }
-#[cfg(test)]
-pub(crate) async fn serve_with_factory(
-    listener: tokio::net::TcpListener,
-    config: ApiConfig,
-    stop: CancellationToken,
-    create: impl FnMut() -> Result<Arc<NativeEngine>>,
-) -> Result<()> {
-    serve_with_factory_and_ui(listener, None, config, stop, create).await
-}
 async fn serve_with_factory_and_ui(
     listener: tokio::net::TcpListener,
     web_listener: Option<tokio::net::TcpListener>,

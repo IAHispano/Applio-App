@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { releaseVersion } from "./release-version.mjs";
@@ -10,8 +11,13 @@ if (manifestIndex >= 0) {
   const repository = process.env.GITHUB_REPOSITORY || "IAHispano/Applio-App";
   const platforms = {};
   const legacy = {};
+  const macFiles = [];
   for (const filename of fs.readdirSync(directory)) {
     if (!hasVersion(filename, version)) continue;
+    if (/-macOS-(arm64|x64)\.zip$/.test(filename)) {
+      macFiles.push(fileInfo(directory, filename));
+      continue;
+    }
     if (!filename.endsWith(".sig")) continue;
     const artifact = filename.slice(0, -4);
     if (!fs.existsSync(path.join(directory, artifact)))
@@ -33,17 +39,33 @@ if (manifestIndex >= 0) {
     // Electron clients need their own checksum feed for the first transition.
     // Windows NSIS receives /D from the old updater; Linux replaces AppImages.
     if ((os === "windows" || os === "linux") && arch === "x86_64") {
-      const bytes = fs.readFileSync(path.join(directory, artifact));
-      const sha512 = createHash("sha512").update(bytes).digest("base64");
+      const file = fileInfo(directory, artifact);
       legacy[os === "windows" ? "latest.yml" : "latest-linux.yml"] = {
         version,
-        files: [{ url: artifact, sha512, size: bytes.length }],
+        files: [file],
         path: artifact,
-        sha512,
+        sha512: file.sha512,
         releaseDate: new Date().toISOString(),
       };
     }
   }
+  for (const platform of ["windows-x86_64", "linux-x86_64", "darwin-x86_64", "darwin-aarch64"]) {
+    if (!platforms[platform]) throw new Error(`Missing signed updater artifact for ${platform}`);
+  }
+  for (const arch of ["x64", "arm64"]) {
+    if (!macFiles.some((file) => file.url.endsWith(`-macOS-${arch}.zip`)))
+      throw new Error(`Missing Electron migration ZIP for macOS ${arch}`);
+  }
+  // Older MacUpdater clients select the matching architecture from files[]
+  // and require ZIPs containing the application bundle, not Tauri tarballs.
+  macFiles.sort((a, b) => a.url.localeCompare(b.url));
+  legacy["latest-mac.yml"] = {
+    version,
+    files: macFiles,
+    path: macFiles[0].url,
+    sha512: macFiles[0].sha512,
+    releaseDate: new Date().toISOString(),
+  };
   if (Object.keys(platforms).length) {
     fs.writeFileSync(
       path.join(directory, "latest.json"),
@@ -61,7 +83,11 @@ if (manifestIndex >= 0) {
   function walk(directory) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const file = path.join(directory, entry.name);
-      if (entry.isDirectory() && !entry.name.endsWith(".app")) walk(file);
+      if (entry.isDirectory() && entry.name.endsWith(".app") && process.platform === "darwin") {
+        const zip = path.join(destination, `Applio-${version}-macOS-${process.arch}.zip`);
+        execFileSync("/usr/bin/ditto", ["-c", "-k", "--sequesterRsrc", "--keepParent", file, zip]);
+        console.log(`Collected ${path.basename(zip)}`);
+      } else if (entry.isDirectory() && !entry.name.endsWith(".app")) walk(file);
       else if (entry.isFile() && /\.(exe|dmg|AppImage|deb|app\.tar\.gz)(\.sig)?$/.test(entry.name)) {
         if (!/\.app\.tar\.gz(\.sig)?$/.test(entry.name) && !hasVersion(entry.name, version)) continue;
         const name = /\.app\.tar\.gz(\.sig)?$/.test(entry.name)
@@ -75,6 +101,11 @@ if (manifestIndex >= 0) {
   walk(source);
 }
 
+function fileInfo(directory, filename) {
+  const bytes = fs.readFileSync(path.join(directory, filename));
+  return { url: filename, sha512: createHash("sha512").update(bytes).digest("base64"), size: bytes.length };
+}
+
 function hasVersion(filename, version) {
   return filename
     .split(version)
@@ -82,7 +113,7 @@ function hasVersion(filename, version) {
       (prefix, index, parts) =>
         index < parts.length - 1 &&
         !/\d$/.test(prefix) &&
-        /^(?:[_-](?:x64|x86_64|aarch64|arm64|amd64|macOS)(?:[_.-]|$)|\.(?:exe|dmg|AppImage|deb|app\.tar\.gz)(?:\.sig)?$)/.test(
+        /^(?:[_-](?:x64|x86_64|aarch64|arm64|amd64|macOS)(?:[_.-]|$)|\.(?:exe|dmg|AppImage|deb|zip|app\.tar\.gz)(?:\.sig)?$)/.test(
           parts[index + 1],
         ),
     );

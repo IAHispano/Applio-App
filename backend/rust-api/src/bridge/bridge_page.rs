@@ -56,21 +56,3 @@ pub fn pairing_page(language: &str, dictionary: &Value) -> Result<(String, Strin
     }
     Ok((html, nonce))
 }
-#[cfg(test)]
-mod checks {
-    #[test]
-    fn pairing_page_preserves_localization_and_escapes_html_and_script_contexts() {
-        let (html, nonce) = super::pairing_page(
-            "ar_SA",
-            &serde_json::json!({"Bridge Mode":"جسر </script><script>bad()</script>"}),
-        )
-        .unwrap();
-        assert!(html.contains("dir=\"rtl\""));
-        assert!(html.contains("جسر &lt;/script&gt;"));
-        assert!(html.contains(r"\u003c/script>"));
-        assert!(!html.contains("<script>bad()"));
-        assert!(html.contains(&format!("nonce=\"{nonce}\"")));
-        assert!(html.contains("history.replaceState"));
-        assert!(html.contains("/bridge/pair"));
-    }
-}

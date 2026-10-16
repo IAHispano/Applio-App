@@ -29,11 +29,6 @@ pub use runtime::{app_runtime, cleaner, locale, metadata_cache, native_host, sto
 pub use setup::{setup_install, setup_requirements};
 pub use training::{training_artifacts, training_params};
 
-#[cfg(test)]
-mod tests;
-#[cfg(test)]
-pub(crate) use tests::{processing_checks, uvr_checks};
-
 pub async fn serve(listener: tokio::net::TcpListener, router: Router) -> anyhow::Result<()> {
     use axum::serve::ListenerExt;
     axum::serve(

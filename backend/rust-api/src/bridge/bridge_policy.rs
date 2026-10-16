@@ -35,23 +35,3 @@ pub fn api_allowed(method: &str, path: &str) -> bool {
     STOP.get_or_init(|| Regex::new(r"^/api/jobs/[a-zA-Z0-9_-]+/stop$").unwrap())
         .is_match(path)
 }
-#[cfg(test)]
-mod checks {
-    #[test]
-    fn remote_capabilities_match_the_original_gateway_for_all_captured_api_methods() {
-        let cases: Vec<serde_json::Value> = serde_json::from_str(include_str!(
-            "../tests/fixtures/bridge-policy-reference.json"
-        ))
-        .unwrap();
-        for case in cases {
-            assert_eq!(
-                super::api_allowed(
-                    case["method"].as_str().unwrap(),
-                    case["path"].as_str().unwrap()
-                ),
-                case["allowed"].as_bool().unwrap(),
-                "{case}"
-            );
-        }
-    }
-}

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod desktop_policy;
 mod language;
+mod logging;
 mod runtime;
 mod tray;
 mod updater;
@@ -109,6 +110,7 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         return Ok(());
     }
     *state.startup_error.lock().unwrap() = None;
+    logging::write(&state.paths.config, "Starting native application services");
     let result: anyhow::Result<()> = async {
         state.stop().await;
         // Reserve the public API before starting any worker. A conflicting
@@ -125,46 +127,56 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         let server_stop = stop.clone();
         let server_env = environment.clone();
         let handle = app.clone();
+        let (failed, mut failure) = tokio::sync::oneshot::channel();
         *state.server.lock().unwrap() = Some((
             stop,
             tauri::async_runtime::spawn(async move {
-                if let Err(error) = applio_api::native_host::serve_with_ui(
+                let result = applio_api::native_host::serve_with_ui(
                     listener,
                     Some(web_reservation),
                     config,
                     server_stop.clone(),
                     server_env,
                 )
-                .await
-                {
-                    eprintln!("Rust API stopped: {error:#}");
-                }
+                .await;
                 if !server_stop.is_cancelled() {
-                    let _ = handle.emit("host-stopped", ());
+                    let message = match result {
+                        Ok(()) => "Native application services stopped unexpectedly".to_string(),
+                        Err(error) => format!("Native application services failed: {error:#}"),
+                    };
+                    logging::write(&handle.state::<AppState>().paths.config, &message);
+                    let _ = failed.send(message.clone());
+                    let _ = handle.emit("host-stopped", &message);
                 }
             }),
         ));
         let host = Host::start(app.clone(), &state.paths).await?;
         *state.host.lock().await = Some(host.clone());
-        runtime::wait_for_services().await?;
+        tokio::select! {
+            result = runtime::wait_for_services() => result?,
+            message = &mut failure => anyhow::bail!(message.unwrap_or_else(|_| "Native application services stopped during startup".into())),
+        }
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| anyhow::anyhow!("Main window is missing"))?;
         window.navigate("http://127.0.0.1:3000/".parse()?)?;
-        tokio::time::timeout(std::time::Duration::from_secs(30), async {
+        let loaded = tokio::time::timeout(std::time::Duration::from_secs(30), async {
             while !state.ready.load(Ordering::SeqCst) {
                 // notify_one retains a permit if the page finishes between
                 // checking ready and registering this waiter.
                 state.interface_loaded.notified().await;
             }
-        })
-        .await
-        .map_err(|_| anyhow::anyhow!("The interface did not finish loading. Retry startup."))?;
+        });
+        tokio::select! {
+            result = loaded => result.map_err(|_| anyhow::anyhow!("The interface did not finish loading. Retry startup."))?,
+            message = &mut failure => anyhow::bail!(message.unwrap_or_else(|_| "Native application services stopped during startup".into())),
+        }
         Ok(())
     }
     .await;
     state.starting.store(false, Ordering::SeqCst);
     if let Err(error) = result {
+        logging::write(&state.paths.config, &format!("Startup failed: {error:#}"));
         state.stop().await;
         let message = format!(
             "{error:#}\n\nLauncher log: {}",
@@ -177,6 +189,7 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         return Err(message);
     }
     let _ = tray::refresh(&app);
+    logging::write(&state.paths.config, "Interface ready");
     Ok(())
 }
 
@@ -439,6 +452,16 @@ fn main() {
         ])
         .setup(|app| {
             let paths = Paths::resolve(app.handle())?;
+            logging::write(
+                &paths.config,
+                concat!("Applio ", env!("CARGO_PKG_VERSION"), " launched"),
+            );
+            let panic_config = paths.config.clone();
+            let previous_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |panic| {
+                logging::write(&panic_config, &format!("Native panic: {panic}"));
+                previous_hook(panic);
+            }));
             app.handle().plugin(
                 tauri_plugin_window_state::Builder::default()
                     .with_filename(
@@ -561,15 +584,23 @@ fn main() {
                 }
             })?;
             let handle = app.handle().clone();
-            app.listen("host-stopped", move |_| {
+            app.listen("host-stopped", move |event| {
                 if handle
                     .state::<AppState>()
                     .ready
                     .swap(false, Ordering::SeqCst)
                 {
-                    let message =
-                        "An application service stopped. Check the launcher log, then retry."
-                            .to_string();
+                    let detail = serde_json::from_str::<String>(event.payload())
+                        .unwrap_or_else(|_| "Native application services stopped".into());
+                    let message = format!(
+                        "{detail}\n\nLauncher log: {}",
+                        handle
+                            .state::<AppState>()
+                            .paths
+                            .config
+                            .join("app-logs/launcher.log")
+                            .display()
+                    );
                     *handle.state::<AppState>().startup_error.lock().unwrap() = Some(message);
                     show_startup_error(&handle);
                     let cleanup = handle.clone();

@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { rustEnvironment } from "../../../bin/rust-env.mjs";
+import { rustEnvironment } from "../../../scripts/rust-env.mjs";
 
 Object.assign(process.env, rustEnvironment());
 const require = createRequire(import.meta.url);
