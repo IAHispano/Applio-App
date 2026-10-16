@@ -94,24 +94,24 @@ fn copy_stale(source: &Path, destination: &Path) -> Result<()> {
     let _ = std::fs::remove_file(temporary);
     operation
 }
-/// Best effort: a running/locked shim keeps its existing path, with the real
-/// interpreter staged alongside it when possible. DLLs accompany copied EXEs.
+/// Best effort: stage the interpreter and its DLLs without changing its name.
+/// Windows multiprocessing derives the base executable's name from this path;
+/// a renamed python.real.exe can point workers at a nonexistent base binary.
+/// A running/locked shim therefore keeps its existing python.exe path.
 pub fn stage_windows_venv(venv: &Path) -> Option<PathBuf> {
     let scripts = venv.join("Scripts");
     let probe = scripts.join("python.exe");
     if !probe.is_file() {
         return None;
     }
-    let real = scripts.join("python.real.exe");
     let Some(base) = base_from_config(venv) else {
-        return Some(if real.is_file() { real } else { probe });
+        return Some(probe);
     };
     if std::fs::canonicalize(&base).ok() == std::fs::canonicalize(&probe).ok() {
         return Some(probe);
     }
     let parent = base.parent()?;
-    let replaced = copy_stale(&base, &probe).is_ok();
-    let _ = copy_stale(&base, &real);
+    let _ = copy_stale(&base, &probe);
     let windowed = parent.join("pythonw.exe");
     if windowed.is_file() && scripts.join("pythonw.exe").is_file() {
         let _ = copy_stale(&windowed, &scripts.join("pythonw.exe"));
@@ -128,13 +128,7 @@ pub fn stage_windows_venv(venv: &Path) -> Option<PathBuf> {
             }
         }
     }
-    Some(if replaced {
-        probe
-    } else if real.is_file() {
-        real
-    } else {
-        probe
-    })
+    Some(probe)
 }
 pub fn candidates(runtime: &EngineRuntime) -> Vec<Python> {
     let mut candidates = Vec::new();
@@ -428,8 +422,112 @@ mod checks {
             std::fs::read(venv.join("Scripts/pythonw.exe")).unwrap(),
             b"windowed"
         );
+        assert!(!venv.join("Scripts/python.real.exe").exists());
         assert_eq!(version("Python 3.12.9\r\n"), Some("3.12.9".into()));
         assert!(supported("3.11.9"));
         assert!(!supported("3.14.0"));
+    }
+
+    #[test]
+    fn missing_base_never_selects_a_legacy_renamed_interpreter() {
+        let directory = tempfile::tempdir().unwrap();
+        let venv = directory.path().join(".venv");
+        let scripts = venv.join("Scripts");
+        std::fs::create_dir_all(&scripts).unwrap();
+        let python = scripts.join("python.exe");
+        std::fs::write(&python, b"shim").unwrap();
+        std::fs::write(scripts.join("python.real.exe"), b"legacy interpreter").unwrap();
+        assert_eq!(stage_windows_venv(&venv), Some(python));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn locked_interpreter_keeps_its_multiprocessing_compatible_name() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let directory = tempfile::tempdir().unwrap();
+        let base = directory.path().join("base Python");
+        let venv = directory.path().join(".venv");
+        let scripts = venv.join("Scripts");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&scripts).unwrap();
+        std::fs::write(base.join("python.exe"), b"actual interpreter").unwrap();
+        std::fs::write(base.join("python312.dll"), b"runtime dll").unwrap();
+        std::fs::write(
+            venv.join("pyvenv.cfg"),
+            format!("home = {}\n", base.display()),
+        )
+        .unwrap();
+        let python = scripts.join("python.exe");
+        std::fs::write(&python, b"shim").unwrap();
+        std::fs::write(scripts.join("python.real.exe"), b"legacy interpreter").unwrap();
+        // An existing process may allow reads but prevent replacing python.exe.
+        let _lock = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(1)
+            .open(&python)
+            .unwrap();
+        assert_eq!(stage_windows_venv(&venv), Some(python.clone()));
+        assert_eq!(std::fs::read(&python).unwrap(), b"shim");
+        assert_eq!(
+            std::fs::read(scripts.join("python312.dll")).unwrap(),
+            b"runtime dll"
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    #[ignore = "Requires APPLIO_ENGINE_TEST_PYTHON pointing to installed Windows Python"]
+    fn staged_windows_interpreter_spawns_a_process_pool_worker() {
+        use std::os::windows::process::CommandExt;
+        use std::process::Command;
+
+        let python = std::env::var_os("APPLIO_ENGINE_TEST_PYTHON")
+            .expect("Set APPLIO_ENGINE_TEST_PYTHON to an installed Python executable");
+        let directory = tempfile::tempdir().unwrap();
+        let venv = directory.path().join("runtime with spaces/.venv");
+        let created = Command::new(python)
+            .args(["-m", "venv", "--without-pip"])
+            .arg(&venv)
+            .creation_flags(0x08000000)
+            .output()
+            .unwrap();
+        assert!(
+            created.status.success(),
+            "{}",
+            String::from_utf8_lossy(&created.stderr)
+        );
+        // Upgrades may leave this legacy executable alongside the working one.
+        std::fs::write(venv.join("Scripts/python.real.exe"), b"legacy").unwrap();
+        let executable = stage_windows_venv(&venv).unwrap();
+        assert_eq!(executable, venv.join("Scripts/python.exe"));
+        let script = directory.path().join("pool.py");
+        std::fs::write(
+            &script,
+            r#"import os, sys
+from concurrent.futures import ProcessPoolExecutor
+def worker():
+    return os.getpid(), sys.executable, sys._base_executable
+if __name__ == '__main__':
+    with ProcessPoolExecutor(max_workers=1) as pool:
+        pid, executable, base = pool.submit(worker).result(timeout=20)
+    assert pid != os.getpid()
+    assert os.path.basename(executable) == 'python.exe', executable
+    assert os.path.basename(base) == 'python.exe', base
+    print('ProcessPoolExecutor worker started successfully')
+"#,
+        )
+        .unwrap();
+        let output = Command::new(executable)
+            .arg(script)
+            .creation_flags(0x08000000)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }
