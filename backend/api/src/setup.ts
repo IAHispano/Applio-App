@@ -164,18 +164,10 @@ export async function findPython(): Promise<PythonInfo | null> {
       cmd: [path.join(root, ".venv", "Scripts", "pythonw.exe")],
       source: "app .venv (pythonw)",
     });
-    candidates.push({
-      cmd: [path.join(root, ".venv", "Scripts", "python.real.exe")],
-      source: "app .venv (real)",
-    });
     candidates.push({ cmd: [path.join(root, "venv", "Scripts", "python.exe")], source: "app venv/" });
     candidates.push({
       cmd: [path.join(root, "venv", "Scripts", "pythonw.exe")],
       source: "app venv/ (pythonw)",
-    });
-    candidates.push({
-      cmd: [path.join(root, "venv", "Scripts", "python.real.exe")],
-      source: "app venv/ (real)",
     });
     candidates.push({ cmd: [path.join(root, "env", "Scripts", "python.exe")], source: "app env/" });
     candidates.push({
@@ -985,82 +977,10 @@ async function bootstrapSystemPython(job: Job): Promise<string[]> {
   throw new Error(manual);
 }
 
-// Windows-only: standard venv and uv venvs ship python.exe as a trampoline shim
-// that re-execs the base interpreter WITHOUT hidden-console spawn
-// flags, popping a visible terminal for every engine process. Replace it with
-// the real base interpreter and stage python.real.exe next to it.
-export async function ensureWindowsRealPython(venvDir: string, job?: Job): Promise<string | null> {
-  if (process.platform !== "win32") return null;
-  const note = (m: string) => {
-    if (job) appendLog(job, m);
-    else console.warn(`[setup] ${m}`);
-  };
-  const fast = ensureWindowsRealPythonSync(venvDir);
-  if (fast) return fast;
-
-  // Fallback: if pyvenv.cfg was missing or didn't specify base, probe with pythonw.exe (to avoid popping a console) or python.exe
-  const probeW = path.join(venvDir, "Scripts", "pythonw.exe");
-  const probe = exists(probeW) ? probeW : path.join(venvDir, "Scripts", "python.exe");
-  const target = path.join(venvDir, "Scripts", "python.real.exe");
-  if (!exists(probe)) return null;
-  try {
-    const r = await runCmd(probe, ["-c", "import sys; print(sys._base_executable)"], { timeoutMs: 30000 });
-    const base = (r.stdout.trim().split("\n").pop() || "").trim();
-    if (r.code !== 0 || !base || !exists(base)) return exists(target) ? target : null;
-    let stale = !exists(target);
-    if (!stale) {
-      try {
-        const [ts, bs] = [fs.statSync(target), fs.statSync(base)];
-        stale = ts.size !== bs.size || ts.mtimeMs < bs.mtimeMs - 1000;
-      } catch {
-        stale = true;
-      }
-    }
-    if (stale) {
-      note("Staging a real venv Python next to the launcher shim (stops popup terminals)…");
-      fs.copyFileSync(base, target);
-      try {
-        const probeExe = path.join(venvDir, "Scripts", "python.exe");
-        if (exists(probeExe)) fs.copyFileSync(base, probeExe);
-      } catch {
-        /* locked */
-      }
-    }
-    const baseDir = path.dirname(base);
-    try {
-      for (const entry of fs.readdirSync(baseDir, { withFileTypes: true })) {
-        if (entry.isFile() && entry.name.toLowerCase().endsWith(".dll")) {
-          const src = path.join(baseDir, entry.name);
-          const dst = path.join(venvDir, "Scripts", entry.name);
-          try {
-            if (!exists(dst) || fs.statSync(src).size !== fs.statSync(dst).size) {
-              fs.copyFileSync(src, dst);
-            }
-          } catch {
-            /* ignore */
-          }
-        }
-      }
-    } catch {
-      /* ignore */
-    }
-    const probeExe = path.join(venvDir, "Scripts", "python.exe");
-    if (exists(probeExe)) {
-      try {
-        if (fs.statSync(probeExe).size === fs.statSync(base).size) {
-          return probeExe;
-        }
-      } catch {
-        /* ignore */
-      }
-    }
-    return target;
-  } catch (err) {
-    note(
-      `Could not stage python.real.exe (${err instanceof Error ? err.message : err}); using venv python as-is.`,
-    );
-    return exists(target) ? target : null;
-  }
+// Use the same staging path for installation and engine launches. In particular,
+// never create or select a renamed executable, even when python.exe is locked.
+export async function ensureWindowsRealPython(venvDir: string): Promise<string | null> {
+  return ensureWindowsRealPythonSync(venvDir);
 }
 
 // Which PyTorch CUDA index to install from. Two independent facts decide:
@@ -1250,8 +1170,8 @@ export function startInstall(): Job {
           }
         }
         if (process.platform === "win32") {
-          await ensureWindowsRealPython(path.join(root, ".venv"), job);
-          // Re-resolve: the staging step may have just created python.real.exe.
+          await ensureWindowsRealPython(path.join(root, ".venv"));
+          // Re-resolve the standard python.exe after staging the interpreter.
           venvPy = venvPythonPath();
           await ensureWindowsVcRedist(job);
         }
@@ -1575,7 +1495,7 @@ export function startPrerequisites(py: string[] | null): Job {
       setRunning(job);
       try {
         if (!py && process.platform === "win32") {
-          await ensureWindowsRealPython(path.join(getRepoRoot(), ".venv"), job);
+          await ensureWindowsRealPython(path.join(getRepoRoot(), ".venv"));
         }
         // Prefer the venv interpreter (staged real copy on win32) over a bare
         // system python; keep the system fallback when no venv exists yet.
@@ -1615,8 +1535,6 @@ export function venvPythonPath(): string {
   const root = getRepoRoot();
   if (process.platform === "win32") {
     ensureWindowsRealPythonSync(path.join(root, ".venv"));
-    const real = path.join(root, ".venv", "Scripts", "python.real.exe");
-    if (exists(real)) return real;
     return path.join(root, ".venv", "Scripts", "python.exe");
   }
   return path.join(root, ".venv", "bin", "python");

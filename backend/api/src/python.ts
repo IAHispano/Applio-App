@@ -424,45 +424,29 @@ export function resolveBasePythonFromCfg(venvDir: string): string | null {
   return null;
 }
 
-// Windows venv python.exe is a shim that flashes a terminal; use the real binary.
+// Replace the Windows venv shim when possible, preserving python.exe's name.
+// Renamed executables make multiprocessing resolve a nonexistent base interpreter.
 export function ensureWindowsRealPythonSync(venvDir: string): string | null {
   if (process.platform !== "win32") return null;
   const probe = path.join(venvDir, "Scripts", "python.exe");
   if (!fs.existsSync(probe)) return null;
 
-  const realTarget = path.join(venvDir, "Scripts", "python.real.exe");
   const base = resolveBasePythonFromCfg(venvDir);
   if (!base || !fs.existsSync(base)) {
-    return fs.existsSync(realTarget) ? realTarget : probe;
+    return probe;
   }
 
   const baseDir = path.dirname(base);
 
   // 1. Replace the venv shim with the real interpreter.
-  let probeReplaced = false;
   try {
     const probeStat = fs.statSync(probe);
     const baseStat = fs.statSync(base);
     if (probeStat.size !== baseStat.size) {
       fs.copyFileSync(base, probe);
     }
-    probeReplaced = true;
   } catch {
-    // If probe is currently running or locked by Windows (EBUSY/EPERM), fall back to staging python.real.exe
-  }
-
-  try {
-    let stale = !fs.existsSync(realTarget);
-    if (!stale) {
-      const ts = fs.statSync(realTarget);
-      const bs = fs.statSync(base);
-      stale = ts.size !== bs.size || ts.mtimeMs < bs.mtimeMs - 1000;
-    }
-    if (stale) {
-      fs.copyFileSync(base, realTarget);
-    }
-  } catch {
-    /* non-fatal */
+    // A running/locked shim is still multiprocessing-compatible. Keep its name.
   }
 
   try {
@@ -517,18 +501,7 @@ export function ensureWindowsRealPythonSync(venvDir: string): string | null {
     /* non-fatal */
   }
 
-  // Prefer python.exe when it matches the base interpreter size to keep multiprocessing child spawning working
-  if (probeReplaced && fs.existsSync(probe)) {
-    try {
-      if (fs.statSync(probe).size === fs.statSync(base).size) {
-        return probe;
-      }
-    } catch {
-      /* fallback */
-    }
-  }
-
-  return fs.existsSync(realTarget) ? realTarget : probe;
+  return probe;
 }
 
 export function killProcessesInVenv(venvDir: string): void {
@@ -550,20 +523,14 @@ export function getPythonBin(): string {
       ensureWindowsRealPythonSync(path.join(root, sub));
     }
     const venvCandidates = [
-      // NOTE: prefer python.exe over python.real.exe. ensureWindowsRealPythonSync
-      // keeps python.exe synced to the real binary, and multiprocessing on
-      // Windows relaunches sys._base_executable (derived from the exe
-      // basename): renamed copies like python.real.exe resolve to a
-      // non-existent base path and child spawning fails with FileNotFoundError.
+      // Never select legacy python.real.exe copies: Windows multiprocessing
+      // derives sys._base_executable from the executable's basename.
       path.join(root, ".venv", "Scripts", "python.exe"),
       path.join(root, ".venv", "Scripts", "pythonw.exe"),
-      path.join(root, ".venv", "Scripts", "python.real.exe"),
       path.join(root, "venv", "Scripts", "python.exe"),
       path.join(root, "venv", "Scripts", "pythonw.exe"),
-      path.join(root, "venv", "Scripts", "python.real.exe"),
       path.join(root, "env", "Scripts", "python.exe"),
       path.join(root, "env", "Scripts", "pythonw.exe"),
-      path.join(root, "env", "Scripts", "python.real.exe"),
     ];
     for (const candidate of venvCandidates) {
       if (fs.existsSync(candidate)) return candidate;

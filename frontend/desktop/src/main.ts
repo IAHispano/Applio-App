@@ -580,7 +580,6 @@ function unshimWindowsVenv(venvDir: string): void {
     if (!base) return;
 
     const probe = path.join(venvDir, "Scripts", "python.exe");
-    const realTarget = path.join(venvDir, "Scripts", "python.real.exe");
 
     if (fs.existsSync(probe)) {
       try {
@@ -590,15 +589,6 @@ function unshimWindowsVenv(venvDir: string): void {
       } catch {
         /* locked */
       }
-    }
-    try {
-      let stale = !fs.existsSync(realTarget);
-      if (!stale) {
-        stale = fs.statSync(realTarget).size !== fs.statSync(base).size;
-      }
-      if (stale) fs.copyFileSync(base, realTarget);
-    } catch {
-      /* non-fatal */
     }
 
     const basePythonw = path.join(path.dirname(base), "pythonw.exe");
@@ -747,15 +737,13 @@ function findPythonBin(): { path: string; source: string; exists: boolean } {
   for (const r of roots) {
     if (process.platform === "win32") {
       candidates.push(
-        { path: path.join(r.dir, ".venv", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
-        { path: path.join(r.dir, ".venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
         { path: path.join(r.dir, ".venv", "Scripts", "python.exe"), source: r.label },
-        { path: path.join(r.dir, "venv", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
-        { path: path.join(r.dir, "venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, ".venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
         { path: path.join(r.dir, "venv", "Scripts", "python.exe"), source: r.label },
-        { path: path.join(r.dir, "env", "Scripts", "python.real.exe"), source: `${r.label} (real)` },
-        { path: path.join(r.dir, "env", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, "venv", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
+        { path: path.join(r.dir, "env", "Scripts", "python.exe"), source: r.label },
         { path: path.join(r.dir, "env", "python.exe"), source: `${r.label} (bundled env)` },
+        { path: path.join(r.dir, "env", "Scripts", "pythonw.exe"), source: `${r.label} (pythonw)` },
       );
     } else {
       candidates.push(
