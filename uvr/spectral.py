@@ -2,6 +2,7 @@
 
 import io
 import math
+import platform
 import traceback
 
 import librosa
@@ -10,8 +11,24 @@ import soundfile as sf
 import torch
 from scipy.signal import correlate, hilbert
 
+OPERATING_SYSTEM = platform.system()
+SYSTEM_ARCH = platform.platform()
+SYSTEM_PROC = platform.processor()
+ARM = "arm"
 
-class InvalidAudioDataError(Exception):
+if OPERATING_SYSTEM == "Darwin":
+    wav_resolution = (
+        "polyphase" if SYSTEM_PROC == ARM or ARM in SYSTEM_ARCH else "sinc_fastest"
+    )
+    wav_resolution_float_resampling = (
+        "kaiser_best" if SYSTEM_PROC == ARM or ARM in SYSTEM_ARCH else wav_resolution
+    )
+else:
+    wav_resolution = "sinc_fastest"
+    wav_resolution_float_resampling = wav_resolution
+
+
+class InvalidAudioDataError(ValueError):
     pass
 
 
@@ -591,3 +608,33 @@ def reshape_sources(wav_1: np.ndarray, wav_2: np.ndarray):
     wav_2 = wav_2[:, :ln]
 
     return wav_2
+
+
+def match_array_shapes(array_1: np.ndarray, array_2: np.ndarray, is_swap=False):
+
+    if is_swap:
+        array_1, array_2 = array_1.T, array_2.T
+
+    # print("before", array_1.shape, array_2.shape)
+    if array_1.shape[1] > array_2.shape[1]:
+        array_1 = array_1[:, : array_2.shape[1]]
+    elif array_1.shape[1] < array_2.shape[1]:
+        padding = array_2.shape[1] - array_1.shape[1]
+        array_1 = np.pad(array_1, ((0, 0), (0, padding)), "constant", constant_values=0)
+
+    # print("after", array_1.shape, array_2.shape)
+
+    if is_swap:
+        array_1, array_2 = array_1.T, array_2.T
+
+    return array_1
+
+
+def change_pitch_semitones(y, sr, semitone_shift):
+    factor = 2 ** (semitone_shift / 12)  # Convert semitone shift to factor for resampling
+    y_pitch_tuned = []
+    for y_channel in y:
+        y_pitch_tuned.append(librosa.resample(y_channel, orig_sr=sr, target_sr=sr * factor, res_type=wav_resolution_float_resampling))
+    y_pitch_tuned = np.array(y_pitch_tuned)
+    new_sr = sr * factor
+    return y_pitch_tuned, new_sr

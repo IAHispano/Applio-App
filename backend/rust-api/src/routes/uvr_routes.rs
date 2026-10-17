@@ -100,6 +100,8 @@ pub(crate) fn cli_args(params: &Value, input: &Path, output: &Path) -> Vec<Strin
         "mdxcSegment",
         "mdxcOverlap",
         "mdxcBatch",
+        "mdxcOverrideSegment",
+        "mdxcPitchShift",
         "demucsSegment",
         "demucsShifts",
         "demucsOverlap",
@@ -107,6 +109,7 @@ pub(crate) fn cli_args(params: &Value, input: &Path, output: &Path) -> Vec<Strin
         "roformerChunk",
         "roformerOverlap",
         "roformerBatch",
+        "roformerDenoise",
         "device",
     ] {
         if key == "demucsSplit" {

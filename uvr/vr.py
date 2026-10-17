@@ -16,7 +16,6 @@ from uvr.vr_net.model_param_init import ModelParameters
 
 
 def _mp3_track_length(audio_file, sample_rate=44100):
-    """Duration-based mp3 reload (replaces the audioread workaround)."""
     track_length = int(sf.info(audio_file).duration)
     return librosa.load(audio_file, duration=track_length, mono=False, sr=sample_rate)[
         0
@@ -92,7 +91,9 @@ class VrSeparator(BaseSeparator):
             self.input_bit_depth = (
                 24
                 if "24" in subtype
-                else 32 if "32" in subtype or "FLOAT" in subtype else 16
+                else 32
+                if "32" in subtype or "FLOAT" in subtype or "DOUBLE" in subtype
+                else 16
             )
         except Exception:
             self.input_bit_depth = 16
@@ -119,6 +120,18 @@ class VrSeparator(BaseSeparator):
         v_spec = np.nan_to_num(v_spec, nan=0.0, posinf=0.0, neginf=0.0)
 
         output_files = []
+        # Note: logic similar to the following should probably be added to the other architectures
+        # Check if output_single_stem is set to a value that would result in no output files
+        if self.output_single_stem and (
+            self.output_single_stem.lower() != self.primary_stem_name.lower()
+            and self.output_single_stem.lower() != self.secondary_stem_name.lower()
+        ):
+            # If so, reset output_single_stem to None to save both stems
+            self.output_single_stem = None
+            self.logger.warning(
+                f"The output_single_stem setting '{self.output_single_stem}' does not match any of the output files: '{self.primary_stem_name}' and '{self.secondary_stem_name}'. For this model '{self.model_name}', the output_single_stem setting will be ignored and all output files will be saved."
+            )
+
         if (
             not self.output_single_stem
             or self.output_single_stem.lower() == self.primary_stem_name.lower()

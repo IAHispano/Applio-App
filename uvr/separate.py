@@ -17,7 +17,6 @@ from uvr import models as catalog
 
 
 def _engine():
-    # Imported lazily so --list-models never pays the torch import cost.
     from uvr.separator import OUTPUT_MODELS_DIRNAME, separate_stems
 
     return OUTPUT_MODELS_DIRNAME, separate_stems
@@ -96,12 +95,25 @@ def main():
         "--mdxc-segment", type=int, default=None, help="MDXC segment size"
     )
     parser.add_argument(
+        "--mdxc-override-segment",
+        action="store_true",
+        help="Override the model's default MDXC segment size",
+    )
+    parser.add_argument(
         "--mdxc-overlap",
         type=int,
         default=None,
         help="MDXC overlapping prediction windows (>= 1)",
     )
-    parser.add_argument("--mdxc-batch", type=int, default=None, help="MDXC batch size")
+    parser.add_argument(
+        "--mdxc-batch", type=int, default=None, help="MDXC batch size"
+    )
+    parser.add_argument(
+        "--mdxc-pitch-shift",
+        type=int,
+        default=0,
+        help="Shift audio pitch by a number of semitones while processing",
+    )
     parser.add_argument(
         "--roformer-chunk",
         type=float,
@@ -116,6 +128,11 @@ def main():
     )
     parser.add_argument(
         "--roformer-batch", type=int, default=None, help="Roformer batch size"
+    )
+    parser.add_argument(
+        "--roformer-denoise",
+        action="store_true",
+        help="Dual-pass Roformer denoise (reduces noise, doubles inference)",
     )
     parser.add_argument(
         "--demucs-segment",
@@ -185,8 +202,12 @@ def main():
             parser.error("--mdxc-overlap must be >= 1")
         overrides = {
             "segment_size": args.mdxc_segment,
+            "override_model_segment_size": (
+                True if args.mdxc_override_segment else None
+            ),
             "overlap": args.mdxc_overlap,
             "batch_size": args.mdxc_batch,
+            "pitch_shift": args.mdxc_pitch_shift,
         }
     elif resolved.arch == "demucs":
         demucs_segment = args.demucs_segment
@@ -214,6 +235,7 @@ def main():
             "chunk_seconds": args.roformer_chunk,
             "overlap": args.roformer_overlap,
             "batch_size": args.roformer_batch,
+            "enable_denoise": True if args.roformer_denoise else None,
         }
     else:
         overrides = {}
@@ -241,6 +263,11 @@ def main():
         arch_overrides=overrides,
         logger=logging.getLogger("uvr"),
     )
+    if not stems:
+        logging.getLogger("uvr").error(
+            "Separation produced no output files — see errors above."
+        )
+        sys.exit(1)
     rel = {
         name: os.path.relpath(path, repo_root).replace("\\", "/")
         for name, path in stems.items()

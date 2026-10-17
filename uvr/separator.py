@@ -23,12 +23,14 @@ ARCH_CLASSES = {
 }
 
 
-def _md5(path, chunk_size=8 * 1024 * 1024):
-    h = hashlib.md5()
+def _md5(path):
+    size = os.path.getsize(path)
     with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(chunk_size), b""):
-            h.update(chunk)
-    return h.hexdigest()
+        # 10,240,000 bytes
+        if size >= 10000 * 1024:
+            # Move the file pointer 10MB before the end of the file
+            f.seek(size - 10000 * 1024)
+        return hashlib.md5(f.read()).hexdigest()
 
 
 def _yaml_in_dir(model_dir):
@@ -89,8 +91,10 @@ def _default_arch_params(arch):
     if arch == "mdxc":
         return {
             "segment_size": 256,
-            "overlap": 8,
-            "batch_size": 1,
+            "override_model_segment_size": False,
+            "batch_size": None,
+            "overlap": None,
+            "pitch_shift": 0,
         }
     if arch == "demucs":
         return {

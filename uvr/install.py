@@ -15,6 +15,7 @@ MODULES = (
     "rotary_embedding_torch",
     "beartype",
     "ml_collections",
+    "samplerate",
 )
 
 

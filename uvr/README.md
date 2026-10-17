@@ -22,6 +22,7 @@ uvr/
   roformer_lib/
     *.py           Vendored model classes (mel/band, BS + derived variants).
     registry.py    Variant key -> class (+ `custom/` user architectures).
+    pope/          Vendored PoPE attention used by the PolarFormer models.
   demucs_lib/      Vendored Demucs v4 stack (torch-only).
   vr_net/          VR network definitions + band parameter JSONs.
   vr_model_data.json / mdx_model_data.json

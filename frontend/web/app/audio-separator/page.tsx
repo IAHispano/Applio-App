@@ -77,6 +77,11 @@ export default function UvrPage() {
   const [mdxcSegment, setMdxcSegment] = useWorkspaceState("page:audio-separator:mdxcSegment", 256);
   const [mdxcOverlap, setMdxcOverlap] = useWorkspaceState("page:audio-separator:mdxcOverlap", 8);
   const [mdxcBatch, setMdxcBatch] = useWorkspaceState("page:audio-separator:mdxcBatch", 1);
+  const [mdxcOverrideSegment, setMdxcOverrideSegment] = useWorkspaceState(
+    "page:audio-separator:mdxcOverrideSegment",
+    false,
+  );
+  const [mdxcPitchShift, setMdxcPitchShift] = useWorkspaceState("page:audio-separator:mdxcPitchShift", 0);
   const [demucsSegment, setDemucsSegment] = useWorkspaceState("page:audio-separator:demucsSegment", "");
   const [demucsShifts, setDemucsShifts] = useWorkspaceState("page:audio-separator:demucsShifts", 2);
   const [demucsOverlap, setDemucsOverlap] = useWorkspaceState("page:audio-separator:demucsOverlap", 0.25);
@@ -84,6 +89,7 @@ export default function UvrPage() {
   const [roformerChunk, setRoformerChunk] = useWorkspaceState("page:audio-separator:roformerChunk", "");
   const [roformerOverlap, setRoformerOverlap] = useWorkspaceState("page:audio-separator:roformerOverlap", 2);
   const [roformerBatch, setRoformerBatch] = useWorkspaceState("page:audio-separator:roformerBatch", 1);
+  const [roformerDenoise, setRoformerDenoise] = useWorkspaceState("page:audio-separator:roformerDenoise", false);
   const [device, setDevice] = useWorkspaceState("page:audio-separator:device", "auto");
   const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:audio-separator:gpuDevices", []);
   const [jobId, setJobId] = usePersistentJobId("uvr");
@@ -194,6 +200,8 @@ export default function UvrPage() {
     fd.append("mdxcSegment", String(mdxcSegment));
     fd.append("mdxcOverlap", String(mdxcOverlap));
     fd.append("mdxcBatch", String(mdxcBatch));
+    fd.append("mdxcOverrideSegment", String(mdxcOverrideSegment));
+    fd.append("mdxcPitchShift", String(mdxcPitchShift));
     fd.append("demucsSegment", demucsSegment.trim() || "Default");
     fd.append("demucsShifts", String(demucsShifts));
     fd.append("demucsOverlap", String(demucsOverlap));
@@ -201,6 +209,7 @@ export default function UvrPage() {
     if (roformerChunk.trim()) fd.append("roformerChunk", roformerChunk.trim());
     fd.append("roformerOverlap", String(roformerOverlap));
     fd.append("roformerBatch", String(roformerBatch));
+    fd.append("roformerDenoise", String(roformerDenoise));
     fd.append("device", device);
     setBusy(true);
     try {
@@ -528,6 +537,27 @@ export default function UvrPage() {
                 onChange={setMdxcBatch}
                 description={t("Higher batches run faster but use more VRAM.")}
               />
+              <ToggleField
+                id="uvr-mdxc-override-segment"
+                label={t("Override Model Segment Size")}
+                checked={mdxcOverrideSegment}
+                onChange={setMdxcOverrideSegment}
+                description={t(
+                  "Always use the segment size above instead of the larger automatic one selected for short songs.",
+                )}
+              />
+              <SliderField
+                id="uvr-mdxc-pitch-shift"
+                label={t("MDXC Pitch Shift")}
+                value={mdxcPitchShift}
+                min={-12}
+                max={12}
+                step={1}
+                onChange={setMdxcPitchShift}
+                description={t(
+                  "Shift audio pitch by a number of semitones while processing. May improve output for deep/high vocals.",
+                )}
+              />
             </>
           )}
           {arch === "DEMUCS" && (
@@ -618,6 +648,15 @@ export default function UvrPage() {
                 step={1}
                 onChange={setRoformerBatch}
                 description={t("Higher batches run faster but use more VRAM.")}
+              />
+              <ToggleField
+                id="uvr-roformer-denoise"
+                label={t("Denoise Output")}
+                checked={roformerDenoise}
+                onChange={setRoformerDenoise}
+                description={t(
+                  "Dual-pass Roformer denoise; reduces noise but doubles inference time.",
+                )}
               />
             </>
           )}

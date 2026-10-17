@@ -133,6 +133,19 @@
     "max": 16
   },
   {
+    "name": "mdxcOverrideSegment",
+    "default": false,
+    "type": "boolean"
+  },
+  {
+    "name": "mdxcPitchShift",
+    "default": 0,
+    "type": "number",
+    "integer": true,
+    "min": -12,
+    "max": 12
+  },
+  {
     "name": "demucsSegment",
     "default": "Default",
     "type": "string",
@@ -180,6 +193,11 @@
     "integer": true,
     "min": 1,
     "max": 16
+  },
+  {
+    "name": "roformerDenoise",
+    "default": false,
+    "type": "boolean"
   },
   {
     "name": "device",
