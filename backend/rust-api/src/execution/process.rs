@@ -180,6 +180,15 @@ impl ManagedProcess {
     pub async fn stop(&mut self) -> Result<()> {
         self.stdin.take();
         self.tree.terminate();
+        // The group signal only reaches the child when it became the group
+        // leader. Signal the interpreter directly as well, so a graceful
+        // shutdown starts even where process grouping is unavailable.
+        #[cfg(unix)]
+        if let Some(pid) = self.child.id() {
+            unsafe {
+                libc::kill(pid as i32, libc::SIGTERM);
+            }
+        }
         let result = tokio::time::timeout(Duration::from_secs(5), self.child.wait()).await;
         if result.is_err() {
             self.tree.kill();
@@ -474,3 +483,59 @@ impl Drop for ProcessTree {
         self.kill();
     }
 }
+
+/// Whether another process is still alive. Used to recognize leftovers from a
+/// previous run; recycled pids are rejected by [`process_name`] before
+/// anything is signaled.
+#[cfg(unix)]
+pub fn process_alive(pid: u32) -> bool {
+    unsafe {
+        if libc::kill(pid as i32, 0) == 0 {
+            return true;
+        }
+    }
+    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+#[cfg(not(unix))]
+pub fn process_alive(_pid: u32) -> bool {
+    false
+}
+
+/// Best-effort executable name of another process, or `None` when the platform
+/// cannot report it. On macOS `proc_pidpath` resolves the real interpreter, so
+/// a Python leftover is recognizable even behind a virtual environment.
+#[cfg(target_os = "macos")]
+pub fn process_name(pid: u32) -> Option<String> {
+    let mut buffer = [0_u8; 4096];
+    let size =
+        unsafe { libc::proc_pidpath(pid as i32, buffer.as_mut_ptr().cast(), buffer.len() as u32) };
+    if size <= 0 {
+        return None;
+    }
+    let path = std::str::from_utf8(&buffer[..size as usize]).ok()?;
+    Some(path.rsplit('/').next()?.to_string())
+}
+#[cfg(all(unix, not(target_os = "macos")))]
+pub fn process_name(pid: u32) -> Option<String> {
+    std::fs::read_to_string(format!("/proc/{pid}/comm"))
+        .ok()
+        .map(|name| name.trim().to_string())
+}
+#[cfg(not(unix))]
+pub fn process_name(_pid: u32) -> Option<String> {
+    None
+}
+
+/// Signal a leftover process group and its direct child: the group covers
+/// descendants such as worker subprocesses, the direct pid covers platforms
+/// where the group was never established.
+#[cfg(unix)]
+pub fn signal_process(pid: u32, force: bool) {
+    let signal = if force { libc::SIGKILL } else { libc::SIGTERM };
+    unsafe {
+        libc::kill(-(pid as i32), signal);
+        libc::kill(pid as i32, signal);
+    }
+}
+#[cfg(not(unix))]
+pub fn signal_process(_pid: u32, _force: bool) {}

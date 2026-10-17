@@ -36,12 +36,13 @@ import {
 } from "@/lib/realtime-calibration";
 import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
 import { connectRealtimeOutput } from "@/lib/realtime-output";
+import { setRealtimeGpuReserved } from "@/lib/realtime-presence";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useRealtimeTray } from "@/lib/useRealtimeTray";
 import { useSpeakers } from "@/lib/useSpeakers";
-import { connectVoiceFocus, type VoiceFocusVariant } from "@/lib/voice-focus";
+import { connectVoiceFocus, type VoiceFocusVariant, voiceFocusSupported } from "@/lib/voice-focus";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
@@ -51,6 +52,7 @@ interface RtStatus {
   running: boolean;
   startedAt: string | null;
   logs: string[];
+  scheduling?: { realtime?: boolean } | null;
 }
 
 function Stage({
@@ -128,6 +130,8 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
   const [autotune, setAutotune] = useState(false);
   const [decoderFp16, setDecoderFp16] = useState(false);
   const [voiceFocus, setVoiceFocus] = useState<VoiceFocusVariant>("off");
+  const [voiceFocusUnsupported, setVoiceFocusUnsupported] = useState(false);
+  const [voiceFocusError, setVoiceFocusError] = useState("");
   const voiceFocusCleanupRef = useRef<(() => Promise<void>) | null>(null);
   const [autotuneStrength, setAutotuneStrength] = useState(1);
   const [proposedPitch, setProposedPitch] = useState(false);
@@ -421,6 +425,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       clearInterval(t);
       navigator.mediaDevices?.removeEventListener("devicechange", refreshDevices);
       stopStream(true);
+      setRealtimeGpuReserved(false);
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
@@ -429,6 +434,12 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       for (const timer of Object.values(configDebounceRef.current)) clearTimeout(timer);
     };
   }, []);
+
+  // The scheduler reserves the GPU for the whole streaming session, so keep
+  // the app-wide warning banner in sync with the engine status poll.
+  useEffect(() => {
+    setRealtimeGpuReserved(Boolean(engine?.scheduling?.realtime));
+  }, [engine]);
 
   function handleModelSelect(selected: string, idxList = indexes) {
     if (selected === model) return;
@@ -488,6 +499,24 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     }
   }
 
+  async function selectVoiceFocus(next: VoiceFocusVariant) {
+    setVoiceFocusError("");
+    if (next === "off") {
+      setVoiceFocus("off");
+      return;
+    }
+    if (voiceFocusUnsupported) {
+      setMsg(t("Voice Focus is not available on this system."));
+      return;
+    }
+    if (!(await voiceFocusSupported())) {
+      setVoiceFocusUnsupported(true);
+      setMsg(t("Voice Focus is not available on this system."));
+      return;
+    }
+    setVoiceFocus(next);
+  }
+
   async function startStream() {
     if (connecting || sessRef.current) return;
     if (!modelPresets.loaded || !settingsLoadedRef.current) {
@@ -533,9 +562,12 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           deviceId: { exact: inDev },
           channelCount: { ideal: 1 },
           sampleRate: { ideal: 48000 },
+          // Voice Focus needs the raw signal. Without it, ask for the browser
+          // processing that WebKit leaves off by default, so clicks and room
+          // noise stay quiet.
           ...(voiceFocus !== "off"
             ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-            : {}),
+            : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
         },
       });
       openingStream = stream;
@@ -561,9 +593,25 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       const inNode = new AudioWorkletNode(ctx, "input-processor");
       if (voiceFocus === "off") src.connect(inNode);
       else {
-        openingVoiceFocusCleanup = await connectVoiceFocus(ctx, src, inNode, stream, voiceFocus);
+        try {
+          openingVoiceFocusCleanup = await connectVoiceFocus(ctx, src, inNode, stream, voiceFocus);
+        } catch (error) {
+          // Voice Focus needs worklets and CDN assets that stripped-down
+          // system WebViews can reject. Keep the microphone live on the raw
+          // path instead of failing the whole stream.
+          openingVoiceFocusCleanup = undefined;
+          setVoiceFocusUnsupported(true);
+          setVoiceFocusError(errMsg(error));
+          setVoiceFocus("off");
+          src.connect(inNode);
+          setMsg(
+            t("Voice Focus could not start, using the raw microphone: {message}", {
+              message: t(errMsg(error)),
+            }),
+          );
+        }
         if (openingEpoch !== streamEpochRef.current) throw new Error("Stream start cancelled");
-        voiceFocusCleanupRef.current = openingVoiceFocusCleanup;
+        if (openingVoiceFocusCleanup) voiceFocusCleanupRef.current = openingVoiceFocusCleanup;
       }
       const playNode = new AudioWorkletNode(ctx, "playback-processor", { outputChannelCount: [2] });
       src.connect(playNode);
@@ -1187,7 +1235,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
               sampleRate: { ideal: 48000 },
               ...(voiceFocus !== "off"
                 ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-                : {}),
+                : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
             },
           });
           if (cancelled || sessRef.current !== session) return;
@@ -1220,11 +1268,13 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
             track.stop();
           });
           void oldCleanup?.().catch(() => {});
+          setVoiceFocusError("");
           setMsg(t("Settings applied"));
         } catch (error) {
           if (!cancelled && sessRef.current === session) {
             setInDev(previous.input);
             setVoiceFocus(previous.focus);
+            setVoiceFocusError(errMsg(error));
             setMsg(t("Could not apply settings: {message}", { message: t(errMsg(error)) }));
           }
         } finally {
@@ -1570,38 +1620,30 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
             icon={<Wand2 size={15} />}
             description={t(SETTING_HELP.autotune)}
           >
-            <div className="row">
-              <div className="min-w-0 flex-1">
-                <label htmlFor="rt-autotune" className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    id="rt-autotune"
-                    type="checkbox"
-                    checked={autotune}
-                    onChange={(e) => {
-                      setAutotune(e.target.checked);
-                      if (streaming) changeConfig("autotune", e.target.checked);
-                    }}
-                    aria-describedby={`${"rt-autotune"}-help`}
-                  />{" "}
-                  {t("Autotune")}
-                </label>
-                <SettingHelp text={t(SETTING_HELP.autotune)} controlId={"rt-autotune"} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="min-w-0">
+                <ToggleField
+                  id="rt-autotune"
+                  label={t("Autotune")}
+                  checked={autotune}
+                  onChange={(checked) => {
+                    setAutotune(checked);
+                    if (streaming) changeConfig("autotune", checked);
+                  }}
+                  description={t(SETTING_HELP.autotune)}
+                />
               </div>
-              <div className="min-w-0 flex-1">
-                <label htmlFor="rt-proposed-pitch" className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    id="rt-proposed-pitch"
-                    type="checkbox"
-                    checked={proposedPitch}
-                    onChange={(e) => {
-                      setProposedPitch(e.target.checked);
-                      if (streaming) changeConfig("proposed_pitch", e.target.checked);
-                    }}
-                    aria-describedby={`${"rt-proposed-pitch"}-help`}
-                  />{" "}
-                  {t("Proposed Pitch")}
-                </label>
-                <SettingHelp text={t(SETTING_HELP.proposed)} controlId={"rt-proposed-pitch"} />
+              <div className="min-w-0">
+                <ToggleField
+                  id="rt-proposed-pitch"
+                  label={t("Proposed Pitch")}
+                  checked={proposedPitch}
+                  onChange={(checked) => {
+                    setProposedPitch(checked);
+                    if (streaming) changeConfig("proposed_pitch", checked);
+                  }}
+                  description={t(SETTING_HELP.proposed)}
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginTop: 8 }}>
@@ -1713,20 +1755,39 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
               <CustomSelect
                 id="rt-voice-focus"
                 value={voiceFocus}
-                onChange={(e) => setVoiceFocus(e.target.value as VoiceFocusVariant)}
+                onChange={(e) => void selectVoiceFocus(e.target.value as VoiceFocusVariant)}
                 options={[
                   { value: "off", label: t("Off") },
-                  { value: "c20", label: "Voice Focus c20" },
-                  { value: "c50", label: "Voice Focus c50" },
-                  { value: "c100", label: "Voice Focus c100" },
+                  {
+                    value: "c20",
+                    label: "Voice Focus c20",
+                    disabled: voiceFocusUnsupported,
+                  },
+                  {
+                    value: "c50",
+                    label: "Voice Focus c50",
+                    disabled: voiceFocusUnsupported,
+                  },
+                  {
+                    value: "c100",
+                    label: "Voice Focus c100",
+                    disabled: voiceFocusUnsupported,
+                  },
                 ]}
                 description={t(SETTING_HELP.voiceFocus)}
               />
               <p className="text-xs text-neutral-400">
-                {t(
-                  "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
-                )}
+                {voiceFocusUnsupported
+                  ? t("Voice Focus is not available on this system. Input keeps working without it.")
+                  : t(
+                      "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
+                    )}
               </p>
+              {voiceFocusError ? (
+                <p className="text-xs text-amber-300" role="status">
+                  {voiceFocusError}
+                </p>
+              ) : null}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
               <div>
@@ -1967,6 +2028,14 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
               </span>
             )}
           </div>
+
+          {!streaming && (
+            <p className="text-xs text-neutral-400 m-0">
+              {t(
+                "While streaming, the GPU is reserved for realtime. Other jobs (inference, TTS, training, separation) wait until you stop.",
+              )}
+            </p>
+          )}
 
           {streaming && active && (
             <RealtimeDiagnostics

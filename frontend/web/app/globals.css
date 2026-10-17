@@ -392,6 +392,17 @@ summary {
   gap: var(--space-section);
 }
 
+/* Dashboard hero: a soft accent glow keeps the header panel from reading as an empty slab. */
+.home-hero {
+  background:
+    radial-gradient(
+      120% 150% at 100% 0%,
+      color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+      transparent 55%
+    ),
+    var(--panel);
+}
+
 pre,
 code,
 kbd,

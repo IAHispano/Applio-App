@@ -1,5 +1,27 @@
 export type VoiceFocusVariant = "off" | "c20" | "c50" | "c100";
 
+let supportProbe: Promise<boolean> | null = null;
+
+/**
+ * Cheap capability check for the Voice Focus variants, run before offering
+ * them. Voice Focus needs WASM audio worklets plus worker and asset loading
+ * that stripped-down system WebViews can reject; failing early keeps the raw
+ * microphone live instead of silencing input.
+ */
+export function voiceFocusSupported(): Promise<boolean> {
+  supportProbe ??= (async () => {
+    try {
+      const { default: Transformer } = await import(
+        "amazon-chime-sdk-js/build/voicefocus/VoiceFocusDeviceTransformer"
+      );
+      return await Transformer.isSupported();
+    } catch {
+      return false;
+    }
+  })();
+  return supportProbe;
+}
+
 export async function connectVoiceFocus(
   context: AudioContext,
   source: AudioNode,

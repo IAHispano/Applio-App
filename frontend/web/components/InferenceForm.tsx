@@ -2,7 +2,7 @@
 
 import { AudioWaveform, Wand2 } from "lucide-react";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
 import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
@@ -179,15 +179,61 @@ export default function InferenceForm() {
     };
   }, [job, persistedJobId, setPersistedJobId, setJob]);
 
+  const primedRef = useRef("");
+
+  // Settings sent with the preload so the API can run one tiny background
+  // conversion that warms the embedder, F0 models, index and device kernels.
+  const primeParams = (selected: string, matchedIndex: string) => ({
+    pthPath: selected,
+    indexPath: matchedIndex,
+    pitch,
+    indexRate,
+    volumeEnvelope,
+    protect,
+    f0Method,
+    inferenceEngine,
+    onnxPrecision,
+    embedderModel,
+    embedderModelCustom: embedderModel === "custom" ? embedderModelCustom : "",
+    exportFormat: "WAV",
+    splitAudio,
+    f0Autotune,
+    f0AutotuneStrength,
+    proposedPitch,
+    proposedPitchThreshold,
+    sid: 0,
+    formantShifting,
+    formantQfrency,
+    formantTimbre,
+  });
+
   const handleModelSelect = (selected: string, idxList = indexes) => {
     setPthPath(selected);
     const matched = matchIndex(selected, idxList);
     setIndexPath(matched);
     setSid(0);
     if (selected) {
-      void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
+      primedRef.current = selected;
+      void apiSend("/api/models/preload", "POST", {
+        pthPath: selected,
+        prime: true,
+        params: primeParams(selected, matched),
+      }).catch(() => {});
     }
   };
+
+  // Warm a model restored from presets or URL parameters, so the first
+  // conversion does not sit on model loading.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: prime once per selected model
+  useEffect(() => {
+    if (!conversion.loaded || !pthPath || primedRef.current === pthPath) return;
+    primedRef.current = pthPath;
+    void apiSend("/api/models/preload", "POST", {
+      pthPath,
+      prime: true,
+      params: primeParams(pthPath, matchIndex(pthPath, indexes)),
+    }).catch(() => {});
+  }, [conversion.loaded, pthPath]);
 
   const handleUnloadModel = () => {
     setPthPath("");

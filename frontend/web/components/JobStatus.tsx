@@ -120,10 +120,10 @@ export function JobStage({ job }: { job: Job }) {
   if (job.status !== "running" && job.status !== "queued") return null;
   return (
     <span role="status" aria-live="polite">
-      {job.status === "queued"
-        ? t("Queued in processing pipeline…")
-        : job.stage
-          ? t(job.stage)
+      {job.stage
+        ? t(job.stage)
+        : job.status === "queued"
+          ? t("Queued in processing pipeline…")
           : t("In Progress")}
       {job.status === "running" &&
         Number.isFinite(job.stageCurrent) &&

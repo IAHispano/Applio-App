@@ -90,52 +90,48 @@ export default function TensorboardPage() {
 
   return (
     <div className="w-full max-w-[2400px] mx-auto flex-1 h-full flex flex-col min-h-0 page-stack pb-1">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shrink-0">
-        <PageHeader
-          title={t("TensorBoard")}
-          description={t(
-            "Monitor loss curves, spectrograms, and training metrics live during model training.",
-          )}
-        />
-        <div className="flex items-center gap-2 self-start sm:self-auto">
-          {isRunning && (
-            <>
-              <Button
-                variant="ghost"
-                size="xs"
-                onClick={handleReloadIframe}
-                title={t("Reload TensorBoard view")}
-                aria-label={t("Reload TensorBoard view")}
-                icon={<RefreshCw className="w-3.5 h-3.5" />}
-              >
-                <span className="hidden md:inline">{t("Reload")}</span>
-              </Button>
-              <Button
-                href={iframeUrl}
-                target="_blank"
-                variant="ghost"
-                size="xs"
-                title={t("Open in browser tab")}
-                aria-label={t("Open in browser tab")}
-                icon={<ExternalLink className="w-3.5 h-3.5" />}
-              >
-                <span className="hidden md:inline">{t("Open Tab")}</span>
-              </Button>
-            </>
-          )}
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={handleRestart}
-            disabled={restarting}
-            title={t("Restart TensorBoard backend service")}
-            aria-label={t("Restart TensorBoard backend service")}
-            icon={<RotateCcw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />}
-          >
-            <span className="hidden md:inline">{restarting ? t("Restarting…") : t("Restart")}</span>
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        className="shrink-0"
+        title={t("TensorBoard")}
+        description={t("Monitor loss curves, spectrograms, and training metrics live during model training.")}
+      >
+        {isRunning && (
+          <>
+            <Button
+              variant="ghost"
+              size="xs"
+              onClick={handleReloadIframe}
+              title={t("Reload TensorBoard view")}
+              aria-label={t("Reload TensorBoard view")}
+              icon={<RefreshCw className="w-3.5 h-3.5" />}
+            >
+              <span className="hidden md:inline">{t("Reload")}</span>
+            </Button>
+            <Button
+              href={iframeUrl}
+              target="_blank"
+              variant="ghost"
+              size="xs"
+              title={t("Open in browser tab")}
+              aria-label={t("Open in browser tab")}
+              icon={<ExternalLink className="w-3.5 h-3.5" />}
+            >
+              <span className="hidden md:inline">{t("Open Tab")}</span>
+            </Button>
+          </>
+        )}
+        <Button
+          variant="ghost"
+          size="xs"
+          onClick={handleRestart}
+          disabled={restarting}
+          title={t("Restart TensorBoard backend service")}
+          aria-label={t("Restart TensorBoard backend service")}
+          icon={<RotateCcw className={`w-3.5 h-3.5 ${restarting ? "animate-spin" : ""}`} />}
+        >
+          <span className="hidden md:inline">{restarting ? t("Restarting…") : t("Restart")}</span>
+        </Button>
+      </PageHeader>
 
       {error && (
         <Alert variant="error" onDismiss={() => setError("")} className="shrink-0">
@@ -158,12 +154,6 @@ export default function TensorboardPage() {
             role="status"
             aria-live="polite"
           >
-            <div className="w-56">
-              <ProgressBar
-                label={restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")}
-                activity={t("The service is initializing in the backend and will display automatically.")}
-              />
-            </div>
             <div className="text-center space-y-1">
               <p className="text-sm font-medium text-neutral-200">
                 {restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")}
@@ -171,6 +161,9 @@ export default function TensorboardPage() {
               <p className="text-xs text-neutral-500">
                 {t("The service is initializing in the backend and will display automatically.")}
               </p>
+            </div>
+            <div className="w-56">
+              <ProgressBar label={restarting ? t("Restarting TensorBoard…") : t("Starting TensorBoard…")} />
             </div>
           </div>
         ) : (

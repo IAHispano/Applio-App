@@ -6,6 +6,7 @@ import {
   Cpu,
   FolderOpen,
   HardDrive,
+  LogOut,
   Palette,
   Power,
   RefreshCw,
@@ -234,12 +235,14 @@ export default function SettingsPage() {
   const [logsDirMessage, setLogsDirMessage] = useState("");
   const [canPickFolder, setCanPickFolder] = useState(false);
   const [pickingFolder, setPickingFolder] = useState(false);
+  const [canQuit, setCanQuit] = useState(false);
 
   useEffect(() => {
     setCanPickFolder(
       typeof (window as unknown as { applio?: { chooseFolder?: unknown } }).applio?.chooseFolder ===
         "function",
     );
+    setCanQuit(typeof (window as unknown as { applio?: { quit?: unknown } }).applio?.quit === "function");
   }, []);
 
   async function chooseLogsFolder() {
@@ -1154,6 +1157,37 @@ export default function SettingsPage() {
           </Button>
         </div>
       </Card>
+
+      {/* 8. Quit */}
+      {canQuit && (
+        <Card>
+          <CardHeader
+            icon={<LogOut size={18} />}
+            title={t("Quit Applio")}
+            description={t("Fully exits Applio, including the tray icon and the background services.")}
+          />
+
+          <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <p className="text-xs text-[var(--muted)] m-0 leading-relaxed">
+              {t(
+                "Closing the window keeps Applio in the tray only while realtime, jobs, or Bridge Mode are active; otherwise closing exits.",
+              )}
+            </p>
+
+            <Button
+              size="md"
+              variant="ghost"
+              onClick={() => {
+                (window as unknown as { applio?: { quit?: () => void } }).applio?.quit?.();
+              }}
+              icon={<LogOut size={14} className="text-white" />}
+              className="w-full sm:w-auto"
+            >
+              {t("Quit Applio")}
+            </Button>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }

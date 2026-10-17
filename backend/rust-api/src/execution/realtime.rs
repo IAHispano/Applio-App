@@ -34,6 +34,13 @@ struct State {
     lease: Option<RealtimeLease>,
     logs: VecDeque<String>,
 }
+/// Written for the lifetime of a realtime engine process so a later run can
+/// recognize an engine that outlived its app (forced quit or crash).
+#[derive(serde::Deserialize, serde::Serialize)]
+struct ProcessRecord {
+    pid: u32,
+    port: u16,
+}
 pub struct Realtime {
     runtime: EngineRuntime,
     pub port: u16,
@@ -125,6 +132,85 @@ impl Realtime {
         .await
         .is_ok_and(|r| r.is_ok())
     }
+    fn record_path(&self) -> std::path::PathBuf {
+        self.runtime.config_dir.join("realtime.pid")
+    }
+    /// Record the engine pid so a future run can reclaim the port when this
+    /// app is killed before it could stop its child.
+    fn record_process(&self, pid: u32) {
+        let record = ProcessRecord {
+            pid,
+            port: self.port,
+        };
+        if let Ok(text) = serde_json::to_string(&record) {
+            let _ = std::fs::write(self.record_path(), text);
+        }
+    }
+    fn clear_process_record(&self) {
+        let _ = std::fs::remove_file(self.record_path());
+    }
+    #[cfg(unix)]
+    async fn wait_for_port_release(&self, limit: Duration) -> bool {
+        let deadline = tokio::time::Instant::now() + limit;
+        loop {
+            if !self.reachable().await {
+                return true;
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return false;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+    /// Reclaim the port from an engine of a previous run. The record file is
+    /// only written by this engine for this port and the pid must still look
+    /// like the Python interpreter, so an unrelated listener is left alone.
+    #[cfg(unix)]
+    async fn reap_stale_process(&self) -> bool {
+        let Ok(text) = std::fs::read_to_string(self.record_path()) else {
+            return false;
+        };
+        let Some(record) = serde_json::from_str::<ProcessRecord>(&text)
+            .ok()
+            .filter(|record| record.port == self.port)
+        else {
+            self.clear_process_record();
+            return false;
+        };
+        if !crate::process::process_alive(record.pid) {
+            self.clear_process_record();
+            return false;
+        }
+        if crate::process::process_name(record.pid)
+            .is_some_and(|name| !name.to_ascii_lowercase().contains("python"))
+        {
+            // The pid was recycled by an unrelated process; the record is stale.
+            self.clear_process_record();
+            return false;
+        }
+        self.log(&format!(
+            "Reclaiming realtime port {} from a previous run (pid {}).",
+            self.port, record.pid
+        ));
+        crate::process::signal_process(record.pid, false);
+        if !self.wait_for_port_release(Duration::from_secs(3)).await {
+            crate::process::signal_process(record.pid, true);
+        }
+        let released = self.wait_for_port_release(Duration::from_secs(2)).await;
+        if released {
+            self.clear_process_record();
+        } else {
+            self.log(&format!(
+                "A previous realtime engine (pid {}) still holds the port.",
+                record.pid
+            ));
+        }
+        released
+    }
+    #[cfg(not(unix))]
+    async fn reap_stale_process(&self) -> bool {
+        false
+    }
     pub async fn start(
         self: &Arc<Self>,
         engine: &Arc<NativeEngine>,
@@ -157,7 +243,12 @@ impl Realtime {
             }
         }
         if self.reachable().await {
-            bail!("The realtime port is already in use by another process.");
+            // A previous run may have been unable to stop its engine (forced
+            // quit, crash). Reclaim the port when the recorded process is ours.
+            self.reap_stale_process().await;
+            if self.reachable().await {
+                bail!("The realtime port is already in use by another process.");
+            }
         }
         let (done, receiver) = watch::channel(false);
         let id = Uuid::new_v4();
@@ -188,6 +279,9 @@ impl Realtime {
             bail!("Realtime start cancelled by stop");
         }
         let process = ManagedProcess::spawn(&command)?;
+        if let Some(pid) = process.id() {
+            self.record_process(pid);
+        }
         let manager = self.clone();
         let owned = OwnedProcess {
             process: Some(process),
@@ -212,7 +306,10 @@ impl Realtime {
                             manager.log("Restarting realtime with eager inference after an unsupported CUDA graph.");
                             let replacement=manager.command().and_then(|spec|ManagedProcess::spawn(&spec));
                             match replacement {
-                                Ok(next)=>{owned.process=Some(next);closed=false;continue;},
+                                Ok(next)=>{
+                                    if let Some(pid)=next.id(){manager.record_process(pid);}
+                                    owned.process=Some(next);closed=false;continue;
+                                },
                                 Err(error)=>manager.log(&format!("Realtime restart failed: {error}")),
                             }
                         } else {manager.log(&format!("Realtime engine exited with code {code:?}"));}
@@ -221,14 +318,20 @@ impl Realtime {
                     Err(error)=>{manager.log(&format!("Realtime process failed: {error}"));let _=process.stop().await;break;},
                 }
             }
+            manager.clear_process_record();
         }).await?;
         Ok((started_at, false))
     }
     fn command(&self) -> Result<crate::process::CommandSpec> {
+        // The repo entry point re-exports the pinned engine's app while
+        // caching model loads across connections and prewarming the pipeline.
+        let app_dir = self.runtime.code.to_string_lossy().into_owned();
         let mut spec = self.runtime.python_command([
             "-m",
             "uvicorn",
-            "rvc.realtime.client:app",
+            "--app-dir",
+            app_dir.as_str(),
+            "backend.python.realtime.service:app",
             "--host",
             "127.0.0.1",
             "--port",

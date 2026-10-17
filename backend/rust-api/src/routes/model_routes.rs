@@ -20,6 +20,7 @@ use std::{
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
+use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 struct Models {
@@ -313,6 +314,19 @@ async fn preload(State(state): State<Arc<Models>>, request: Request) -> Result<J
         .unwrap_or_default()
         .to_string_lossy()
         .into_owned();
+    // Optional background conversion that warms the rest of the pipeline:
+    // embedder, F0 models, retrieval index and the device kernels.
+    let wants_prime = input
+        .body
+        .get("prime")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
+    let prime_params = input
+        .body
+        .get("params")
+        .filter(|_| wants_prime)
+        .cloned()
+        .filter(Value::is_object);
     let engine = state.engine.clone();
     let id = format!("preload-{}", Uuid::new_v4());
     let token = engine.cancellation_token();
@@ -321,17 +335,26 @@ async fn preload(State(state): State<Arc<Models>>, request: Request) -> Result<J
         engine
             .spawn_background(async move {
                 let _lease = lease;
-                if let Err(error) = background
+                let loaded = background
                     .worker
                     .request(
                         json!({"command":"preload_model","pthPath":path,"sid":sid}),
                         &token,
                         |_| {},
                     )
-                    .await
-                {
+                    .await;
+                if let Err(error) = loaded {
                     if !token.is_cancelled() {
                         eprintln!("Model preload: {error}");
+                    }
+                    return;
+                }
+                let Some(params) = prime_params else {
+                    return;
+                };
+                if let Err(error) = warm_pipeline(&background, params, path, sid, &token).await {
+                    if !token.is_cancelled() {
+                        eprintln!("Model prime: {error}");
                     }
                 }
             })
@@ -339,6 +362,80 @@ async fn preload(State(state): State<Arc<Models>>, request: Request) -> Result<J
             .map_err(Error::internal)?;
     }
     Ok(Json(json!({"ok":true,"preloading":name})))
+}
+async fn warm_pipeline(
+    engine: &Arc<NativeEngine>,
+    mut params: Value,
+    path: PathBuf,
+    sid: f64,
+    token: &CancellationToken,
+) -> Result<()> {
+    params["pthPath"] = json!(path_string(&path));
+    params["sid"] = json!(sid);
+    // The output is discarded; never pay for format conversion.
+    params["exportFormat"] = json!("WAV");
+    let index = params
+        .get("indexPath")
+        .and_then(Value::as_str)
+        .unwrap_or_default()
+        .trim()
+        .to_owned();
+    if !index.is_empty() {
+        params["indexPath"] = match engine.runtime.require_file(&index) {
+            Ok(resolved) => json!(path_string(&resolved)),
+            Err(_) => json!(""),
+        };
+    }
+    let input = prime_audio()?;
+    let output = std::env::temp_dir().join(format!("applio-prime-{}.wav", Uuid::new_v4()));
+    let result = engine
+        .worker
+        .request(
+            json!({
+                "command": "infer",
+                "params": params,
+                "inputPath": path_string(&input),
+                "outputPath": path_string(&output),
+            }),
+            token,
+            |_| {},
+        )
+        .await;
+    let _ = std::fs::remove_file(&output);
+    result.map(|_| ())
+}
+/// One second of a quiet 16 kHz tone that exercises the full conversion path.
+fn prime_audio() -> Result<PathBuf> {
+    let path = std::env::temp_dir().join("applio-prime-input.wav");
+    if std::fs::metadata(&path)
+        .map(|meta| meta.len() > 44)
+        .unwrap_or(false)
+    {
+        return Ok(path);
+    }
+    const SAMPLE_RATE: u32 = 16_000;
+    const SAMPLES: u32 = SAMPLE_RATE;
+    let data_len = SAMPLES * 2;
+    let mut bytes = Vec::with_capacity(44 + data_len as usize);
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(36 + data_len).to_le_bytes());
+    bytes.extend_from_slice(b"WAVEfmt ");
+    bytes.extend_from_slice(&16u32.to_le_bytes());
+    bytes.extend_from_slice(&1u16.to_le_bytes());
+    bytes.extend_from_slice(&1u16.to_le_bytes());
+    bytes.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+    bytes.extend_from_slice(&(SAMPLE_RATE * 2).to_le_bytes());
+    bytes.extend_from_slice(&2u16.to_le_bytes());
+    bytes.extend_from_slice(&16u16.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_len.to_le_bytes());
+    for n in 0..SAMPLES {
+        let phase = 2.0 * std::f64::consts::PI * 220.0 * f64::from(n) / f64::from(SAMPLE_RATE);
+        let sample = (0.2 * phase.sin() * 32767.0) as i16;
+        bytes.extend_from_slice(&sample.to_le_bytes());
+    }
+    std::fs::write(&path, bytes).with_context(|| format!("Write {}", path.display()))?;
+    Ok(path)
 }
 fn delete_path(logs: &Path, name: &str) -> Result<PathBuf> {
     let name = name.replace('\\', "/");

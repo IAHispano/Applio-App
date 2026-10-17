@@ -11,6 +11,7 @@ import {
   Download,
   FileAudio,
   Flame,
+  HardDrive,
   Layers,
   Radio,
   RefreshCw,
@@ -21,14 +22,27 @@ import {
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobPanelContent } from "@/components/JobPanel";
 import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
 import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
-import { apiGet, apiSend, displayVersion, errMsg, fetchModels, fileBasename, type Job } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import ProgressBar from "@/components/ui/ProgressBar";
+import {
+  apiGet,
+  apiSend,
+  displayVersion,
+  errMsg,
+  fetchModels,
+  fileBasename,
+  isAudioFile,
+  type Job,
+  outputUrl,
+} from "@/lib/api";
+import { type TFn, useI18n } from "@/lib/i18n";
 import { jobHref } from "@/lib/job-url";
+import { useRealtimeGpuReserved } from "@/lib/realtime-presence";
 import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
@@ -54,6 +68,22 @@ interface LibraryModel {
   name: string;
   indexPath: string | null;
   modifiedAt: string;
+  pthSize?: number;
+  indexSize?: number;
+}
+
+interface StorageSummary {
+  totalBytes: number;
+  totalFiles: number;
+}
+
+interface LastConversion {
+  jobId: string;
+  outputFile: string;
+  label?: string;
+  createdAt: string;
+  model?: string;
+  index?: string;
 }
 
 interface VersionInfo {
@@ -92,6 +122,57 @@ function ActionCard({
   );
 }
 
+function formatBytes(bytes?: number | null): string {
+  if (bytes === undefined || bytes === null) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+function timeAgo(iso: string, t: TFn): string {
+  const time = new Date(iso).getTime();
+  if (!Number.isFinite(time)) return "";
+  const minutes = Math.floor((Date.now() - time) / 60000);
+  if (minutes < 1) return t("just now");
+  if (minutes < 60) return t("{count} min ago", { count: minutes });
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return t("{count} h ago", { count: hours });
+  const days = Math.floor(hours / 24);
+  if (days < 7) return t("{count} d ago", { count: days });
+  return new Date(iso).toLocaleDateString();
+}
+
+function HeroStat({
+  href,
+  icon,
+  label,
+  value,
+  subtext,
+}: {
+  href: string;
+  icon: React.ReactNode;
+  label: string;
+  value: React.ReactNode;
+  subtext?: React.ReactNode;
+}) {
+  return (
+    <Link
+      href={href}
+      className="group flex h-full items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 hover:bg-[var(--surface)] transition-colors min-w-0"
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-xl font-semibold text-[var(--heading)] m-0 leading-tight tabular-nums">{value}</p>
+        <p className="text-xs text-[var(--muted)] m-0 mt-0.5 truncate">{label}</p>
+        {subtext && <p className="text-[11px] text-[var(--muted)] m-0 mt-0.5 truncate">{subtext}</p>}
+      </div>
+    </Link>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
@@ -100,8 +181,14 @@ export default function Home() {
   const [sysInfo, setSysInfo] = useWorkspaceState<SystemInfo | null>("page:app:sysInfo", null);
   const [library, setLibrary] = useWorkspaceState<LibraryModel[] | null>("page:app:library", null);
   const [jobs, setJobs] = useWorkspaceState<Job[] | null>("page:app:jobs", null);
+  const [storage, setStorage] = useWorkspaceState<StorageSummary | null>("page:app:storage", null);
+  const [lastConversion, setLastConversion] = useWorkspaceState<LastConversion | null>(
+    "page:app:lastConversion",
+    null,
+  );
   const [versionInfo, setVersionInfo] = useWorkspaceState<VersionInfo | null>("page:app:versionInfo", null);
   const [showDetails, setShowDetails] = useWorkspaceState("page:app:showDetails", false);
+  const realtimeLive = useRealtimeGpuReserved();
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(true);
   const [jobId, setJobId] = useWorkspaceState<string | null>("page:app:jobId", null);
@@ -146,10 +233,37 @@ export default function Home() {
         load<SystemInfo>("/api/report/info", setSysInfo),
         load<{ models: LibraryModel[] }>("/api/models/library", (value) => setLibrary(value.models)),
         load<{ jobs: Job[] }>("/api/jobs/activity", (value) => setJobs(value.jobs)),
+        load<{ stats: StorageSummary }>("/api/settings/storage", (value) => setStorage(value.stats)),
+        load<{ jobs: Job[] }>("/api/jobs", (value) => {
+          const latest = value.jobs
+            .filter((job) => job.status === "done" && job.outputFile && isAudioFile(job.outputFile))
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+          setLastConversion(
+            latest?.outputFile
+              ? {
+                  jobId: latest.id,
+                  outputFile: latest.outputFile,
+                  label: latest.label,
+                  createdAt: latest.createdAt,
+                  model: typeof latest.params?.pthPath === "string" ? latest.params.pthPath : undefined,
+                  index: typeof latest.params?.indexPath === "string" ? latest.params.indexPath : undefined,
+                }
+              : null,
+          );
+        }),
       ]);
       if (!controller.signal.aborted) setRefreshing(false);
     },
-    [refreshSetup, setSysInfo, setVersionInfo, setModelsData, setLibrary, setJobs],
+    [
+      refreshSetup,
+      setSysInfo,
+      setVersionInfo,
+      setModelsData,
+      setLibrary,
+      setJobs,
+      setStorage,
+      setLastConversion,
+    ],
   );
 
   useEffect(() => {
@@ -226,6 +340,7 @@ export default function Home() {
   const audioCount = modelsData?.audios.length ?? 0;
   const recentModels = library?.slice(0, 4) ?? [];
   const recentJobs = [...(jobs ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
+  const activeJobs = (jobs ?? []).filter((job) => job.status === "running" || job.status === "queued").length;
   const updateAvailable =
     versionInfo && !versionInfo.isDev && versionInfo.status === "behind" && versionInfo.latest;
   const currentVersion = displayVersion(sysInfo?.version || versionInfo?.local);
@@ -293,7 +408,7 @@ export default function Home() {
 
   return (
     <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack">
-      <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 sm:p-7">
+      <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] p-5 sm:p-7">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
             <Badge variant={status?.ready ? "success" : "neutral"} dot>
@@ -328,6 +443,36 @@ export default function Home() {
               </Button>
             </div>
           </div>
+        </div>
+        <div className="mt-6 pt-5 border-t border-[var(--border)] grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
+          <HeroStat
+            href="/models"
+            icon={<Database size={16} />}
+            label={t("Voice Models")}
+            value={modelsData ? modelCount : "—"}
+          />
+          <HeroStat
+            href="/extra"
+            icon={<FileAudio size={16} />}
+            label={t("Audio files")}
+            value={modelsData ? audioCount : "—"}
+          />
+          <HeroStat
+            href="/jobs"
+            icon={<Activity size={16} />}
+            label={t("Active jobs")}
+            value={jobs ? activeJobs : "—"}
+            subtext={
+              realtimeLive ? t("Realtime streaming") : activeJobs > 0 ? t("Processing now") : t("Idle")
+            }
+          />
+          <HeroStat
+            href="/settings"
+            icon={<HardDrive size={16} />}
+            label={t("Storage used")}
+            value={storage ? formatBytes(storage.totalBytes) : "—"}
+            subtext={storage ? `${storage.totalFiles} ${t("files")}` : undefined}
+          />
         </div>
       </section>
 
@@ -399,34 +544,46 @@ export default function Home() {
         </div>
       </section>
 
+      {lastConversion && (
+        <Card className="!mb-0 !space-y-0 !p-5 sm:!p-6">
+          <CardHeader
+            border={false}
+            title={t("Latest output")}
+            icon={<FileAudio size={17} />}
+            description={`${t(lastConversion.label || "Audio")} · ${timeAgo(lastConversion.createdAt, t)}`}
+            action={
+              <div className="flex items-center gap-1.5">
+                <Button size="xs" variant="ghost" href={jobHref(lastConversion.jobId)}>
+                  {t("Open job")}
+                </Button>
+                {lastConversion.model && (
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    href={`/inference?${new URLSearchParams({
+                      model: lastConversion.model,
+                      ...(lastConversion.index ? { index: lastConversion.index } : {}),
+                    }).toString()}`}
+                  >
+                    {t("Convert again")}
+                  </Button>
+                )}
+              </div>
+            }
+          />
+          <div className="pt-1">
+            <AudioWavePlayer
+              src={outputUrl(lastConversion.outputFile)}
+              filename={fileBasename(lastConversion.outputFile)}
+              showAnalyzerLink={false}
+              compact
+            />
+          </div>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 card-grid">
         <Card className="lg:col-span-2 !mb-0 !space-y-0 !p-0 overflow-hidden">
-          <div className="grid grid-cols-2">
-            <Link
-              href="/models"
-              className="p-5 flex items-center gap-3 hover:bg-[var(--surface)] transition-colors border-r border-[var(--border)]"
-            >
-              <Database size={18} className="text-[var(--muted)] shrink-0" />
-              <div>
-                <p className="text-2xl font-semibold text-[var(--heading)] m-0">
-                  {modelsData ? modelCount : "—"}
-                </p>
-                <p className="text-xs text-[var(--muted)] m-0 mt-1">{t("Voice Models")}</p>
-              </div>
-            </Link>
-            <Link
-              href="/extra"
-              className="p-5 flex items-center gap-3 hover:bg-[var(--surface)] transition-colors"
-            >
-              <FileAudio size={18} className="text-[var(--muted)] shrink-0" />
-              <div>
-                <p className="text-2xl font-semibold text-[var(--heading)] m-0">
-                  {modelsData ? audioCount : "—"}
-                </p>
-                <p className="text-xs text-[var(--muted)] m-0 mt-1">{t("Audio files")}</p>
-              </div>
-            </Link>
-          </div>
           <div className="p-5 sm:p-6 space-y-4">
             <CardHeader
               border={false}
@@ -462,9 +619,13 @@ export default function Home() {
                         </p>
                         <p className="text-xs text-[var(--muted)] m-0 mt-1 truncate" title={model.pthPath}>
                           {fileBasename(model.pthPath)}
+                          {model.pthSize ? ` · ${formatBytes(model.pthSize)}` : ""}
                           {model.indexPath ? ` · ${t("Index paired")}` : ""}
                         </p>
                       </div>
+                      <span className="text-[11px] text-[var(--muted)] shrink-0">
+                        {timeAgo(model.modifiedAt, t)}
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -504,10 +665,21 @@ export default function Home() {
                     href={jobHref(job.id)}
                     className="block py-3 space-y-2 rounded-lg hover:bg-[var(--surface)] px-2 -mx-2 transition-colors"
                   >
-                    <p className="text-sm font-medium text-[var(--heading)] truncate m-0">
-                      {t(job.label || job.type)}
-                    </p>
-                    <JobBadge status={job.status} error={job.error} />
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium text-[var(--heading)] truncate m-0">
+                        {t(job.label || job.type)}
+                      </p>
+                      <span className="text-[11px] text-[var(--muted)] shrink-0">
+                        {timeAgo(job.createdAt, t)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <JobBadge status={job.status} error={job.error} />
+                      {(job.status === "running" || job.status === "queued") && job.stage && (
+                        <span className="text-[11px] text-[var(--muted)] truncate">{t(job.stage)}</span>
+                      )}
+                    </div>
+                    {job.status === "running" && <ProgressBar progress={job.progress} />}
                   </Link>
                 </li>
               ))}

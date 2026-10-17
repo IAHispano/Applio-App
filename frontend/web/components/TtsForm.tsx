@@ -1,7 +1,7 @@
 "use client";
 
 import { FileText, Type, Upload, Wand2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
 import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
@@ -67,6 +67,10 @@ export default function TtsForm() {
   );
   const [indexPath, setIndexPath] = useWorkspaceState("TtsForm:components:indexPath", "");
   const conversion = useConversionParameters(pthPath);
+  // Latest conversion values for callbacks that must not depend on them.
+  const conversionValuesRef = useRef(conversion.values);
+  conversionValuesRef.current = conversion.values;
+  const primedRef = useRef("");
   const [sid, setSid] = useWorkspaceState("TtsForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("tts");
   const { job, error, setError } = useJob(jobId);
@@ -84,11 +88,41 @@ export default function TtsForm() {
       setIndexPath(matchIndex(selected, idxList));
       setSid(0);
       if (selected) {
-        void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
+        primedRef.current = selected;
+        void apiSend("/api/models/preload", "POST", {
+          pthPath: selected,
+          prime: true,
+          params: {
+            ...conversionValuesRef.current,
+            pthPath: selected,
+            indexPath: matchIndex(selected, idxList),
+            sid: 0,
+            exportFormat: "WAV",
+          },
+        }).catch(() => {});
       }
     },
     [setSid, setPthPath, setIndexPath],
   );
+
+  // Warm a model restored from presets, so the first conversion does not sit
+  // on model loading.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: prime once per selected model
+  useEffect(() => {
+    if (!conversion.loaded || !pthPath || primedRef.current === pthPath) return;
+    primedRef.current = pthPath;
+    void apiSend("/api/models/preload", "POST", {
+      pthPath,
+      prime: true,
+      params: {
+        ...conversionValuesRef.current,
+        pthPath,
+        indexPath: matchIndex(pthPath, indexes),
+        sid: 0,
+        exportFormat: "WAV",
+      },
+    }).catch(() => {});
+  }, [conversion.loaded, pthPath]);
 
   function handleUnloadModel() {
     setPthPath("");

@@ -81,23 +81,21 @@ fn copy_tree(
     relocation: Option<(&Path, &Path)>,
 ) -> Result<()> {
     let metadata = std::fs::symlink_metadata(source)?;
-    // Do not follow external model junctions or symlinks during an import.
-    // Their absolute paths in configuration remain intact.
+    // Do not follow model junctions, symlinks, or other links during an import.
+    // Linked content stays where it is (its absolute paths in configuration
+    // remain intact) and must never block startup: skip it instead of failing.
+    let linked = metadata.file_type().is_symlink();
     #[cfg(windows)]
-    {
+    let linked = {
         use std::os::windows::fs::MetadataExt;
-        if metadata.file_attributes() & 0x400 != 0 {
-            bail!(
-                "Linked content must be imported explicitly: {}",
-                source.display()
-            );
-        }
-    }
-    if metadata.file_type().is_symlink() {
-        bail!(
-            "Linked content must be imported explicitly: {}",
+        linked || metadata.file_attributes() & 0x400 != 0
+    };
+    if linked {
+        eprintln!(
+            "Skipping linked legacy content during import: {}",
             source.display()
         );
+        return Ok(());
     }
     if metadata.is_dir() {
         std::fs::create_dir_all(destination)?;

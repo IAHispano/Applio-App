@@ -238,15 +238,26 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
                                 .set_always_on_top(!window.is_always_on_top().unwrap_or(false));
                         }
                     }
-                    "quit" => app.exit(0),
+                    "quit" => {
+                        if let Some(tray) = app.tray_by_id("applio") {
+                            let _ = tray.set_tooltip(Some("Applio · Quitting…"));
+                        }
+                        app.exit(0);
+                    }
                     _ => {}
                 }
             }
-            let _ = refresh(app);
+            // Rebuilding the menu while the app shuts down can stall the exit.
+            if id != "quit" {
+                let _ = refresh(app);
+            }
         });
     if let Some(icon) = app.default_window_icon() {
         builder = builder.icon(icon.clone());
     }
     builder.build(app)?;
+    app.state::<AppState>()
+        .tray_ready
+        .store(true, std::sync::atomic::Ordering::SeqCst);
     Ok(())
 }

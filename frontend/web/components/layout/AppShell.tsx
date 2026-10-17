@@ -8,6 +8,7 @@ import { BottomNav } from "@/components/layout/MobileNav";
 import PageTransition from "@/components/layout/PageTransition";
 import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
 import Sidebar from "@/components/layout/Sidebar";
+import RealtimeGpuBanner from "@/components/RealtimeGpuBanner";
 import RemoteBridgeBanner from "@/components/RemoteBridgeBanner";
 import SupportLink from "@/components/SupportLink";
 import SetupBarrier from "@/components/setup/SetupBarrier";
@@ -104,6 +105,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
         <RemoteBridgeBanner />
+        {pathname !== "/realtime" && <RealtimeGpuBanner />}
         <main
           id="main-content"
           onScroll={(event) => {

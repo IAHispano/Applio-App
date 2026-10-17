@@ -372,16 +372,18 @@ impl NativeEngine {
                     let permit = match futures_util::poll!(admitted.as_mut()) {
                         std::task::Poll::Ready(result) => result?,
                         std::task::Poll::Pending => {
-                            engine.jobs.log(
-                                &id,
-                                match resource {
-                                    Resource::Gpu => "Waiting for the GPU to become available.",
-                                    Resource::DatasetReview => {
-                                        "Waiting for the current dataset review to finish."
-                                    }
-                                    _ => "Waiting for a download slot.",
-                                },
-                            );
+                            let reason = match resource {
+                                Resource::Gpu if engine.scheduler.status().realtime => {
+                                    "Waiting for realtime streaming to stop (the GPU is reserved)."
+                                }
+                                Resource::Gpu => "Waiting for the GPU to become available.",
+                                Resource::DatasetReview => {
+                                    "Waiting for the current dataset review to finish."
+                                }
+                                _ => "Waiting for a download slot.",
+                            };
+                            engine.jobs.log(&id, reason);
+                            engine.jobs.stage(&id, reason, None, None);
                             admitted.await?
                         }
                     };

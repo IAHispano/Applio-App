@@ -44,6 +44,7 @@
     },
     chooseFolder: (defaultPath) => invoke("choose_folder", { defaultPath }),
     restartAfterSetup: (jobId) => invoke("restart_after_setup", { jobId }),
+    quit: () => void invoke("quit_app"),
     showJobNotification: (value) => invoke("notify_job", { value }),
     onNavigate: (callback) => listen("app-navigate", callback),
     onJobOpen: (callback) => listen("job-open", callback),

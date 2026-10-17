@@ -38,7 +38,10 @@ pub struct AppState {
     >,
     starting: AtomicBool,
     quitting: AtomicBool,
+    stopped: AtomicBool,
+    quit_deadline: Mutex<Option<Instant>>,
     ready: AtomicBool,
+    tray_ready: AtomicBool,
     interface_loaded: tokio::sync::Notify,
     startup_error: Mutex<Option<String>>,
     hotkey: Mutex<String>,
@@ -91,6 +94,85 @@ fn focus(app: &AppHandle) {
         let _ = window.show();
         let _ = window.set_focus();
     }
+}
+
+/// True while background work keeps the app useful after the window closes.
+/// Closing hides to the tray only in that case; otherwise it quits, so users
+/// are never left with a process they cannot exit.
+async fn services_busy(app: &AppHandle) -> bool {
+    let state = app.state::<AppState>();
+    if !state.ready.load(Ordering::SeqCst) {
+        return false;
+    }
+    let realtime = state.realtime.lock().unwrap().clone();
+    let active_stream = realtime
+        .as_ref()
+        .filter(|(_, at)| at.elapsed().as_secs() < 10)
+        .is_some_and(|(value, _)| value["streaming"] == true || value["connecting"] == true);
+    if active_stream {
+        return true;
+    }
+    if let Ok(host) = state.host().await {
+        if let Ok(status) = host.call("bridge:status", None).await {
+            if matches!(status["status"].as_str(), Some("starting" | "sharing")) {
+                return true;
+            }
+        }
+    }
+    let Ok(client) = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+    else {
+        return false;
+    };
+    let Ok(response) = client.get("http://127.0.0.1:8000/api/jobs").send().await else {
+        return false;
+    };
+    let Ok(value) = response.json::<Value>().await else {
+        return false;
+    };
+    let scheduling = &value["scheduling"];
+    let live_job = value["jobs"].as_array().is_some_and(|jobs| {
+        jobs.iter()
+            .any(|job| matches!(job["status"].as_str(), Some("queued" | "running")))
+    });
+    live_job
+        || scheduling["realtime"] == true
+        || scheduling["active"]
+            .as_array()
+            .is_some_and(|list| !list.is_empty())
+        || scheduling["queued"]
+            .as_array()
+            .is_some_and(|list| !list.is_empty())
+}
+
+/// Explain, once per installation, why the window closed to the tray and how to
+/// exit the app completely.
+fn tray_hint(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let marker = state.paths.config.join("tray-hint-shown");
+    if marker.exists() {
+        return;
+    }
+    let _ = std::fs::write(&marker, b"1");
+    use tauri_plugin_notification::NotificationExt;
+    let (_, dictionary) = crate::language::load(&state.paths.code, &state.paths.config);
+    let translate = |key: &str| {
+        dictionary[key]
+            .as_str()
+            .filter(|value| !value.is_empty())
+            .unwrap_or(key)
+            .to_owned()
+    };
+    let _ = app
+        .notification()
+        .builder()
+        .title(translate("Applio keeps running in the background"))
+        .body(translate(
+            "Realtime, jobs, or Bridge Mode are still active. Click the tray icon to reopen the window, or right-click it and choose Quit Applio to exit completely.",
+        ))
+        .show();
 }
 
 fn show_startup_error(app: &AppHandle) {
@@ -204,6 +286,13 @@ async fn retry_startup(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 async fn startup_error(state: State<'_, AppState>) -> Result<Option<String>, String> {
     Ok(state.startup_error.lock().unwrap().clone())
+}
+
+/// Quit request from the in-app Settings card; runs the same cleanup gate as
+/// the tray Quit item so services and the realtime port are released.
+#[tauri::command]
+fn quit_app(app: AppHandle) {
+    app.exit(0);
 }
 
 #[tauri::command]
@@ -428,7 +517,20 @@ async fn report_realtime_state(
                     .is_some_and(|v| (0.0..=120000.0).contains(&v))
             })
     });
-    *state.realtime.lock().unwrap() = valid.map(|value| (value, Instant::now()));
+    let next = valid.map(|value| (value, Instant::now()));
+    let changed = {
+        let mut current = state.realtime.lock().unwrap();
+        // Heartbeats repeat unchanged snapshots to keep the freshness window
+        // open; rebuilding the tray menu for those can close it while the user
+        // is aiming at an item, so only changed states reach the tray.
+        let changed =
+            current.as_ref().map(|(value, _)| value) != next.as_ref().map(|(value, _)| value);
+        *current = next;
+        changed
+    };
+    if !changed {
+        return Ok(());
+    }
     tray::refresh(&app).map_err(|e| e.to_string())
 }
 
@@ -451,7 +553,8 @@ fn main() {
             report_realtime_state,
             updater::updater_command,
             retry_startup,
-            startup_error
+            startup_error,
+            quit_app
         ])
         .setup(|app| {
             let paths = Paths::resolve(app.handle())?;
@@ -487,7 +590,10 @@ fn main() {
                 server: Mutex::new(None),
                 starting: AtomicBool::new(false),
                 quitting: AtomicBool::new(false),
+                stopped: AtomicBool::new(false),
+                quit_deadline: Mutex::new(None),
                 ready: AtomicBool::new(false),
+                tray_ready: AtomicBool::new(false),
                 interface_loaded: tokio::sync::Notify::new(),
                 startup_error: Mutex::new(None),
                 hotkey: Mutex::new(String::new()),
@@ -547,14 +653,32 @@ fn main() {
             let handle = app.handle().clone();
             window.on_window_event(move |event| match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    let state = handle.state::<AppState>();
-                    if state.ready.load(Ordering::SeqCst) && !state.quitting.load(Ordering::SeqCst)
-                    {
-                        api.prevent_close();
-                        if let Some(window) = handle.get_webview_window("main") {
-                            let _ = window.hide();
-                        }
+                    // While background work is active the window hides to the
+                    // tray; otherwise closing really quits.
+                    if handle.state::<AppState>().quitting.load(Ordering::SeqCst) {
+                        return;
                     }
+                    api.prevent_close();
+                    let handle = handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        // Hiding is only safe when a tray icon can bring the
+                        // window back; without one, closing always quits.
+                        let tray_ready =
+                            handle.state::<AppState>().tray_ready.load(Ordering::SeqCst);
+                        if tray_ready && services_busy(&handle).await {
+                            if let Some(window) = handle.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                            tray_hint(&handle);
+                        } else {
+                            // The window disappears immediately; cleanup runs
+                            // behind the scenes before the process exits.
+                            if let Some(window) = handle.get_webview_window("main") {
+                                let _ = window.hide();
+                            }
+                            handle.exit(0);
+                        }
+                    });
                 }
                 tauri::WindowEvent::Resized(_) => {
                     if let Some(window) = handle.get_webview_window("main") {
@@ -566,7 +690,14 @@ fn main() {
                 }
                 _ => {}
             });
-            tray::create(app.handle())?;
+            if let Err(error) = tray::create(app.handle()) {
+                // A missing tray must not block the app; closing the window
+                // falls back to quitting when no tray icon is available.
+                logging::write(
+                    &app.state::<AppState>().paths.config,
+                    &format!("System tray unavailable: {error}"),
+                );
+            }
             let notification_handle = app.handle().clone();
             app.notification().on_action(move |event| {
                 if event.action_id() != "tap" {
@@ -623,13 +754,38 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("could not initialize Applio");
     app.run(|app, event| {
+        // macOS: clicking the dock icon while the window is hidden reopens it.
+        #[cfg(target_os = "macos")]
+        if let tauri::RunEvent::Reopen { .. } = event {
+            focus(app);
+        }
         if let tauri::RunEvent::ExitRequested { api, .. } = event {
             let state = app.state::<AppState>();
+            if state.stopped.load(Ordering::SeqCst) {
+                return;
+            }
+            // A second quit request while cleanup is running must not abandon
+            // child processes; only a stalled shutdown may be forced through.
+            let stalled = state
+                .quit_deadline
+                .lock()
+                .unwrap()
+                .is_some_and(|started| started.elapsed() > std::time::Duration::from_secs(30));
+            if stalled {
+                return;
+            }
+            api.prevent_exit();
             if !state.quitting.swap(true, Ordering::SeqCst) {
-                api.prevent_exit();
+                *state.quit_deadline.lock().unwrap() = Some(Instant::now());
                 let handle = app.clone();
                 tauri::async_runtime::spawn(async move {
-                    handle.state::<AppState>().stop().await;
+                    let state = handle.state::<AppState>();
+                    // Quitting must always finish: stopping talks to child
+                    // processes and the OS, and a service that refuses to stop
+                    // must not leave the app unquittable.
+                    let _ = tokio::time::timeout(std::time::Duration::from_secs(30), state.stop())
+                        .await;
+                    state.stopped.store(true, Ordering::SeqCst);
                     handle.exit(0);
                 });
             }
