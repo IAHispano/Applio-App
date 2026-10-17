@@ -43,6 +43,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Set app versions from release input
         id: version
@@ -199,6 +200,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
+          package-manager-cache: false
 
       - name: Get commit messages since last tag
         id: changelog
