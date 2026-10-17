@@ -117,14 +117,18 @@ class MdxcSeparator(BaseSeparator):
             if should_process_all_stems:
                 self.logger.debug("Processing all stems from multi-stem model...")
                 for stem_name in stem_list:
-                    stem_output_path = self.get_stem_output_path(stem_name, custom_output_names)
+                    stem_output_path = self.get_stem_output_path(
+                        stem_name, custom_output_names
+                    )
                     stem_source = spec_utils.normalize(
                         wave=source[stem_name],
                         max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold
+                        min_peak=self.amplification_threshold,
                     ).T
 
-                    self.logger.info(f"Saving {stem_name} stem to {stem_output_path}...")
+                    self.logger.info(
+                        f"Saving {stem_name} stem to {stem_output_path}..."
+                    )
                     self.final_process(stem_output_path, stem_source, stem_name)
                     output_files.append(stem_output_path)
             else:
@@ -133,40 +137,74 @@ class MdxcSeparator(BaseSeparator):
                     self.primary_source = spec_utils.normalize(
                         wave=source[self.primary_stem_name],
                         max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold
+                        min_peak=self.amplification_threshold,
                     ).T
 
                 if not isinstance(self.secondary_source, np.ndarray):
                     self.secondary_source = spec_utils.normalize(
                         wave=source[self.secondary_stem_name],
                         max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold
+                        min_peak=self.amplification_threshold,
                     ).T
 
-                if not self.output_single_stem or self.output_single_stem.lower() == self.secondary_stem_name.lower():
-                    self.secondary_stem_output_path = self.get_stem_output_path(self.secondary_stem_name, custom_output_names)
+                if (
+                    not self.output_single_stem
+                    or self.output_single_stem.lower()
+                    == self.secondary_stem_name.lower()
+                ):
+                    self.secondary_stem_output_path = self.get_stem_output_path(
+                        self.secondary_stem_name, custom_output_names
+                    )
 
-                    self.logger.info(f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}...")
-                    self.final_process(self.secondary_stem_output_path, self.secondary_source, self.secondary_stem_name)
+                    self.logger.info(
+                        f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
+                    )
+                    self.final_process(
+                        self.secondary_stem_output_path,
+                        self.secondary_source,
+                        self.secondary_stem_name,
+                    )
                     output_files.append(self.secondary_stem_output_path)
 
-                if not self.output_single_stem or self.output_single_stem.lower() == self.primary_stem_name.lower():
-                    self.primary_stem_output_path = self.get_stem_output_path(self.primary_stem_name, custom_output_names)
+                if (
+                    not self.output_single_stem
+                    or self.output_single_stem.lower() == self.primary_stem_name.lower()
+                ):
+                    self.primary_stem_output_path = self.get_stem_output_path(
+                        self.primary_stem_name, custom_output_names
+                    )
 
-                    self.logger.info(f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}...")
-                    self.final_process(self.primary_stem_output_path, self.primary_source, self.primary_stem_name)
+                    self.logger.info(
+                        f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
+                    )
+                    self.final_process(
+                        self.primary_stem_output_path,
+                        self.primary_source,
+                        self.primary_stem_name,
+                    )
                     output_files.append(self.primary_stem_output_path)
 
         else:
             # Handle case when source is not a dictionary (single source model)
-            if not self.output_single_stem or self.output_single_stem.lower() == self.primary_stem_name.lower():
-                self.primary_stem_output_path = self.get_stem_output_path(self.primary_stem_name, custom_output_names)
+            if (
+                not self.output_single_stem
+                or self.output_single_stem.lower() == self.primary_stem_name.lower()
+            ):
+                self.primary_stem_output_path = self.get_stem_output_path(
+                    self.primary_stem_name, custom_output_names
+                )
 
                 if not isinstance(self.primary_source, np.ndarray):
                     self.primary_source = source.T
 
-                self.logger.info(f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}...")
-                self.final_process(self.primary_stem_output_path, self.primary_source, self.primary_stem_name)
+                self.logger.info(
+                    f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
+                )
+                self.final_process(
+                    self.primary_stem_output_path,
+                    self.primary_source,
+                    self.primary_stem_name,
+                )
                 output_files.append(self.primary_stem_output_path)
 
         return output_files
@@ -195,7 +233,9 @@ class MdxcSeparator(BaseSeparator):
         Returns:
             np.ndarray: The pitch-shifted source audio.
         """
-        source = spec_utils.change_pitch_semitones(source, sr_pitched, semitone_shift=self.pitch_shift)[0]
+        source = spec_utils.change_pitch_semitones(
+            source, sr_pitched, semitone_shift=self.pitch_shift
+        )[0]
         source = spec_utils.match_array_shapes(source, orig_mix)
         return source
 
@@ -300,7 +340,9 @@ class MdxcSeparator(BaseSeparator):
                 primary = inferenced_output
 
             if self.is_primary_stem_main_target:
-                self.logger.debug("Single-target model detected; computing residual secondary stem from original mix")
+                self.logger.debug(
+                    "Single-target model detected; computing residual secondary stem from original mix"
+                )
                 # Ensure shapes match before residual subtraction
                 if primary.shape[1] != orig_mix.shape[1]:
                     primary = spec_utils.match_array_shapes(primary, orig_mix)

@@ -167,11 +167,13 @@ class BaseSeparator:
                 self.input_bit_depth = (
                     24
                     if "24" in info.subtype
-                    else 32
-                    if "32" in info.subtype
-                    or "FLOAT" in info.subtype
-                    or "DOUBLE" in info.subtype
-                    else 16
+                    else (
+                        32
+                        if "32" in info.subtype
+                        or "FLOAT" in info.subtype
+                        or "DOUBLE" in info.subtype
+                        else 16
+                    )
                 )
             except Exception as e:
                 self.logger.warning(

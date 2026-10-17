@@ -8,10 +8,13 @@ from .torch_einops_utils import tree_map_tensor
 
 # helpers
 
+
 def exists(v):
     return v is not None
 
+
 # infer the device for a module
+
 
 def module_device(m: Module):
 
@@ -22,7 +25,9 @@ def module_device(m: Module):
 
     return first_param_or_buffer.device
 
+
 # moving all inputs into a function onto a device
+
 
 def move_inputs_to_device(device):
 
@@ -36,6 +41,7 @@ def move_inputs_to_device(device):
         return inner
 
     return decorator
+
 
 def move_inputs_to_module_device(fn):
 

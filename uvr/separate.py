@@ -105,9 +105,7 @@ def main():
         default=None,
         help="MDXC overlapping prediction windows (>= 1)",
     )
-    parser.add_argument(
-        "--mdxc-batch", type=int, default=None, help="MDXC batch size"
-    )
+    parser.add_argument("--mdxc-batch", type=int, default=None, help="MDXC batch size")
     parser.add_argument(
         "--mdxc-pitch-shift",
         type=int,

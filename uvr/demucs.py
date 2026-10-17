@@ -80,7 +80,9 @@ class DemucsSeparator(BaseSeparator):
         output_files = []
         if isinstance(source, np.ndarray):
             source_length = len(source)
-            self.logger.debug(f"Processing source array, source length is {source_length}")
+            self.logger.debug(
+                f"Processing source array, source length is {source_length}"
+            )
             match source_length:
                 case 2:
                     self.logger.debug("Setting source map to 2-stem...")
@@ -96,7 +98,9 @@ class DemucsSeparator(BaseSeparator):
         for stem_name, stem_value in self.demucs_source_map.items():
             if self.output_single_stem is not None:
                 if stem_name.lower() != self.output_single_stem.lower():
-                    self.logger.debug(f"Skipping writing stem {stem_name} as output_single_stem is set to {self.output_single_stem}...")
+                    self.logger.debug(
+                        f"Skipping writing stem {stem_name} as output_single_stem is set to {self.output_single_stem}..."
+                    )
                     continue
 
             stem_path = self.get_stem_output_path(stem_name, custom_output_names)

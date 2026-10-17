@@ -136,7 +136,9 @@ class RoformerSeparator(BaseSeparator):
                     part = mix_tensor[:, i : i + chunk_size]
                     chunk_len = part.shape[-1]
                     pad_mode = "reflect" if chunk_len > chunk_size // 2 else "constant"
-                    part = F.pad(part, (0, chunk_size - chunk_len), mode=pad_mode, value=0)
+                    part = F.pad(
+                        part, (0, chunk_size - chunk_len), mode=pad_mode, value=0
+                    )
                     batch_data.append(part)
                     batch_locations.append((i, chunk_len))
                     i += step

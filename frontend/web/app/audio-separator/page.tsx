@@ -89,7 +89,10 @@ export default function UvrPage() {
   const [roformerChunk, setRoformerChunk] = useWorkspaceState("page:audio-separator:roformerChunk", "");
   const [roformerOverlap, setRoformerOverlap] = useWorkspaceState("page:audio-separator:roformerOverlap", 2);
   const [roformerBatch, setRoformerBatch] = useWorkspaceState("page:audio-separator:roformerBatch", 1);
-  const [roformerDenoise, setRoformerDenoise] = useWorkspaceState("page:audio-separator:roformerDenoise", false);
+  const [roformerDenoise, setRoformerDenoise] = useWorkspaceState(
+    "page:audio-separator:roformerDenoise",
+    false,
+  );
   const [device, setDevice] = useWorkspaceState("page:audio-separator:device", "auto");
   const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:audio-separator:gpuDevices", []);
   const [jobId, setJobId] = usePersistentJobId("uvr");
@@ -654,9 +657,7 @@ export default function UvrPage() {
                 label={t("Denoise Output")}
                 checked={roformerDenoise}
                 onChange={setRoformerDenoise}
-                description={t(
-                  "Dual-pass Roformer denoise; reduces noise but doubles inference time.",
-                )}
+                description={t("Dual-pass Roformer denoise; reduces noise but doubles inference time.")}
               />
             </>
           )}

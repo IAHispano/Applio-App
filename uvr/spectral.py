@@ -631,10 +631,19 @@ def match_array_shapes(array_1: np.ndarray, array_2: np.ndarray, is_swap=False):
 
 
 def change_pitch_semitones(y, sr, semitone_shift):
-    factor = 2 ** (semitone_shift / 12)  # Convert semitone shift to factor for resampling
+    factor = 2 ** (
+        semitone_shift / 12
+    )  # Convert semitone shift to factor for resampling
     y_pitch_tuned = []
     for y_channel in y:
-        y_pitch_tuned.append(librosa.resample(y_channel, orig_sr=sr, target_sr=sr * factor, res_type=wav_resolution_float_resampling))
+        y_pitch_tuned.append(
+            librosa.resample(
+                y_channel,
+                orig_sr=sr,
+                target_sr=sr * factor,
+                res_type=wav_resolution_float_resampling,
+            )
+        )
     y_pitch_tuned = np.array(y_pitch_tuned)
     new_sr = sr * factor
     return y_pitch_tuned, new_sr

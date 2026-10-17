@@ -91,9 +91,11 @@ class VrSeparator(BaseSeparator):
             self.input_bit_depth = (
                 24
                 if "24" in subtype
-                else 32
-                if "32" in subtype or "FLOAT" in subtype or "DOUBLE" in subtype
-                else 16
+                else (
+                    32
+                    if "32" in subtype or "FLOAT" in subtype or "DOUBLE" in subtype
+                    else 16
+                )
             )
         except Exception:
             self.input_bit_depth = 16
