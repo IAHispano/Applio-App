@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Applio</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #060606; color: #eee; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
+    main { width: min(640px, calc(100% - 64px)); padding: 32px; }
+    [hidden] { display: none !important; }
+    h1 { font-size: 24px; font-weight: 600; }
+    p { color: #aaa; line-height: 1.6; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 45vh; overflow: auto; color: #bbb; }
+    button { background: #eee; color: #111; border: 0; border-radius: 8px; padding: 12px 18px; font: inherit; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: wait; }
+    button:focus-visible { outline: 2px solid #eee; outline-offset: 4px; }
+  </style>
+</head>
+<body>
+  <main id="startup-error" hidden>
+    <h1>Applio could not start</h1>
+    <p>Check the details below, then try again.</p>
+    <pre id="error" role="alert"></pre>
+    <button id="retry" type="button">Retry startup</button>
+  </main>
+  <script>
+    (() => {
+      const native = window.__TAURI__;
+      if (!native) return;
+      const panel = document.getElementById('startup-error');
+      const retry = document.getElementById('retry');
+      let revision = 0;
+      const showError = error => {
+        if (!error) return;
+        revision++;
+        document.getElementById('error').textContent = String(error);
+        document.body.dataset.failed = 'true';
+        panel.hidden = false;
+        retry.disabled = false;
+        retry.textContent = 'Retry startup';
+      };
+      native.event.listen('startup-error', event => showError(event.payload)).catch(() => {});
+      const initial = revision;
+      native.core.invoke('startup_error').then(error => {
+        if (initial === revision) showError(error);
+      }).catch(showError);
+      retry.onclick = async () => {
+        revision++;
+        retry.disabled = true;
+        retry.textContent = 'Retrying…';
+        try { await native.core.invoke('retry_startup'); }
+        catch (error) { showError(error); }
+      };
+    })();
+  </script>
+</body>
+</html>

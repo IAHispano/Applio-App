@@ -1,6 +1,7 @@
 """MDX-architecture separator (.onnx models, onnx2torch + torch/CUDA inference)."""
 
 import os
+import platform
 
 import numpy as np
 import onnx
@@ -64,7 +65,11 @@ class MdxSeparator(BaseSeparator):
                 None, {"input": spek.cpu().numpy()}
             )[0]
         else:
-            self.model_run = onnx2torch.convert(self.model_path)
+            if platform.system() == "Windows":
+                onnx_model = onnx.load(self.model_path)
+                self.model_run = onnx2torch.convert(onnx_model)
+            else:
+                self.model_run = onnx2torch.convert(self.model_path)
             self.model_run.to(self.torch_device).eval()
             self.logger.warning(
                 "Model converted from ONNX to torch (segment size != dim_t); processing may be slower."
@@ -89,7 +94,7 @@ class MdxSeparator(BaseSeparator):
         output_files = []
         if not isinstance(self.secondary_source, np.ndarray):
             raw_mix = self.demix(mix, is_match_mix=True)
-            if getattr(self, "invert_using_spec", False):
+            if self.invert_using_spec:
                 self.secondary_source = spec_utils.invert_stem(
                     raw_mix, self.primary_source * self.compensate
                 )
@@ -191,8 +196,6 @@ class MdxSeparator(BaseSeparator):
 
         tar_waves = result / divider
         tar_waves_.append(tar_waves)
-        # NOTE: concatenate receives the stacked array itself (not wrapped in
-        # a list): an (1,2,L) array iterates as one (2,L) frame, yielding (2,L).
         tar_waves_ = np.vstack(tar_waves_)[:, :, self.trim : -self.trim]
         tar_waves = np.concatenate(tar_waves_, axis=-1)[:, : mix.shape[-1]]
         return tar_waves[:, 0:None]

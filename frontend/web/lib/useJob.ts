@@ -110,15 +110,29 @@ export function cleanJobLogs(logs?: string[]): string[] {
   return collapseProgressLogs(cleaned);
 }
 
+const recentJobs = new Map<string, Job>();
+
 export function useJob(jobId: string | null) {
-  const [job, setJob] = useState<Job | null>(null);
+  const [job, setJob] = useState<Job | null>(() => (jobId ? (recentJobs.get(jobId) ?? null) : null));
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setJob(null);
+    setJob(jobId ? (recentJobs.get(jobId) ?? null) : null);
     setError("");
     if (!jobId) return;
-    return watchJob(jobId, setJob, (error) => setError(errMsg(error)));
+    return watchJob(
+      jobId,
+      (job) => {
+        recentJobs.delete(job.id);
+        recentJobs.set(job.id, job);
+        if (recentJobs.size > 100) {
+          const oldest = recentJobs.keys().next().value;
+          if (oldest !== undefined) recentJobs.delete(oldest);
+        }
+        setJob(job);
+      },
+      (error) => setError(errMsg(error)),
+    );
   }, [jobId]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);

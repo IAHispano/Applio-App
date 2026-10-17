@@ -31,51 +31,52 @@ import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 type TrainMode = "auto" | "manual";
 type StepModal = null | "preprocess" | "extract" | "train" | "index";
 
 export default function TrainPage() {
   const { t } = useI18n();
-  const [trainMode, setTrainMode] = useState<TrainMode>("auto");
+  const [trainMode, setTrainMode] = useWorkspaceState<TrainMode>("page:train:trainMode", "auto");
   const [activeModal, setActiveModal] = useState<StepModal>(null);
 
-  const [modelName, setModelName] = useState("my-project");
-  const [datasets, setDatasets] = useState<string[]>([]);
-  const [pretG, setPretG] = useState<string[]>([]);
-  const [pretD, setPretD] = useState<string[]>([]);
-  const [gpuInfo, setGpuInfo] = useState("");
-  const [gpuCount, setGpuCount] = useState("0");
-  const [gpuDevices, setGpuDevices] = useState<GpuDevice[]>([]);
+  const [modelName, setModelName] = useWorkspaceState("page:train:modelName", "my-project");
+  const [datasets, setDatasets] = useWorkspaceState<string[]>("page:train:datasets", []);
+  const [pretG, setPretG] = useWorkspaceState<string[]>("page:train:pretG", []);
+  const [pretD, setPretD] = useWorkspaceState<string[]>("page:train:pretD", []);
+  const [gpuInfo, setGpuInfo] = useWorkspaceState("page:train:gpuInfo", "");
+  const [gpuCount, setGpuCount] = useWorkspaceState("page:train:gpuCount", "0");
+  const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:train:gpuDevices", []);
 
-  const [datasetPath, setDatasetPath] = useState("");
-  const [sampleRate, setSampleRate] = useState("40000");
-  const [cpuCores, setCpuCores] = useState("");
-  const [hostCores, setHostCores] = useState(16);
-  const cpuTouchedRef = useRef(false);
-  const [cut, setCut] = useState("Automatic");
-  const [chunk, setChunk] = useState(3.0);
-  const [overlap, setOverlap] = useState(0.3);
-  const [processEffects, setProcessEffects] = useState(false);
-  const [normalizationMode, setNormalizationMode] = useState("none");
-  const [f0Method, setF0Method] = useState("rmvpe");
-  const [embedder, setEmbedder] = useState("contentvec");
-  const [embedderCustom, setEmbedderCustom] = useState("");
-  const [includeMutes, setIncludeMutes] = useState(2);
-  const [vocoder, setVocoder] = useState("HiFi-GAN");
-  const [totalEpoch, setTotalEpoch] = useState(200);
-  const [batchSize, setBatchSize] = useState(4);
-  const [saveEvery, setSaveEvery] = useState(10);
-  const [pretrained, setPretrained] = useState(true);
-  const [saveOnlyLatest, setSaveOnlyLatest] = useState(true);
-  const [saveEveryWeights, setSaveEveryWeights] = useState(true);
-  const [cleanup, setCleanup] = useState(false);
-  const [cacheGpu, setCacheGpu] = useState(false);
-  const [checkpointing, setCheckpointing] = useState(false);
-  const [indexAlgo, setIndexAlgo] = useState("Auto");
-  const [customPre, setCustomPre] = useState(false);
-  const [gPath, setGPath] = useState("");
-  const [dPath, setDPath] = useState("");
+  const [datasetPath, setDatasetPath] = useWorkspaceState("page:train:datasetPath", "");
+  const [sampleRate, setSampleRate] = useWorkspaceState("page:train:sampleRate", "40000");
+  const [cpuCores, setCpuCores] = useWorkspaceState("page:train:cpuCores", "");
+  const [hostCores, setHostCores] = useWorkspaceState("page:train:hostCores", 16);
+  const cpuTouchedRef = useRef(cpuCores !== "");
+  const [cut, setCut] = useWorkspaceState("page:train:cut", "Automatic");
+  const [chunk, setChunk] = useWorkspaceState("page:train:chunk", 3.0);
+  const [overlap, setOverlap] = useWorkspaceState("page:train:overlap", 0.3);
+  const [processEffects, setProcessEffects] = useWorkspaceState("page:train:processEffects", false);
+  const [normalizationMode, setNormalizationMode] = useWorkspaceState("page:train:normalizationMode", "none");
+  const [f0Method, setF0Method] = useWorkspaceState("page:train:f0Method", "rmvpe");
+  const [embedder, setEmbedder] = useWorkspaceState("page:train:embedder", "contentvec");
+  const [embedderCustom, setEmbedderCustom] = useWorkspaceState("page:train:embedderCustom", "");
+  const [includeMutes, setIncludeMutes] = useWorkspaceState("page:train:includeMutes", 2);
+  const [vocoder, setVocoder] = useWorkspaceState("page:train:vocoder", "HiFi-GAN");
+  const [totalEpoch, setTotalEpoch] = useWorkspaceState("page:train:totalEpoch", 200);
+  const [batchSize, setBatchSize] = useWorkspaceState("page:train:batchSize", 4);
+  const [saveEvery, setSaveEvery] = useWorkspaceState("page:train:saveEvery", 10);
+  const [pretrained, setPretrained] = useWorkspaceState("page:train:pretrained", true);
+  const [saveOnlyLatest, setSaveOnlyLatest] = useWorkspaceState("page:train:saveOnlyLatest", true);
+  const [saveEveryWeights, setSaveEveryWeights] = useWorkspaceState("page:train:saveEveryWeights", true);
+  const [cleanup, setCleanup] = useWorkspaceState("page:train:cleanup", false);
+  const [cacheGpu, setCacheGpu] = useWorkspaceState("page:train:cacheGpu", false);
+  const [checkpointing, setCheckpointing] = useWorkspaceState("page:train:checkpointing", false);
+  const [indexAlgo, setIndexAlgo] = useWorkspaceState("page:train:indexAlgo", "Auto");
+  const [customPre, setCustomPre] = useWorkspaceState("page:train:customPre", false);
+  const [gPath, setGPath] = useWorkspaceState("page:train:gPath", "");
+  const [dPath, setDPath] = useWorkspaceState("page:train:dPath", "");
 
   const srOptions = vocoder === "RefineGAN" ? ["24000", "32000"] : ["32000", "40000", "48000"];
 
@@ -104,11 +105,17 @@ export default function TrainPage() {
   const onUploadBusyChange = useCallback((uploading: boolean) => {
     setUploadsInProgress((count) => count + (uploading ? 1 : -1));
   }, []);
-  const onDatasetUploaded = useCallback((path: string) => {
-    setDatasets((current) => (current.includes(path) ? current : [...current, path].sort()));
-    setDatasetPath(path);
-  }, []);
-  const [completedSteps, setCompletedSteps] = useState<Set<NonNullable<StepModal>>>(new Set());
+  const onDatasetUploaded = useCallback(
+    (path: string) => {
+      setDatasets((current) => (current.includes(path) ? current : [...current, path].sort()));
+      setDatasetPath(path);
+    },
+    [setDatasets, setDatasetPath],
+  );
+  const [completedSteps, setCompletedSteps] = useWorkspaceState<Set<NonNullable<StepModal>>>(
+    "page:train:completedSteps",
+    new Set(),
+  );
 
   async function loadDatasets(selectFirst = false): Promise<string[]> {
     try {
@@ -166,7 +173,9 @@ export default function TrainPage() {
             : /^\d+(-\d+)*$/.test(String(raw).trim())
               ? String(raw).trim()
               : devs[0]?.id || "-";
-        setGpuCount(gpuId);
+        setGpuCount((current) =>
+          current.split("-").every((id) => devs.some((device) => device.id === id)) ? current : gpuId,
+        );
       })
       .catch(() => {
         setGpuInfo(t("GPU query failed (CPU-only host)"));
@@ -188,18 +197,21 @@ export default function TrainPage() {
       });
   }, []);
 
+  const previousProject = useRef(modelName);
+
   // Step completion is per-project: switching models starts a fresh trail.
   // Steps are marked done only when their job succeeds, never on submit,
   // so a failed run (e.g. training exit code 1) can't show green checks.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset is intentionally keyed on modelName only
   useEffect(() => {
-    setCompletedSteps(new Set());
-  }, [modelName]);
+    if (previousProject.current !== modelName) setCompletedSteps(new Set());
+    previousProject.current = modelName;
+  }, [modelName, setCompletedSteps]);
 
   useEffect(() => {
     const step = trainingJob?.params?.step as string | undefined;
     if (
       trainingJob?.status === "done" &&
+      trainingJob.params?.modelName === modelName.trim() &&
       (step === "preprocess" || step === "extract" || step === "train" || step === "index")
     ) {
       setCompletedSteps((prev) => {
@@ -207,7 +219,13 @@ export default function TrainPage() {
         return new Set(prev).add(step as NonNullable<StepModal>);
       });
     }
-  }, [trainingJob?.status, trainingJob?.params?.step]);
+  }, [
+    trainingJob?.status,
+    trainingJob?.params?.step,
+    trainingJob?.params?.modelName,
+    modelName,
+    setCompletedSteps,
+  ]);
 
   function needModel(): boolean {
     if (!modelName.trim()) {

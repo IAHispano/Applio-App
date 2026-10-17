@@ -13,17 +13,14 @@ import torch
 from tqdm import tqdm
 
 from uvr import spectral as spec_utils
+from uvr.spectral import InvalidAudioDataError
 
 
-class AudioExportError(Exception):
+class AudioExportError(RuntimeError):
     def __init__(self, message, path=None, backend=None):
         super().__init__(message)
         self.path = path
         self.backend = backend
-
-
-class InvalidAudioDataError(Exception):
-    pass
 
 
 def validate_audio_source(stem_source):
@@ -119,6 +116,8 @@ class BaseSeparator:
     OTHER_STEM = "Other"
     BASS_STEM = "Bass"
     DRUM_STEM = "Drums"
+    GUITAR_STEM = "Guitar"
+    PIANO_STEM = "Piano"
     NO_STEM = "No "
 
     STEM_PAIR_MAPPER = {VOCAL_STEM: INST_STEM, INST_STEM: VOCAL_STEM}
@@ -138,6 +137,7 @@ class BaseSeparator:
         self.normalization_threshold = config.get("normalization_threshold", 0.9)
         self.amplification_threshold = config.get("amplification_threshold", 0.0)
         self.output_single_stem = config.get("output_single_stem")
+        self.invert_using_spec = config.get("invert_using_spec")
         self.sample_rate = config.get("sample_rate", 44100)
         self.wav_subtype = "PCM_16"
         self.input_bit_depth = 16
@@ -167,7 +167,11 @@ class BaseSeparator:
                 self.input_bit_depth = (
                     24
                     if "24" in info.subtype
-                    else 32 if "32" in info.subtype or "FLOAT" in info.subtype else 16
+                    else 32
+                    if "32" in info.subtype
+                    or "FLOAT" in info.subtype
+                    or "DOUBLE" in info.subtype
+                    else 16
                 )
             except Exception as e:
                 self.logger.warning(
@@ -192,7 +196,11 @@ class BaseSeparator:
         if self.output_dir:
             stem_path = os.path.join(self.output_dir, stem_path)
             os.makedirs(self.output_dir, exist_ok=True)
-        if self.input_bit_depth == 24:
+        if self.output_format == "mp3":
+            subtype = None
+        elif self.output_format == "flac":
+            subtype = "PCM_24" if self.input_bit_depth >= 24 else "PCM_16"
+        elif self.input_bit_depth == 24:
             subtype = "PCM_24"
         elif self.input_bit_depth == 32:
             subtype = "PCM_32"
@@ -201,7 +209,10 @@ class BaseSeparator:
         if stem_source.ndim == 2 and stem_source.flags["F_CONTIGUOUS"]:
             stem_source = np.ascontiguousarray(stem_source)
         with atomic_output_path(stem_path, "soundfile") as temp_path:
-            sf.write(temp_path, stem_source, self.sample_rate, subtype=subtype)
+            if subtype is None:
+                sf.write(temp_path, stem_source, self.sample_rate)
+            else:
+                sf.write(temp_path, stem_source, self.sample_rate, subtype=subtype)
 
     def final_process(self, stem_path, source, stem_name):
         self.write_audio(stem_path, source)

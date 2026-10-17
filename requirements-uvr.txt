@@ -6,3 +6,4 @@ julius>=0.2.0
 rotary-embedding-torch>=0.6.0
 beartype>=0.18.0
 ml_collections>=1.1.0
+samplerate>=0.2

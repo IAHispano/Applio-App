@@ -7,7 +7,9 @@ on:
     paths:
       - '**/*.py'
       - 'frontend/**'
-      - 'backend/api/**'
+      - 'backend/rust-api/**'
+      - '**/Cargo.toml'
+      - 'Cargo.lock'
       - 'biome.json'
       - 'package.json'
       - 'pnpm-lock.yaml'
@@ -67,14 +69,22 @@ jobs:
       - name: Install JS dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install Rust formatter
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Format Rust
+        run: cargo fmt --all
+
       # NOTE: format only (no lint). `pnpm format` runs `biome check`,
       # which fails on pre-existing lint debt. The formatter job must
       # apply what it can and exit 0, not go red on lint findings.
       - name: Run Biome formatter (app)
-        run: pnpm exec biome format --write frontend backend/api
+        run: pnpm exec biome format --write frontend
 
       - name: Organize imports (app)
-        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false frontend backend/api
+        run: pnpm exec biome check --write --formatter-enabled=false --linter-enabled=false frontend
 
       - name: Commit and push directly
         run: |

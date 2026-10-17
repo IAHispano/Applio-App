@@ -13,6 +13,7 @@ export default function IntentLink({
   const [prefetch, setPrefetch] = useState(false);
   return (
     <Link
+      scroll={false}
       {...props}
       prefetch={prefetch ? null : false}
       onMouseEnter={(event) => {

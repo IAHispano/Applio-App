@@ -1,6 +1,6 @@
 # Third-party notices (uvr/)
 
-## audio-separator engine (vendored under `uvr/audio_separator/`)
+## audio-separator engine (vendored into this package)
 
 Source: https://github.com/nomadkaraoke/python-audio-separator
 
@@ -28,12 +28,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Bundled architecture code (inside the vendored tree)
+## Bundled architecture code (inside this package)
 
-- `separator/uvr_lib_v5/demucs/` — Facebook Research Demucs (MIT).
-- `separator/uvr_lib_v5/vr_network/`, `mdxnet.py`, `tfc_tdf_v3.py` — from UVR
+- `demucs_lib/` — Facebook Research Demucs (MIT).
+- `vr_net/`, `mdxnet.py`, `tfc_tdf_v3.py`, `spectral.py` — from UVR
   (Anjok0109 / Ultimate Vocal Remover, GPL-3.0 as released upstream). These files
   ship as part of the audio-separator package; keep their headers intact.
+- `roformer_lib/` (BS-RoFormer / Mel-Band-RoFormer variants, including `pope/`)
+  — from the Music-Source-Separation-Training / BS-RoFormer implementations
+  (ZFTurbo, lucidrains; MIT), vendored verbatim in the mvsepless catalog layout.
 
 ## Model weights (downloaded at runtime, NOT vendored)
 

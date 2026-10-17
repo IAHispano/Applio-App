@@ -5,22 +5,24 @@
   "description": "Lightweight interface for fast interaction with advanced AI-based voice technology.",
   "author": "AI Hispano",
   "homepage": "https://github.com/IAHispano/Applio-app",
-  "main": "dist/main.js",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "prepare:dev": "pnpm -w backend:check:dev && pnpm --filter @applio/web build",
+    "prepare:release": "pnpm -w build:web-services && node scripts/stage-resources.mjs",
+    "build": "node scripts/tauri-build.mjs --no-bundle",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "dev": "pnpm build && electron .",
-    "dist:win": "pnpm build && electron-builder --win --publish never",
-    "dist:mac": "pnpm build && electron-builder --mac --publish never",
-    "dist:linux": "pnpm build && electron-builder --linux --publish never"
+    "check:rust": "node ../../scripts/cargo.mjs check -p applio-desktop",
+    "dev": "node scripts/tauri-dev.mjs",
+    "dist:win": "node scripts/tauri-build.mjs --bundles nsis",
+    "dist:mac": "node scripts/tauri-build.mjs --bundles dmg,app",
+    "dist:linux": "node scripts/tauri-build.mjs --bundles appimage,deb"
   },
   "devDependencies": {
-    "electron": "33.2.1",
-    "electron-builder": "^25.1.8",
-    "rcedit": "^5.0.2",
+    "@tauri-apps/cli": "^2.0.0",
+    "@types/node": "^22.10.2",
+    "@types/ws": "^8.18.1",
     "typescript": "^5.7.2"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "ws": "^8.21.3"
   }
 }

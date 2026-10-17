@@ -18,13 +18,25 @@ import {
   SliderField,
 } from "@/components/ui";
 import VoiceModelCard from "@/components/VoiceModelCard";
-import { apiGet, apiSend, errMsg, fetchModels, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
+import {
+  apiGet,
+  apiSend,
+  cachedModels,
+  errMsg,
+  fetchModels,
+  fileBasename,
+  onModelsChanged,
+  outputUrl,
+  postForm,
+  stopJob,
+} from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useConversionParameters } from "@/lib/useConversionParameters";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface Voice {
   shortName: string;
@@ -34,19 +46,28 @@ interface Voice {
 }
 
 export default function TtsForm() {
-  const [voices, setVoices] = useState<Voice[]>([]);
-  const [models, setModels] = useState<string[]>([]);
+  const [voices, setVoices] = useWorkspaceState<Voice[]>("TtsForm:components:voices", []);
+  const [models, setModels] = useWorkspaceState<string[]>(
+    "TtsForm:components:models",
+    () => cachedModels()?.models ?? [],
+  );
   const { t } = useI18n();
-  const [text, setText] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [textSource, setTextSource] = useState<"write" | "upload">("write");
-  const [voice, setVoice] = useState("");
-  const [rate, setRate] = useState(0);
-  const [pthPath, setPthPath] = useState("");
-  const [indexes, setIndexes] = useState<string[]>([]);
-  const [indexPath, setIndexPath] = useState("");
+  const [text, setText] = useWorkspaceState("TtsForm:components:text", "");
+  const [file, setFile] = useWorkspaceState<File | null>("TtsForm:components:file", null);
+  const [textSource, setTextSource] = useWorkspaceState<"write" | "upload">(
+    "TtsForm:components:textSource",
+    "write",
+  );
+  const [voice, setVoice] = useWorkspaceState("TtsForm:components:voice", "");
+  const [rate, setRate] = useWorkspaceState("TtsForm:components:rate", 0);
+  const [pthPath, setPthPath] = useWorkspaceState("TtsForm:components:pthPath", "");
+  const [indexes, setIndexes] = useWorkspaceState<string[]>(
+    "TtsForm:components:indexes",
+    () => cachedModels()?.indexes ?? [],
+  );
+  const [indexPath, setIndexPath] = useWorkspaceState("TtsForm:components:indexPath", "");
   const conversion = useConversionParameters(pthPath);
-  const [sid, setSid] = useState(0);
+  const [sid, setSid] = useWorkspaceState("TtsForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("tts");
   const { job, error, setError } = useJob(jobId);
   const [busy, setBusy] = useState(false);
@@ -55,16 +76,19 @@ export default function TtsForm() {
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
-  }, [speakers, sid]);
+  }, [speakers, sid, setSid]);
 
-  const handleModelSelect = useCallback((selected: string, idxList: string[]) => {
-    setPthPath(selected);
-    setIndexPath(matchIndex(selected, idxList));
-    setSid(0);
-    if (selected) {
-      void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
-    }
-  }, []);
+  const handleModelSelect = useCallback(
+    (selected: string, idxList: string[]) => {
+      setPthPath(selected);
+      setIndexPath(matchIndex(selected, idxList));
+      setSid(0);
+      if (selected) {
+        void apiSend("/api/models/preload", "POST", { pthPath: selected }).catch(() => {});
+      }
+    },
+    [setSid, setPthPath, setIndexPath],
+  );
 
   function handleUnloadModel() {
     setPthPath("");
@@ -82,7 +106,7 @@ export default function TtsForm() {
         })
         .catch(() => {});
     },
-    [pthPath, handleModelSelect],
+    [pthPath, handleModelSelect, setModels, setIndexes],
   );
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
@@ -90,17 +114,24 @@ export default function TtsForm() {
     apiGet<{ voices: Voice[] }>("/api/tts/voices")
       .then((v) => {
         setVoices(v.voices);
-        if (v.voices[0]) setVoice(v.voices[0].shortName);
+        if (v.voices[0]) setVoice((current) => current || v.voices[0].shortName);
       })
       .catch((e) => setError(errMsg(e)));
-    loadModels(true);
+    loadModels(false);
   }, []);
 
   useEffect(() => {
-    const onFocus = () => loadModels(true);
+    const unsubscribe = onModelsChanged((models) => {
+      setModels(models.models);
+      setIndexes(models.indexes);
+    });
+    const onFocus = () => loadModels(false);
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [loadModels]);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadModels, setIndexes, setModels]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -254,6 +285,7 @@ export default function TtsForm() {
           onSelect={(selected) => handleModelSelect(selected, indexes)}
           onUnload={handleUnloadModel}
           onRefresh={loadModels}
+          onOpen={() => loadModels(false)}
           onIndexChange={setIndexPath}
           speakers={speakers}
           sid={sid}

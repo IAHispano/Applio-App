@@ -1,12 +1,12 @@
 name: Build and Release
 
-# Manual release: builds the Electron installers on all three platforms and
+# Manual release: builds the Tauri installers on all three platforms and
 # publishes them as a GitHub release. Run from Actions > Build and Release.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., 3.7.0)'
+        description: 'Next version (e.g., 0.2.11); all app versions are set automatically'
         required: true
         type: string
       prerelease:
@@ -26,7 +26,73 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - name: Checkout selected source commit
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.sha }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Set app versions from release input
+        id: version
+        run: node scripts/sync-version.mjs
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_PRERELEASE: ${{ inputs.prerelease }}
+
+      - name: Verify release target and signing configuration
+        shell: bash
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ "$REF_TYPE" != "branch" ]; then
+            echo "Run the release workflow from a branch."
+            exit 1
+          fi
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "Configure the TAURI_SIGNING_PRIVATE_KEY repository secret first."
+            exit 1
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG"; then
+            echo "Release tag already exists: $RELEASE_TAG"
+            exit 1
+          else
+            status=$?
+            if [ "$status" -ne 2 ]; then exit "$status"; fi
+          fi
+
+      - name: Commit automatic version update
+        id: commit
+        shell: bash
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_BRANCH: ${{ github.ref_name }}
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add package.json frontend/web/package.json frontend/desktop/package.json assets/config_template.json Cargo.toml Cargo.lock frontend/desktop/src-tauri/tauri.conf.json
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(release): bump version to $RELEASE_VERSION [skip ci]"
+          fi
+          # A concurrent branch change fails safely; never rebase built code.
+          git push origin "HEAD:refs/heads/$RELEASE_BRANCH"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: prepare
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
 
@@ -38,7 +104,10 @@ jobs:
             id: win
             build-command: pnpm build:win
           - os: macos-latest
-            id: mac
+            id: mac-arm64
+            build-command: pnpm build:mac
+          - os: macos-15-intel
+            id: mac-x64
             build-command: pnpm build:mac
           - os: ubuntu-24.04
             id: linux
@@ -48,6 +117,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          ref: ${{ needs.prepare.outputs.commit }}
           fetch-depth: 1
           submodules: recursive
 
@@ -63,24 +133,17 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - name: Cache Electron binaries
-        uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cache/electron
-            ~/Library/Caches/electron
-            ~\AppData\Local\electron\Cache
-          key: ${{ runner.os }}-electron-33.2.1
-          restore-keys: |
-            ${{ runner.os }}-electron-
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Linux packaging dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y rpm libopenjp2-tools
-          # fpm (Ruby) is required by electron-builder for the .deb target.
-          command -v fpm >/dev/null || sudo gem install fpm --no-document || echo "fpm install failed, continuing"
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -94,20 +157,16 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
             ${{ runner.os }}-nextjs-
 
-      - name: Sync version to release input
-        run: node bin/sync-version.mjs
-        env:
-          RELEASE_VERSION: ${{ github.event.inputs.version }}
-
       - name: Build app
         run: ${{ matrix.build-command }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
-          # Unsigned CI builds (no Apple Developer certificate on runners).
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+          APPLIO_UPDATER_PUBLIC_KEY: ${{ secrets.APPLIO_UPDATER_PUBLIC_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
 
-      - name: Verify packaged startup
-        run: pnpm release:check
+      - name: Collect Tauri installers
+        run: node scripts/collect-tauri-artifacts.mjs
 
       - name: Upload build artifacts
         # Installers are already compressed (.exe/.dmg/.AppImage/.deb), so
@@ -116,20 +175,13 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: build-${{ matrix.id }}
-          path: |
-            frontend/desktop/dist-installers/Applio-*-Windows-Setup.exe
-            frontend/desktop/dist-installers/Applio-*-macOS*.dmg
-            frontend/desktop/dist-installers/Applio-*-macOS*.zip
-            frontend/desktop/dist-installers/Applio-*-Linux*.AppImage
-            frontend/desktop/dist-installers/Applio-*-Linux*.deb
-            frontend/desktop/dist-installers/*.blockmap
-            frontend/desktop/dist-installers/latest*.yml
+          path: frontend/desktop/dist-installers/*
           if-no-files-found: error
           retention-days: 1
           compression-level: 0
 
   release:
-    needs: build
+    needs: [prepare, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
 
@@ -139,42 +191,14 @@ jobs:
         with:
           # Shallow + tags is enough for the changelog (last tag + recent
           # commits) and much faster than the full history.
+          ref: ${{ needs.prepare.outputs.commit }}
           fetch-depth: 100
           fetch-tags: true
 
-      - name: Sync package versions to release input
-        # Same sync as the build jobs, so the bump can be committed back.
-        run: node bin/sync-version.mjs
-        env:
-          RELEASE_VERSION: ${{ github.event.inputs.version }}
-
-      - name: Commit version bump back to branch
-        # The build jobs only patch their own checkout, so without this the
-        # repo would keep the old version and the sidebar badge would lag
-        # one release behind. Direct commit (no PR) + [skip ci] so the
-        # formatter workflow doesn't retrigger on the version bump.
-        run: |
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git config user.name "github-actions[bot]"
-          git add package.json backend/api/package.json frontend/web/package.json frontend/desktop/package.json assets/config_template.json
-          if git diff --cached --quiet; then
-            echo "Versions already in sync."
-          else
-            git commit -m "chore(release): bump version to ${{ github.event.inputs.version }} [skip ci]"
-            # The checkout can lag behind main (e.g. the formatter bot
-            # pushed meanwhile), so rebase onto the latest remote state
-            # before pushing, retrying a few times. -Xtheirs keeps this
-            # release's version lines on the rare same-line conflict.
-            for i in 1 2 3; do
-              git fetch origin ${{ github.ref_name }} || { sleep 5; continue; }
-              if git rebase -Xtheirs "origin/${{ github.ref_name }}"; then
-                break
-              fi
-              git rebase --abort || true
-              sleep 5
-            done
-            git push origin HEAD:${{ github.ref_name }}
-          fi
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
 
       - name: Get commit messages since last tag
         id: changelog
@@ -203,11 +227,18 @@ jobs:
       - name: List release files
         run: ls -la release-files/
 
+      - name: Generate signed updater manifest
+        run: node scripts/collect-tauri-artifacts.mjs --manifest release-files
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.event.inputs.version }}
-          name: Applio v${{ github.event.inputs.version }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ needs.prepare.outputs.commit }}
+          name: Applio v${{ needs.prepare.outputs.version }}
           files: release-files/*
           body: |
             ${{ steps.changelog.outputs.changelog }}
@@ -215,7 +246,7 @@ jobs:
             ### macOS first launch
             The app is not Apple-notarized yet. If macOS reports Applio is "damaged", run `xattr -cr /Applications/Applio.app` and open it again.
           draft: false
-          prerelease: ${{ github.event.inputs.prerelease }}
-          make_latest: true
+          prerelease: ${{ inputs.prerelease }}
+          make_latest: ${{ !inputs.prerelease && 'true' || 'false' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

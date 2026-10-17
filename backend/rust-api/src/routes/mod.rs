@@ -1,0 +1,18 @@
+//! HTTP handlers, catalogs and API router composition.
+pub mod batch_routes;
+pub(crate) mod catalog;
+pub mod dataset_routes;
+pub mod download_routes;
+pub mod job_routes;
+pub mod model_routes;
+pub mod native;
+pub mod plugin_routes;
+pub mod processing_routes;
+pub mod realtime_routes;
+pub mod report_routes;
+pub mod settings_routes;
+pub mod setup_routes;
+pub mod tensorboard_routes;
+pub mod training_routes;
+pub mod uvr_routes;
+pub mod version_routes;

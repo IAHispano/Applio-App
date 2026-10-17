@@ -1,4 +1,4 @@
-// Typed client for the Express gateway (same-origin /api via Next.js rewrites).
+// Typed client for the Rust API (same-origin /api via Next.js rewrites).
 
 export function errMsg(err: unknown): string {
   if (err instanceof Error) {
@@ -88,7 +88,8 @@ export function clearApiCache(pathPrefix?: string) {
 }
 
 function invalidateFor(path: string) {
-  if (path.includes("/models")) clearApiCache("/api/models");
+  if (path.includes("/models") && !["/api/models/preload", "/api/models/inspect"].includes(path))
+    clearApiCache("/api/models");
   if (path.includes("/train")) clearApiCache("/api/train");
   if (path.includes("/settings")) clearApiCache("/api/settings");
   if (path.includes("/plugins")) clearApiCache("/api/plugins");
@@ -121,9 +122,18 @@ export async function apiGet<T>(
   // Live status and individually cancellable requests must remain independent.
   if (ttl <= 0 || options?.signal) return request<T>(path, init);
 
+  return cachedRequest(path, ttl, options?.force, () => request<T>(path, init));
+}
+
+function cachedRequest<T>(
+  path: string,
+  ttl: number,
+  force: boolean | undefined,
+  load: () => Promise<T>,
+): Promise<T> {
   const cached = apiCache.get(path);
-  if (!options?.force && cached && "data" in cached && Date.now() - cached.timestamp < ttl) {
-    return cached.data as T;
+  if (!force && cached && "data" in cached && Date.now() - cached.timestamp < ttl) {
+    return Promise.resolve(cached.data as T);
   }
   if (cached?.pending) return cached.pending as Promise<T>;
 
@@ -134,7 +144,7 @@ export async function apiGet<T>(
     const oldest = apiCache.keys().next().value;
     if (oldest !== undefined) apiCache.delete(oldest);
   }
-  entry.pending = request<T>(path, init).then(
+  entry.pending = load().then(
     (data) => {
       // An invalidated or replaced request may finish, but cannot restore stale data.
       if (apiCache.get(path) === entry) {
@@ -150,6 +160,23 @@ export async function apiGet<T>(
     },
   );
   return entry.pending as Promise<T>;
+}
+
+export function peekApiCache<T>(path: string): T | undefined {
+  return apiCache.get(path)?.data as T | undefined;
+}
+const inspectionKey = (pthPath: string) => `/api/models/inspect?pthPath=${encodeURIComponent(pthPath)}`;
+export function cachedModelInspection<T>(pthPath: string): T | undefined {
+  return peekApiCache<T>(inspectionKey(pthPath));
+}
+export function inspectModel<T>(pthPath: string, force = false): Promise<T> {
+  return cachedRequest(inspectionKey(pthPath), 30000, force, () =>
+    request<T>("/api/models/inspect", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ pthPath }),
+    }),
+  );
 }
 
 async function send<T>(path: string, init: RequestInit): Promise<T> {
@@ -174,8 +201,23 @@ export function postForm<T>(path: string, fd: FormData): Promise<T> {
   return send(path, { method: "POST", body: fd });
 }
 
+let modelSnapshot: ModelLists | undefined;
+const modelListeners = new Set<(models: ModelLists) => void>();
+export const cachedModels = () => modelSnapshot;
+export function onModelsChanged(listener: (models: ModelLists) => void) {
+  modelListeners.add(listener);
+  if (modelSnapshot) listener(modelSnapshot);
+  return () => {
+    modelListeners.delete(listener);
+  };
+}
 export async function fetchModels(force = false): Promise<ModelLists> {
-  return apiGet<ModelLists>("/api/models", { force });
+  const models = await apiGet<ModelLists>("/api/models", { force });
+  if (modelSnapshot !== models) {
+    modelSnapshot = models;
+    for (const listener of modelListeners) listener(models);
+  }
+  return models;
 }
 
 export async function submitJob(path: string, body: unknown): Promise<{ jobId: string }> {
@@ -239,6 +281,12 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
     closeStream();
     if (!controller.signal.aborted && !stopPolling) stopPolling = pollJob(id, onUpdate, intervalMs);
   };
+  const keepStreamAlive = () => {
+    clearTimeout(timer);
+    // The server sends a heartbeat every 15 seconds even when a job is quiet.
+    // Allow two missed heartbeats before falling back to HTTP polling.
+    timer = setTimeout(() => fallback(5000), 45000);
+  };
   fetchJob(id, controller.signal)
     .then(({ job }) => {
       if (controller.signal.aborted) return;
@@ -255,6 +303,7 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
       const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
       try {
         source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events`);
+        source.addEventListener("heartbeat", keepStreamAlive);
         source.onmessage = (event) => {
           if (controller.signal.aborted || !source) return;
           try {
@@ -265,9 +314,7 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
               closeStream();
               return;
             }
-            clearTimeout(timer);
-            // Quiet jobs need only the same five-second check as the watchdog.
-            timer = setTimeout(() => fallback(5000), 5000);
+            keepStreamAlive();
           } catch {
             /* malformed chunks do not postpone the fallback */
           }

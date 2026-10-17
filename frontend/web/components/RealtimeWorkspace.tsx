@@ -39,9 +39,9 @@ import { connectRealtimeOutput } from "@/lib/realtime-output";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { useRealtimeTray } from "@/lib/useRealtimeTray";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { connectVoiceFocus, type VoiceFocusVariant } from "@/lib/voice-focus";
-import type { RealtimeTrayCommand, RealtimeTraySnapshot } from "../../desktop/src/tray-menu";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
@@ -101,7 +101,9 @@ function realtimePreset(values: Record<string, unknown>) {
     Object.entries(REALTIME_PRESET_DEFAULTS).map(([key, fallback]) => [key, values[key] ?? fallback]),
   ) as Record<string, string | number | boolean>;
 }
-export default function RealtimeWorkspace() {
+export default function RealtimeWorkspace({ active = true }: { active?: boolean }) {
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const { t } = useI18n();
   const [engine, setEngine] = useState<RtStatus | null>(null);
   const [models, setModels] = useState<string[]>([]);
@@ -244,6 +246,7 @@ export default function RealtimeWorkspace() {
     if (!analyser) return;
     const buf = new Uint8Array(analyser.fftSize);
     micMeterTimerRef.current = setInterval(() => {
+      if (!activeRef.current || document.hidden) return;
       try {
         analyser.getByteTimeDomainData(buf);
         let peak = 0;
@@ -644,6 +647,9 @@ export default function RealtimeWorkspace() {
         (stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })?.latency ||
         0;
       const healthWindow = new RealtimeHealthWindow();
+      let nextDiagnosticsAt = 0;
+      let nextTelemetryAt = 0;
+      const telemetryInterval = () => (activeRef.current && !document.hidden ? 100 : 1000);
       calibrationCountersRef.current = { droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 };
       playNode.port.onmessage = (event) => {
         const stats = event.data.stats;
@@ -653,12 +659,16 @@ export default function RealtimeWorkspace() {
           underrunMs: (stats.underrunFrames / ctx.sampleRate) * 1000,
           playbackDroppedMs: (stats.droppedFrames / ctx.sampleRate) * 1000,
         };
+        const now = performance.now();
+        const health = healthWindow.push(
+          now,
+          sender.droppedBlocks,
+          (stats.underrunFrames / ctx.sampleRate) * 1000,
+        );
+        if (now < nextDiagnosticsAt) return;
+        nextDiagnosticsAt = now + telemetryInterval();
         setDiagnostics({
-          ...healthWindow.push(
-            performance.now(),
-            sender.droppedBlocks,
-            (stats.underrunFrames / ctx.sampleRate) * 1000,
-          ),
+          ...health,
           estimatedMs:
             (block / ctx.sampleRate) * 1000 +
             crossfade * 1000 +
@@ -746,18 +756,21 @@ export default function RealtimeWorkspace() {
             }
             if (m.type === "latency" && Number.isFinite(m.value)) {
               lastProcessingMs = m.value;
-              setLatency(m.value);
             }
             if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
               lastInputRms = m.volume;
-            if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
-              setInputLevel({ rms: m.volume, at: performance.now() });
           } catch {
             /* ignore */
           }
         } else {
           lastRoundTrip = performance.now() - sentAt;
-          setRoundTrip(lastRoundTrip);
+          const now = performance.now();
+          if (now >= nextTelemetryAt) {
+            nextTelemetryAt = now + telemetryInterval();
+            setRoundTrip(lastRoundTrip);
+            setLatency(lastProcessingMs);
+            setInputLevel({ rms: lastInputRms, at: now });
+          }
           if (calibrationControllerRef.current) {
             const rendered = new Float32Array(ev.data);
             const convertedSignal = rendered.some((sample) => Math.abs(sample) > 0.00001);
@@ -800,62 +813,40 @@ export default function RealtimeWorkspace() {
   const reconnectRef = useRef(startStream);
   reconnectRef.current = startStream;
   const beforeMuteGainRef = useRef(100);
-  const traySnapshotRef = useRef<RealtimeTraySnapshot | null>(null);
-  traySnapshotRef.current = {
-    connecting,
-    streaming,
-    model,
-    processingMs: latency,
-    roundTripMs: roundTrip,
-    muted: inGain === 0,
-    monitor: monitorSelf,
-  };
-  const trayCommandRef = useRef((_action: RealtimeTrayCommand) => {});
-  trayCommandRef.current = (action) => {
-    if (calibrationControllerRef.current && action !== "stop") return;
-    if (action === "start") void startStream();
-    else if (action === "stop") stopStream(false);
-    else if (streaming) {
-      if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
-      else if (action === "passthrough-toggle") setPassthrough((value) => !value);
-      else {
-        if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
-        const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
-        setInGain(gain);
-        void changeConfig("input_audio_gain", gain);
+  useRealtimeTray(
+    {
+      connecting,
+      streaming,
+      model,
+      processingMs: latency,
+      roundTripMs: roundTrip,
+      muted: inGain === 0,
+      monitor: monitorSelf,
+    },
+    (action) => {
+      if (calibrationControllerRef.current && action !== "stop") return;
+      if (action === "start") void startStream();
+      else if (action === "stop") stopStream(false);
+      else if (streaming) {
+        if (action === "monitor-on" || action === "monitor-off") setMonitorSelf(action === "monitor-on");
+        else if (action === "passthrough-toggle") setPassthrough((value) => !value);
+        else {
+          if (action === "mute" && inGain > 0) beforeMuteGainRef.current = inGain;
+          const gain = action === "mute" ? 0 : beforeMuteGainRef.current;
+          setInGain(gain);
+          void changeConfig("input_audio_gain", gain);
+        }
       }
-    }
-  };
+    },
+  );
 
-  // Latest controls for tray-driven start/stop (Electron) and autostart.
+  // Latest controls for tray-driven start/stop (Tauri) and autostart.
   const controlRef = useRef({ start: () => {}, stop: (_silent?: boolean) => {} });
   controlRef.current = {
     start: () => void startStream(),
     stop: (silent = false) => stopStream(silent),
   };
   const trayAutoStartedRef = useRef(false);
-
-  // Tray commands from the desktop shell (no-op in the browser).
-  useEffect(() => {
-    const bridge = (
-      window as unknown as {
-        applio?: {
-          onRealtimeCommand?: (cb: (action: RealtimeTrayCommand) => void) => () => void;
-          reportRealtimeState?: (state: RealtimeTraySnapshot | null) => void;
-        };
-      }
-    ).applio;
-    const off = bridge?.onRealtimeCommand?.((action) => {
-      trayCommandRef.current(action);
-    });
-    bridge?.reportRealtimeState?.(traySnapshotRef.current);
-    const timer = setInterval(() => bridge?.reportRealtimeState?.(traySnapshotRef.current), 1000);
-    return () => {
-      clearInterval(timer);
-      off?.();
-      bridge?.reportRealtimeState?.(null);
-    };
-  }, []);
 
   useEffect(() => {
     if (streaming) sessRef.current?.playback.port.postMessage({ passthrough, inputGain: inGain / 100 });
@@ -1974,7 +1965,7 @@ export default function RealtimeWorkspace() {
             )}
           </div>
 
-          {streaming && (
+          {streaming && active && (
             <RealtimeDiagnostics
               latency={latency}
               roundTrip={roundTrip}

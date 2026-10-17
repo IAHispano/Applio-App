@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Applio",
+  "version": "0.3.0",
+  "identifier": "org.applio.app",
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGM0U1REU0RUY3NkYwNzYKUldSMjhIYnY1RjArSHdYN3ZjL1BobVlGYkNxZS9ObjdjV2E5bnUxcHNHY0w3NlRJVVlxR3owQ0wK",
+      "requireSignedVersion": true
+    }
+  },
+  "build": {
+    "beforeDevCommand": "pnpm prepare:dev",
+    "beforeBuildCommand": "pnpm prepare:release",
+    "frontendDist": "../ui"
+  },
+  "app": {
+    "windows": [],
+    "withGlobalTauri": true,
+    "security": {
+      "capabilities": ["desktop", "startup"],
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "dmg", "appimage", "deb"],
+    "category": "Music",
+    "shortDescription": "AI voice conversion and training",
+    "copyright": "Copyright AI Hispano",
+    "icon": ["../../../assets/ICON.ico", "../../../assets/icon.icns", "../../../assets/icon.png"],
+    "resources": {
+      "../resources/": "app/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "compression": "zlib",
+        "installerHooks": "installer-hooks.nsh"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0",
+      "infoPlist": "Info.plist"
+    }
+  }
+}

@@ -6,9 +6,8 @@
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",
-    "postbuild": "node scripts/copy-static.mts",
-    "start": "next start -p 3000",
-    "typecheck": "tsc --noEmit"
+    "start": "node ../../scripts/run-services.mjs --production",
+    "typecheck": "next typegen && tsc --noEmit"
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.3.3",

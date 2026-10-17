@@ -1,0 +1,41 @@
+[package]
+name = "applio-api"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+axum = { version = "0.8", features = ["ws", "multipart"] }
+tokio = { version = "1", features = ["full"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+reqwest = { version = "0.12", default-features = false, features = ["json", "stream", "rustls-tls", "hickory-dns"] }
+futures-util = { version = "0.3", features = ["sink"] }
+tokio-tungstenite = "0.28"
+tower-http = { version = "0.6", features = ["cors", "fs"] }
+tower = { version = "0.5", features = ["util"] }
+anyhow = "1"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+tokio-util = { version = "0.7", features = ["rt"] }
+regex = "1"
+async-stream = "0.3"
+sha2 = "0.10"
+sys-locale = "0.3"
+unicode-normalization = "0.1"
+base64 = "0.22"
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+getrandom = "0.3"
+subtle = "2"
+percent-encoding = "2"
+flate2 = "1"
+tar = "0.4"
+tempfile = "3"
+dotenvy = "0.15"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+junction = "1"
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_System_Registry", "Win32_Security"] }

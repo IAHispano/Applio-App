@@ -10,19 +10,22 @@ import { Alert, Badge, Button, Card, CustomSelect, StatTile } from "@/components
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
+import { jobHref } from "@/lib/job-url";
 import { cleanJobLogs } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 export default function JobsPage() {
   const { t } = useI18n();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useWorkspaceState<Job[]>("page:jobs:jobs", []);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [query, setQuery] = useState("");
-  const [state, setState] = useState("all");
-  const [type, setType] = useState("all");
+  const [query, setQuery] = useWorkspaceState("page:jobs:query", "");
+  const [state, setState] = useWorkspaceState("page:jobs:state", "all");
+  const [type, setType] = useWorkspaceState("page:jobs:type", "all");
   const fetching = useRef(false);
   const mounted = useRef(false);
+  const hasActiveJobs = useRef(false);
   const refresh = useCallback(async () => {
     if (fetching.current) return;
     fetching.current = true;
@@ -30,6 +33,9 @@ export default function JobsPage() {
     try {
       const response = await apiGet<{ jobs: Job[] }>("/api/jobs", { force: true });
       if (mounted.current) {
+        hasActiveJobs.current = response.jobs.some(
+          (job) => job.status === "queued" || job.status === "running",
+        );
         setJobs(response.jobs);
         setError("");
       }
@@ -42,16 +48,36 @@ export default function JobsPage() {
         setRefreshing(false);
       }
     }
-  }, []);
+  }, [setJobs]);
   useEffect(() => {
     mounted.current = true;
     void refresh();
+    let elapsed = 0;
+    let changed: ReturnType<typeof setTimeout> | undefined;
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      elapsed += 3000;
+      if (document.hidden || (!hasActiveJobs.current && elapsed < 30000)) return;
+      elapsed = 0;
+      void refresh();
     }, 3000);
+    const onJobState = () => {
+      if (changed || document.hidden) return;
+      changed = setTimeout(() => {
+        changed = undefined;
+        void refresh();
+      }, 250);
+    };
+    const onVisible = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("applio:job-state", onJobState);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       mounted.current = false;
       clearInterval(timer);
+      clearTimeout(changed);
+      window.removeEventListener("applio:job-state", onJobState);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refresh]);
   const labels = useMemo(() => [...new Set(jobs.map((job) => job.label || job.type))].sort(), [jobs]);
@@ -116,7 +142,7 @@ export default function JobsPage() {
                 <Card className="space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <Link href={`/jobs/${job.id}`} className="font-semibold text-sm hover:underline">
+                      <Link href={jobHref(job.id)} className="font-semibold text-sm hover:underline">
                         {t(job.label || job.type)}
                       </Link>
                       <p className="m-0 mt-1 text-xs text-[var(--muted)]">
@@ -171,12 +197,7 @@ export default function JobsPage() {
                     </p>
                   )}
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="xs"
-                      href={`/jobs/${job.id}`}
-                      icon={<ArrowRight size={13} />}
-                    >
+                    <Button variant="ghost" size="xs" href={jobHref(job.id)} icon={<ArrowRight size={13} />}>
                       {t("Open activity")}
                     </Button>
                     {job.status === "done" && job.outputFile && (

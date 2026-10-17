@@ -16,11 +16,21 @@ from uvr.demucs_lib.pretrained import get_model as get_demucs_model
 from uvr.device import mps_accumulation_budget_bytes, should_accumulate_on_device
 
 DEMUCS_4_SOURCE = ["drums", "bass", "other", "vocals"]
+
+DEMUCS_2_SOURCE_MAPPER = {BaseSeparator.INST_STEM: 0, BaseSeparator.VOCAL_STEM: 1}
 DEMUCS_4_SOURCE_MAPPER = {
     BaseSeparator.BASS_STEM: 0,
     BaseSeparator.DRUM_STEM: 1,
     BaseSeparator.OTHER_STEM: 2,
     BaseSeparator.VOCAL_STEM: 3,
+}
+DEMUCS_6_SOURCE_MAPPER = {
+    BaseSeparator.BASS_STEM: 0,
+    BaseSeparator.DRUM_STEM: 1,
+    BaseSeparator.OTHER_STEM: 2,
+    BaseSeparator.VOCAL_STEM: 3,
+    BaseSeparator.GUITAR_STEM: 4,
+    BaseSeparator.PIANO_STEM: 5,
 }
 
 
@@ -41,7 +51,7 @@ class DemucsSeparator(BaseSeparator):
         self.shifts = arch_config.get("shifts", 2)
         self.overlap = arch_config.get("overlap", 0.25)
         self.segments_enabled = arch_config.get("segments_enabled", True)
-        self.demucs_source_map = dict(DEMUCS_4_SOURCE_MAPPER)
+        self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
         self.audio_file_path = None
         self.audio_file_base = None
         self.logger.info("Demucs separator initialised")
@@ -68,18 +78,31 @@ class DemucsSeparator(BaseSeparator):
             self.clear_gpu_cache()
 
         output_files = []
-        if isinstance(source, np.ndarray) and len(source) not in (2, 4, 6):
-            self.logger.warning(
-                f"Unexpected Demucs source count {len(source)}; writing all stems."
-            )
+        if isinstance(source, np.ndarray):
+            source_length = len(source)
+            self.logger.debug(f"Processing source array, source length is {source_length}")
+            match source_length:
+                case 2:
+                    self.logger.debug("Setting source map to 2-stem...")
+                    self.demucs_source_map = DEMUCS_2_SOURCE_MAPPER
+                case 6:
+                    self.logger.debug("Setting source map to 6-stem...")
+                    self.demucs_source_map = DEMUCS_6_SOURCE_MAPPER
+                case _:
+                    self.logger.debug("Setting source map to 4-stem...")
+                    self.demucs_source_map = DEMUCS_4_SOURCE_MAPPER
+
+        self.logger.debug("Processing for all stems...")
         for stem_name, stem_value in self.demucs_source_map.items():
-            if (
-                self.output_single_stem is not None
-                and stem_name.lower() != self.output_single_stem.lower()
-            ):
-                continue
+            if self.output_single_stem is not None:
+                if stem_name.lower() != self.output_single_stem.lower():
+                    self.logger.debug(f"Skipping writing stem {stem_name} as output_single_stem is set to {self.output_single_stem}...")
+                    continue
+
             stem_path = self.get_stem_output_path(stem_name, custom_output_names)
-            self.final_process(stem_path, source[stem_value].T, stem_name)
+            stem_source = source[stem_value].T
+
+            self.final_process(stem_path, stem_source, stem_name)
             output_files.append(stem_path)
         return output_files
 

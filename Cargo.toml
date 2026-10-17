@@ -1,0 +1,13 @@
+[workspace]
+members = ["backend/rust-api", "frontend/desktop/src-tauri"]
+resolver = "2"
+
+[workspace.package]
+version = "0.3.0"
+edition = "2021"
+license = "MIT"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

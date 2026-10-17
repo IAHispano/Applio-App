@@ -20,16 +20,18 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { JobPanelContent } from "@/components/JobPanel";
 import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
 import FirstRunSetup from "@/components/setup/FirstRunSetup";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
-import { apiGet, apiSend, displayVersion, errMsg, fileBasename, type Job } from "@/lib/api";
+import { apiGet, apiSend, displayVersion, errMsg, fetchModels, fileBasename, type Job } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { jobHref } from "@/lib/job-url";
 import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface ModelsSummary {
   models: string[];
@@ -40,7 +42,8 @@ interface ModelsSummary {
 interface SystemInfo {
   version: string;
   platform: string;
-  node: string;
+  node?: string;
+  runtime?: string;
   python: string;
   cpus: number;
   totalMemGB: number;
@@ -92,17 +95,18 @@ function ActionCard({
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const { status, loading: setupLoading, error: setupError, refresh: refreshSetup } = useSetup();
-  const [modelsData, setModelsData] = useState<ModelsSummary | null>(null);
-  const [sysInfo, setSysInfo] = useState<SystemInfo | null>(null);
-  const [library, setLibrary] = useState<LibraryModel[] | null>(null);
-  const [jobs, setJobs] = useState<Job[] | null>(null);
-  const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
+  const { status, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
+  const [modelsData, setModelsData] = useWorkspaceState<ModelsSummary | null>("page:app:modelsData", null);
+  const [sysInfo, setSysInfo] = useWorkspaceState<SystemInfo | null>("page:app:sysInfo", null);
+  const [library, setLibrary] = useWorkspaceState<LibraryModel[] | null>("page:app:library", null);
+  const [jobs, setJobs] = useWorkspaceState<Job[] | null>("page:app:jobs", null);
+  const [versionInfo, setVersionInfo] = useWorkspaceState<VersionInfo | null>("page:app:versionInfo", null);
+  const [showDetails, setShowDetails] = useWorkspaceState("page:app:showDetails", false);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(true);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobId, setJobId] = useWorkspaceState<string | null>("page:app:jobId", null);
   const [forceSetup, setForceSetup] = useState(false);
+  const requests = useRef<AbortController | null>(null);
   const [stuck, setStuck] = useState(false);
   const activity = useJob(jobId);
   const { job: prereqJob, isActive: prereqRunning } = activity;
@@ -118,33 +122,39 @@ export default function Home() {
 
   const refresh = useCallback(
     async (force = false) => {
+      requests.current?.abort();
+      const controller = new AbortController();
+      requests.current = controller;
       setRefreshing(true);
-      try {
-        const [, modelsRes, sysRes, verRes, libraryRes, jobsRes] = await Promise.all([
-          refreshSetup(force),
-          apiGet<ModelsSummary>("/api/models").catch(() => null),
-          apiGet<SystemInfo>("/api/report/info").catch(() => null),
-          apiGet<VersionInfo>("/api/settings/version-check").catch(() => null),
-          apiGet<{ models: LibraryModel[] }>("/api/models/library").catch(() => null),
-          apiGet<{ jobs: Job[] }>("/api/jobs/activity").catch(() => null),
-        ]);
-        if (modelsRes) setModelsData(modelsRes);
-        if (sysRes) setSysInfo(sysRes);
-        if (verRes) setVersionInfo(verRes);
-        if (libraryRes) setLibrary(libraryRes.models);
-        if (jobsRes) setJobs(jobsRes.jobs);
-        setError("");
-      } catch (e) {
-        setError(errMsg(e));
-      } finally {
-        setRefreshing(false);
-      }
+      setError("");
+      const load = async <T,>(path: string, update: (value: T) => void) => {
+        try {
+          const value =
+            path === "/api/models"
+              ? ((await fetchModels(force)) as T)
+              : await apiGet<T>(path, { force, signal: controller.signal });
+          if (!controller.signal.aborted) update(value);
+        } catch {
+          // Optional sections remain usable when another service is unavailable.
+        }
+      };
+      // Online release checks must not hold up local dashboard content or Refresh.
+      void load<VersionInfo>("/api/settings/version-check", setVersionInfo);
+      await Promise.all([
+        refreshSetup(force),
+        load<ModelsSummary>("/api/models", setModelsData),
+        load<SystemInfo>("/api/report/info", setSysInfo),
+        load<{ models: LibraryModel[] }>("/api/models/library", (value) => setLibrary(value.models)),
+        load<{ jobs: Job[] }>("/api/jobs/activity", (value) => setJobs(value.jobs)),
+      ]);
+      if (!controller.signal.aborted) setRefreshing(false);
     },
-    [refreshSetup],
+    [refreshSetup, setSysInfo, setVersionInfo, setModelsData, setLibrary, setJobs],
   );
 
   useEffect(() => {
     refresh();
+    return () => requests.current?.abort();
   }, [refresh]);
 
   // If /api/setup/status never resolves (backend warming torch, EPERM-locked
@@ -162,19 +172,37 @@ export default function Home() {
 
   useEffect(() => {
     let disposed = false;
-    const timer = setInterval(() => {
-      if (document.hidden) return;
-      void apiGet<{ jobs: Job[] }>("/api/jobs/activity")
-        .then((data) => {
-          if (!disposed) setJobs(data.jobs);
-        })
-        .catch(() => {});
-    }, 15000);
+    const controller = new AbortController();
+    let inFlight = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
+      if (disposed || inFlight || document.hidden) return;
+      inFlight = true;
+      try {
+        const data = await apiGet<{ jobs: Job[] }>("/api/jobs/activity", { signal: controller.signal });
+        if (!disposed) setJobs(data.jobs);
+      } catch {
+        // Resume after transient service restarts.
+      } finally {
+        inFlight = false;
+        if (!disposed) timer = setTimeout(poll, 15000);
+      }
+    };
+    const resume = () => {
+      if (!document.hidden && !inFlight) {
+        clearTimeout(timer);
+        timer = setTimeout(poll, 0);
+      }
+    };
+    timer = setTimeout(poll, 15000);
+    document.addEventListener("visibilitychange", resume);
     return () => {
       disposed = true;
-      clearInterval(timer);
+      clearTimeout(timer);
+      controller.abort();
+      document.removeEventListener("visibilitychange", resume);
     };
-  }, []);
+  }, [setJobs]);
 
   async function prerequisites() {
     setError("");
@@ -252,7 +280,7 @@ export default function Home() {
     );
   }
 
-  if (!status.ready || forceSetup) {
+  if (status?.ready === false || forceSetup) {
     return (
       <FirstRunSetup
         onComplete={() => {
@@ -268,8 +296,8 @@ export default function Home() {
       <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 sm:p-7">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
-            <Badge variant="success" dot>
-              {t("Ready")}
+            <Badge variant={status?.ready ? "success" : "neutral"} dot>
+              {t(status?.ready ? "Ready" : "Checking engine status…")}
             </Badge>
             {currentVersion && <span className="text-xs text-[var(--muted)]">Applio {currentVersion}</span>}
           </div>
@@ -302,6 +330,25 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {(error || setupError) && (
+        <Alert variant="error">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <span>{error || setupError}</span>
+            {setupError && (
+              <Button
+                size="sm"
+                variant="ghost"
+                loading={setupLoading}
+                onClick={() => refresh(true)}
+                icon={<RefreshCw size={14} />}
+              >
+                {t("Retry Connection")}
+              </Button>
+            )}
+          </div>
+        </Alert>
+      )}
 
       {/* Update banner */}
       {updateAvailable && (
@@ -454,7 +501,7 @@ export default function Home() {
               {recentJobs.map((job) => (
                 <li key={job.id}>
                   <Link
-                    href={`/jobs/${encodeURIComponent(job.id)}`}
+                    href={jobHref(job.id)}
                     className="block py-3 space-y-2 rounded-lg hover:bg-[var(--surface)] px-2 -mx-2 transition-colors"
                   >
                     <p className="text-sm font-medium text-[var(--heading)] truncate m-0">
@@ -488,8 +535,8 @@ export default function Home() {
           <div className="flex items-center gap-2.5">
             <Activity size={16} className="text-white" />
             <h2 className="text-sm font-semibold text-neutral-200 m-0">{t("System Diagnostics")}</h2>
-            <Badge variant={passedChecks === totalChecks ? "success" : "warning"}>
-              {passedChecks}/{totalChecks} {t("passed")}
+            <Badge variant={!status ? "neutral" : passedChecks === totalChecks ? "success" : "warning"}>
+              {status ? `${passedChecks}/${totalChecks} ${t("passed")}` : t("Checking…")}
             </Badge>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -497,7 +544,7 @@ export default function Home() {
               size="xs"
               variant="ghost"
               onClick={prerequisites}
-              disabled={prereqRunning}
+              disabled={!status?.ready || prereqRunning}
               title={t("Download base voice models and checkpoints (hubert, rmvpe, vocoders)")}
               icon={<Download size={13} />}
             >
@@ -529,12 +576,6 @@ export default function Home() {
           </div>
         </div>
 
-        {error && (
-          <div className="mx-4 mb-4">
-            <Alert variant="error">{error}</Alert>
-          </div>
-        )}
-
         {showDetails && sysInfo && (
           <div className="px-4 pb-4 grid grid-cols-2 xl:grid-cols-4 gap-3">
             <StatTile label={t("App Version")} value={displayVersion(sysInfo.version) || "—"} />
@@ -553,7 +594,7 @@ export default function Home() {
             id="home-diagnostics-details"
             className="p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5"
           >
-            {status.checks.map((c) => {
+            {status?.checks.map((c) => {
               const isOk = c.status === "ok";
               const isWarn = c.status === "warn";
               return (

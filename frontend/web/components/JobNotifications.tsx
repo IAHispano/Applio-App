@@ -1,10 +1,11 @@
 "use client";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import { apiGet } from "@/lib/api";
+import { apiGet, clearApiCache, fetchModels } from "@/lib/api";
 import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { type JobActivity, JobNotificationTracker } from "@/lib/job-notifications";
+import { jobHref, normalizeJobHref } from "@/lib/job-url";
 import { SUPPORT_URL, supportReminderDue } from "@/lib/support";
 import { toast } from "@/lib/toast";
 
@@ -30,9 +31,14 @@ export default function JobNotifications() {
     let supportTimer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     const bridge = (window as unknown as { applio?: DesktopNotifications }).applio;
-    const unsubscribe = bridge?.onJobOpen?.((href) => router.push(href));
+    const unsubscribe = bridge?.onJobOpen?.((href) => router.push(normalizeJobHref(href)));
     const announce = ({ job, terminal }: { job: JobActivity; terminal: boolean }) => {
-      const href = `/jobs/${encodeURIComponent(job.id)}`;
+      window.dispatchEvent(new Event("applio:job-state"));
+      if (terminal && ["train", "download", "other"].includes(job.type)) {
+        clearApiCache("/api/models");
+        void fetchModels().catch(() => {});
+      }
+      const href = jobHref(job.id);
       const title = t(job.label);
       const body = job.stopped
         ? t("Stopped.")

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiGet } from "@/lib/api";
 
 // The API resolves the active language from settings or the OS locale and
@@ -99,10 +99,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const t: TFn = (key, vars) => {
-    const raw = dict[key] ?? key;
-    return interpolate(raw, vars);
-  };
+  const t = useCallback<TFn>((key, vars) => interpolate(dict[key] ?? key, vars), [dict]);
+  const value = useMemo(() => ({ t, code, loaded }), [t, code, loaded]);
 
-  return <I18nCtx.Provider value={{ t, code, loaded }}>{children}</I18nCtx.Provider>;
+  return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
 }

@@ -1629,5 +1629,15 @@
   "Worker task failed": "Worker task failed",
   "brew install finished but no Python was found.": "brew install finished but no Python was found.",
   "queued": "queued",
-  "useSetup must be used within a SetupProvider": "useSetup must be used within a SetupProvider"
+  "useSetup must be used within a SetupProvider": "useSetup must be used within a SetupProvider",
+  "Audio analysis": "Audio analysis",
+  "Audio download": "Audio download",
+  "Audio separation": "Audio separation",
+  "Engine setup": "Engine setup",
+  "Model blending": "Model blending",
+  "Model inspection": "Model inspection",
+  "Model prerequisites": "Model prerequisites",
+  "Pitch extraction": "Pitch extraction",
+  "Plugin installation": "Plugin installation",
+  "Task": "Task"
 }

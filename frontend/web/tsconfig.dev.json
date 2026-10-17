@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "tsBuildInfoFile": ".next-dev/cache/tsconfig.tsbuildinfo"
+  },
+  "include": ["**/*.ts", "**/*.tsx", ".next-dev/types/**/*.ts", "next-env.d.ts"],
+  "exclude": ["node_modules", ".next"]
+}

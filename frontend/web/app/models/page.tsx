@@ -36,6 +36,7 @@ import SettingHelp from "@/components/ui/SettingHelp";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface ModelItem {
   id: string;
@@ -61,34 +62,37 @@ function formatBytes(bytes: number): string {
 export default function ModelsPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const [section, setSection] = useState<Section>("library");
+  const [section, setSection] = useWorkspaceState<Section>("page:models:section", "library");
 
   // Library state
-  const [models, setModels] = useState<ModelItem[]>([]);
+  const [models, setModels] = useWorkspaceState<ModelItem[]>("page:models:models", []);
   const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useWorkspaceState("page:models:search", "");
   const [error, setError] = useState("");
   const [deleteTargets, setDeleteTargets] = useState<ModelItem[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useWorkspaceState<Set<string>>("page:models:selected", new Set());
 
   // Inspect modal state
   const [inspectModal, setInspectModal] = useState<ModelItem | null>(null);
-  const [inspectMeta, setInspectMeta] = useState<ModelMetadata | null>(null);
+  const [inspectMeta, setInspectMeta] = useWorkspaceState<ModelMetadata | null>(
+    "page:models:inspectMeta",
+    null,
+  );
   const [inspectLoading, setInspectLoading] = useState(false);
   const [inspectError, setInspectError] = useState("");
 
   // Custom path inspect (subtab)
-  const [customPth, setCustomPth] = useState("");
-  const [customMeta, setCustomMeta] = useState<ModelMetadata | null>(null);
+  const [customPth, setCustomPth] = useWorkspaceState("page:models:customPth", "");
+  const [customMeta, setCustomMeta] = useWorkspaceState<ModelMetadata | null>("page:models:customMeta", null);
   const [customLoading, setCustomLoading] = useState(false);
   const [customError, setCustomError] = useState("");
 
   // Export (trained artifacts in logs/)
-  const [expModels, setExpModels] = useState<string[]>([]);
-  const [expIndexes, setExpIndexes] = useState<string[]>([]);
-  const [expModel, setExpModel] = useState("");
-  const [expIndex, setExpIndex] = useState("");
+  const [expModels, setExpModels] = useWorkspaceState<string[]>("page:models:expModels", []);
+  const [expIndexes, setExpIndexes] = useWorkspaceState<string[]>("page:models:expIndexes", []);
+  const [expModel, setExpModel] = useWorkspaceState("page:models:expModel", "");
+  const [expIndex, setExpIndex] = useWorkspaceState("page:models:expIndex", "");
   const [expLoading, setExpLoading] = useState(false);
 
   const loadLibrary = useCallback(async () => {
@@ -102,7 +106,7 @@ export default function ModelsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setModels]);
 
   const loadExports = useCallback(async () => {
     setExpLoading(true);
@@ -117,7 +121,7 @@ export default function ModelsPage() {
     } finally {
       setExpLoading(false);
     }
-  }, []);
+  }, [setExpIndexes, setExpModels, setExpModel, setExpIndex]);
 
   useEffect(() => {
     if (section === "library") {

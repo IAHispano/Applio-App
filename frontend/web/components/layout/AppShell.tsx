@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import Link from "@/components/layout/IntentLink";
 import { BottomNav } from "@/components/layout/MobileNav";
 import PageTransition from "@/components/layout/PageTransition";
 import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
@@ -12,19 +13,36 @@ import SupportLink from "@/components/SupportLink";
 import SetupBarrier from "@/components/setup/SetupBarrier";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
+import { normalizeJobHref } from "@/lib/job-url";
 import { useSetup } from "@/lib/setup";
+import { workspaceScroll } from "@/lib/workspace-state";
 
 const RealtimeWorkspace = dynamic(() => import("@/components/RealtimeWorkspace"), { ssr: false });
 
 const UNGUARDED_ROUTES = new Set(["/", "/settings", "/report"]);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const visibility = () => {
+      document.documentElement.toggleAttribute("data-app-hidden", document.hidden);
+    };
+    visibility();
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      document.documentElement.removeAttribute("data-app-hidden");
+    };
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
   const { remote } = useRemoteBridge();
   const previousPath = useRef(pathname);
   const previousHeading = useRef<HTMLElement | null>(null);
+  const scrollRoute = useRef({ path: pathname, top: 0, restoring: false });
+  if (scrollRoute.current.path !== pathname) {
+    scrollRoute.current = { path: pathname, top: workspaceScroll.get(pathname) ?? 0, restoring: true };
+  }
   useEffect(() => {
     if (previousPath.current === pathname) {
       previousHeading.current = document.querySelector("#main-content h1");
@@ -32,6 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     previousPath.current = pathname;
     // Next can update the URL before the new page replaces the old heading.
+    let restoreFrame = 0;
     const focusPage = () => {
       if (document.querySelector("dialog[open]")) return;
       const main = document.getElementById("main-content");
@@ -39,9 +58,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       const heading = main.querySelector<HTMLElement>("h1");
       if (!heading || heading === previousHeading.current) return;
       previousHeading.current = heading;
-      main.scrollTop = 0;
+      main.scrollTop = scrollRoute.current.top;
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
+      // Next's own navigation focus can run after the route commits. Restore
+      // once layout settles and ignore its automatic scroll events meanwhile.
+      restoreFrame = requestAnimationFrame(() => {
+        main.scrollTop = scrollRoute.current.top;
+        scrollRoute.current.restoring = false;
+      });
       observer.disconnect();
     };
     const observer = new MutationObserver(focusPage);
@@ -54,6 +79,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const frame = requestAnimationFrame(focusPage);
     return () => {
       cancelAnimationFrame(frame);
+      cancelAnimationFrame(restoreFrame);
       observer.disconnect();
     };
   }, [pathname]);
@@ -62,7 +88,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       window as unknown as { applio?: { onNavigate?: (listener: (href: string) => void) => () => void } }
     ).applio;
     return bridge?.onNavigate?.((href) => {
-      if (href.startsWith("/") && !href.startsWith("//")) router.push(href);
+      if (href.startsWith("/") && !href.startsWith("//")) router.push(normalizeJobHref(href));
     });
   }, [router]);
   const { isReady, loading } = useSetup();
@@ -80,6 +106,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <RemoteBridgeBanner />
         <main
           id="main-content"
+          onScroll={(event) => {
+            if (!scrollRoute.current.restoring) workspaceScroll.set(pathname, event.currentTarget.scrollTop);
+          }}
           tabIndex={-1}
           className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4 outline-none flex flex-col"
         >
@@ -96,9 +125,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                       "Use Bridge Mode for inference, TTS, audio separation, audio tools, and job history. Manage models, setup, settings, and realtime on your host.",
                     )}
                   </p>
-                  <a href="/inference" className="text-sm underline">
+                  <Link href="/inference" className="text-sm underline">
                     {t("Convert Audio")}
-                  </a>
+                  </Link>
                 </div>
               ) : showBarrier ? (
                 <SetupBarrier />
@@ -111,7 +140,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           {!remote && (
             <PersistentWorkspace active={pathname === "/realtime" && isReady}>
-              <RealtimeWorkspace />
+              <RealtimeWorkspace active={pathname === "/realtime"} />
             </PersistentWorkspace>
           )}
           <footer className="mt-auto pt-6 pb-1 flex items-center justify-center gap-3 text-[11px] text-[var(--muted)]">

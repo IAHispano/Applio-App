@@ -12,11 +12,13 @@ import AudioDropzone from "@/components/ui/AudioDropzone";
 import VoiceModelCard from "@/components/VoiceModelCard";
 import {
   apiSend,
+  cachedModels,
   errMsg,
   fetchJob,
   fetchModels,
   fileBasename,
   type Job,
+  onModelsChanged,
   outputUrl,
   pollJob,
   stopJob,
@@ -29,22 +31,35 @@ import { useConversionParameters } from "@/lib/useConversionParameters";
 import { usePersistentJobId } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import { useSpeakers } from "@/lib/useSpeakers";
+import { useWorkspaceState } from "@/lib/workspace-state";
 
 export default function InferenceForm() {
   const { t } = useI18n();
 
-  const [models, setModels] = useState<string[]>([]);
-  const [indexes, setIndexes] = useState<string[]>([]);
-  const [sampleAudios, setSampleAudios] = useState<string[]>([]);
+  const [models, setModels] = useWorkspaceState<string[]>(
+    "InferenceForm:components:models",
+    () => cachedModels()?.models ?? [],
+  );
+  const [indexes, setIndexes] = useWorkspaceState<string[]>(
+    "InferenceForm:components:indexes",
+    () => cachedModels()?.indexes ?? [],
+  );
+  const [sampleAudios, setSampleAudios] = useWorkspaceState<string[]>(
+    "InferenceForm:components:sampleAudios",
+    [],
+  );
   const [loadError, setLoadError] = useState("");
 
-  const [pthPath, setPthPath] = useState("");
-  const [indexPath, setIndexPath] = useState("");
-  const [sid, setSid] = useState(0);
+  const [pthPath, setPthPath] = useWorkspaceState("InferenceForm:components:pthPath", "");
+  const [indexPath, setIndexPath] = useWorkspaceState("InferenceForm:components:indexPath", "");
+  const [sid, setSid] = useWorkspaceState("InferenceForm:components:sid", 0);
 
   // Audio input states
-  const [audioFile, setAudioFile] = useState<File | null>(null);
-  const [inputPath, setInputPath] = useState("");
+  const [audioFile, setAudioFile] = useWorkspaceState<File | null>(
+    "InferenceForm:components:audioFile",
+    null,
+  );
+  const [inputPath, setInputPath] = useWorkspaceState("InferenceForm:components:inputPath", "");
 
   // Core conversion settings
   const conversion = useConversionParameters(pthPath);
@@ -71,7 +86,7 @@ export default function InferenceForm() {
   const { embedderModel: setEmbedderModel } = conversion.setters;
 
   // Job submission & status
-  const [job, setJob] = useState<Job | null>(null);
+  const [job, setJob] = useWorkspaceState<Job | null>("InferenceForm:components:job", null);
   const [persistedJobId, setPersistedJobId] = usePersistentJobId("inference");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
@@ -88,7 +103,7 @@ export default function InferenceForm() {
 
   useEffect(() => {
     if (!speakers.includes(sid)) setSid(0);
-  }, [speakers, sid]);
+  }, [speakers, sid, setSid]);
 
   // Load models, indexes and sample audios
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model load uses latest state
@@ -111,11 +126,19 @@ export default function InferenceForm() {
 
   // Initial model fetch & refresh on window focus
   useEffect(() => {
-    loadAvailableModels(true);
-    const onFocus = () => loadAvailableModels(true);
+    const unsubscribe = onModelsChanged((models) => {
+      setModels(models.models);
+      setIndexes(models.indexes);
+      setSampleAudios(models.audios);
+    });
+    loadAvailableModels(false);
+    const onFocus = () => loadAvailableModels(false);
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
-  }, [loadAvailableModels]);
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [loadAvailableModels, setSampleAudios, setIndexes, setModels]);
 
   // Pre-select model from URL params if available (e.g. from Models library)
   useEffect(() => {
@@ -128,7 +151,7 @@ export default function InferenceForm() {
         if (idx) setIndexPath(idx);
       }
     }
-  }, []);
+  }, [setPthPath, setIndexPath]);
 
   // Poll running jobs
   // biome-ignore lint/correctness/useExhaustiveDependencies: poll active job until completion
@@ -152,7 +175,7 @@ export default function InferenceForm() {
     return () => {
       cancelled = true;
     };
-  }, [job, persistedJobId, setPersistedJobId]);
+  }, [job, persistedJobId, setPersistedJobId, setJob]);
 
   const handleModelSelect = (selected: string, idxList = indexes) => {
     setPthPath(selected);
@@ -272,6 +295,7 @@ export default function InferenceForm() {
             onSelect={handleModelSelect}
             onUnload={handleUnloadModel}
             onRefresh={loadAvailableModels}
+            onOpen={() => loadAvailableModels(false)}
             onIndexChange={setIndexPath}
             speakers={speakers}
             sid={sid}

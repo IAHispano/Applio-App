@@ -6,14 +6,15 @@ import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, errMsg, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { formatDiagnostics, issueReportUrl } from "@/lib/report";
+import { diagnosticRuntime, formatDiagnostics, issueReportUrl } from "@/lib/report";
 import { toast } from "@/lib/toast";
 
 interface SystemInfo {
   version: string;
   backendRevision?: string;
   platform: string;
-  node: string;
+  node?: string;
+  runtime?: string;
   python: string;
   cpus: number;
   totalMemGB: number;
@@ -179,7 +180,7 @@ export default function ReportPage() {
               subtext={`${t("Engine revision")}: ${info.backendRevision?.slice(0, 12) || "unknown"}`}
             />
             <StatTile label={t("Platform")} value={info.platform} />
-            <StatTile label={t("Engine Runtimes")} value={`Node ${info.node}`} subtext={info.python} />
+            <StatTile label={t("Engine Runtimes")} value={diagnosticRuntime(info)} subtext={info.python} />
             <StatTile
               label={t("Compute Resources")}
               value={t("{count} CPU cores", { count: info.cpus })}

@@ -16,7 +16,7 @@ class UvrModel:
     ):
         self.key = key
         self.label = label
-        self.arch = arch  # "vr" | "mdx" | "demucs" | "roformer"
+        self.arch = arch  # "vr" | "mdx" | "mdxc" | "demucs" | "roformer"
         self.files = files  # list of (filename, url)
         self.stems = stems
         self.target = target
@@ -41,9 +41,6 @@ def _u(fname):
 
 
 MODELS = [
-    # NOTE: VR (.pth) entries ship in v1; current release files miss the
-    # vendored UVR hash tables (re-uploaded after the tables were made), so a
-    # VR run may report the file as unsupported until its band config resolves.
     UvrModel(
         "vr-vocals-hp4",
         "VR Vocals (4_HP)",
@@ -126,7 +123,7 @@ MODELS = [
         "reverb",
         "Isolates or removes reverb; great cleanup before training.",
     ),
-    # --- Demucs v4 (htdemucs, 4 stems) ---
+    # --- MDXC (MDX23C .ckpt) ---
     UvrModel(
         "mdxc-instvoc-hq",
         "MDXC InstVoc HQ",

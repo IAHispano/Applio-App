@@ -5,6 +5,7 @@ import os
 import numpy as np
 import soundfile as sf
 import torch
+import torch.nn.functional as F
 import yaml
 from tqdm import tqdm
 
@@ -34,13 +35,12 @@ def load_weights(model, ckpt_path, logger=None):
     return model
 
 
-def _fade_window(size, fade):
-    window = torch.ones(size, dtype=torch.float32)
-    if fade > 0 and fade * 2 < size:
-        fade_in = torch.linspace(0.0, 1.0, fade)
-        fade_out = torch.linspace(1.0, 0.0, fade)
-        window[:fade] = fade_in
-        window[-fade:] = fade_out
+def _getWindowingArray(window_size, fade_size):
+    fadein = torch.linspace(0, 1, fade_size)
+    fadeout = torch.linspace(1, 0, fade_size)
+    window = torch.ones(window_size)
+    window[-fade_size:] = fadeout
+    window[:fade_size] = fadein
     return window
 
 
@@ -68,9 +68,6 @@ class RoformerSeparator(BaseSeparator):
         self.secondary_stem_name = self.counterpart
 
         self.sample_rate = int(self.cfg_audio.get("sample_rate", 44100))
-        # Runtime overrides (Roformer settings): chunk length in seconds,
-        # overlapping prediction windows, and batched forward passes.
-        # Unset values fall back to the model's yaml config.
         chunk_seconds = arch_config.get("chunk_seconds")
         if chunk_seconds:
             self.chunk_size = max(1, int(float(chunk_seconds) * self.sample_rate))
@@ -82,6 +79,7 @@ class RoformerSeparator(BaseSeparator):
         else:
             self.overlap = max(1, int(self.cfg_infer.get("num_overlap", 2)))
         self.batch_size = max(1, int(arch_config.get("batch_size", 1) or 1))
+        self.enable_denoise = arch_config.get("enable_denoise", False)
 
         model_kwargs = dict(cfg.get("model", {}) or {})
         self.logger.debug(
@@ -110,92 +108,85 @@ class RoformerSeparator(BaseSeparator):
             self.input_bit_depth = 16
 
         mix = self.prepare_mix(self.audio_file_path)
-        peak = float(np.abs(mix).max()) or 1.0
-        mix_tensor = torch.tensor(mix / peak, dtype=torch.float32)
+        mix_tensor = torch.tensor(mix, dtype=torch.float32)
 
         chunk_size = self.chunk_size
+        fade_size = chunk_size // 10
         step = max(1, chunk_size // self.overlap)
-        fade = chunk_size // 10
-        length = mix_tensor.shape[-1]
-        window = _fade_window(chunk_size, fade)
+        border = chunk_size - step
+        length_init = mix_tensor.shape[-1]
+        windowing_array = _getWindowingArray(chunk_size, fade_size)
 
-        # Per-stem accumulators; stem count is known after the first chunk.
+        if length_init > 2 * border and border > 0:
+            mix_tensor = F.pad(mix_tensor, (border, border), mode="reflect")
+
         results = {}
         counters = {}
         order = []
 
-        def _forward(chunk_2ch):
-            out = self.model_run(chunk_2ch[None].to(self.torch_device))
-            if isinstance(out, (list, tuple)):
-                out = out[0]
-            out = out.detach().cpu()
-            if out.ndim == 4:
-                out = out[0]
-            if out.ndim == 2:
-                out = out[None]
-            return out
+        with torch.inference_mode():
+            i = 0
+            batch_data = []
+            batch_locations = []
+            denoise: bool = self.enable_denoise
+            with tqdm(
+                total=mix_tensor.shape[1], desc="Separating", unit="samples"
+            ) as progress_bar:
+                while i < mix_tensor.shape[1]:
+                    part = mix_tensor[:, i : i + chunk_size]
+                    chunk_len = part.shape[-1]
+                    pad_mode = "reflect" if chunk_len > chunk_size // 2 else "constant"
+                    part = F.pad(part, (0, chunk_size - chunk_len), mode=pad_mode, value=0)
+                    batch_data.append(part)
+                    batch_locations.append((i, chunk_len))
+                    i += step
 
-        # Collect chunk jobs first so the model can run batched forward
-        # passes (batch_size=1 keeps the original one-by-one behavior).
-        jobs = []
-        for i in range(0, length, step):
-            end = min(i + chunk_size, length)
-            chunk = mix_tensor[:, i:end]
-            cur_len = chunk.shape[-1]
-            if cur_len < chunk_size:
-                chunk = torch.nn.functional.pad(chunk, (0, chunk_size - cur_len))
-            jobs.append((i, end, cur_len, chunk))
+                    if len(batch_data) >= self.batch_size or i >= mix_tensor.shape[1]:
+                        arr = torch.stack(batch_data, dim=0).to(self.torch_device)
+                        if denoise:
+                            x1 = self.model_run(arr)
+                            x2 = self.model_run(-arr)
+                            x = (x1 + -x2) * 0.5
+                        else:
+                            x = self.model_run(arr)
+                        x = x.detach().cpu()
 
-        n_batches = max(1, (len(jobs) + self.batch_size - 1) // self.batch_size)
-        with torch.no_grad():
-            for b in tqdm(
-                range(0, len(jobs), self.batch_size),
-                desc="Separating",
-                total=n_batches,
-            ):
-                batch_jobs = jobs[b : b + self.batch_size]
-                if len(batch_jobs) == 1:
-                    outs = [_forward(batch_jobs[0][3])]
-                else:
-                    stacked = torch.stack([j[3] for j in batch_jobs], dim=0).to(
-                        self.torch_device
-                    )
-                    out = self.model_run(stacked)
-                    if isinstance(out, (list, tuple)):
-                        out = out[0]
-                    out = out.detach().cpu()
-                    outs = [
-                        o[0] if o.ndim == 4 else (o[None] if o.ndim == 2 else o)
-                        for o in out
-                    ]
-                for (i, end, cur_len, _), out in zip(batch_jobs, outs):
-                    n_stems = out.shape[0]
-                    if not order:
-                        order = self._stem_names(n_stems)
-                        for name in order:
-                            results[name] = torch.zeros_like(mix_tensor)
-                            counters[name] = torch.zeros(
-                                mix_tensor.shape[-1], dtype=torch.float32
-                            )
-                    w = window[:cur_len].clone()
-                    if i == 0:
-                        w[:fade] = 1.0
-                    if end >= length:
-                        w[-fade:] = 1.0
-                    for idx, name in enumerate(order):
-                        stem = out[idx] if idx < n_stems else out[0]
-                        if stem.shape[0] == 1:
-                            stem = stem.repeat(2, 1)
-                        stem = stem[:, :cur_len]
-                        results[name][:, i:end] += stem * w
-                        counters[name][i:end] += w
+                        if not order:
+                            order = self._stem_names(x.shape[1])
+                            for name in order:
+                                results[name] = torch.zeros_like(mix_tensor)
+                                counters[name] = torch.zeros_like(mix_tensor)
+
+                        window = windowing_array.clone()
+                        if i - step == 0:
+                            window[:fade_size] = 1
+                        elif i >= mix_tensor.shape[1]:
+                            window[-fade_size:] = 1
+
+                        for j, (start, seg_len) in enumerate(batch_locations):
+                            for idx, name in enumerate(order):
+                                stem = x[j, idx, ..., :seg_len]
+                                if stem.shape[0] == 1:
+                                    stem = stem.repeat(2, 1)
+                                results[name][..., start : start + seg_len] += (
+                                    stem * window[..., :seg_len]
+                                )
+                                counters[name][..., start : start + seg_len] += window[
+                                    ..., :seg_len
+                                ]
+
+                        batch_data.clear()
+                        batch_locations.clear()
+                    progress_bar.update(step)
 
         stems = {}
         for name in order:
-            wav = (results[name] / torch.clamp(counters[name], min=1e-8)).numpy() * peak
-            stems[name] = wav
+            source = (results[name] / counters[name]).detach().cpu().numpy()
+            np.nan_to_num(source, copy=False, nan=0.0)
+            if length_init > 2 * border and border > 0:
+                source = source[..., border:-border]
+            stems[name] = source
 
-        # Single-mask models predict only the target; derive the counterpart.
         if len(order) == 1:
             only = order[0]
             stems[self.counterpart] = mix - stems[only]
