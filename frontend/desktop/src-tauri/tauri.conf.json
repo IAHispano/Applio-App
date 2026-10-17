@@ -37,6 +37,8 @@
         "installMode": "currentUser",
         "displayLanguageSelector": false,
         "compression": "zlib",
+        "installerIcon": "../../../assets/ICON.ico",
+        "uninstallerIcon": "../../../assets/ICON.ico",
         "installerHooks": "installer-hooks.nsh"
       }
     },
