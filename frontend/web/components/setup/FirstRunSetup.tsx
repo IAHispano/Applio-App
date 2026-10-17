@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JobStage } from "@/components/JobStatus";
 import SetupLogLine from "@/components/setup/SetupLogLine";
@@ -21,6 +21,39 @@ function setupBridge() {
   return (window as unknown as { applio?: { restartAfterSetup?: (jobId: string) => Promise<void> } }).applio;
 }
 
+// Setup phases reported through the job's structured `stage` field (see the
+// `jobs.stage(...)` calls in backend/rust-api/src/setup/setup_install.rs).
+// A later phase implies every earlier one finished.
+const SETUP_PHASES: Record<string, number> = {
+  "Creating Python environment…": 1,
+  "Installing dependencies…": 2,
+  "Downloading models…": 3,
+  "Verifying installation…": 4,
+};
+// The installer only reports success after every readiness check passes, so a
+// done job means the whole checklist is complete.
+const DONE_PHASE = 5;
+
+// Phase estimation from console output, used when a job has no stage value
+// (for example one restored from history). Matches what the installer logs.
+function phaseFromLogs(text: string): number {
+  if (/verifying installation|web interface ready|default training pretrains/i.test(text)) {
+    return 4;
+  }
+  if (/downloading all files|retrying download|prerequisites installed/i.test(text)) {
+    return 3;
+  }
+  if (
+    /torch installation policy|installing microsoft visual c|native amd rocm|removing amd rocm/i.test(text)
+  ) {
+    return 2;
+  }
+  if (/creating virtual environment|using cpython|app venv/i.test(text)) {
+    return 1;
+  }
+  return 0;
+}
+
 export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const { t } = useI18n();
   const [jobId, setJobId] = useState<string | null>(null);
@@ -34,6 +67,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
 
   const autoStartedRef = useRef(false);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
+  // Furthest setup phase reached so far. Kept monotonic so the checklist never
+  // flaps backwards when early log lines scroll out of the capped history.
+  const setupPhase = useRef(0);
 
   // Auto-start installation on mount
   useEffect(() => {
@@ -161,7 +197,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     setCountdown(null);
     completionStarted.current = false;
     setRestarting(false);
-    latched.current = {};
+    setupPhase.current = 0;
     try {
       const { jobId: id } = await apiSend<{ jobId: string }>("/api/setup/install", "POST");
       setJobId(id);
@@ -170,33 +206,26 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     }
   }
 
-  // Derive step progress and active phase from logs.
-  // Logs are capped server-side (last 500 lines), so markers from early
-  // phases scroll out during long downloads and raw substring matches would
-  // flap backwards. Latch every step's best state: done/running never regress.
+  // Derive checklist progress from the installer's structured stage, falling
+  // back to log markers for jobs restored without one. Logs are capped
+  // server-side (last few hundred lines) and early markers scroll out during
+  // long downloads, so the furthest phase reached is latched and never
+  // regresses. Each step's `phase` is the phase at which it is finished.
   const logsText = useMemo(() => job?.logs.join("\n") || "", [job?.logs]);
-  const latched = useRef<Record<string, "running" | "done">>({});
 
   const steps = useMemo(() => {
-    const isDone = job?.status === "done";
-    const hasPy = logsText.includes("App virtualenv") || logsText.includes("Creating app virtualenv");
-    const hasTorch = logsText.includes("Installing engine packages") || logsText.includes("torch");
-    const hasDeps = logsText.includes("Using Python env") || logsText.includes("web dependencies");
-    const hasAmd = logsText.includes("ROCm") || logsText.includes("ZLUDA") || logsText.includes("AMD GPU");
-    const hasAmdDone =
-      logsText.includes("ROCm native") ||
-      logsText.includes("acceleration is ready") ||
-      logsText.includes("GPU device active");
-    const hasModels =
-      logsText.includes("Downloading base voice models") || logsText.includes("prerequisites");
-    const hasVerified = isDone || logsText.includes("Setup complete") || logsText.includes("checks passed");
+    const stage = job?.stage ? SETUP_PHASES[job.stage] : undefined;
+    const phase =
+      job?.status === "done" ? DONE_PHASE : Math.max(setupPhase.current, stage ?? 0, phaseFromLogs(logsText));
+    setupPhase.current = phase;
 
+    const hasAmd = /rocm|zluda|amd gpu/i.test(logsText);
     const rawSteps = [
       {
         id: "env",
         title: "AI Runtime Environment",
         desc: "Isolated core processing runtime",
-        status: hasPy ? (hasTorch ? "done" : "running") : "running",
+        phase: 2,
       },
       {
         id: "torch",
@@ -204,48 +233,38 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         desc: hasAmd
           ? "Native AMD ROCm hardware acceleration backend"
           : "CUDA, MPS, or high-performance compute backend",
-        status: hasTorch
-          ? hasAmd
-            ? hasAmdDone || hasDeps
-              ? "done"
-              : "running"
-            : hasDeps
-              ? "done"
-              : "running"
-          : "pending",
+        phase: 3,
       },
       {
         id: "engine",
         title: "Audio Processing Engine",
         desc: "Faiss indexer, FCPE, Crepe, and acoustic models",
-        status: hasDeps ? (hasModels ? "done" : "running") : "pending",
+        phase: 4,
       },
       {
         id: "models",
         title: "Base Acoustic Checkpoints",
         desc: "HuBERT feature extractor & RMVPE pitch models",
-        status: hasModels ? (hasVerified ? "done" : "running") : "pending",
+        phase: 4,
       },
       {
         id: "ready",
         title: "Finalizing Applio",
         desc: "Configuring workspaces and pipelines",
-        status: isDone ? "done" : hasVerified ? "running" : "pending",
+        phase: DONE_PHASE,
       },
     ];
 
-    return rawSteps.map((s) => {
-      const prev = latched.current[s.id];
-      const status =
-        s.status === "done" || prev === "done"
-          ? "done"
-          : s.status === "running" || prev === "running"
-            ? "running"
-            : "pending";
-      if (status !== "pending") latched.current[s.id] = status;
-      return { ...s, status };
-    });
-  }, [job?.status, logsText]);
+    // Every step whose phase is still ahead of the current one waits; the
+    // nearest such phase is the one currently running (both the engine and
+    // checkpoint rows are active during "Downloading models…").
+    const nextPhase = Math.min(...rawSteps.map((step) => step.phase).filter((value) => value > phase));
+
+    return rawSteps.map((step) => ({
+      ...step,
+      status: phase >= step.phase ? "done" : step.phase === nextPhase ? "running" : "pending",
+    }));
+  }, [job?.status, job?.stage, logsText]);
 
   return (
     <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
@@ -322,7 +341,8 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           <div className="space-y-2 pt-2">
             {steps.map((step) => {
               const isDone = step.status === "done";
-              const isRunning = step.status === "running";
+              const isFailed = job?.status === "error" && step.status === "running";
+              const isRunning = step.status === "running" && job?.status !== "error";
 
               return (
                 <div
@@ -330,15 +350,19 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                   className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
                     isDone
                       ? "bg-emerald-500/[0.05] border-emerald-500/20 text-neutral-200"
-                      : isRunning
-                        ? "bg-white/[0.06] border-white/20 text-white shadow-sm"
-                        : "bg-white/[0.02] border-white/5 text-neutral-500"
+                      : isFailed
+                        ? "bg-red-500/[0.05] border-red-500/20 text-neutral-200"
+                        : isRunning
+                          ? "bg-white/[0.06] border-white/20 text-white shadow-sm"
+                          : "bg-white/[0.02] border-white/5 text-neutral-500"
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="shrink-0">
                       {isDone ? (
                         <CheckCircle2 className="w-4 h-4 text-white" />
+                      ) : isFailed ? (
+                        <XCircle className="w-4 h-4 text-red-400" />
                       ) : isRunning ? (
                         <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
                       ) : (
@@ -352,11 +376,17 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                   </div>
 
                   <Badge
-                    variant={isDone ? "success" : isRunning ? "info" : "neutral"}
+                    variant={isDone ? "success" : isFailed ? "danger" : isRunning ? "info" : "neutral"}
                     dot={isRunning}
                     size="sm"
                   >
-                    {isDone ? t("Ready") : isRunning ? t("Installing…") : t("Queued")}
+                    {isDone
+                      ? t("Ready")
+                      : isFailed
+                        ? t("Failed")
+                        : isRunning
+                          ? t("Installing…")
+                          : t("Queued")}
                   </Badge>
                 </div>
               );
