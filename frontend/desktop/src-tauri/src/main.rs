@@ -511,6 +511,8 @@ fn main() {
                     .background_color(tauri::webview::Color(6, 6, 6, 255))
                     .data_directory(app.state::<AppState>().paths.config.join("session"))
                     .additional_browser_args(WEBVIEW_ARGS)
+                    // The React upload controls handle HTML5 file drops.
+                    .disable_drag_drop_handler()
                     .devtools(false)
                     .initialization_script(desktop_policy::SCRIPT)
                     .initialization_script(&bridge)

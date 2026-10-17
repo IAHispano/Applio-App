@@ -3,8 +3,6 @@ name: Validate migration
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [exp/tauri]
   workflow_dispatch:
 
 permissions:
@@ -44,8 +42,8 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - name: Check types and native compilation
-        run: pnpm typecheck
+      - name: Check TypeScript
+        run: pnpm -r typecheck
       - name: Check Rust formatting
         run: node scripts/cargo.mjs fmt --all -- --check
       - name: Build desktop and exported interface
