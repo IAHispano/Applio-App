@@ -1,6 +1,19 @@
 {
   "inference": [
     {
+      "name": "cleanupMode",
+      "type": "enum",
+      "default": "off",
+      "values": ["off", "light", "speech"]
+    },
+    {
+      "name": "cleanupStrength",
+      "type": "number",
+      "default": 12,
+      "min": 1,
+      "max": 30
+    },
+    {
       "name": "pthPath",
       "type": "string",
       "min": 1
@@ -149,7 +162,8 @@
     {
       "name": "formantTimbre",
       "type": "number",
-      "default": 1
+      "default": 1,
+      "min": 0.1
     }
   ],
   "tts": [
@@ -173,6 +187,8 @@
     }
   ],
   "cliOrder": [
+    "cleanupMode",
+    "cleanupStrength",
     "pitch",
     "indexRate",
     "volumeEnvelope",

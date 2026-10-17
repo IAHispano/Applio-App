@@ -259,7 +259,9 @@ async fn tts(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accep
                 engine.jobs.stage(&job.id, "Generating speech…", None, None);
                 cli(&engine, &job.id, vec!["rvc/lib/tools/tts.py".into(), "--tts-file".into(), tts_file, "--tts-text".into(), string(&params,"ttsText"), "--tts-voice".into(), string(&params,"ttsVoice"), "--tts-rate".into(), params["ttsRate"].to_string(), "--output-tts-path".into(), path_string(&intermediate)], &token, &mut stdout).await?;
                 engine.jobs.stage(&job.id, "Loading voice model…", None, None);
-                cli(&engine, &job.id, infer_cli(&params, &intermediate, &wav), &token, &mut stdout).await?;
+                let mut args = infer_cli(&params, &intermediate, &wav);
+                args.extend(["--cleanup-stage".into(), "output".into()]);
+                cli(&engine, &job.id, args, &token, &mut stdout).await?;
                 Value::Null
             }
         };

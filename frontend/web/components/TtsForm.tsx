@@ -295,6 +295,7 @@ export default function TtsForm() {
         <ConversionParameters
           step={3}
           idPrefix="tts"
+          cleanupStage="output"
           simplified
           values={conversion.values}
           setters={conversion.setters}

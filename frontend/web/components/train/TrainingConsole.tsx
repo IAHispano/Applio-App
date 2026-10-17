@@ -55,6 +55,13 @@ export default function TrainingConsole({
   const router = useRouter();
 
   const { job, error, setError } = useJob(jobId);
+  // A restored job keeps its submitted limit even if the form has reset or
+  // been edited since launch.
+  const submittedEpochs = job?.params?.totalEpoch;
+  const epochLimit =
+    typeof submittedEpochs === "number" && Number.isInteger(submittedEpochs) && submittedEpochs > 0
+      ? submittedEpochs
+      : totalEpochs;
   const [filterText, setFilterText] = useState("");
   const [level, setLevel] = useState<LogLevel>("all");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -391,7 +398,7 @@ export default function TrainingConsole({
           value={
             <div className="flex items-baseline gap-1.5">
               <span>{metrics.currentEpoch !== null ? metrics.currentEpoch : "—"}</span>
-              <span className="text-xs text-neutral-400 font-normal">/ {totalEpochs}</span>
+              <span className="text-xs text-neutral-400 font-normal">/ {epochLimit}</span>
             </div>
           }
         >

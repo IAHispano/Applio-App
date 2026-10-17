@@ -110,6 +110,8 @@ export default function BatchForm() {
     formantShifting,
     formantQfrency,
     formantTimbre,
+    cleanupMode,
+    cleanupStrength,
   } = conversion.values;
   const [sid, setSid] = useWorkspaceState("BatchForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("batch");
@@ -329,6 +331,8 @@ export default function BatchForm() {
         formantShifting,
         formantQfrency,
         formantTimbre,
+        cleanupMode,
+        cleanupStrength,
         sid: singleFile || selectedModels.length > 1 ? 0 : sid,
       });
       setJobId(id);

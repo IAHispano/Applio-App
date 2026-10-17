@@ -36,6 +36,8 @@ export interface ConversionParameterValues {
   formantShifting: boolean;
   formantQfrency: number;
   formantTimbre: number;
+  cleanupMode: "off" | "light" | "speech";
+  cleanupStrength: number;
 }
 
 export type ConversionParameterSetters = {
@@ -54,6 +56,7 @@ interface ConversionParametersProps {
   step?: number;
   /** Workflow-specific controls grouped with the technical settings. */
   additionalControls?: React.ReactNode;
+  cleanupStage?: "input" | "output";
 }
 
 export default function ConversionParameters({
@@ -65,6 +68,7 @@ export default function ConversionParameters({
   simplified = false,
   step,
   additionalControls,
+  cleanupStage = "input",
 }: ConversionParametersProps) {
   const { t } = useI18n();
   const {
@@ -371,7 +375,7 @@ export default function ConversionParameters({
                 id={`${idPrefix}-formant-timbre`}
                 label={t("Timbre for formant shifting")}
                 value={formantTimbre}
-                min={0}
+                min={0.1}
                 max={16.0}
                 step={0.1}
                 onChange={setFormantTimbre}
@@ -381,7 +385,50 @@ export default function ConversionParameters({
           )}
         </Disclosure>
 
-        {/* Audio FX Rack Accordion */}
+        <Disclosure title={t("Audio cleanup")} icon={<Sparkles size={15} />}>
+          <label htmlFor={`${idPrefix}-cleanup-mode`} className="text-xs text-neutral-300">
+            {t("Noise reduction")}
+          </label>
+          <CustomSelect
+            id={`${idPrefix}-cleanup-mode`}
+            value={values.cleanupMode}
+            onChange={(event) =>
+              setters.cleanupMode(event.target.value as ConversionParameterValues["cleanupMode"])
+            }
+            options={[
+              { value: "off", label: t("Off") },
+              { value: "light", label: t("Light cleanup (FFmpeg)") },
+              { value: "speech", label: t("Speech enhancement (DeepFilterNet3)") },
+            ]}
+          />
+          {values.cleanupMode !== "off" && (
+            <SliderField
+              id={`${idPrefix}-cleanup-strength`}
+              label={t("Noise reduction limit")}
+              value={values.cleanupStrength}
+              min={1}
+              max={30}
+              step={1}
+              unit="dB"
+              onChange={setters.cleanupStrength}
+              description={t("Higher values remove more noise and can change the voice. Start with 12 dB.")}
+            />
+          )}
+          <p className="text-xs text-neutral-400">
+            {cleanupStage === "output"
+              ? t("Cleans the converted speech before export. Leave Off for already-clean TTS.")
+              : t(
+                  "Cleans the source audio before voice conversion. Leave Off for singing unless tested on your audio.",
+                )}
+          </p>
+          {values.cleanupMode === "speech" && (
+            <p className="text-xs text-neutral-400">
+              {t(
+                "Processes locally on CPU. The runtime and model download on first use (about 35 MB). Speech enhancement may suppress music and sustained vocals.",
+              )}
+            </p>
+          )}
+        </Disclosure>
       </div>
     </>
   );

@@ -82,7 +82,7 @@ def run_uvr_script(
         "--output-dir",
         output_dir,
         "--output-format",
-        output_format,
+        output_format.lower(),
         "--device",
         device,
     ]

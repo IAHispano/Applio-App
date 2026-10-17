@@ -27,6 +27,8 @@ export const CONVERSION_DEFAULTS: ConversionParameterValues = {
   formantShifting: false,
   formantQfrency: 1,
   formantTimbre: 1,
+  cleanupMode: "off",
+  cleanupStrength: 12,
 };
 
 export function useConversionParameters(model = "", workspace = "conversion") {
@@ -36,7 +38,7 @@ export function useConversionParameters(model = "", workspace = "conversion") {
     () => ({ ...CONVERSION_DEFAULTS }),
   );
   const saved = presets.presets[modelPresetKey("conversion", model)];
-  const values = model ? ({ ...CONVERSION_DEFAULTS, ...saved } as ConversionParameterValues) : sessionValues;
+  const values = { ...CONVERSION_DEFAULTS, ...(model ? saved : sessionValues) } as ConversionParameterValues;
   const modelRef = useRef(model);
   modelRef.current = model;
   const setters = useMemo(

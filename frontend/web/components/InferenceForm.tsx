@@ -82,6 +82,8 @@ export default function InferenceForm() {
     formantShifting,
     formantQfrency,
     formantTimbre,
+    cleanupMode,
+    cleanupStrength,
   } = conversion.values;
   const { embedderModel: setEmbedderModel } = conversion.setters;
 
@@ -237,6 +239,8 @@ export default function InferenceForm() {
     fd.append("proposedPitch", String(proposedPitch));
     fd.append("proposedPitchThreshold", String(proposedPitchThreshold));
     fd.append("sid", String(sid));
+    fd.append("cleanupMode", cleanupMode);
+    fd.append("cleanupStrength", String(cleanupStrength));
 
     if (formantShifting) {
       fd.append("formantShifting", "true");

@@ -330,7 +330,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     setProposedPitchThreshold(num(values.proposed_pitch_threshold, 50, 1200, 155));
     setFormantShifting(bool(values.formant_shifting, false));
     setFormantQfrency(num(values.formant_qfrency, 0, 16, 1));
-    setFormantTimbre(num(values.formant_timbre, 0, 16, 1));
+    setFormantTimbre(num(values.formant_timbre, 0.1, 16, 1));
     setSid(num(values.sid, 0, 63, 0));
     const method = str(values.f0_method, "fcpe");
     setF0Method(REALTIME_F0_METHODS.includes(method) ? method : "fcpe");
@@ -380,7 +380,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     setProposedPitchThreshold(num(rt.proposed_pitch_threshold, 50, 1200, 155));
     setFormantShifting(bool(rt.formant_shifting, false));
     setFormantQfrency(num(rt.formant_qfrency, 0, 16, 1));
-    setFormantTimbre(num(rt.formant_timbre, 0, 16, 1));
+    setFormantTimbre(num(rt.formant_timbre, 0.1, 16, 1));
     setChunkMs(num(rt.chunk_ms, 20, 1000, 30));
     setAutoChunk(bool(rt.auto_chunk, true));
     setCrossfade(num(rt.cross_fade_overlap_size, 0.05, 0.2, 0.05));
@@ -1672,7 +1672,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
                   id="rt-formant-timbre"
                   label={t("Timbre for formant shifting")}
                   value={formantTimbre}
-                  min={0}
+                  min={0.1}
                   max={16}
                   step={0.1}
                   onChange={(v) => {
@@ -1681,6 +1681,9 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
                   }}
                   description={t("Adjusts vocal tract length / timbre brightness")}
                 />
+                <p className="text-xs text-neutral-400 sm:col-span-2">
+                  {t("Active formant shifting adds 64 ms of audio delay. Timbre 1 is neutral.")}
+                </p>
               </div>
             )}
           </Disclosure>
@@ -1973,7 +1976,14 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
               silentThreshold={silent}
               chunkMs={calibrating ? calibrationCurrent : chunkMs}
               autoChunk={calibrating ? false : autoChunk}
-              diagnostics={diagnostics}
+              diagnostics={{
+                ...diagnostics,
+                estimatedMs:
+                  diagnostics.estimatedMs +
+                  (formantShifting && formantQfrency >= 0.0625 && formantTimbre !== 1 && !passthrough
+                    ? 64
+                    : 0),
+              }}
             />
           )}
         </div>
