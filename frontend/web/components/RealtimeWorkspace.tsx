@@ -101,7 +101,9 @@ function realtimePreset(values: Record<string, unknown>) {
     Object.entries(REALTIME_PRESET_DEFAULTS).map(([key, fallback]) => [key, values[key] ?? fallback]),
   ) as Record<string, string | number | boolean>;
 }
-export default function RealtimeWorkspace() {
+export default function RealtimeWorkspace({ active = true }: { active?: boolean }) {
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const { t } = useI18n();
   const [engine, setEngine] = useState<RtStatus | null>(null);
   const [models, setModels] = useState<string[]>([]);
@@ -244,6 +246,7 @@ export default function RealtimeWorkspace() {
     if (!analyser) return;
     const buf = new Uint8Array(analyser.fftSize);
     micMeterTimerRef.current = setInterval(() => {
+      if (!activeRef.current || document.hidden) return;
       try {
         analyser.getByteTimeDomainData(buf);
         let peak = 0;
@@ -644,6 +647,9 @@ export default function RealtimeWorkspace() {
         (stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })?.latency ||
         0;
       const healthWindow = new RealtimeHealthWindow();
+      let nextDiagnosticsAt = 0;
+      let nextTelemetryAt = 0;
+      const telemetryInterval = () => (activeRef.current && !document.hidden ? 100 : 1000);
       calibrationCountersRef.current = { droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 };
       playNode.port.onmessage = (event) => {
         const stats = event.data.stats;
@@ -653,12 +659,16 @@ export default function RealtimeWorkspace() {
           underrunMs: (stats.underrunFrames / ctx.sampleRate) * 1000,
           playbackDroppedMs: (stats.droppedFrames / ctx.sampleRate) * 1000,
         };
+        const now = performance.now();
+        const health = healthWindow.push(
+          now,
+          sender.droppedBlocks,
+          (stats.underrunFrames / ctx.sampleRate) * 1000,
+        );
+        if (now < nextDiagnosticsAt) return;
+        nextDiagnosticsAt = now + telemetryInterval();
         setDiagnostics({
-          ...healthWindow.push(
-            performance.now(),
-            sender.droppedBlocks,
-            (stats.underrunFrames / ctx.sampleRate) * 1000,
-          ),
+          ...health,
           estimatedMs:
             (block / ctx.sampleRate) * 1000 +
             crossfade * 1000 +
@@ -746,18 +756,21 @@ export default function RealtimeWorkspace() {
             }
             if (m.type === "latency" && Number.isFinite(m.value)) {
               lastProcessingMs = m.value;
-              setLatency(m.value);
             }
             if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
               lastInputRms = m.volume;
-            if (typeof m.volume === "number" && Number.isFinite(m.volume) && m.volume >= 0)
-              setInputLevel({ rms: m.volume, at: performance.now() });
           } catch {
             /* ignore */
           }
         } else {
           lastRoundTrip = performance.now() - sentAt;
-          setRoundTrip(lastRoundTrip);
+          const now = performance.now();
+          if (now >= nextTelemetryAt) {
+            nextTelemetryAt = now + telemetryInterval();
+            setRoundTrip(lastRoundTrip);
+            setLatency(lastProcessingMs);
+            setInputLevel({ rms: lastInputRms, at: now });
+          }
           if (calibrationControllerRef.current) {
             const rendered = new Float32Array(ev.data);
             const convertedSignal = rendered.some((sample) => Math.abs(sample) > 0.00001);
@@ -1952,7 +1965,7 @@ export default function RealtimeWorkspace() {
             )}
           </div>
 
-          {streaming && (
+          {streaming && active && (
             <RealtimeDiagnostics
               latency={latency}
               roundTrip={roundTrip}

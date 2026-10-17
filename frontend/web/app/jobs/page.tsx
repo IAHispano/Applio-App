@@ -25,6 +25,7 @@ export default function JobsPage() {
   const [type, setType] = useWorkspaceState("page:jobs:type", "all");
   const fetching = useRef(false);
   const mounted = useRef(false);
+  const hasActiveJobs = useRef(false);
   const refresh = useCallback(async () => {
     if (fetching.current) return;
     fetching.current = true;
@@ -32,6 +33,9 @@ export default function JobsPage() {
     try {
       const response = await apiGet<{ jobs: Job[] }>("/api/jobs", { force: true });
       if (mounted.current) {
+        hasActiveJobs.current = response.jobs.some(
+          (job) => job.status === "queued" || job.status === "running",
+        );
         setJobs(response.jobs);
         setError("");
       }
@@ -48,12 +52,32 @@ export default function JobsPage() {
   useEffect(() => {
     mounted.current = true;
     void refresh();
+    let elapsed = 0;
+    let changed: ReturnType<typeof setTimeout> | undefined;
     const timer = setInterval(() => {
-      if (document.visibilityState === "visible") void refresh();
+      elapsed += 3000;
+      if (document.hidden || (!hasActiveJobs.current && elapsed < 30000)) return;
+      elapsed = 0;
+      void refresh();
     }, 3000);
+    const onJobState = () => {
+      if (changed || document.hidden) return;
+      changed = setTimeout(() => {
+        changed = undefined;
+        void refresh();
+      }, 250);
+    };
+    const onVisible = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("applio:job-state", onJobState);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       mounted.current = false;
       clearInterval(timer);
+      clearTimeout(changed);
+      window.removeEventListener("applio:job-state", onJobState);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refresh]);
   const labels = useMemo(() => [...new Set(jobs.map((job) => job.label || job.type))].sort(), [jobs]);

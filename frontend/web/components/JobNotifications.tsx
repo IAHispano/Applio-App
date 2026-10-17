@@ -33,6 +33,7 @@ export default function JobNotifications() {
     const bridge = (window as unknown as { applio?: DesktopNotifications }).applio;
     const unsubscribe = bridge?.onJobOpen?.((href) => router.push(normalizeJobHref(href)));
     const announce = ({ job, terminal }: { job: JobActivity; terminal: boolean }) => {
+      window.dispatchEvent(new Event("applio:job-state"));
       if (terminal && ["train", "download", "other"].includes(job.type)) {
         clearApiCache("/api/models");
         void fetchModels().catch(() => {});

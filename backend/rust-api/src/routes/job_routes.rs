@@ -57,12 +57,10 @@ fn not_found() -> Response {
 }
 
 async fn list(State(state): State<JobsState>) -> Json<Value> {
-    Json(
-        json!({"jobs": state.jobs.list().iter().map(|job| job.public_value(Some(20))).collect::<Vec<_>>(), "scheduling": state.scheduler.status()}),
-    )
+    Json(json!({"jobs": state.jobs.public_list(20), "scheduling": state.scheduler.status()}))
 }
 async fn activity(State(state): State<JobsState>) -> Json<Value> {
-    Json(json!({"jobs": state.jobs.list().iter().map(|job| job.summary()).collect::<Vec<_>>()}))
+    Json(json!({"jobs": state.jobs.activity()}))
 }
 async fn one(State(state): State<JobsState>, Path(id): Path<String>) -> Response {
     match state.jobs.get(&id) {
@@ -93,7 +91,7 @@ fn stream_response(
         .keep_alive(
             KeepAlive::new()
                 .interval(Duration::from_secs(15))
-                .text("heartbeat"),
+                .event(Event::default().event("heartbeat").data("")),
         )
         .into_response();
     response.headers_mut().insert(
@@ -143,14 +141,14 @@ async fn job_events(State(state): State<JobsState>, Path(id): Path<String>) -> R
 }
 
 async fn all_events(State(state): State<JobsState>) -> Response {
-    let (initial, mut receiver) = state.jobs.subscribe_snapshot();
+    let (initial, mut receiver) = state.jobs.subscribe_activity();
     stream_response(async_stream::stream! {
-        yield event(json!({"jobs": initial.iter().map(|job| job.summary()).collect::<Vec<_>>()}));
+        yield event(json!({"jobs": initial}));
         loop {
             let update=tokio::select! {
                 biased;
                 _=state.cancelled.cancelled()=>{
-                    yield event(json!({"jobs":state.jobs.list().iter().map(|job|job.summary()).collect::<Vec<_>>()}));
+                    yield event(json!({"jobs":state.jobs.activity()}));
                     break;
                 },
                 update=receiver.recv()=>update,
@@ -159,9 +157,9 @@ async fn all_events(State(state): State<JobsState>) -> Response {
                 Ok(update) if update.kind == EventKind::State => yield event(json!({"job": update.job.summary()})),
                 Ok(_) => {}
                 Err(broadcast::error::RecvError::Lagged(_)) => {
-                    let (current, new_receiver) = state.jobs.subscribe_snapshot();
+                    let (current, new_receiver) = state.jobs.subscribe_activity();
                     receiver = new_receiver;
-                    yield event(json!({"jobs": current.iter().map(|job| job.summary()).collect::<Vec<_>>()}));
+                    yield event(json!({"jobs": current}));
                 }
                 Err(broadcast::error::RecvError::Closed) => break,
             }

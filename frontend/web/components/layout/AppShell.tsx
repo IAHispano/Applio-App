@@ -22,6 +22,17 @@ const RealtimeWorkspace = dynamic(() => import("@/components/RealtimeWorkspace")
 const UNGUARDED_ROUTES = new Set(["/", "/settings", "/report"]);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const visibility = () => {
+      document.documentElement.toggleAttribute("data-app-hidden", document.hidden);
+    };
+    visibility();
+    document.addEventListener("visibilitychange", visibility);
+    return () => {
+      document.removeEventListener("visibilitychange", visibility);
+      document.documentElement.removeAttribute("data-app-hidden");
+    };
+  }, []);
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
@@ -129,7 +140,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
           {!remote && (
             <PersistentWorkspace active={pathname === "/realtime" && isReady}>
-              <RealtimeWorkspace />
+              <RealtimeWorkspace active={pathname === "/realtime"} />
             </PersistentWorkspace>
           )}
           <footer className="mt-auto pt-6 pb-1 flex items-center justify-center gap-3 text-[11px] text-[var(--muted)]">

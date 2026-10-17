@@ -281,6 +281,12 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
     closeStream();
     if (!controller.signal.aborted && !stopPolling) stopPolling = pollJob(id, onUpdate, intervalMs);
   };
+  const keepStreamAlive = () => {
+    clearTimeout(timer);
+    // The server sends a heartbeat every 15 seconds even when a job is quiet.
+    // Allow two missed heartbeats before falling back to HTTP polling.
+    timer = setTimeout(() => fallback(5000), 45000);
+  };
   fetchJob(id, controller.signal)
     .then(({ job }) => {
       if (controller.signal.aborted) return;
@@ -297,6 +303,7 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
       const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
       try {
         source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events`);
+        source.addEventListener("heartbeat", keepStreamAlive);
         source.onmessage = (event) => {
           if (controller.signal.aborted || !source) return;
           try {
@@ -307,9 +314,7 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
               closeStream();
               return;
             }
-            clearTimeout(timer);
-            // Quiet jobs need only the same five-second check as the watchdog.
-            timer = setTimeout(() => fallback(5000), 5000);
+            keepStreamAlive();
           } catch {
             /* malformed chunks do not postpone the fallback */
           }

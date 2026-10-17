@@ -154,10 +154,25 @@ impl Job {
     }
 
     pub fn public_value(&self, log_tail: Option<usize>) -> Value {
-        let mut value = serde_json::to_value(self).expect("serializable job");
-        value["label"] = json!(self.label());
-        if let Some(tail) = log_tail {
-            value["logs"] = json!(&self.logs[self.logs.len().saturating_sub(tail)..]);
+        // Select the tail before serialization. Serializing a complete training
+        // log and then discarding it made history requests allocate it twice.
+        let start = log_tail.map_or(0, |tail| self.logs.len().saturating_sub(tail));
+        let mut value = json!({
+            "id": self.id, "type": self.kind, "status": self.status,
+            "createdAt": self.created_at, "updatedAt": self.updated_at,
+            "label": self.label(), "logs": &self.logs[start..],
+        });
+        macro_rules! optional {
+            ($($key:literal => $field:ident),* $(,)?) => {
+                $(if let Some(field) = &self.$field { value[$key] = json!(field); })*
+            };
+        }
+        optional! {
+            "startedAt" => started_at, "finishedAt" => finished_at,
+            "params" => params, "result" => result, "error" => error,
+            "errorDetails" => error_details, "outputFile" => output_file,
+            "stage" => stage, "stageCurrent" => stage_current,
+            "stageTotal" => stage_total, "progress" => progress,
         }
         value
     }
@@ -367,6 +382,18 @@ impl JobStore {
     pub fn list(&self) -> Vec<Job> {
         ordered_jobs(&self.0.state.lock().unwrap(), true)
     }
+    pub fn public_list(&self, log_tail: usize) -> Vec<Value> {
+        ordered_entries(&self.0.state.lock().unwrap(), true)
+            .into_iter()
+            .map(|entry| entry.job.public_value(Some(log_tail)))
+            .collect()
+    }
+    pub fn activity(&self) -> Vec<Value> {
+        ordered_entries(&self.0.state.lock().unwrap(), true)
+            .into_iter()
+            .map(|entry| entry.job.summary())
+            .collect()
+    }
     pub fn subscribe(&self) -> broadcast::Receiver<JobEvent> {
         self.0.events.subscribe()
     }
@@ -382,10 +409,14 @@ impl JobStore {
             .map(|entry| (entry.job.clone(), receiver))
     }
 
-    pub fn subscribe_snapshot(&self) -> (Vec<Job>, broadcast::Receiver<JobEvent>) {
+    pub fn subscribe_activity(&self) -> (Vec<Value>, broadcast::Receiver<JobEvent>) {
         let state = self.0.state.lock().unwrap();
         let receiver = self.0.events.subscribe();
-        (ordered_jobs(&state, true), receiver)
+        let activity = ordered_entries(&state, true)
+            .into_iter()
+            .map(|entry| entry.job.summary())
+            .collect();
+        (activity, receiver)
     }
     pub fn cancellation(&self, id: &str) -> Option<CancellationToken> {
         self.0
@@ -649,6 +680,12 @@ impl JobStore {
     }
 }
 fn ordered_jobs(state: &StoreState, descending: bool) -> Vec<Job> {
+    ordered_entries(state, descending)
+        .into_iter()
+        .map(|entry| entry.job.clone())
+        .collect()
+}
+fn ordered_entries(state: &StoreState, descending: bool) -> Vec<&Entry> {
     let mut entries: Vec<_> = state.jobs.values().collect();
     entries.sort_by(|a, b| {
         let dates = if descending {
@@ -658,7 +695,7 @@ fn ordered_jobs(state: &StoreState, descending: bool) -> Vec<Job> {
         };
         dates.then_with(|| a.ordinal.cmp(&b.ordinal))
     });
-    entries.into_iter().map(|entry| entry.job.clone()).collect()
+    entries
 }
 
 fn progress_description(line: &str) -> Option<String> {

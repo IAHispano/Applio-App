@@ -669,6 +669,16 @@ dialog.app-dialog::backdrop {
 #main-content {
   scroll-padding-block: 1rem calc(7rem + env(safe-area-inset-bottom));
 }
+/* Hidden and modal-covered screens have no visible motion to render. In
+   particular, pulsing skeletons behind a blurred dialog repaint its backdrop. */
+html[data-app-hidden] *,
+html[data-app-hidden] *::before,
+html[data-app-hidden] *::after,
+body:has(dialog[open]) #main-content *,
+body:has(dialog[open]) #main-content *::before,
+body:has(dialog[open]) #main-content *::after {
+  animation-play-state: paused !important;
+}
 @media (min-width: 1024px) {
   #main-content {
     scroll-padding-bottom: 1rem;

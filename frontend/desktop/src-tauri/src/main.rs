@@ -22,7 +22,10 @@ use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState};
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_opener::OpenerExt;
 
-const WEBVIEW_ARGS: &str = "--autoplay-policy=no-user-gesture-required --disable-background-timer-throttling --disable-renderer-backgrounding --disable-backgrounding-occluded-windows";
+// Keep realtime audio timers reliable while allowing Chromium to reduce
+// rendering work and priority when the window is covered or minimized.
+const WEBVIEW_ARGS: &str =
+    "--autoplay-policy=no-user-gesture-required --disable-background-timer-throttling";
 
 pub struct AppState {
     paths: Paths,
