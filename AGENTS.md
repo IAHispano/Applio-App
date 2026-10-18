@@ -1,0 +1,96 @@
+# Repository guidance
+
+## Project layout
+
+- `frontend/web`: Next.js/React interface, exported as static files for desktop.
+- `frontend/desktop/src-tauri`: Rust/Tauri shell, native bridge, tray, and updater.
+- `backend/rust-api`: Axum API, job scheduling, process management, and setup.
+- `backend/python`: adapters and workers for the Python engine.
+- `backend/applio`: pinned engine submodule. Prefer repository-level adapters
+  for app integration; change the pin only when intentionally updating the engine.
+- `assets/ecosystem.json`: official project links. `assets/i18n/languages`:
+  translation dictionaries, with `en_US.json` as the key authority.
+
+## Development
+
+Use Node.js 22+, the pnpm version in `package.json`, stable Rust, Python 3.12,
+FFmpeg, and the native Tauri prerequisites for the host platform.
+Run commands from the repository root unless stated otherwise.
+
+```sh
+pnpm install --frozen-lockfile
+pnpm backend:init
+pnpm desktop:dev
+```
+
+`pnpm dev` runs the API and browser interface. Use `node scripts/cargo.mjs`
+for Cargo commands so the repository's Rust environment setup is applied.
+Release builds require the backend submodule to match its pin and have no
+uncommitted source changes; do not bypass `pnpm backend:check` to ship a build.
+
+Keep changes focused and preserve existing user work. Reuse shared UI components
+and helpers. Avoid adding dependencies or standalone scripts when existing code
+can handle the task. Keep README concise; do not commit temporary investigation
+notes, release-check reports, generated resources, models, or local user data.
+Retain licenses and third-party attribution files.
+
+## Verification
+
+Run checks appropriate to the change. Review documentation-only changes for
+accuracy, links, and formatting; they do not require rebuilding installers.
+For application changes, use the relevant commands below:
+
+```sh
+pnpm typecheck
+pnpm format:check
+pnpm --filter @applio/web build
+node --test scripts/check-realtime-audio.mjs scripts/check-settings-actions.mjs scripts/check-update-policy.mjs
+python scripts/check-realtime-service.py
+node scripts/cargo.mjs test -p applio-api --lib
+```
+
+Do not run Next.js type generation, development, and production builds against
+the same output directory concurrently. Add regression coverage for meaningful
+bugs, reuse existing checks, and keep workflow references in sync when moving
+or removing scripts. Distinguish passing checks from warnings and untested paths.
+
+## Runtime behavior to preserve
+
+- GPU work must respect scheduler ownership. Do not load models or run
+  speculative realtime warmup outside the realtime GPU lease.
+- On stop, restart, or quit, cancel work and clean up owned child processes
+  before releasing their resources. Never terminate a process based only on
+  its name or an unverified saved PID.
+- Preserve WebKit audio graph routing and microphone track cleanup. Test Voice
+  Focus changes against the existing realtime audio checks; browser tests alone
+  do not establish microphone behavior on macOS or Linux.
+- Keep the local API on loopback and preserve Bridge authorization, validated
+  native IPC commands, and narrow Tauri permissions.
+- Updates are optional. Automatic checks must not download or install updates.
+  Deferral applies to the chosen release, and Settings must still allow updating.
+- Downloads must retain an Open file fallback, including temporary audio/blob
+  previews. A requested download is not proof that a file was saved.
+- Use the i18n helpers for user-facing strings and add English dictionary keys.
+  Keep official links in the ecosystem configuration where applicable.
+
+## Packaging and releases
+
+Build native installers on their corresponding platforms using `pnpm build:win`,
+`pnpm build:mac`, or `pnpm build:linux`. Preserve AppImage media bundling and
+`node scripts/collect-tauri-artifacts.mjs --check-appimage-media` in Linux checks.
+
+The validation workflow builds unsigned installers and runs packaged Linux/macOS
+startup checks. The release workflow changes versions, pushes a version commit,
+builds signed updater artifacts, and publishes a release. Use validation for
+testing; run the publishing workflow only when the user requests a release.
+Let `scripts/sync-version.mjs` synchronize release versions instead of editing
+one package version in isolation. Preserve updater signing identity and never
+commit signing keys, credentials, or tokens.
+
+State exactly which revision and platforms were tested. Installer compilation
+and startup checks do not replace real microphone, audio playback, GPU, tray,
+or signed-update testing. Do not describe those paths as verified without evidence.
+
+Follow `SECURITY.md` for vulnerability handling. Keep vulnerability details out
+of public issues and the Discord testers channel. Ordinary bug reports should
+use the guided issue form with reproduction details and screenshot/video evidence.
