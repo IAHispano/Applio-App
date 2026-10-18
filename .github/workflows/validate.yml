@@ -53,7 +53,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf gstreamer1.0-plugins-base gstreamer1.0-plugins-good xvfb dbus-x11
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Check TypeScript
         run: pnpm -r typecheck
@@ -76,6 +76,26 @@ jobs:
       - name: Verify AppImage media bundle
         if: runner.os == 'Linux'
         run: node scripts/check-appimage-media.mjs
+      - name: Smoke-test packaged Linux desktop
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          image=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -print -quit)
+          test -n "$image"
+          dbus-run-session -- xvfb-run -a python scripts/check-desktop-startup.py "$image" --appimage-extract-and-run
+      - name: Smoke-test macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          image=$(find target/release/bundle/dmg -maxdepth 1 -name '*.dmg' -print -quit)
+          test -n "$image"
+          mountpoint="$RUNNER_TEMP/applio-dmg"
+          mkdir -p "$mountpoint"
+          hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mountpoint"
+          trap 'hdiutil detach "$mountpoint"' EXIT
+          executable=$(find "$mountpoint/Applio.app/Contents/MacOS" -type f -perm +111 -print -quit)
+          test -n "$executable"
+          python scripts/check-desktop-startup.py "$executable"
       - name: Upload installers for platform acceptance tests
         uses: actions/upload-artifact@v5
         with:
