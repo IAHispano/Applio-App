@@ -159,10 +159,10 @@ def main():
     args = parser.parse_args()
 
     if args.list_models:
-        print(
-            "APPLIO_JSON:"
-            + json.dumps({"models": [m.to_dict() for m in catalog.MODELS]})
-        )
+        repo_root = os.getcwd()
+        models = [m.to_dict(repo_root) for m in catalog.MODELS]
+        models.sort(key=lambda m: not m.get("downloaded", False))
+        print("APPLIO_JSON:" + json.dumps({"models": models}))
         return
 
     if not args.input_path or not args.model:

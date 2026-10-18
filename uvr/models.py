@@ -24,15 +24,29 @@ class UvrModel:
         self.aliases = tuple(aliases)
         self.cls = cls  # roformer model class: "mel_band" | "bs"
 
-    def to_dict(self):
+    def is_downloaded(self, root_dir="."):
+        import os
+
+        from uvr import OUTPUT_MODELS_DIRNAME
+
+        model_dir = os.path.join(root_dir, OUTPUT_MODELS_DIRNAME, self.key)
+        return bool(self.files) and all(
+            os.path.isfile(os.path.join(model_dir, fname))
+            and os.path.getsize(os.path.join(model_dir, fname)) > 0
+            for fname, _ in self.files
+        )
+
+    def to_dict(self, root_dir="."):
         return {
             "key": self.key,
             "label": self.label,
             "arch": self.arch,
             "filename": self.files[0][0],
+            "files": [fname for fname, _ in self.files],
             "stems": self.stems,
             "target": self.target,
             "blurb": self.blurb,
+            "downloaded": self.is_downloaded(root_dir),
         }
 
 
