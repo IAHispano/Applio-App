@@ -184,7 +184,7 @@ jobs:
 
       - name: Verify AppImage media bundle
         if: runner.os == 'Linux'
-        run: node scripts/check-appimage-media.mjs
+        run: node scripts/collect-tauri-artifacts.mjs --check-appimage-media
 
       - name: Collect Tauri installers
         run: node scripts/collect-tauri-artifacts.mjs

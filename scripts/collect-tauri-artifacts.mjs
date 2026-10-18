@@ -5,7 +5,18 @@ import path from "node:path";
 import { releaseVersion } from "./release-version.mjs";
 
 const manifestIndex = process.argv.indexOf("--manifest");
-if (manifestIndex >= 0) {
+if (process.argv.includes("--check-appimage-media")) {
+  // AppRun uses bundled plugins: host-installed plugins cannot fill these gaps.
+  const root = path.resolve("target/release/bundle/appimage/Applio.AppDir");
+  for (const name of ["libgstapp.so", "libgstautodetect.so", "libgstpulseaudio.so"]) {
+    if (!fs.statSync(path.join(root, "usr/lib/gstreamer-1.0", name)).size)
+      throw new Error(`Empty bundled GStreamer plugin: ${name}`);
+  }
+  fs.accessSync(path.join(root, "usr/lib/gstreamer1.0/gstreamer-1.0/gst-plugin-scanner"), fs.constants.X_OK);
+  if (!fs.statSync(path.join(root, "apprun-hooks/linuxdeploy-plugin-gstreamer.sh")).size)
+    throw new Error("Empty AppImage GStreamer startup hook");
+  console.log("AppImage media plugins, scanner, and AppRun hook are present.");
+} else if (manifestIndex >= 0) {
   const directory = path.resolve(process.argv[manifestIndex + 1]);
   const version = releaseVersion(process.env.RELEASE_VERSION);
   const repository = process.env.GITHUB_REPOSITORY || "IAHispano/Applio-App";

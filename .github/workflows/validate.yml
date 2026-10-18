@@ -75,7 +75,7 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=4096
       - name: Verify AppImage media bundle
         if: runner.os == 'Linux'
-        run: node scripts/check-appimage-media.mjs
+        run: node scripts/collect-tauri-artifacts.mjs --check-appimage-media
       - name: Smoke-test packaged Linux desktop
         if: runner.os == 'Linux'
         shell: bash
