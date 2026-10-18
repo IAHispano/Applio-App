@@ -16,4 +16,3 @@ pub mod tensorboard_routes;
 pub mod training_routes;
 pub mod uvr_routes;
 pub mod version_routes;
-pub mod voicefocus_routes;

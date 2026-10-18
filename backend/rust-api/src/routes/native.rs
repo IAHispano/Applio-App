@@ -38,7 +38,6 @@ fn routes(config: ApiConfig, engine: Arc<NativeEngine>, cors: bool) -> Router {
         .merge(crate::setup_routes::router(engine.clone()))
         .merge(crate::version_routes::router(engine.clone()))
         .merge(crate::tensorboard_routes::router(engine.clone()))
-        .merge(crate::voicefocus_routes::router())
         .merge(crate::processing_routes::router(engine));
     if cors {
         app.layer(

@@ -3,27 +3,6 @@ export type VoiceFocusVariant = "off" | "c20" | "c50" | "c100";
 let supportProbe: Promise<boolean> | null = null;
 
 /**
- * Voice Focus fetches its processors, workers and WASM models from the Amazon
- * CDN by default, which relies on cross-origin loading that not every engine
- * accepts (a cross-origin worker can only come from a blob URL, and worklet
- * modules are engine-dependent). The native API proxies the same assets on
- * `/voicefocus/*`, so every request the SDK makes is same-origin instead.
- *
- * The URLs must be absolute: the SDK hands them to a worker, which for a
- * cross-origin script is created from a blob URL and cannot resolve relative
- * paths.
- */
-const ASSET_PATHS =
-  typeof window === "undefined"
-    ? { processors: "", workers: "", wasm: "", models: "" }
-    : {
-        processors: `${window.location.origin}/voicefocus/processors/`,
-        workers: `${window.location.origin}/voicefocus/workers/`,
-        wasm: `${window.location.origin}/voicefocus/wasm/`,
-        models: `${window.location.origin}/voicefocus/wasm/`,
-      };
-
-/**
  * Cheap capability check for the Voice Focus variants, run before offering
  * them. Voice Focus needs WASM audio worklets plus worker and asset loading
  * that stripped-down system WebViews can reject; failing early keeps the raw
@@ -35,7 +14,7 @@ export function voiceFocusSupported(): Promise<boolean> {
       const { default: Transformer } = await import(
         "amazon-chime-sdk-js/build/voicefocus/VoiceFocusDeviceTransformer"
       );
-      return await Transformer.isSupported({ paths: ASSET_PATHS });
+      return await Transformer.isSupported();
     } catch {
       return false;
     }
@@ -54,7 +33,7 @@ export async function connectVoiceFocus(
   const { default: Transformer } = await import(
     "amazon-chime-sdk-js/build/voicefocus/VoiceFocusDeviceTransformer"
   );
-  const transformer = await Transformer.create({ variant, name: "default", paths: ASSET_PATHS });
+  const transformer = await Transformer.create({ variant, name: "default" });
   try {
     if (!transformer.isSupported()) throw new Error("Voice Focus is unavailable in this browser.");
     const device = await transformer.createTransformDevice(stream);

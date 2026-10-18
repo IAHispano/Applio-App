@@ -23,7 +23,7 @@ pub(crate) use routes::catalog::LANGUAGES;
 pub use routes::{
     batch_routes, dataset_routes, download_routes, job_routes, model_routes, native, plugin_routes,
     processing_routes, realtime_routes, report_routes, settings_routes, setup_routes,
-    tensorboard_routes, training_routes, uvr_routes, version_routes, voicefocus_routes,
+    tensorboard_routes, training_routes, uvr_routes, version_routes,
 };
 pub use runtime::{app_runtime, cleaner, locale, metadata_cache, native_host, storage, web_host};
 pub use setup::{setup_install, setup_requirements};
