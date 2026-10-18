@@ -117,7 +117,10 @@ mod tests {
                 Some(query) => format!("{path}?{query}"),
                 None => path.to_owned(),
             };
-            assert_eq!(upstream_path(path, query).as_deref(), Some(expected.as_str()));
+            assert_eq!(
+                upstream_path(path, query).as_deref(),
+                Some(expected.as_str())
+            );
         }
         for path in [
             "",
@@ -129,7 +132,10 @@ mod tests {
             "http://example.test/x.js",
             "other/model.wasm",
         ] {
-            assert!(upstream_path(path, None).is_none(), "{path} must not be proxied");
+            assert!(
+                upstream_path(path, None).is_none(),
+                "{path} must not be proxied"
+            );
         }
         assert!(upstream_path("wasm/model.wasm", Some("assetGroup=<script>")).is_none());
         assert!(upstream_path("wasm/model.wasm", Some("assetGroup=stable-v1&x=1")).is_some());
@@ -143,7 +149,10 @@ mod tests {
         use tower::ServiceExt;
         for (path, content_type) in [
             ("/voicefocus/workers/worker-v1.js", "application/javascript"),
-            ("/voicefocus/wasm/voicefocus-default-c20-v1.wasm", "application/wasm"),
+            (
+                "/voicefocus/wasm/voicefocus-default-c20-v1.wasm",
+                "application/wasm",
+            ),
         ] {
             let request = axum::http::Request::builder()
                 .uri(path)
