@@ -6,8 +6,10 @@
 - `frontend/desktop/src-tauri`: Rust/Tauri shell, native bridge, tray, and updater.
 - `backend/rust-api`: Axum API, job scheduling, process management, and setup.
 - `backend/python`: adapters and workers for the Python engine.
-- `backend/applio`: pinned engine submodule. Prefer repository-level adapters
-  for app integration; change the pin only when intentionally updating the engine.
+- `backend/applio`: pinned upstream Applio submodule containing both the Python
+  engine and the Gradio UI (`app.py`, `tabs/`). It is not an engine-only package.
+  Prefer repository-level adapters for desktop integration; change the pin only
+  when intentionally updating the engine or shared functionality.
 - `assets/ecosystem.json`: official project links. `assets/i18n/languages`:
   translation dictionaries, with `en_US.json` as the key authority.
 
@@ -33,6 +35,46 @@ and helpers. Avoid adding dependencies or standalone scripts when existing code
 can handle the task. Keep README concise; do not commit temporary investigation
 notes, release-check reports, generated resources, models, or local user data.
 Retain licenses and third-party attribution files.
+
+Do not introduce or publish `docs/`, `test/`, `tests/`, or extra `scripts/` files
+as byproducts of a task. Use existing checks and keep exploratory probes and
+scratch documentation local. Maintain existing build and CI scripts when they
+are needed; reuse them instead of creating parallel tooling.
+
+Write clean, readable code with clear names and focused functions. Remove dead
+code and unused imports in the code being changed. Add comments when they explain
+a non-obvious decision, platform constraint, or invariant; avoid comments that
+merely repeat the code, commented-out implementations, and speculative TODOs.
+
+## Gradio and desktop parity
+
+For shared engine features and fixes, inspect both `backend/applio/app.py` and
+`backend/applio/tabs/`, as well as the desktop web UI, Rust API, and Python
+adapters. Keep controls, defaults, validation, engine parameters, saved settings,
+and outputs consistent across the Gradio and desktop interfaces. A change in one
+UI does not automatically reach the other. Trace each affected path and verify
+both where possible; explicitly report any remaining parity gap.
+
+Desktop-specific window, tray, installer, and native updater behavior belongs
+in the desktop integration. When shared changes require editing the submodule,
+account for its own translation files and track the engine revision/pin rather
+than leaving uncommitted submodule changes that release checks will reject.
+
+## Platforms and translations
+
+Consider Linux, macOS, and Windows throughout implementation, not just the host
+being used. Use portable paths and process APIs; account for file permissions,
+native dependencies, audio backends, Linux Wayland/X11, and macOS Apple Silicon
+and Intel where relevant. Preserve CPU and supported accelerator paths. Verify
+affected platforms when available and clearly state what remains untested.
+
+For every new or changed user-facing string, use the appropriate i18n helper
+and update all supported language dictionaries with actual translations. Keep
+placeholders and formatting consistent; adding an English key or copying English
+into other locales is not a completed translation. Desktop dictionaries live in
+`assets/i18n/languages`; Gradio has its own in
+`backend/applio/assets/i18n/languages`. Update the dictionaries for each affected
+interface and reuse existing keys when their meaning matches.
 
 ## Verification
 
@@ -70,14 +112,18 @@ or removing scripts. Distinguish passing checks from warnings and untested paths
   Deferral applies to the chosen release, and Settings must still allow updating.
 - Downloads must retain an Open file fallback, including temporary audio/blob
   previews. A requested download is not proof that a file was saved.
-- Use the i18n helpers for user-facing strings and add English dictionary keys.
-  Keep official links in the ecosystem configuration where applicable.
+- Keep official links in the ecosystem configuration where applicable.
 
 ## Packaging and releases
 
 Build native installers on their corresponding platforms using `pnpm build:win`,
 `pnpm build:mac`, or `pnpm build:linux`. Preserve AppImage media bundling and
 `node scripts/collect-tauri-artifacts.mjs --check-appimage-media` in Linux checks.
+
+Keep development-only documentation, test folders, and build/verification scripts
+out of published installers and runtime resources. Ship only runtime requirements,
+required notices/licenses, and relevant product assets. Review resource staging
+when changing dependencies or packaging so development folders do not leak in.
 
 The validation workflow builds unsigned installers and runs packaged Linux/macOS
 startup checks. The release workflow changes versions, pushes a version commit,
