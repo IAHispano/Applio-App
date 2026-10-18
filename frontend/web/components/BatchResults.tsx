@@ -71,7 +71,7 @@ export default function BatchResults({ job }: { job: Job }) {
                   size="sm"
                   variant="ghost"
                   href={`/api/inference/batch/${encodeURIComponent(job.id)}/outputs/${currentPage * 20 + index}`}
-                  download
+                  download={fileBasename(item.input)}
                   icon={<Download size={14} />}
                 >
                   {t("Download")}

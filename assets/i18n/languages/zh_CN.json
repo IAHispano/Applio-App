@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "从 logs/ 目录下载已训练的 .pth 及其 .index 文件。",
   "Download audio": "下载音频",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "下载基础声音模型和检查点 (hubert、rmvpe、vocoder)",
+  "Download completed": "下载完成",
   "Download failed": "下载失败",
   "Download finished without an audio file.": "下载完成，但未找到音频文件。",
   "Download finished without reporting a file.": "下载完成但未报告文件。",

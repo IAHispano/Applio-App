@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "Unduh .pth yang telah dilatih dan .index-nya dari logs/.",
   "Download audio": "Unduh audio",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "Unduh model suara dasar dan checkpoint (hubert, rmvpe, vocoder)",
+  "Download completed": "Unduhan selesai",
   "Download failed": "Unduhan gagal",
   "Download finished without an audio file.": "Unduhan selesai tanpa file audio.",
   "Download finished without reporting a file.": "Unduhan selesai tanpa melaporkan file.",

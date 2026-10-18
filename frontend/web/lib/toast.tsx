@@ -3,7 +3,7 @@
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useI18n } from "@/lib/i18n";
+import { translate, useI18n } from "@/lib/i18n";
 
 export type ToastKind = "info" | "success" | "error";
 export interface ToastAction {
@@ -24,6 +24,62 @@ interface Toast extends ToastOptions {
   text: string;
 }
 let nextId = 1;
+let lastDownloadToast = { time: 0, name: "" };
+
+export function extractDownloadFilename(
+  downloadAttr?: string | null,
+  href?: string | null,
+  titleOrLabel?: string | null,
+): string | undefined {
+  const sanitize = (val?: string | null): string | undefined => {
+    if (!val || val === "true" || val.startsWith("data:") || val.startsWith("blob:")) return undefined;
+    try {
+      const withoutQuery = val.split(/[?#]/)[0];
+      const decoded = decodeURIComponent(withoutQuery);
+      const base = decoded.split(/[\\/]/).pop()?.trim();
+      if (!base || /^\d+$/.test(base)) return undefined;
+      return base;
+    } catch {
+      const base = val.split(/[?#]/)[0].split(/[\\/]/).pop()?.trim();
+      if (!base || /^\d+$/.test(base)) return undefined;
+      return base;
+    }
+  };
+
+  const fromDownload = sanitize(downloadAttr);
+  if (fromDownload) return fromDownload;
+
+  const fromHref = sanitize(href);
+  if (fromHref) return fromHref;
+
+  if (titleOrLabel && /\.[a-z0-9]{2,5}$/i.test(titleOrLabel.trim())) {
+    const fromLabel = sanitize(titleOrLabel.trim());
+    if (fromLabel) return fromLabel;
+  }
+
+  return undefined;
+}
+
+export function notifyDownloadCompleted(filename?: string, t?: (key: string) => string): void {
+  if (typeof window === "undefined") return;
+  const cleanName = filename
+    ? filename
+        .replace(/[?#].*$/, "")
+        .split(/[\\/]/)
+        .pop()
+        ?.trim()
+    : undefined;
+
+  const now = Date.now();
+  if (now - lastDownloadToast.time < 500 && lastDownloadToast.name === (cleanName || "")) {
+    return;
+  }
+  lastDownloadToast = { time: now, name: cleanName || "" };
+
+  const prefix = t ? t("Download completed") : translate("Download completed");
+  const text = cleanName ? `${prefix}: ${cleanName}` : prefix;
+  toast(text, "success", { duration: 5000 });
+}
 
 export function toast(text: string, kind: ToastKind = "info", options: ToastOptions = {}): void {
   if (typeof window === "undefined") return;
@@ -85,13 +141,35 @@ export default function Toaster() {
         return next;
       });
     };
+    const onGlobalClick = (event: MouseEvent) => {
+      const target = event.target as Element | null;
+      const anchor = target?.closest?.("a[download]") as HTMLAnchorElement | null;
+      if (!anchor) return;
+      if (
+        anchor.getAttribute("aria-disabled") === "true" ||
+        anchor.classList.contains("pointer-events-none") ||
+        anchor.classList.contains("cursor-not-allowed")
+      ) {
+        return;
+      }
+      const rawDownload = anchor.getAttribute("download");
+      const href = anchor.getAttribute("href") || "";
+      const fileName = extractDownloadFilename(
+        rawDownload,
+        href,
+        anchor.getAttribute("title") || anchor.getAttribute("aria-label"),
+      );
+      notifyDownloadCompleted(fileName, t);
+    };
+    document.addEventListener("click", onGlobalClick, true);
     window.addEventListener("applio:toast", onToast);
     return () => {
+      document.removeEventListener("click", onGlobalClick, true);
       window.removeEventListener("applio:toast", onToast);
       for (const timer of timerMap.values()) clearTimeout(timer.handle);
       timerMap.clear();
     };
-  }, [dismiss]);
+  }, [dismiss, t]);
   const action = (item: Toast, value: ToastAction) => {
     const className =
       "inline-flex rounded text-xs font-medium underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";

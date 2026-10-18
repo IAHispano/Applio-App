@@ -23,8 +23,25 @@ interface CachedI18n {
   dict: Record<string, string>;
 }
 
+let globalDict: Record<string, string> = {};
+
+export function translate(key: string, vars?: Record<string, string | number>): string {
+  if (typeof window !== "undefined" && Object.keys(globalDict).length === 0) {
+    try {
+      const raw = localStorage.getItem(I18N_STORAGE_KEY);
+      if (raw) {
+        const cached = JSON.parse(raw) as CachedI18n;
+        if (cached?.dict) globalDict = cached.dict;
+      }
+    } catch {
+      /* non-fatal */
+    }
+  }
+  return interpolate(globalDict[key] ?? key, vars);
+}
+
 const I18nCtx = createContext<{ t: TFn; code: string; loaded: boolean }>({
-  t: (k, vars) => interpolate(k, vars),
+  t: (k, vars) => translate(k, vars),
   code: "en_US",
   loaded: false,
 });
@@ -47,6 +64,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       if (raw) {
         const cached = JSON.parse(raw) as CachedI18n;
         if (cached?.code && cached?.dict) {
+          globalDict = cached.dict;
           setCode(cached.code);
           setDict(cached.dict);
           setLoaded(true);
@@ -71,6 +89,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
         .then((r) => {
           if (!live) return;
           const langCode = r.code || "en_US";
+          globalDict = r.dict || {};
           setCode(langCode);
           setDict(r.dict || {});
           setLoaded(true);

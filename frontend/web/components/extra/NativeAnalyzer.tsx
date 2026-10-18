@@ -6,6 +6,7 @@ import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
 import { Button, StatTile } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
+import { notifyDownloadCompleted } from "@/lib/toast";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface NativeAnalyzerProps {
@@ -367,10 +368,12 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     if (!ctx) return;
     ctx.drawImage(main, 0, 0);
     const name = (file?.name || fallbackPath?.split(/[\\/]/).pop() || "audio").replace(/\.[a-z0-9]+$/i, "");
+    const fileName = `${name}_spectrogram.png`;
     const a = document.createElement("a");
     a.href = out.toDataURL("image/png");
-    a.download = `${name}_spectrogram.png`;
+    a.download = fileName;
     a.click();
+    notifyDownloadCompleted(fileName, t);
   }
 
   if (!file && !fallbackPath) return null;

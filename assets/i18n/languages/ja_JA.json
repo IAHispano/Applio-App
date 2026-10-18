@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "logs/ からトレーニング済みの .pth とその .index をダウンロードします。",
   "Download audio": "音声をダウンロード",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "ベースボイスモデルとチェックポイント (hubert, rmvpe, vocoder) をダウンロード",
+  "Download completed": "ダウンロードが完了しました",
   "Download failed": "ダウンロードに失敗しました",
   "Download finished without an audio file.": "音声ファイルなしでダウンロードが完了しました。",
   "Download finished without reporting a file.": "ファイルが報告されずにダウンロードが完了しました。",

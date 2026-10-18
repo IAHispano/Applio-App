@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "Descarga un archivo .pth entrenado y su .index desde logs/.",
   "Download audio": "Descargar audio",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "Descarga modelos de voz base y checkpoints (hubert, rmvpe, vocoders)",
+  "Download completed": "Descarga completada",
   "Download failed": "Descarga fallida",
   "Download finished without an audio file.": "La descarga finalizó sin un archivo de audio.",
   "Download finished without reporting a file.": "La descarga terminó sin reportar archivo.",

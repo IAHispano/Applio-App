@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "logs/ dizininden eğitilmiş bir .pth ve onun .index dosyasını indirin.",
   "Download audio": "Sesi indir",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "Temel ses modellerini ve kontrol noktalarını indirin (hubert, rmvpe, vocoder'lar)",
+  "Download completed": "İndirme tamamlandı",
   "Download failed": "İndirme başarısız oldu",
   "Download finished without an audio file.": "İndirme bir ses dosyası olmadan tamamlandı.",
   "Download finished without reporting a file.": "İndirme bir dosya bildirilmeden tamamlandı.",

@@ -408,6 +408,7 @@
   "Download a trained .pth and its .index from logs/.": "Download a trained .pth and its .index from logs/.",
   "Download audio": "Download audio",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "Download base voice models and checkpoints (hubert, rmvpe, vocoders)",
+  "Download completed": "Download completed",
   "Download failed": "Download failed",
   "Download finished without an audio file.": "Download finished without an audio file.",
   "Download from Link": "Download from Link",

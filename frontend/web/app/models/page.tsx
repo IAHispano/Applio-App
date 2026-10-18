@@ -36,6 +36,7 @@ import SettingHelp from "@/components/ui/SettingHelp";
 import { apiGet, apiSend, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { notifyDownloadCompleted } from "@/lib/toast";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface ModelItem {
@@ -195,11 +196,13 @@ export default function ModelsPage() {
       if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || t("Download failed"));
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
+      const fileName = file.split(/[\\/]/).pop() || "export";
       const a = document.createElement("a");
       a.href = url;
-      a.download = file.split(/[\\/]/).pop() || "export";
+      a.download = fileName;
       a.click();
       URL.revokeObjectURL(url);
+      notifyDownloadCompleted(fileName, t);
     } catch (e) {
       setError(errMsg(e));
     }

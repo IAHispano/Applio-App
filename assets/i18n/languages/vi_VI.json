@@ -451,6 +451,7 @@
   "Download a trained .pth and its .index from logs/.": "Tải xuống tệp .pth đã huấn luyện và tệp .index từ logs/.",
   "Download audio": "Tải xuống âm thanh",
   "Download base voice models and checkpoints (hubert, rmvpe, vocoders)": "Tải xuống các mô hình giọng nói cơ sở và checkpoint (hubert, rmvpe, vocoder)",
+  "Download completed": "Tải xuống hoàn tất",
   "Download failed": "Tải xuống thất bại",
   "Download finished without an audio file.": "Tải xuống hoàn tất nhưng không có tệp âm thanh.",
   "Download finished without reporting a file.": "Tải xuống hoàn tất nhưng không báo cáo tệp nào.",

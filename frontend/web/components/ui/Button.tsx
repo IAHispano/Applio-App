@@ -4,6 +4,7 @@ import type React from "react";
 import { forwardRef, memo } from "react";
 import Link from "@/components/layout/IntentLink";
 import { useI18n } from "@/lib/i18n";
+import { extractDownloadFilename, notifyDownloadCompleted } from "@/lib/toast";
 
 export type ButtonVariant = "primary" | "ghost" | "danger";
 export type ButtonSize = "xs" | "sm" | "md" | "lg";
@@ -138,7 +139,20 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
           rel={rel ?? (target === "_blank" ? "noreferrer" : undefined)}
           aria-disabled={isDisabled || undefined}
           aria-busy={loading || undefined}
-          onClick={isDisabled ? (e) => e.preventDefault() : onClick}
+          onClick={(e) => {
+            if (isDisabled) {
+              e.preventDefault();
+              return;
+            }
+            onClick?.(e);
+            if (download && !e.defaultPrevented) {
+              const fileName = extractDownloadFilename(
+                typeof download === "string" ? download : undefined,
+                href,
+              );
+              notifyDownloadCompleted(fileName, t);
+            }
+          }}
           className={classes}
         >
           {content}
