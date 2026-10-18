@@ -93,7 +93,9 @@ def main():
                         "WebKit was unable to find a WebVTT encoder",
                     ):
                         if missing in output:
-                            raise RuntimeError(f"Packaged WebKit media dependency missing: {missing}")
+                            raise RuntimeError(
+                                f"Packaged WebKit media dependency missing: {missing}"
+                            )
                 print(
                     "Packaged desktop: native WebView ready, exported UI served, API restart verified."
                 )
