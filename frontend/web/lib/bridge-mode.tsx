@@ -34,6 +34,7 @@ export const REMOTE_HOST_ROUTES = new Set([
   "/realtime",
   "/voice-blender",
   "/report",
+  "/api-access",
 ]);
 const RemoteContext = createContext<{ remote: boolean; expiresAt?: number }>({ remote: false });
 

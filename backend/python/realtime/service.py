@@ -30,7 +30,38 @@ for _entry in (str(_backend_root), str(_code_root)):
 
 from rvc.realtime import client  # noqa: E402
 
-app = client.app
+
+class LocalRealtimeApp:
+    """Only the Rust proxy may call the engine; browsers use the public API."""
+
+    def __init__(self, engine_app):
+        self.engine_app = engine_app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket"):
+            headers = dict(scope.get("headers", []))
+            host = headers.get(b"host", b"")
+            # Rust sends a numeric loopback authority and no Origin. Reject
+            # direct browser sockets and DNS rebinding before loading a model.
+            allowed = (
+                host.startswith(b"127.0.0.1:")
+                and host.removeprefix(b"127.0.0.1:").isdigit()
+                and b"origin" not in headers
+                and headers.get(b"sec-fetch-site") != b"cross-site"
+            )
+            if not allowed:
+                if scope["type"] == "websocket":
+                    await send({"type": "websocket.close", "code": 1008})
+                else:
+                    await send(
+                        {"type": "http.response.start", "status": 403, "headers": []}
+                    )
+                    await send({"type": "http.response.body", "body": b""})
+                return
+        await self.engine_app(scope, receive, send)
+
+
+app = LocalRealtimeApp(client.app)
 
 _MISSING = object()
 _LOCK = threading.RLock()

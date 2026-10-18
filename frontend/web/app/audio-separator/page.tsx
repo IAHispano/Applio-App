@@ -670,43 +670,45 @@ export default function UvrPage() {
       </Card>
 
       {/* Results */}
-      <Card>
-        <CardHeader
-          icon={<Music4 size={18} className="text-white" />}
-          title={t("Separated Stems")}
-          description={t("Preview each stem and download what you need.")}
-        />
-        {stems.length > 0 ? (
-          <div className="space-y-3">
-            {stems.map((s) => (
-              <div key={s.file} className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-2">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <Badge variant={/vocals/i.test(s.label) ? "success" : "neutral"} dot>
-                    {s.label}
-                  </Badge>
-                  <Button
-                    href={s.url}
-                    download
-                    variant="ghost"
-                    size="xs"
-                    icon={<Download size={13} />}
-                    aria-label={`${t("Download")} ${s.label}`}
-                  >
-                    {t("Download")}
-                  </Button>
+      {(jobId || busy) && (
+        <Card>
+          <CardHeader
+            icon={<Music4 size={18} className="text-white" />}
+            title={t("Separated Stems")}
+            description={t("Preview each stem and download what you need.")}
+          />
+          {stems.length > 0 ? (
+            <div className="space-y-3">
+              {stems.map((s) => (
+                <div key={s.file} className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-2">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <Badge variant={/vocals/i.test(s.label) ? "success" : "neutral"} dot>
+                      {s.label}
+                    </Badge>
+                    <Button
+                      href={s.url}
+                      download
+                      variant="ghost"
+                      size="xs"
+                      icon={<Download size={13} />}
+                      aria-label={`${t("Download")} ${s.label}`}
+                    >
+                      {t("Download")}
+                    </Button>
+                  </div>
+                  <AudioWavePlayer src={s.url} filename={s.file.split("/").pop() ?? s.file} />
                 </div>
-                <AudioWavePlayer src={s.url} filename={s.file.split("/").pop() ?? s.file} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-xs text-neutral-400 m-0 flex items-center gap-2">
-            <Wand2 size={14} />
-            {t("Stems appear here after separation.")}
-          </p>
-        )}
-        <JobPanelContent jobId={jobId} activity={activity} embedded />
-      </Card>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-neutral-400 m-0 flex items-center gap-2">
+              <Wand2 size={14} />
+              {t("Stems appear here after separation.")}
+            </p>
+          )}
+          <JobPanelContent jobId={jobId} activity={activity} embedded />
+        </Card>
+      )}
     </div>
   );
 }

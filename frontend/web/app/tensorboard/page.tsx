@@ -99,7 +99,8 @@ export default function TensorboardPage() {
           <>
             <Button
               variant="ghost"
-              size="xs"
+              size="sm"
+              className="page-header-action"
               onClick={handleReloadIframe}
               title={t("Reload TensorBoard view")}
               aria-label={t("Reload TensorBoard view")}
@@ -111,7 +112,8 @@ export default function TensorboardPage() {
               href={iframeUrl}
               target="_blank"
               variant="ghost"
-              size="xs"
+              size="sm"
+              className="page-header-action"
               title={t("Open in browser tab")}
               aria-label={t("Open in browser tab")}
               icon={<ExternalLink className="w-3.5 h-3.5" />}
@@ -122,7 +124,8 @@ export default function TensorboardPage() {
         )}
         <Button
           variant="ghost"
-          size="xs"
+          size="sm"
+          className="page-header-action"
           onClick={handleRestart}
           disabled={restarting}
           title={t("Restart TensorBoard backend service")}

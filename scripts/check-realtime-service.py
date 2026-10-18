@@ -1,5 +1,6 @@
 """Exercise the realtime adapter without Torch, models, or a GPU."""
 
+import asyncio
 import importlib.util
 import os
 import sys
@@ -9,7 +10,7 @@ import types
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 
 class RealtimeServiceTests(unittest.TestCase):
@@ -63,6 +64,52 @@ class RealtimeServiceTests(unittest.TestCase):
             self.pipeline.RealtimeVoiceConverter,
         )
         self.assertNotIn("torch", self.service.__dict__)
+
+    def test_engine_rejects_direct_browser_requests_before_loading_models(self):
+        async def check():
+            for kind in ("http", "websocket"):
+                for headers, allowed in (
+                    ([(b"host", b"127.0.0.1:8001")], True),
+                    (
+                        [
+                            (b"host", b"127.0.0.1:8001"),
+                            (b"origin", b"https://attacker.example"),
+                        ],
+                        False,
+                    ),
+                    (
+                        [
+                            (b"host", b"127.0.0.1:8001"),
+                            (b"origin", b"http://127.0.0.1:3000"),
+                        ],
+                        False,
+                    ),
+                    ([(b"host", b"rebind.example:8001")], False),
+                    (
+                        [
+                            (b"host", b"127.0.0.1:8001"),
+                            (b"sec-fetch-site", b"cross-site"),
+                        ],
+                        False,
+                    ),
+                    ([], False),
+                ):
+                    downstream, receive, send = AsyncMock(), AsyncMock(), AsyncMock()
+                    app = self.service.LocalRealtimeApp(downstream)
+                    scope = {"type": kind, "headers": headers}
+                    await app(scope, receive, send)
+                    if allowed:
+                        downstream.assert_awaited_once_with(scope, receive, send)
+                        send.assert_not_awaited()
+                    else:
+                        downstream.assert_not_awaited()
+                        first = send.await_args_list[0].args[0]
+                        self.assertEqual(
+                            first.get("status", first.get("code")),
+                            403 if kind == "http" else 1008,
+                        )
+
+        asyncio.run(check())
 
     def test_model_reuse_invalidates_changed_weights_and_device(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -3,6 +3,7 @@
 import { BookOpen } from "lucide-react";
 import { usePathname } from "next/navigation";
 import type React from "react";
+import { Button } from "@/components/ui";
 import { guideForPage } from "@/lib/ecosystem";
 import { useI18n } from "@/lib/i18n";
 
@@ -35,15 +36,16 @@ export default function PageHeader({ title, description, children, className = "
       {(children || documentationHref) && (
         <div className="flex items-center gap-2 flex-wrap min-w-0 max-w-full">
           {documentationHref && (
-            <a
+            <Button
               href={documentationHref}
               target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              variant="ghost"
+              size="sm"
+              className="page-header-action"
+              icon={<BookOpen size={14} aria-hidden="true" />}
             >
-              <BookOpen size={14} aria-hidden="true" />
               {t("User guide")}
-            </a>
+            </Button>
           )}
           {children}
         </div>

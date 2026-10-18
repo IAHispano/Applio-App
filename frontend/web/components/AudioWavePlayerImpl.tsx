@@ -61,6 +61,7 @@ function AudioWavePlayerInner({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const wavesurferRef = useRef<WaveSurfer | null>(null);
 
+  const [nearViewport, setNearViewport] = useState(false);
   const [activeTrack, setActiveTrack] = useState<"converted" | "original">("converted");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -99,14 +100,38 @@ function AudioWavePlayerInner({
     (src ? src.split(/[\\/]/).pop()?.split("?")[0] : "") ||
     "audio.wav";
 
+  // Result lists can contain many players. Defer fetch/decode and the native
+  // media pipeline until the player approaches the viewport; keep it alive
+  // afterwards so scrolling away never interrupts playback.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setNearViewport(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          setNearViewport(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   // Initialize WaveSurfer instance
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!nearViewport || !containerRef.current) return;
     if (!activeSrc && !file) return;
 
     setIsReady(false);
     setError(null);
     setIsPlaying(false);
+    setCurrentTime(0);
 
     let createdBlobUrl: string | null = null;
     let urlToLoad = activeSrc;
@@ -174,7 +199,10 @@ function AudioWavePlayerInner({
       });
 
       ws.on("play", () => setIsPlaying(true));
-      ws.on("pause", () => setIsPlaying(false));
+      ws.on("pause", () => {
+        setIsPlaying(false);
+        if (ws) setCurrentTime(ws.getCurrentTime());
+      });
       ws.on("finish", () => {
         if (isLoopingRef.current && ws) {
           ws.seekTo(0);
@@ -184,7 +212,19 @@ function AudioWavePlayerInner({
           setCurrentTime(0);
         }
       });
-      ws.on("timeupdate", (time) => setCurrentTime(time));
+      // WaveSurfer paints its own playhead every frame. Updating every React
+      // control at the same rate makes scrolling expensive, especially in WebKit.
+      let publishedTime = 0;
+      ws.on("timeupdate", (time) => {
+        if (Math.abs(time - publishedTime) >= 0.1 || time === 0) {
+          publishedTime = time;
+          setCurrentTime(time);
+        }
+      });
+      ws.on("seeking", (time) => {
+        publishedTime = time;
+        setCurrentTime(time);
+      });
       ws.on("error", (err) => {
         console.warn("WaveSurfer decode/load error:", err);
         setError(tRef.current("Failed to decode audio file"));
@@ -208,7 +248,7 @@ function AudioWavePlayerInner({
         URL.revokeObjectURL(createdBlobUrl);
       }
     };
-  }, [activeSrc, file, activeTrack, compact]);
+  }, [activeSrc, file, activeTrack, compact, nearViewport]);
 
   // Play / Pause toggle
   const handlePlayPause = useCallback(() => {

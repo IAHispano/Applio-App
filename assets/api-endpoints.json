@@ -1,0 +1,1531 @@
+[
+  {
+    "method": "GET",
+    "path": "/v1/applio/uvr/models",
+    "group": "Audio Separator",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/uvr/separate",
+    "group": "Audio Separator",
+    "response": "job",
+    "example": {
+      "model": "MODEL_FROM_UVR_CATALOG",
+      "outputFormat": "WAV",
+      "singleStem": "all"
+    },
+    "schema": "uvr",
+    "files": {
+      "audio": {
+        "extensions": [
+          "wav",
+          "mp3",
+          "flac",
+          "ogg",
+          "opus",
+          "m4a",
+          "mp4",
+          "aac",
+          "alac",
+          "wma",
+          "aiff",
+          "webm",
+          "ac3"
+        ],
+        "maxBytes": 209715200
+      }
+    },
+    "encoding": "multipart/form-data",
+    "properties": {
+      "model": {
+        "type": "string"
+      },
+      "outputFormat": {
+        "type": "string"
+      },
+      "singleStem": {
+        "type": "string"
+      },
+      "inputPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/extra/analyze",
+    "group": "Audio Tools",
+    "response": "job",
+    "example": {},
+    "files": {
+      "audio": {
+        "extensions": [
+          "wav",
+          "mp3",
+          "flac",
+          "ogg",
+          "opus",
+          "m4a",
+          "mp4",
+          "aac",
+          "alac",
+          "wma",
+          "aiff",
+          "webm",
+          "ac3"
+        ],
+        "maxBytes": 209715200
+      }
+    },
+    "encoding": "multipart/form-data",
+    "properties": {
+      "inputPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/extra/f0",
+    "group": "Audio Tools",
+    "response": "job",
+    "example": {
+      "method": "rmvpe"
+    },
+    "files": {
+      "audio": {
+        "extensions": [
+          "wav",
+          "mp3",
+          "flac",
+          "ogg",
+          "opus",
+          "m4a",
+          "mp4",
+          "aac",
+          "alac",
+          "wma",
+          "aiff",
+          "webm",
+          "ac3"
+        ],
+        "maxBytes": 209715200
+      }
+    },
+    "encoding": "multipart/form-data",
+    "properties": {
+      "method": {
+        "type": "string"
+      },
+      "inputPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/extra/model-info",
+    "group": "Audio Tools",
+    "response": "job",
+    "example": {
+      "pthPath": "logs/voice/voice.pth"
+    },
+    "properties": {
+      "pthPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "pthPath"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/inference",
+    "group": "Convert Audio",
+    "response": "job",
+    "example": {
+      "pthPath": "logs/voice/voice.pth",
+      "pitch": 0,
+      "exportFormat": "WAV"
+    },
+    "schema": "inference",
+    "files": {
+      "audio": {
+        "extensions": [
+          "wav",
+          "mp3",
+          "flac",
+          "ogg",
+          "opus",
+          "m4a",
+          "mp4",
+          "aac",
+          "alac",
+          "wma",
+          "aiff",
+          "webm",
+          "ac3"
+        ],
+        "maxBytes": 209715200
+      }
+    },
+    "encoding": "multipart/form-data",
+    "properties": {
+      "pthPath": {
+        "type": "string"
+      },
+      "pitch": {
+        "type": "number"
+      },
+      "exportFormat": {
+        "type": "string"
+      },
+      "inputPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/inference/batch",
+    "group": "Convert Audio",
+    "response": "job",
+    "example": {
+      "mode": "files",
+      "pthPath": "logs/voice/voice.pth",
+      "inputFolder": "assets/datasets/my-dataset",
+      "outputFolder": "outputs/batch",
+      "continueOnError": true
+    },
+    "schema": "batch",
+    "properties": {
+      "mode": {
+        "type": "string",
+        "enum": [
+          "files",
+          "models",
+          "both"
+        ],
+        "default": "files"
+      },
+      "pthPath": {
+        "type": "string"
+      },
+      "inputFolder": {
+        "type": "string"
+      },
+      "outputFolder": {
+        "type": "string"
+      },
+      "continueOnError": {
+        "type": "boolean",
+        "default": true
+      },
+      "inputPath": {
+        "type": "string"
+      },
+      "excludedFiles": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "selectedFiles": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "models": {
+        "type": "array",
+        "maxItems": 100,
+        "items": {
+          "type": "object",
+          "properties": {
+            "pthPath": {
+              "type": "string"
+            },
+            "indexPath": {
+              "type": "string"
+            },
+            "overrides": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "pthPath"
+          ]
+        }
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/inference/batch/preview",
+    "group": "Convert Audio",
+    "response": "json",
+    "example": {
+      "inputFolder": "assets/datasets/my-dataset"
+    },
+    "properties": {
+      "inputFolder": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/inference/batch/{id}/outputs/{item}",
+    "group": "Convert Audio",
+    "response": "file",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/audio/raw",
+    "group": "Download",
+    "response": "file",
+    "example": {},
+    "query": {
+      "path": "outputs/converted.wav"
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/audio/youtube",
+    "group": "Download",
+    "response": "job",
+    "example": {
+      "url": "https://www.youtube.com/watch?v=VIDEO_ID",
+      "outputFormat": "wav"
+    },
+    "properties": {
+      "url": {
+        "type": "string"
+      },
+      "outputFormat": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "url"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/download",
+    "group": "Download",
+    "response": "job",
+    "example": {
+      "modelLink": "https://huggingface.co/owner/model/resolve/main/model.zip"
+    },
+    "properties": {
+      "modelLink": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "modelLink"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/download/drop",
+    "group": "Download",
+    "response": "json",
+    "example": {},
+    "encoding": "multipart/form-data",
+    "files": {
+      "file": {
+        "extensions": [
+          "pth",
+          "onnx",
+          "index"
+        ],
+        "maxBytes": 1073741824,
+        "required": true
+      }
+    },
+    "uploadOnly": true,
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/download/pretraineds",
+    "group": "Download",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/download/pretraineds",
+    "group": "Download",
+    "response": "job",
+    "example": {
+      "model": "MODEL_FROM_CATALOG",
+      "sampleRate": "40k",
+      "urlG": "",
+      "urlD": ""
+    },
+    "properties": {
+      "model": {
+        "type": "string"
+      },
+      "sampleRate": {
+        "type": "string"
+      },
+      "urlG": {
+        "type": "string"
+      },
+      "urlD": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/jobs",
+    "group": "Job history",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/jobs/activity",
+    "group": "Job history",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/jobs/events",
+    "group": "Job history",
+    "response": "sse",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/jobs/{id}",
+    "group": "Job history",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/jobs/{id}/events",
+    "group": "Job history",
+    "response": "sse",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/jobs/{id}/stop",
+    "group": "Job history",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/models",
+    "group": "Models",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/models/inspect",
+    "group": "Models",
+    "response": "json",
+    "example": {
+      "pthPath": "logs/voice/voice.pth"
+    },
+    "properties": {
+      "pthPath": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "pthPath"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/models/library",
+    "group": "Models",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/models/preload",
+    "group": "Models",
+    "response": "json",
+    "example": {
+      "pthPath": "logs/voice/voice.pth",
+      "sid": 0,
+      "prime": false,
+      "params": {}
+    },
+    "properties": {
+      "pthPath": {
+        "type": "string"
+      },
+      "sid": {
+        "type": "number"
+      },
+      "prime": {
+        "type": "boolean"
+      },
+      "params": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "pthPath"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/models/speakers",
+    "group": "Models",
+    "response": "json",
+    "example": {},
+    "query": {
+      "pthPath": "logs/voice/voice.pth"
+    },
+    "required": []
+  },
+  {
+    "method": "DELETE",
+    "path": "/v1/applio/models/{name}",
+    "group": "Models",
+    "response": "json",
+    "example": {},
+    "query": {
+      "indexPath": "logs/voice/voice.index"
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/plugins",
+    "group": "Plugins",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/plugins/install",
+    "group": "Plugins",
+    "response": "job",
+    "example": {},
+    "files": {
+      "file": {
+        "extensions": [
+          "zip"
+        ],
+        "required": true,
+        "maxBytes": 524288000
+      }
+    },
+    "encoding": "multipart/form-data",
+    "uploadOnly": true,
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/plugins/toggle",
+    "group": "Plugins",
+    "response": "json",
+    "example": {
+      "name": "my-plugin",
+      "enabled": true
+    },
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "name",
+      "enabled"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/realtime/change-config",
+    "group": "Realtime",
+    "response": "websocket",
+    "example": {
+      "type": "config",
+      "id": 1,
+      "changes": {
+        "f0_up_key": 2
+      },
+      "kwargs": {}
+    },
+    "required": [],
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "id": {
+        "type": "integer"
+      },
+      "changes": {
+        "type": "object"
+      },
+      "kwargs": {
+        "type": "object"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/realtime/config",
+    "group": "Realtime",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/applio/realtime/config",
+    "group": "Realtime",
+    "response": "json",
+    "example": {
+      "model_file": "logs/voice/voice.pth",
+      "index_file": ""
+    },
+    "properties": {
+      "model_file": {
+        "type": "string"
+      },
+      "index_file": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/realtime/prewarm",
+    "group": "Realtime",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/realtime/record",
+    "group": "Realtime",
+    "response": "json",
+    "example": {
+      "record_button": "Start",
+      "record_audio_path": "assets/audios/record_audio.wav",
+      "export_format": "WAV"
+    },
+    "properties": {
+      "record_button": {
+        "type": "string"
+      },
+      "record_audio_path": {
+        "type": "string"
+      },
+      "export_format": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/realtime/start",
+    "group": "Realtime",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/realtime/status",
+    "group": "Realtime",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/realtime/stop",
+    "group": "Realtime",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/realtime/ws-audio",
+    "group": "Realtime",
+    "response": "websocket",
+    "example": {
+      "type": "init",
+      "block_frame": 1440,
+      "automatic_block_size": true,
+      "cross_fade_overlap_size": 0.05,
+      "extra_convert_size": 2.5,
+      "model_path": "logs/voice/voice.pth",
+      "index_path": "",
+      "f0_method": "fcpe",
+      "embedder_model": "contentvec",
+      "embedder_model_custom": "",
+      "silent_threshold": -60,
+      "vad_enabled": true,
+      "sid": 0,
+      "input_audio_gain": 100,
+      "f0_up_key": 0,
+      "index_rate": 0,
+      "protect": 0.5,
+      "volume_envelope": 1,
+      "autotune": false,
+      "decoder_fp16": false,
+      "autotune_strength": 1,
+      "proposed_pitch": false,
+      "proposed_pitch_threshold": 155,
+      "formant_shifting": false,
+      "formant_qfrency": 1,
+      "formant_timbre": 1
+    },
+    "required": [],
+    "properties": {
+      "type": {
+        "type": "string"
+      },
+      "block_frame": {
+        "type": "number"
+      },
+      "automatic_block_size": {
+        "type": "boolean"
+      },
+      "cross_fade_overlap_size": {
+        "type": "number"
+      },
+      "extra_convert_size": {
+        "type": "number"
+      },
+      "model_path": {
+        "type": "string"
+      },
+      "index_path": {
+        "type": "string"
+      },
+      "f0_method": {
+        "type": "string"
+      },
+      "embedder_model": {
+        "type": "string"
+      },
+      "embedder_model_custom": {
+        "type": "string"
+      },
+      "silent_threshold": {
+        "type": "number"
+      },
+      "vad_enabled": {
+        "type": "boolean"
+      },
+      "sid": {
+        "type": "number"
+      },
+      "input_audio_gain": {
+        "type": "number"
+      },
+      "f0_up_key": {
+        "type": "number"
+      },
+      "index_rate": {
+        "type": "number"
+      },
+      "protect": {
+        "type": "number"
+      },
+      "volume_envelope": {
+        "type": "number"
+      },
+      "autotune": {
+        "type": "boolean"
+      },
+      "decoder_fp16": {
+        "type": "boolean"
+      },
+      "autotune_strength": {
+        "type": "number"
+      },
+      "proposed_pitch": {
+        "type": "boolean"
+      },
+      "proposed_pitch_threshold": {
+        "type": "number"
+      },
+      "formant_shifting": {
+        "type": "boolean"
+      },
+      "formant_qfrency": {
+        "type": "number"
+      },
+      "formant_timbre": {
+        "type": "number"
+      }
+    }
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/diagnostics",
+    "group": "Report a Bug",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/report/info",
+    "group": "Report a Bug",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/report/upload",
+    "group": "Report a Bug",
+    "response": "json",
+    "example": {
+      "dataUrl": "data:video/webm;base64,BASE64_RECORDING"
+    },
+    "properties": {
+      "dataUrl": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "dataUrl"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/health",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/applio/settings",
+    "group": "Settings",
+    "response": "json",
+    "example": {
+      "precision": "fp32",
+      "model_author": "",
+      "model_index_filter": true,
+      "discord_presence": false,
+      "lang": {
+        "override": true,
+        "selected_lang": "en_US"
+      },
+      "theme": {
+        "file": "halloween.json"
+      }
+    },
+    "properties": {
+      "precision": {
+        "type": "string"
+      },
+      "model_author": {
+        "type": "string"
+      },
+      "model_index_filter": {
+        "type": "boolean"
+      },
+      "discord_presence": {
+        "type": "boolean"
+      },
+      "lang": {
+        "type": "object"
+      },
+      "theme": {
+        "type": "object"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/settings/apply-update",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/language",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "query": {
+      "clientLang": "en-US"
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/languages",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/model-presets",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "PUT",
+    "path": "/v1/applio/settings/model-presets",
+    "group": "Settings",
+    "response": "json",
+    "example": {
+      "model": "logs/voice/voice.pth",
+      "scope": "conversion",
+      "values": {
+        "pitch": 0,
+        "indexRate": 0.75
+      }
+    },
+    "properties": {
+      "model": {
+        "type": "string"
+      },
+      "scope": {
+        "type": "string"
+      },
+      "values": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "model",
+      "scope",
+      "values"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/presence",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/settings/presence",
+    "group": "Settings",
+    "response": "json",
+    "example": {
+      "enabled": false
+    },
+    "properties": {
+      "enabled": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "enabled"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/settings/presence/stop",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/settings/restart",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/storage",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/settings/storage/clean",
+    "group": "Settings",
+    "response": "json",
+    "example": {
+      "maxAgeMs": 86400000,
+      "cleanUploads": true,
+      "cleanOutputs": false
+    },
+    "properties": {
+      "maxAgeMs": {
+        "type": "number"
+      },
+      "cleanUploads": {
+        "type": "boolean"
+      },
+      "cleanOutputs": {
+        "type": "boolean"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/theme",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "query": {
+      "file": "halloween.json"
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/themes",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/version",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/settings/version-check",
+    "group": "Settings",
+    "response": "json",
+    "example": {},
+    "query": {
+      "refresh": "1"
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/setup/install",
+    "group": "Setup",
+    "response": "job",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/setup/prerequisites",
+    "group": "Setup",
+    "response": "job",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/setup/status",
+    "group": "Setup",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/tensorboard/restart",
+    "group": "TensorBoard",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/tensorboard/start",
+    "group": "TensorBoard",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/tensorboard/status",
+    "group": "TensorBoard",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/tensorboard/stop",
+    "group": "TensorBoard",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/tts",
+    "group": "Text to Speech",
+    "response": "job",
+    "example": {
+      "pthPath": "logs/voice/voice.pth",
+      "ttsText": "Hello from Applio.",
+      "ttsVoice": "en-US-AriaNeural",
+      "ttsRate": 0,
+      "exportFormat": "WAV"
+    },
+    "schema": "tts",
+    "properties": {
+      "pthPath": {
+        "type": "string"
+      },
+      "ttsText": {
+        "type": "string"
+      },
+      "ttsVoice": {
+        "type": "string"
+      },
+      "ttsRate": {
+        "type": "number"
+      },
+      "exportFormat": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "txt_file": {
+        "extensions": [
+          "txt"
+        ],
+        "maxBytes": 5242880
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/tts/voices",
+    "group": "Text to Speech",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/dataset-review/scan",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "datasetPath": "assets/datasets/my-dataset",
+      "silenceDb": -40
+    },
+    "properties": {
+      "datasetPath": {
+        "type": "string"
+      },
+      "silenceDb": {
+        "type": "number"
+      }
+    },
+    "required": [
+      "datasetPath"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/dataset-review/{id}",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/dataset-review/{id}/audio/{clip}",
+    "group": "Training",
+    "response": "file",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/dataset-review/{id}/prepare",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "include": [
+        "CLIP_ID_FROM_REPORT"
+      ],
+      "trimSilence": true,
+      "normalize": true,
+      "lowerPeaks": true
+    },
+    "properties": {
+      "include": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      },
+      "trimSilence": {
+        "type": "boolean"
+      },
+      "normalize": {
+        "type": "boolean"
+      },
+      "lowerPeaks": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+      "include",
+      "trimSilence",
+      "normalize",
+      "lowerPeaks"
+    ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/datasets",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/embedders",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/export-file",
+    "group": "Training",
+    "response": "file",
+    "example": {},
+    "query": {
+      "file": "logs/my-voice/my-voice.pth"
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/exports",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/extract",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "modelName": "my-voice"
+    },
+    "schema": "training:extract",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/gpus",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/index",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "modelName": "my-voice"
+    },
+    "schema": "training:index",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/pipeline",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "modelName": "my-voice",
+      "datasetPath": "assets/datasets/my-dataset"
+    },
+    "schema": "training:pipeline",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      },
+      "datasetPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/preprocess",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "modelName": "my-voice",
+      "datasetPath": "assets/datasets/my-dataset"
+    },
+    "schema": "training:preprocess",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      },
+      "datasetPath": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/train/pretraineds",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/stop",
+    "group": "Training",
+    "response": "json",
+    "example": {
+      "modelName": "my-voice"
+    },
+    "properties": {
+      "modelName": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/train",
+    "group": "Training",
+    "response": "job",
+    "example": {
+      "modelName": "my-voice"
+    },
+    "schema": "training:train",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      }
+    },
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/upload-dataset",
+    "group": "Training",
+    "response": "json",
+    "example": {
+      "datasetName": "my-dataset"
+    },
+    "encoding": "multipart/form-data",
+    "files": {
+      "files": {
+        "extensions": [],
+        "multiple": true,
+        "required": true,
+        "maxBytes": 2147483648,
+        "maxFiles": 2000
+      }
+    },
+    "properties": {
+      "datasetName": {
+        "type": "string"
+      }
+    },
+    "uploadOnly": true,
+    "required": [
+      "datasetName"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/upload-embedder",
+    "group": "Training",
+    "response": "json",
+    "example": {
+      "folderName": "my-embedder"
+    },
+    "encoding": "multipart/form-data",
+    "files": {
+      "bin": {
+        "extensions": [
+          "bin"
+        ],
+        "required": true,
+        "maxBytes": 2147483648
+      },
+      "config": {
+        "extensions": [
+          "json"
+        ],
+        "required": true,
+        "maxBytes": 2147483648
+      }
+    },
+    "properties": {
+      "folderName": {
+        "type": "string"
+      }
+    },
+    "uploadOnly": true,
+    "required": [
+      "folderName"
+    ]
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/train/upload-pretrained",
+    "group": "Training",
+    "response": "json",
+    "example": {},
+    "encoding": "multipart/form-data",
+    "files": {
+      "file": {
+        "extensions": [
+          "pth"
+        ],
+        "required": true,
+        "maxBytes": 2147483648
+      }
+    },
+    "uploadOnly": true,
+    "required": []
+  },
+  {
+    "method": "POST",
+    "path": "/v1/applio/voice-blender",
+    "group": "Voice Blender",
+    "response": "job",
+    "example": {
+      "modelName": "my-fusion",
+      "pthPath1": "logs/voice/voice.pth",
+      "pthPath2": "logs/second/second.pth",
+      "ratio": 0.5
+    },
+    "files": {
+      "pth_file_1": {
+        "extensions": [
+          "pth"
+        ],
+        "maxBytes": 1073741824
+      },
+      "pth_file_2": {
+        "extensions": [
+          "pth"
+        ],
+        "maxBytes": 1073741824
+      }
+    },
+    "encoding": "application/json",
+    "properties": {
+      "modelName": {
+        "type": "string"
+      },
+      "pthPath1": {
+        "type": "string"
+      },
+      "pthPath2": {
+        "type": "string"
+      },
+      "ratio": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 1,
+        "default": 0.5
+      }
+    },
+    "required": [
+      "modelName"
+    ]
+  }
+]

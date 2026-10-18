@@ -1,5 +1,128 @@
 @import "tailwindcss";
 
+.page-header-action.ghost {
+  min-height: 36px;
+  height: 36px;
+  padding: 8px 10px;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.page-header-action.ghost:hover {
+  background: var(--surface);
+  color: var(--heading);
+  border-color: var(--border);
+}
+
+.card.api-hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 28px;
+  background: radial-gradient(ellipse at top right, var(--accent-soft), transparent 65%), var(--panel);
+  overflow: hidden;
+}
+.api-hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+.api-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+}
+.api-address {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--input-bg);
+  min-width: 0;
+}
+.api-address > code {
+  font-size: clamp(12px, 1.25vw, 19px);
+  overflow-wrap: anywhere;
+  color: var(--heading);
+}
+.api-code {
+  margin: 0;
+  padding: 20px;
+  padding-right: 48px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--log-bg, var(--input-bg));
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.85;
+  overflow: auto;
+  max-height: 460px;
+  font-family: ui-monospace, monospace;
+  tab-size: 4;
+}
+.api-endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.api-endpoints > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--border);
+}
+.api-endpoints > div:last-child {
+  border: 0;
+}
+.api-endpoints > div > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.api-endpoints code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.api-endpoints span:not(.api-method) {
+  font-size: 11px;
+  color: var(--muted);
+}
+.api-method {
+  min-width: 42px;
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+  text-align: center;
+  font:
+    600 9px ui-monospace,
+    monospace;
+}
+.api-method-post {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+@media (max-width: 767px) {
+  .card.api-hero {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 20px;
+  }
+}
+
 /* Personal remote access: scoped to the Bridge Mode settings card. */
 .bridge-intro {
   display: flex;
@@ -117,6 +240,354 @@
 }
 .halloween-prompt .cta > .truncate {
   white-space: normal;
+}
+
+/* Seasonal scenery stays at the edges and never intercepts app controls. */
+.haunt-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+.haunt-web {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: clamp(120px, 17vw, 230px);
+  stroke: #d4b5de;
+  stroke-width: 0.8;
+  opacity: 0.22;
+  mask-image: linear-gradient(135deg, #000 25%, transparent 77%);
+}
+.haunt-web-right {
+  left: auto;
+  right: 0;
+  transform: scaleX(-1);
+  opacity: 0.17;
+}
+.haunt-spider {
+  position: absolute;
+  width: 45px;
+  filter: drop-shadow(0 3px 6px #0009);
+  animation: haunt-descend 23s ease-in-out infinite;
+}
+.haunt-spider-left {
+  left: 217px;
+  top: 60px;
+}
+.haunt-spider-right {
+  right: 37px;
+  top: 115px;
+  width: 33px;
+  animation-delay: -11s;
+  animation-duration: 31s;
+}
+.haunt-silk {
+  position: absolute;
+  width: 1px;
+  height: 400px;
+  left: 50%;
+  bottom: 79%;
+  background: linear-gradient(transparent, #d4b5de88);
+}
+.haunt-legs {
+  stroke: #ab7d9f;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform-origin: 50px 50px;
+  animation: haunt-legs 3.8s ease-in-out infinite;
+}
+.haunt-spider-eyes {
+  filter: drop-shadow(0 0 4px #ff9b42);
+}
+.haunt-moon {
+  position: absolute;
+  right: 110px;
+  top: 16px;
+  color: #b99dcc;
+  opacity: 0.13;
+  transform: rotate(-18deg);
+  filter: drop-shadow(0 0 19px #a26add);
+}
+.haunt-bats {
+  position: absolute;
+  inset: 0;
+}
+.haunt-bat {
+  position: absolute;
+  top: 40px;
+  left: -110px;
+  width: 57px;
+  color: #100a1b;
+  filter: drop-shadow(0 0 1px #bf8adc88);
+  animation: haunt-flight 38s linear infinite;
+}
+.haunt-bat-1 {
+  width: 36px;
+  top: 72px;
+  animation-duration: 47s;
+  animation-delay: -19s;
+  opacity: 0.7;
+}
+.haunt-bat-2 {
+  width: 26px;
+  top: 26px;
+  animation-duration: 53s;
+  animation-delay: -7s;
+  opacity: 0.5;
+}
+.haunt-wing-left {
+  transform-origin: 50px 27px;
+  animation: haunt-flap 0.5s ease-in-out infinite alternate;
+}
+.haunt-wing-right {
+  transform-origin: 50px 27px;
+  animation: haunt-flap 0.5s ease-in-out infinite alternate-reverse;
+}
+.haunt-pumpkins {
+  position: absolute;
+  bottom: 5px;
+  left: 13px;
+  display: flex;
+  align-items: flex-end;
+  opacity: 0.85;
+  filter: drop-shadow(0 0 18px #ff74131c);
+}
+.haunt-pumpkin {
+  width: 79px;
+  transform: rotate(-8deg);
+}
+.haunt-pumpkin-small {
+  width: 48px;
+  margin-left: -13px;
+  transform: rotate(12deg);
+}
+.haunt-candle {
+  animation: haunt-candle 5.7s ease-in-out infinite;
+  filter: drop-shadow(0 0 5px #ff8a32);
+}
+.haunt-pumpkin-small .haunt-candle {
+  animation-delay: -2s;
+}
+.haunt-eyes {
+  position: absolute;
+  left: 176px;
+  bottom: 38px;
+  display: flex;
+  gap: 8px;
+  transform: rotate(-11deg);
+  animation: haunt-peek 19s ease-in-out infinite;
+}
+.haunt-eyes i {
+  width: 9px;
+  height: 4px;
+  border-radius: 70% 10%;
+  background: #d4f19d;
+  box-shadow: 0 0 8px #b1f66d88;
+}
+.haunt-eyes i + i {
+  border-radius: 10% 70%;
+}
+.haunt-fog {
+  position: absolute;
+  bottom: -80px;
+  left: -20%;
+  width: 140%;
+  height: 170px;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 25% 60%, #a18bba24, transparent 43%),
+    radial-gradient(ellipse at 72% 70%, #b7a3ca20, transparent 46%);
+  filter: blur(20px);
+  animation: haunt-fog 37s ease-in-out infinite alternate;
+}
+.haunt-fog-back {
+  height: 230px;
+  bottom: -130px;
+  opacity: 0.6;
+  animation-direction: alternate-reverse;
+  animation-duration: 51s;
+}
+.haunt-embers {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+}
+.haunt-embers i {
+  position: absolute;
+  left: calc(4% + var(--ember) * 8.2%);
+  bottom: -8px;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: #ffb454;
+  box-shadow: 0 0 5px #ff792b;
+  animation: haunt-ember calc(17s + var(--ember) * 1.3s) linear infinite;
+  animation-delay: calc(var(--ember) * -3.7s);
+}
+.haunt-controls {
+  position: fixed;
+  right: 17px;
+  bottom: 14px;
+  z-index: 21;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border: 1px solid #a578593d;
+  border-radius: 12px;
+  background: #170e21ee;
+  box-shadow: 0 4px 18px #0005;
+}
+.haunt-controls .icon-btn {
+  color: #e5b78e;
+}
+html[data-theme-effects="halloween"] #main-content {
+  background-image:
+    radial-gradient(ellipse at 100% 0, #79418c0d, transparent 45%),
+    radial-gradient(ellipse at 0 100%, #dd782308, transparent 45%);
+}
+html[data-theme-effects="halloween"] .card:hover {
+  box-shadow:
+    var(--shadow-card),
+    0 0 24px #ff9b4206;
+}
+@keyframes haunt-descend {
+  0%,
+  100% {
+    transform: translateY(-110px) rotate(-5deg);
+  }
+  15%,
+  35% {
+    transform: translateY(7px) rotate(5deg);
+  }
+  50%,
+  68% {
+    transform: translateY(-24px) rotate(-4deg);
+  }
+  83% {
+    transform: translateY(28px) rotate(3deg);
+  }
+}
+@keyframes haunt-legs {
+  50% {
+    transform: scaleX(0.86) scaleY(1.04);
+  }
+}
+@keyframes haunt-flight {
+  0% {
+    transform: translate(-80px, 40px) rotate(-8deg);
+  }
+  20% {
+    transform: translate(28vw, -20px) rotate(6deg);
+  }
+  40% {
+    transform: translate(65vw, 25px) rotate(-6deg);
+  }
+  60%,
+  100% {
+    transform: translate(calc(100vw + 220px), -65px) rotate(5deg);
+  }
+}
+@keyframes haunt-flap {
+  to {
+    transform: scaleY(0.35);
+  }
+}
+@keyframes haunt-candle {
+  0%,
+  100% {
+    opacity: 0.85;
+  }
+  22% {
+    opacity: 0.6;
+  }
+  31%,
+  64% {
+    opacity: 1;
+  }
+  48% {
+    opacity: 0.72;
+  }
+}
+@keyframes haunt-peek {
+  0%,
+  13%,
+  34%,
+  100% {
+    opacity: 0;
+  }
+  18%,
+  23%,
+  28% {
+    opacity: 0.8;
+    transform: rotate(-11deg) scaleY(1);
+  }
+  25% {
+    opacity: 0.4;
+    transform: rotate(-11deg) scaleY(0.15);
+  }
+}
+@keyframes haunt-fog {
+  to {
+    transform: translate(10%, -17px) scaleX(1.15);
+  }
+}
+@keyframes haunt-ember {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15%,
+  60% {
+    opacity: 0.8;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(35px, -48vh);
+  }
+}
+@media (max-width: 1023px) {
+  .haunt-spider-left {
+    left: 18px;
+    top: 85px;
+    width: 32px;
+  }
+  .haunt-pumpkins {
+    bottom: 80px;
+    left: 2px;
+    opacity: 0.55;
+  }
+  .haunt-pumpkin {
+    width: 53px;
+  }
+  .haunt-pumpkin-small,
+  .haunt-eyes,
+  .haunt-bat-2 {
+    display: none;
+  }
+  .haunt-controls {
+    bottom: calc(87px + env(safe-area-inset-bottom));
+    right: 12px;
+  }
+  .haunt-fog {
+    bottom: -30px;
+    opacity: 0.5;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .haunt-scene *,
+  .haunt-scene *::before {
+    animation: none !important;
+  }
+  .haunt-bats,
+  .haunt-embers,
+  .haunt-eyes {
+    display: none;
+  }
 }
 
 .bridge-link-row {
@@ -1807,4 +2278,49 @@ button.segmented-item.is-active {
     left: 0;
     right: auto;
   }
+}
+
+.api-reference-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 560px;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.api-reference-list button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.api-reference-list button[aria-current="true"] {
+  background: var(--accent-soft);
+  border-color: var(--border);
+}
+.api-reference-list button code {
+  white-space: normal;
+}
+.api-parameter-list {
+  max-height: 360px;
+  overflow: auto;
+}
+.api-parameter-list > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.api-parameter-list > div > code:last-child {
+  color: var(--muted);
+  font-size: 10px;
 }

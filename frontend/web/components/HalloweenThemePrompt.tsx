@@ -105,7 +105,7 @@ export default function HalloweenThemePrompt() {
             });
             if (!result.theme) throw new Error("Theme unavailable");
             await apiSend("/api/settings", "PUT", { theme: { file: "halloween.json" } });
-            applyTheme(result.theme);
+            applyTheme(result.theme, "halloween.json");
             window.dispatchEvent(
               new CustomEvent("applio:theme-changed", { detail: { file: "halloween.json" } }),
             );

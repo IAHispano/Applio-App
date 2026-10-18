@@ -527,3 +527,103 @@ async fn proxy(
         ),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tower::ServiceExt;
+
+    #[test]
+    fn rejects_ambiguous_paths_before_proxying() {
+        for path in [
+            "/api/../setup",
+            "/api/%2e%2e/setup",
+            "/api%2fsettings",
+            "/assets/%252e%252e/secret",
+            "/outputs/a%5cb.wav",
+            "/api//settings",
+            "/api/%00",
+            "/api/%zz",
+        ] {
+            assert!(!valid_path(path), "{path}");
+        }
+        for path in [
+            "/api/settings",
+            "/outputs/my%20audio.wav",
+            "/_next/static/chunk.js",
+        ] {
+            assert!(valid_path(path), "{path}");
+        }
+    }
+
+    #[tokio::test]
+    async fn approval_does_not_grant_host_only_routes_and_revocation_removes_access() {
+        let gateway = Gateway::new(
+            3000,
+            8000,
+            None,
+            Arc::new(|| ("en_US".into(), json!({}))),
+            Arc::new(|_| {}),
+            CancellationToken::new(),
+        )
+        .unwrap();
+        gateway.set_origin("https://bridge.example").unwrap();
+        let invite = gateway.sessions.new_invite().unwrap();
+        let (credential, device) = gateway.sessions.request(&invite.token, "test").unwrap();
+        let request = |method: &str, path: &str| {
+            Request::builder()
+                .method(method)
+                .uri(path)
+                .header(header::HOST, "bridge.example")
+                .header(header::ORIGIN, "https://bridge.example")
+                .header(header::COOKIE, format!("{COOKIE}={credential}"))
+                .body(Body::empty())
+                .unwrap()
+        };
+        let app = gateway.router();
+        assert_eq!(
+            app.clone()
+                .oneshot(request("GET", "/api/health"))
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::UNAUTHORIZED
+        );
+        gateway.sessions.approve(&device.id).unwrap();
+        for (method, path) in [
+            ("POST", "/api/setup/install"),
+            ("POST", "/api/plugins/install"),
+            ("PUT", "/api/settings"),
+            ("POST", "/api/settings/restart"),
+            ("GET", "/api/settings/storage"),
+            ("GET", "/api/jobs/events"),
+            ("POST", "/api/realtime/start"),
+        ] {
+            assert_eq!(
+                app.clone()
+                    .oneshot(request(method, path))
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::FORBIDDEN,
+                "{method} {path}"
+            );
+        }
+        let mut cross_origin = request("POST", "/api/inference");
+        cross_origin
+            .headers_mut()
+            .insert(header::ORIGIN, "https://attacker.example".parse().unwrap());
+        assert_eq!(
+            app.clone().oneshot(cross_origin).await.unwrap().status(),
+            StatusCode::FORBIDDEN
+        );
+        gateway.sessions.revoke(&device.id);
+        assert_eq!(
+            app.oneshot(request("GET", "/api/health"))
+                .await
+                .unwrap()
+                .status(),
+            StatusCode::UNAUTHORIZED
+        );
+    }
+}

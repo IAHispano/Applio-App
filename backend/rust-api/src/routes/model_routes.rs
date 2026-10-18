@@ -67,7 +67,7 @@ fn files(root: &Path, extensions: &[&str], found: &mut Vec<PathBuf>) -> Result<(
     }
     Ok(())
 }
-fn scan(root: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
+pub(crate) fn scan(root: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let mut all = Vec::new();
     files(root, &["pth", "onnx", "index"], &mut all)?;
     let (mut models, mut indexes) = (Vec::new(), Vec::new());

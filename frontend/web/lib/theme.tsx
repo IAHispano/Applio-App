@@ -8,6 +8,7 @@ export interface ThemeFile {
   version?: string;
   description?: string;
   mode?: string;
+  effects?: "halloween";
   colors?: Record<string, string>;
   fonts?: { display?: string[]; body?: string[]; mono?: string[] };
   radius?: Record<string, string>;
@@ -107,8 +108,10 @@ export function fontCss(families: string[] | undefined): string {
   return fontStack(families).css;
 }
 
-export function applyTheme(theme: ThemeFile): void {
+export function applyTheme(theme: ThemeFile, file?: string): void {
   const root = document.documentElement;
+  // Existing writable theme files can predate the effects marker in the bundle.
+  root.dataset.themeEffects = theme.effects === "halloween" || file === "halloween.json" ? "halloween" : "";
 
   // Clear all previously applied theme CSS variables so switching cleanly resets
   for (const v of Object.values(COLOR_TO_VAR)) {
@@ -179,7 +182,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const load = () => {
       apiGet<{ id: string; theme: ThemeFile }>("/api/settings/theme", { force: true })
         .then((r) => {
-          if (live && r.theme) applyTheme(r.theme);
+          if (live && r.theme) applyTheme(r.theme, r.id);
         })
         .catch(() => {});
     };

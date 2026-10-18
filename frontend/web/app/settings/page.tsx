@@ -541,7 +541,7 @@ export default function SettingsPage() {
           { force: true },
         );
         if (res.theme) {
-          applyTheme(res.theme);
+          applyTheme(res.theme, res.id);
         }
       } catch (err) {
         console.warn("Could not preview theme instantly:", err);

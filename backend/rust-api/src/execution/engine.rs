@@ -366,7 +366,11 @@ impl NativeEngine {
             .jobs
             .cancellation(&job.id)
             .context("Job was cancelled before execution started")?;
-        tasks.spawn(async move {
+        let api = task_job
+            .params
+            .as_ref()
+            .is_some_and(|p| p["source"] == "api");
+        tasks.spawn(crate::jobs::API_REQUEST.scope(api, async move {
             let id = task_job.id.clone();
             let result = AssertUnwindSafe(async {
                 let _permit = if let Some(resource) = resource {
@@ -422,7 +426,7 @@ impl NativeEngine {
                 }
                 Err(_) => engine.jobs.error(&id, "The job stopped unexpectedly", None),
             }
-        });
+        }));
         Ok(job)
     }
 

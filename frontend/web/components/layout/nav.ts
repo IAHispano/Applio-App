@@ -2,6 +2,7 @@ import {
   Activity,
   AudioWaveform,
   Bug,
+  Code2,
   Cpu,
   Database,
   House,
@@ -10,6 +11,7 @@ import {
   Mic,
   Radio,
   Settings,
+  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
@@ -79,6 +81,12 @@ export const NAV_SECTIONS: NavSection[] = [
     title: "System",
     items: [
       {
+        icon: Code2,
+        label: "API & Workflows",
+        to: "/api-access",
+        blurb: "Connect apps and automate audio workflows",
+      },
+      {
         icon: Activity,
         label: "Job history",
         to: "/jobs",
@@ -86,6 +94,12 @@ export const NAV_SECTIONS: NavSection[] = [
       },
       { icon: Settings, label: "Settings", to: "/settings", blurb: "Engine configuration and preferences" },
       { icon: Bug, label: "Report a Bug", to: "/report", blurb: "System diagnostics and issue reporting" },
+      {
+        icon: ShieldCheck,
+        label: "Your data & privacy",
+        to: "/your-data",
+        blurb: "Understand your rights, local processing, and optional online features.",
+      },
     ],
   },
 ];

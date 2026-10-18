@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+import HalloweenEffects from "@/components/HalloweenEffects";
 import Link from "@/components/layout/IntentLink";
 import { BottomNav } from "@/components/layout/MobileNav";
 import PageTransition from "@/components/layout/PageTransition";
@@ -20,7 +21,7 @@ import { workspaceScroll } from "@/lib/workspace-state";
 
 const RealtimeWorkspace = dynamic(() => import("@/components/RealtimeWorkspace"), { ssr: false });
 
-const UNGUARDED_ROUTES = new Set(["/", "/settings", "/report"]);
+const UNGUARDED_ROUTES = new Set(["/", "/settings", "/report", "/api-access", "/your-data"]);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -103,6 +104,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
       <Sidebar />
+      <HalloweenEffects />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
         <RemoteBridgeBanner />
         {pathname !== "/realtime" && <RealtimeGpuBanner />}

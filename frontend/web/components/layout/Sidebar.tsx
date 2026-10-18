@@ -92,7 +92,12 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                 const Icon = item.icon;
                 const active = pathname === item.to;
                 const itemNeedsSetup =
-                  !isReady && !loading && item.to !== "/" && item.to !== "/settings" && item.to !== "/report";
+                  !isReady &&
+                  !loading &&
+                  item.to !== "/" &&
+                  item.to !== "/settings" &&
+                  item.to !== "/report" &&
+                  item.to !== "/your-data";
 
                 return (
                   <li key={item.to}>

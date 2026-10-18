@@ -240,3 +240,31 @@ test("release generation includes every commit and ships the same notes in the s
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });
+
+
+test("AppImage media validation rejects a bundle missing WebKit's bad-plugin factories", () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), "applio-media-fixture-"));
+  try {
+    const plugins = path.join(directory, "target/release/bundle/appimage/Applio.AppDir/usr/lib/gstreamer-1.0");
+    fs.mkdirSync(plugins, { recursive: true });
+    for (const name of ["app", "autodetect", "pulseaudio", "playback", "typefindfunctions", "audioconvert", "audioresample", "audioparsers", "flac", "wavparse"])
+      fs.writeFileSync(path.join(plugins, `libgst${name}.so`), "fixture");
+    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("./collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
+      cwd: directory, encoding: "utf8", windowsHide: true, stdio: "pipe",
+    }), (error) => /libgstdebugutilsbad\.so/.test(error.stderr));
+    fs.writeFileSync(path.join(plugins, "libgstdebugutilsbad.so"), "fixture");
+    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("./collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
+      cwd: directory, encoding: "utf8", windowsHide: true, stdio: "pipe",
+    }), (error) => /libgstsubenc\.so/.test(error.stderr));
+    for (const file of ["validate.yml", "release.yml"]) {
+      const workflow = fs.readFileSync(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8");
+      assert.ok(workflow.includes("gstreamer1.0-plugins-bad"));
+      assert.ok(workflow.includes("gstreamer1.0-tools"));
+      assert.ok(workflow.includes("--check-appimage-media"));
+    }
+  } finally {
+    assert.equal(path.dirname(directory), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(directory).startsWith("applio-media-fixture-"));
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});

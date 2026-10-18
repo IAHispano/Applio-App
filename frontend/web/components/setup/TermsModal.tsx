@@ -14,7 +14,9 @@ import {
   Sparkles,
   UserCheck,
 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import Link from "@/components/layout/IntentLink";
 import { Button, Dialog } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 
@@ -31,6 +33,7 @@ export function hasAcceptedTerms(): boolean {
 }
 
 export default function TermsModal() {
+  const pathname = usePathname();
   const { t, loaded } = useI18n();
   const [open, setOpen] = useState(false);
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
@@ -39,11 +42,9 @@ export default function TermsModal() {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Only show if terms haven't been accepted yet and language has loaded
-    if (!hasAcceptedTerms() && loaded) {
-      setOpen(true);
-    }
-  }, [loaded]);
+    // The informational guide is readable before consent; operational pages still require it.
+    setOpen(pathname !== "/your-data" && !hasAcceptedTerms() && loaded);
+  }, [loaded, pathname]);
 
   const handleScroll = () => {
     const el = scrollRef.current;
@@ -83,7 +84,7 @@ export default function TermsModal() {
     setOpen(false);
   };
 
-  if (!open) return null;
+  if (!open || pathname === "/your-data") return null;
 
   return (
     <Dialog
@@ -112,6 +113,12 @@ export default function TermsModal() {
               <p className="text-xs text-neutral-400 m-0 truncate">
                 {t("Please review and accept our official terms before using Applio.")}
               </p>
+              <Link
+                href="/your-data"
+                className="inline-block mt-2 text-xs text-white underline underline-offset-4"
+              >
+                {t("Your data & privacy")}
+              </Link>
             </div>
           </div>
 

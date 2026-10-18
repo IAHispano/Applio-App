@@ -26,7 +26,7 @@ const nextConfig: NextConfig = {
     ? {
         async rewrites() {
           const api = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
-          return ["api", "outputs", "assets"].map((prefix) => ({
+          return ["api", "v1", "outputs", "assets"].map((prefix) => ({
             source: `/${prefix}/:path*`,
             destination: `${api}/${prefix}/:path*`,
           }));

@@ -1,15 +1,16 @@
 {
   "name": "Halloween",
-  "version": "1.0.0",
+  "version": "1.1.0",
+  "effects": "halloween",
   "description": "Pumpkin orange and midnight purple, with a warm candlelit glow.",
   "mode": "dark",
   "colors": {
     "primary": "#ff9b42",
     "primarySoft": "rgba(255,155,66,0.14)",
-    "background": "#100b18",
-    "surface": "#281b35",
-    "surfaceDim": "#1e1429",
-    "panel": "#181020",
+    "background": "#0c0811",
+    "surface": "#24172f",
+    "surfaceDim": "#190f23",
+    "panel": "#140d1c",
     "border": "#4b355b",
     "text": "#f7ecff",
     "heading": "#fff2df",
@@ -78,7 +79,7 @@
     "closeText": "#ffffff"
   },
   "shadows": {
-    "card": "0 8px 28px rgb(0 0 0 / 0.16)",
+    "card": "0 12px 36px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 155 66 / 0.04)",
     "button": "0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
   }
 }

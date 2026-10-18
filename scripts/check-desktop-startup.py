@@ -83,6 +83,17 @@ def main():
                     != health["instanceId"],
                     "API restart did not create a new generation",
                 )
+                if sys.platform.startswith("linux"):
+                    log.flush()
+                    log.seek(0)
+                    output = log.read()
+                    for missing in (
+                        "GStreamer element fakevideosink not found",
+                        "WebKit wasn't able to find a WebVTT encoder",
+                        "WebKit was unable to find a WebVTT encoder",
+                    ):
+                        if missing in output:
+                            raise RuntimeError(f"Packaged WebKit media dependency missing: {missing}")
                 print(
                     "Packaged desktop: native WebView ready, exported UI served, API restart verified."
                 )

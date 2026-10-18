@@ -212,7 +212,6 @@ pub async fn reachable(origin: &str, token: &CancellationToken) -> bool {
         let hostname = url.host_str().context("Missing tunnel hostname")?;
         let mut builder = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
-            .hickory_dns(true)
             .redirect(reqwest::redirect::Policy::none());
         let resolver = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))

@@ -18,6 +18,9 @@ use tokio::sync::{broadcast, watch};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+// Request context follows the in-process API dispatch, never a caller payload.
+tokio::task_local! { pub(crate) static API_REQUEST: bool; }
+
 pub const MAX_JOBS: usize = 200;
 const MAX_LOGS: usize = 500;
 const HISTORY_LOGS: usize = 100;
@@ -280,7 +283,10 @@ impl JobStore {
         Ok(store)
     }
 
-    pub fn create(&self, kind: JobType, params: Value) -> Result<Job> {
+    pub fn create(&self, kind: JobType, mut params: Value) -> Result<Job> {
+        if API_REQUEST.try_with(|api| *api).unwrap_or(false) {
+            params["source"] = serde_json::json!("api");
+        }
         let mut state = self.0.state.lock().unwrap();
         if state.closed {
             bail!("Applio is shutting down");

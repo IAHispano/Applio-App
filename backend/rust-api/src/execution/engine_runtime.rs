@@ -238,6 +238,12 @@ impl EngineRuntime {
         args: impl IntoIterator<Item = impl Into<OsString>>,
     ) -> Result<CommandSpec> {
         let mut args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+        // UVR's curated Demucs packages contain model classes, not just tensor
+        // dictionaries. Keep their existing trusted-model loading contract.
+        let separation = args
+            .first()
+            .and_then(|arg| arg.to_str())
+            .is_some_and(|arg| arg.replace('\\', "/").starts_with("uvr/"));
         if let Some(script) = args.first().and_then(|arg| arg.to_str()) {
             let script = script.replace('\\', "/");
             if script == "rvc/infer/infer.py" {
@@ -339,6 +345,17 @@ impl EngineRuntime {
                 .map(|(key, value)| (key.clone(), value.clone())),
         );
         crate::gpu_runtime::apply_to_command(self, &mut spec)?;
+        // Metadata inspection upstream retries with unrestricted pickle loading.
+        // Enforce safe loading in workers, CLI fallbacks and their subprocesses,
+        // including when the parent environment requests the unsafe fallback.
+        if !separation {
+            spec.env_remove
+                .push("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD".into());
+            spec.env
+                .remove(OsStr::new("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD"));
+            spec.env
+                .insert("TORCH_FORCE_WEIGHTS_ONLY_LOAD".into(), "1".into());
+        }
         Ok(spec)
     }
     pub fn worker_command(&self) -> Result<CommandSpec> {
@@ -459,4 +476,51 @@ fn detect_python(data: &Path) -> PathBuf {
         }
     }
     PathBuf::from(if cfg!(windows) { "python" } else { "python3" })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn python_commands_enforce_safe_checkpoint_loading_after_environment_merging() {
+        let root = tempfile::tempdir().unwrap();
+        let backend = root.path().join("backend/applio/rvc/configs");
+        std::fs::create_dir_all(&backend).unwrap();
+        std::fs::write(backend.join("config.py"), "").unwrap();
+        std::fs::create_dir_all(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/config_template.json"), "{}").unwrap();
+        let config = ApiConfig {
+            code_root: root.path().into(),
+            data_root: root.path().join("data"),
+            config_dir: root.path().join("config"),
+        };
+        let mut environment = crate::app_runtime::Environment::new();
+        environment.insert("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD".into(), "1".into());
+        environment.insert("TORCH_FORCE_WEIGHTS_ONLY_LOAD".into(), "0".into());
+        let runtime =
+            EngineRuntime::with_environment(&config, Some("python".into()), environment).unwrap();
+        for spec in [
+            runtime.python_command(["-c", "pass"]).unwrap(),
+            runtime.worker_command().unwrap(),
+        ] {
+            assert_eq!(
+                spec.env.get(OsStr::new("TORCH_FORCE_WEIGHTS_ONLY_LOAD")),
+                Some(&OsString::from("1"))
+            );
+            assert!(!spec
+                .env
+                .contains_key(OsStr::new("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD")));
+            assert!(spec
+                .env_remove
+                .contains(&OsString::from("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD")));
+        }
+        let separation = runtime.python_command(["uvr/separate.py"]).unwrap();
+        assert_eq!(
+            separation
+                .env
+                .get(OsStr::new("TORCH_FORCE_WEIGHTS_ONLY_LOAD")),
+            Some(&OsString::from("0"))
+        );
+    }
 }

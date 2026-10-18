@@ -20,6 +20,8 @@ pub fn router(api: Router, root: PathBuf) -> Router {
         "/train",
         "/voice-blender",
         "/tensorboard",
+        "/api-access",
+        "/your-data",
         "/extra",
         "/audio-separator",
         "/jobs",
@@ -97,5 +99,14 @@ async fn asset_headers(request: Request, next: Next) -> Response {
     response
         .headers_mut()
         .insert("x-content-type-options", "nosniff".parse().unwrap());
+    response
+        .headers_mut()
+        .insert("x-frame-options", "DENY".parse().unwrap());
+    response.headers_mut().insert(
+        "content-security-policy",
+        "frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
+            .parse()
+            .unwrap(),
+    );
     response
 }

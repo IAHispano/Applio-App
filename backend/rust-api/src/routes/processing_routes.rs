@@ -202,7 +202,14 @@ pub(crate) fn final_output(
     Ok(engine.runtime.repo_relative(&file))
 }
 
-async fn inference(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {
+pub(crate) async fn inference(
+    State(engine): State<Arc<NativeEngine>>,
+    request: Request,
+) -> Accepted {
+    let integration = request
+        .extensions()
+        .get::<super::integration_routes::ApiCall>()
+        .is_some();
     let mut input =
         uploads::parse(request, &engine.runtime.uploads, &uploads::audio_rule()).await?;
     ready(&engine).await?;
@@ -210,6 +217,9 @@ async fn inference(State(engine): State<Arc<NativeEngine>>, request: Request) ->
     let audio = input_audio(&engine, &input)?;
     let mut saved = params.clone();
     saved["inputPath"] = json!(audio);
+    if integration {
+        saved["source"] = json!("api");
+    }
     model_paths(&engine, &mut params)?;
     let job = engine.start_job(JobType::Inference, saved, Some(Resource::Gpu), move |engine, job, token| async move {
         let wav = output(&engine, "web_output", "wav");
@@ -234,7 +244,11 @@ async fn inference(State(engine): State<Arc<NativeEngine>>, request: Request) ->
     Ok(accepted(job))
 }
 
-async fn tts(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {
+pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {
+    let integration = request
+        .extensions()
+        .get::<super::integration_routes::ApiCall>()
+        .is_some();
     let mut input = uploads::parse(request, &engine.runtime.uploads, &uploads::text_rule()).await?;
     ready(&engine).await?;
     let mut params = infer_params::tts(&input.body)?;
@@ -244,6 +258,9 @@ async fn tts(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accep
     }
     let mut saved = params.clone();
     saved["ttsFile"] = json!(tts_file);
+    if integration {
+        saved["source"] = json!("api");
+    }
     model_paths(&engine, &mut params)?;
     let job = engine.start_job(JobType::Tts, saved, Some(Resource::Gpu), move |engine, job, token| async move {
         let intermediate = output(&engine, "tts_output", "wav");
@@ -374,7 +391,7 @@ async fn raw_audio(
         .filter(|value| !value.is_empty())
         .context("Missing path parameter")?;
     let path = engine.runtime.resolve_user_path(value)?;
-    if !path.is_file() {
+    if !raw_audio_file(&path) {
         return Err(Error(
             StatusCode::NOT_FOUND,
             json!({"error":"Audio file not found"}),
@@ -382,6 +399,44 @@ async fn raw_audio(
     }
     let response = ServeFile::new(path).oneshot(request).await.unwrap();
     Ok(response.into_response())
+}
+
+fn raw_audio_file(path: &Path) -> bool {
+    // This endpoint is also available to approved Bridge clients. It must not
+    // become a general file reader for credentials or other host documents.
+    std::fs::canonicalize(path).is_ok_and(|path| {
+        path.is_file()
+            && path
+                .extension()
+                .and_then(|value| value.to_str())
+                .is_some_and(|extension| {
+                    uploads::AUDIO_EXTENSIONS.contains(&extension.to_ascii_lowercase().as_str())
+                })
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn raw_audio_does_not_serve_host_documents() {
+        let root = tempfile::tempdir().unwrap();
+        let audio = root.path().join("sample.WAV");
+        let secret = root.path().join(".env");
+        std::fs::write(&audio, b"audio").unwrap();
+        std::fs::write(&secret, b"private").unwrap();
+        assert!(raw_audio_file(&audio));
+        assert!(!raw_audio_file(&secret));
+        assert!(!raw_audio_file(root.path()));
+        assert!(!raw_audio_file(&root.path().join("missing.wav")));
+        #[cfg(unix)]
+        {
+            let link = root.path().join("secret.wav");
+            std::os::unix::fs::symlink(&secret, &link).unwrap();
+            assert!(!raw_audio_file(&link));
+        }
+    }
 }
 
 async fn blender(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {

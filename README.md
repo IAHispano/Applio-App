@@ -2,7 +2,7 @@
 
 Voice conversion, realtime voice changing, speech synthesis, and model training in one desktop app.
 
-[Download](https://github.com/IAHispano/Applio-App/releases) · [Documentation](https://docs.applio.org) · [Discord](https://discord.gg/wY7gmqTyEV) · [Support](https://ko-fi.com/iahispano) · [Patreon](https://www.patreon.com/iahispano)
+[Download](https://github.com/IAHispano/Applio-App/releases) · [Documentation](https://docs.applio.org) · [Your data & privacy](YOUR_DATA.md) · [Discord](https://discord.gg/wY7gmqTyEV) · [Support](https://ko-fi.com/iahispano) · [Patreon](https://www.patreon.com/iahispano)
 
 ## Install
 

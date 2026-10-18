@@ -9,6 +9,14 @@ import shutil
 import subprocess
 import sys
 
+# Apply the same checkpoint policy when this CLI is launched without Rust.
+_inherited_checkpoint_policy = {
+    key: os.environ.get(key)
+    for key in ("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", "TORCH_FORCE_WEIGHTS_ONLY_LOAD")
+}
+os.environ.pop("TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD", None)
+os.environ["TORCH_FORCE_WEIGHTS_ONLY_LOAD"] = "1"
+
 current_script_directory = str(Path(__file__).resolve().parent)
 backend_root = Path(
     os.environ.get("APPLIO_BACKEND_ROOT")
@@ -89,7 +97,15 @@ def run_uvr_script(
     if single_stem:
         cmd.extend(["--single-stem", single_stem])
 
-    result = subprocess.run(cmd)
+    # Curated Demucs packages serialize model classes. Preserve their existing
+    # trust contract and any policy explicitly set by the caller.
+    separation_env = os.environ.copy()
+    for key, value in _inherited_checkpoint_policy.items():
+        if value is None:
+            separation_env.pop(key, None)
+        else:
+            separation_env[key] = value
+    result = subprocess.run(cmd, env=separation_env)
     if result.returncode != 0:
         return f"UVR separation failed with exit code {result.returncode}."
     return f"Audio separation completed successfully. Stems saved in: {output_dir}"

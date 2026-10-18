@@ -3,6 +3,7 @@ pub mod batch_routes;
 pub(crate) mod catalog;
 pub mod dataset_routes;
 pub mod download_routes;
+pub mod integration_routes;
 pub mod job_routes;
 pub mod model_routes;
 pub mod native;
@@ -16,3 +17,5 @@ pub mod tensorboard_routes;
 pub mod training_routes;
 pub mod uvr_routes;
 pub mod version_routes;
+
+pub(crate) mod integration_catalog;

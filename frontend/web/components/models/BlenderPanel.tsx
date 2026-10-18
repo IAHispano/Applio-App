@@ -1,18 +1,16 @@
 "use client";
-
-import { Layers, Sparkles } from "lucide-react";
+import { Layers, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
 import { Alert, Badge, Button, Card, CardHeader, FileInput } from "@/components/ui";
-import CustomSelect from "@/components/ui/CustomSelect";
+import ModelDropdown from "@/components/ui/ModelDropdown";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
-import { errMsg, fetchModels, postForm } from "@/lib/api";
+import { errMsg, fetchModels, fileBasename, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { usePersistentJobId } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
-
 export default function BlenderPanel() {
   const { t } = useI18n();
   const [models, setModels] = useWorkspaceState<string[]>("BlenderPanel:models:models", []);
@@ -25,7 +23,6 @@ export default function BlenderPanel() {
   const [jobId, setJobId] = usePersistentJobId("blender");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-
   useEffect(() => {
     fetchModels()
       .then((m) => {
@@ -36,7 +33,6 @@ export default function BlenderPanel() {
       })
       .catch(() => {});
   }, [setP2, setP1, setModels]);
-
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -74,146 +70,154 @@ export default function BlenderPanel() {
   }
 
   return (
-    <div className="space-y-4">
-      {error && <Alert variant="error">{error}</Alert>}
-
-      <form onSubmit={onSubmit} className="card-stack">
-        <Card>
-          <CardHeader
-            icon={<Layers size={18} className="text-white" />}
-            title={t("Model Fusion & Blending")}
-            description={t("Merge and interpolate weights between two compatible voice model checkpoints.")}
-            action={
-              <Badge variant="neutral" size="sm">
-                {models.length} {t("models detected")}
-              </Badge>
-            }
-          />
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="blend-model-name">{t("Model Name")}</label>
-              <input
-                id="blend-model-name"
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={t("my-fusion")}
-                aria-describedby={`${"blend-model-name"}-help`}
-              />
-              <SettingHelp text={t(SETTING_HELP.modelName)} controlId={"blend-model-name"} />
-            </div>
-            <div>
-              <SliderField
-                id="blend-ratio"
-                label={`${t("Blend Ratio")} (0 = ${t("Model 2")}, 1 = ${t("Model 1")})`}
-                value={ratio}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={setRatio}
-                description={t(SETTING_HELP.blend)}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <form onSubmit={onSubmit} className="page-stack">
+      {error && (
+        <Alert variant="error" onDismiss={() => setError("")}>
+          {error}
+        </Alert>
+      )}
+      <div className="grid grid-cols-1 xl:grid-cols-2 card-grid">
+        {[
+          { number: 1, path: p1, file: f1, setPath: setP1, setFile: setF1 },
+          { number: 2, path: p2, file: f2, setPath: setP2, setFile: setF2 },
+        ].map((source) => (
+          <Card key={source.number} className="space-y-4">
+            <CardHeader
+              icon={<Layers size={18} />}
+              title={t(source.number === 1 ? "Model 1" : "Model 2")}
+              description={t(SETTING_HELP.blendModel)}
+              action={
+                <Badge variant="neutral">
+                  {source.number === 1 ? Math.round(ratio * 100) : 100 - Math.round(ratio * 100)}%
+                </Badge>
+              }
+            />
+            <label className="sr-only" htmlFor={`blend-model-${source.number}`}>
+              {t(source.number === 1 ? "Model 1" : "Model 2")}
+            </label>
+            <ModelDropdown
+              id={`blend-model-${source.number}`}
+              models={models}
+              selectedModel={source.file ? "" : source.path}
+              onSelect={(path) => {
+                source.setPath(path);
+                source.setFile(null);
+              }}
+              onUnload={() => source.setPath("")}
+              onRefresh={() => {
+                void fetchModels(true)
+                  .then((data) =>
+                    setModels(data.models.filter((model) => model.toLowerCase().endsWith(".pth"))),
+                  )
+                  .catch((err) => setError(errMsg(err)));
+              }}
+            />
             <div className="space-y-2">
-              <label htmlFor="blend-model1-path">{t("Path to first model")}</label>
-              {models.length > 0 ? (
-                <CustomSelect
-                  id="blend-model1-path"
-                  value={p1}
-                  onChange={(e) => setP1(e.target.value)}
-                  placeholder={t("Select Model 1…")}
-                  className="w-full"
-                  description={t(SETTING_HELP.blendModel)}
-                >
-                  <option value="">{t("Select Model 1…")}</option>
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </CustomSelect>
-              ) : (
-                <>
-                  <input
-                    id="blend-model1-path"
-                    type="text"
-                    value={p1}
-                    onChange={(e) => setP1(e.target.value)}
-                    placeholder="logs/model1.pth"
-                    aria-describedby={`${"blend-model1-path"}-help`}
-                  />
-                  <SettingHelp text={t(SETTING_HELP.blendModel)} controlId={"blend-model1-path"} />
-                </>
-              )}
-              <label htmlFor="blend-model1-file" className="block text-xs text-neutral-400">
-                {t("Or upload Model 1 file")}
+              <label htmlFor={`blend-file-${source.number}`}>
+                {t(source.number === 1 ? "Or upload Model 1 file" : "Or upload Model 2 file")}
               </label>
-              <FileInput id="blend-model1-file" accept=".pth" onFileSelect={setF1} />
-            </div>
-
-            <div className="space-y-2">
-              <label htmlFor="blend-model2-path">{t("Path to second model")}</label>
-              {models.length > 0 ? (
-                <CustomSelect
-                  id="blend-model2-path"
-                  value={p2}
-                  onChange={(e) => setP2(e.target.value)}
-                  placeholder={t("Select Model 2…")}
-                  className="w-full"
-                  description={t(SETTING_HELP.blendModel)}
-                >
-                  <option value="">{t("Select Model 2…")}</option>
-                  {models.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </CustomSelect>
-              ) : (
-                <>
-                  <input
-                    id="blend-model2-path"
-                    type="text"
-                    value={p2}
-                    onChange={(e) => setP2(e.target.value)}
-                    placeholder="logs/model2.pth"
-                    aria-describedby={`${"blend-model2-path"}-help`}
-                  />
-                  <SettingHelp text={t(SETTING_HELP.blendModel)} controlId={"blend-model2-path"} />
-                </>
+              <FileInput
+                key={source.file?.name || "empty"}
+                id={`blend-file-${source.number}`}
+                accept=".pth"
+                placeholder={source.file?.name}
+                onFileSelect={source.setFile}
+              />
+              {source.file && (
+                <Button variant="ghost" size="xs" onClick={() => source.setFile(null)}>
+                  {t("Clear file selection")}
+                </Button>
               )}
-              <label htmlFor="blend-model2-file" className="block text-xs text-neutral-400">
-                {t("Or upload Model 2 file")}
-              </label>
-              <FileInput id="blend-model2-file" accept=".pth" onFileSelect={setF2} />
             </div>
-          </div>
-        </Card>
-
-        {/* Action card */}
-        <Card>
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-neutral-400">
-              <Sparkles size={16} className="text-white shrink-0" />
-              <span>{t("Interpolate weights between two checkpoint files.")}</span>
-            </div>
-            <Button
-              type="submit"
-              disabled={busy || !name.trim() || (!p1 && !f1) || (!p2 && !f2)}
-              icon={<Layers size={16} />}
-              className="w-full sm:w-auto"
-            >
-              {busy ? t("Blending…") : t("Fuse Models")}
+            <details className="rounded-lg border border-[var(--border)] px-3 py-2">
+              <summary className="cursor-pointer text-xs text-[var(--muted)]">
+                {t("Advanced Settings")}
+              </summary>
+              <div className="space-y-2 pt-3">
+                <label htmlFor={`blend-path-${source.number}`}>
+                  {t(source.number === 1 ? "Path to first model" : "Path to second model")}
+                </label>
+                <input
+                  id={`blend-path-${source.number}`}
+                  value={source.path}
+                  placeholder={`logs/model${source.number}.pth`}
+                  onChange={(event) => {
+                    source.setPath(event.target.value);
+                    source.setFile(null);
+                  }}
+                />
+              </div>
+            </details>
+          </Card>
+        ))}
+      </div>
+      <Card className="space-y-5">
+        <CardHeader
+          icon={<Sparkles size={18} />}
+          title={t("Model Fusion & Blending")}
+          description={t("Merge and interpolate weights between two compatible voice model checkpoints.")}
+          action={
+            <Button variant="ghost" size="xs" icon={<RefreshCw size={13} />} onClick={() => setRatio(0.5)}>
+              {t("Reset defaults")}
             </Button>
+          }
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="space-y-2">
+            <label htmlFor="blend-model-name">{t("Model Name")}</label>
+            <input
+              id="blend-model-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder={t("my-fusion")}
+              aria-describedby="blend-model-name-help"
+            />
+            <SettingHelp text={t(SETTING_HELP.modelName)} controlId="blend-model-name" />
           </div>
-
-          <JobPanel jobId={jobId} embedded />
-        </Card>
-      </form>
-    </div>
+          <div className="space-y-3">
+            <SliderField
+              id="blend-ratio"
+              label={t("Blend Ratio")}
+              value={Math.round(ratio * 100)}
+              min={0}
+              max={100}
+              step={1}
+              unit="%"
+              onChange={(percent) => setRatio(percent / 100)}
+              description={t("Choose how much of Model 1 to keep. The rest comes from Model 2.")}
+            />
+            <div className="flex justify-between gap-4 text-xs text-[var(--muted)]">
+              <span className="truncate">
+                {t("Model 1")}: {Math.round(ratio * 100)}% · {fileBasename(f1?.name || p1) || "—"}
+              </span>
+              <span className="truncate text-right">
+                {t("Model 2")}: {100 - Math.round(ratio * 100)}% · {fileBasename(f2?.name || p2) || "—"}
+              </span>
+            </div>
+            <div className="flex h-2 overflow-hidden rounded-full bg-[var(--input-bg)]" aria-hidden="true">
+              <div className="bg-[var(--accent)] transition-[width]" style={{ width: `${ratio * 100}%` }} />
+              <div className="flex-1 bg-[var(--muted)] opacity-50" />
+            </div>
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <p className="field-help flex items-center gap-2">
+            <Sparkles size={16} />
+            {t("Interpolate weights between two checkpoint files.")}
+          </p>
+          <Button
+            type="submit"
+            loading={busy}
+            disabled={!name.trim() || (!p1 && !f1) || (!p2 && !f2)}
+            icon={<Layers size={16} />}
+          >
+            {busy ? t("Blending…") : t("Fuse Models")}
+          </Button>
+        </div>
+        <JobPanel jobId={jobId} embedded />
+      </Card>
+    </form>
   );
 }
