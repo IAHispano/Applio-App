@@ -137,24 +137,133 @@ async fn serve_with_factory_and_ui(
         };
         engine.request_shutdown();
         drain.cancel();
-        engine.shutdown().await?;
-        drop(guard);
         if let Some(result) = result {
+            engine.shutdown().await?;
+            drop(guard);
             result?;
             return Ok(());
         }
-        // Generation SSE and realtime sockets close with engine cancellation.
-        // A stalled arbitrary HTTP client still cannot prevent a restart.
-        if let Ok(result) = tokio::time::timeout(Duration::from_secs(10), &mut server).await {
+        // Keep polling both servers while shutting down the engine so the
+        // restart response can reach the Settings page immediately. Drain
+        // concurrently; a stalled client must not delay each listener in turn.
+        let (shutdown, api_result, web_result) = tokio::join!(
+            engine.shutdown(),
+            tokio::time::timeout(Duration::from_secs(10), &mut server),
+            async {
+                if web_reserved.is_some() {
+                    tokio::time::timeout(Duration::from_secs(10), &mut web)
+                        .await
+                        .ok()
+                } else {
+                    None
+                }
+            }
+        );
+        shutdown?;
+        drop(guard);
+        if let Ok(result) = api_result {
             result?;
         }
-        if web_reserved.is_some() {
-            if let Ok(result) = tokio::time::timeout(Duration::from_secs(10), &mut web).await {
-                result?;
-            }
+        if let Some(result) = web_result {
+            result?;
         }
         if stop.is_cancelled() {
             return Ok(());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn settings_restart_acknowledges_before_cleanup_and_creates_new_generation() {
+        let directory = tempfile::tempdir().unwrap();
+        let config = ApiConfig {
+            code_root: directory.path().join("code"),
+            data_root: directory.path().join("data"),
+            config_dir: directory.path().join("config"),
+        };
+        for (path, content) in [
+            ("assets/config_template.json", "{}"),
+            ("backend/applio/rvc/configs/config.py", ""),
+            ("frontend/web/out/index.html", "<html></html>"),
+        ] {
+            let path = config.code_root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, content).unwrap();
+        }
+        let factory_config = config.clone();
+        let create = move || {
+            let runtime = EngineRuntime::with_python(&factory_config, Some("python3".into()))?;
+            let readiness = Arc::new(RuntimeReadiness::new(runtime.clone(), true));
+            NativeEngine::open_with_options(
+                runtime,
+                readiness,
+                EngineOptions {
+                    no_env: true,
+                    ..Default::default()
+                },
+            )
+        };
+        let first = create().unwrap();
+        let old_id = first.instance_id.clone();
+        let (release, blocked) = tokio::sync::oneshot::channel::<()>();
+        first
+            .spawn_background(async move {
+                let _ = blocked.await;
+            })
+            .await
+            .unwrap();
+        let mut initial = Some(first);
+        let api = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let web = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let origin = format!("http://{}", web.local_addr().unwrap());
+        let stop = CancellationToken::new();
+        let host_stop = stop.clone();
+        let host = tokio::spawn(async move {
+            serve_with_factory_and_ui(api, Some(web), config, host_stop, move || {
+                initial.take().map(Ok).unwrap_or_else(&create)
+            })
+            .await
+        });
+        let client = reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_secs(2))
+            .build()
+            .unwrap();
+        let response: serde_json::Value = client
+            .post(format!("{origin}/api/settings/restart"))
+            .send()
+            .await
+            .expect("restart response was blocked by engine cleanup")
+            .error_for_status()
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+        assert_eq!(response["instanceId"], old_id);
+        release.send(()).unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if let Ok(response) = client.get(format!("{origin}/api/health")).send().await {
+                    if let Ok(body) = response.json::<serde_json::Value>().await {
+                        if body["instanceId"].as_str().is_some_and(|id| id != old_id) {
+                            break;
+                        }
+                    }
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("API did not start a new generation");
+        stop.cancel();
+        tokio::time::timeout(Duration::from_secs(5), host)
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap();
     }
 }

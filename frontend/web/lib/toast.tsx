@@ -3,6 +3,7 @@
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import DownloadPreview from "@/components/DownloadPreview";
 import { translate, useI18n } from "@/lib/i18n";
 
 export type ToastKind = "info" | "success" | "error";
@@ -24,7 +25,6 @@ interface Toast extends ToastOptions {
   text: string;
 }
 let nextId = 1;
-let lastDownloadToast = { time: 0, name: "" };
 
 export function extractDownloadFilename(
   downloadAttr?: string | null,
@@ -60,7 +60,7 @@ export function extractDownloadFilename(
   return undefined;
 }
 
-export function notifyDownloadCompleted(filename?: string, t?: (key: string) => string): void {
+export function notifyDownload(filename: string | undefined, href: string, t = translate): void {
   if (typeof window === "undefined") return;
   const cleanName = filename
     ? filename
@@ -70,15 +70,41 @@ export function notifyDownloadCompleted(filename?: string, t?: (key: string) => 
         ?.trim()
     : undefined;
 
-  const now = Date.now();
-  if (now - lastDownloadToast.time < 500 && lastDownloadToast.name === (cleanName || "")) {
-    return;
-  }
-  lastDownloadToast = { time: now, name: cleanName || "" };
-
-  const prefix = t ? t("Download completed") : translate("Download completed");
-  const text = cleanName ? `${prefix}: ${cleanName}` : prefix;
-  toast(text, "success", { duration: 5000 });
+  const url = new URL(href, window.location.href);
+  if (!["http:", "https:", "blob:", "data:"].includes(url.protocol)) return;
+  // Capture temporary sources now: the originating view may revoke its URL
+  // before the user clicks the toast action.
+  const preview = ["blob:", "data:"].includes(url.protocol)
+    ? fetch(url.href)
+        .then((response) => response.blob())
+        .catch(() => null)
+    : null;
+  toast(t("If the download does not start, open the file to save it."), "info", {
+    title: cleanName ? `${t("Download requested")}: ${cleanName}` : t("Download requested"),
+    duration: 15000,
+    action: {
+      label: t("Open file"),
+      onClick: () => {
+        if (!preview) {
+          // The desktop bridge sends window.open to the system browser,
+          // including same-origin output URLs which cannot open a native tab.
+          window.open(url.href, "_blank", "noopener,noreferrer");
+          return;
+        }
+        void preview.then((blob) => {
+          if (!blob) {
+            toast(t("Could not open file"), "error");
+            return;
+          }
+          window.dispatchEvent(
+            new CustomEvent("applio:open-download", {
+              detail: { blob, filename: cleanName || t("Download") },
+            }),
+          );
+        });
+      },
+    },
+  });
 }
 
 export function toast(text: string, kind: ToastKind = "info", options: ToastOptions = {}): void {
@@ -93,6 +119,7 @@ export function toast(text: string, kind: ToastKind = "info", options: ToastOpti
 export default function Toaster() {
   const { t } = useI18n();
   const [items, setItems] = useState<Toast[]>([]);
+  const [downloadPreview, setDownloadPreview] = useState<{ blob: Blob; filename: string } | null>(null);
   const timers = useRef(
     new Map<string, { handle?: ReturnType<typeof setTimeout>; remaining: number; deadline: number }>(),
   );
@@ -159,13 +186,18 @@ export default function Toaster() {
         href,
         anchor.getAttribute("title") || anchor.getAttribute("aria-label"),
       );
-      notifyDownloadCompleted(fileName, t);
+      if (href) notifyDownload(fileName, href, t);
+    };
+    const onOpenDownload = (event: Event) => {
+      setDownloadPreview((event as CustomEvent<{ blob: Blob; filename: string }>).detail);
     };
     document.addEventListener("click", onGlobalClick, true);
     window.addEventListener("applio:toast", onToast);
+    window.addEventListener("applio:open-download", onOpenDownload);
     return () => {
       document.removeEventListener("click", onGlobalClick, true);
       window.removeEventListener("applio:toast", onToast);
+      window.removeEventListener("applio:open-download", onOpenDownload);
       for (const timer of timerMap.values()) clearTimeout(timer.handle);
       timerMap.clear();
     };
@@ -201,64 +233,67 @@ export default function Toaster() {
       </button>
     );
   };
-  if (!items.length) return null;
+  if (!items.length && !downloadPreview) return null;
   return (
-    <section
-      aria-label={t("Notifications")}
-      className="fixed right-4 left-4 sm:left-auto bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-4 z-50 flex flex-col gap-2 pointer-events-none w-auto sm:w-96 max-w-[calc(100vw-2rem)]"
-    >
-      {items.map((item) => {
-        const isError = item.kind === "error";
-        const Icon = isError ? AlertCircle : item.kind === "success" ? CheckCircle2 : Info;
-        return (
-          // biome-ignore lint/a11y/noStaticElementInteractions: Hover and focus only pause dismissal; nested links and buttons provide interaction.
-          <div
-            key={item.id}
-            role={isError ? "alert" : "status"}
-            aria-live={isError ? "assertive" : "polite"}
-            aria-atomic="true"
-            onMouseEnter={() => pause(item.id)}
-            onMouseLeave={(event) => {
-              if (!event.currentTarget.contains(document.activeElement)) resume(item.id);
-            }}
-            onFocus={() => pause(item.id)}
-            onBlur={(event) => {
-              if (
-                !event.currentTarget.contains(event.relatedTarget) &&
-                !event.currentTarget.matches(":hover")
-              )
-                resume(item.id);
-            }}
-            className={`toast-item pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-xl text-xs ${isError ? "bg-[var(--panel)] border-red-500/50 text-red-300" : "bg-[var(--panel)] border-[var(--border)] text-[var(--text)]"}`}
-          >
-            <Icon
-              size={17}
-              aria-hidden="true"
-              className={`shrink-0 mt-0.5 ${item.kind === "success" ? "text-emerald-400" : ""}`}
-            />
-            <div className="flex-1 min-w-0 space-y-2">
-              {item.title && <p className="m-0 font-semibold leading-relaxed">{item.title}</p>}
-              <p className="m-0 leading-relaxed break-words whitespace-pre-line max-h-32 overflow-y-auto">
-                {item.text}
-              </p>
-              {(item.action || item.secondaryAction) && (
-                <div className="flex flex-wrap gap-4 pt-1">
-                  {item.action && action(item, item.action)}
-                  {item.secondaryAction && action(item, item.secondaryAction)}
-                </div>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => dismiss(item.id)}
-              aria-label={t("Dismiss notification")}
-              className="shrink-0 -mr-1 -mt-1 p-2 rounded-md text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2"
+    <>
+      {downloadPreview && <DownloadPreview {...downloadPreview} onClose={() => setDownloadPreview(null)} />}
+      <section
+        aria-label={t("Notifications")}
+        className="fixed right-4 left-4 sm:left-auto bottom-[calc(6rem+env(safe-area-inset-bottom))] lg:bottom-4 z-50 flex flex-col gap-2 pointer-events-none w-auto sm:w-96 max-w-[calc(100vw-2rem)]"
+      >
+        {items.map((item) => {
+          const isError = item.kind === "error";
+          const Icon = isError ? AlertCircle : item.kind === "success" ? CheckCircle2 : Info;
+          return (
+            // biome-ignore lint/a11y/noStaticElementInteractions: Hover and focus only pause dismissal; nested links and buttons provide interaction.
+            <div
+              key={item.id}
+              role={isError ? "alert" : "status"}
+              aria-live={isError ? "assertive" : "polite"}
+              aria-atomic="true"
+              onMouseEnter={() => pause(item.id)}
+              onMouseLeave={(event) => {
+                if (!event.currentTarget.contains(document.activeElement)) resume(item.id);
+              }}
+              onFocus={() => pause(item.id)}
+              onBlur={(event) => {
+                if (
+                  !event.currentTarget.contains(event.relatedTarget) &&
+                  !event.currentTarget.matches(":hover")
+                )
+                  resume(item.id);
+              }}
+              className={`toast-item pointer-events-auto flex items-start gap-3 p-4 rounded-xl border shadow-xl text-xs ${isError ? "bg-[var(--panel)] border-red-500/50 text-red-300" : "bg-[var(--panel)] border-[var(--border)] text-[var(--text)]"}`}
             >
-              <X size={14} aria-hidden="true" />
-            </button>
-          </div>
-        );
-      })}
-    </section>
+              <Icon
+                size={17}
+                aria-hidden="true"
+                className={`shrink-0 mt-0.5 ${item.kind === "success" ? "text-emerald-400" : ""}`}
+              />
+              <div className="flex-1 min-w-0 space-y-2">
+                {item.title && <p className="m-0 font-semibold leading-relaxed">{item.title}</p>}
+                <p className="m-0 leading-relaxed break-words whitespace-pre-line max-h-32 overflow-y-auto">
+                  {item.text}
+                </p>
+                {(item.action || item.secondaryAction) && (
+                  <div className="flex flex-wrap gap-4 pt-1">
+                    {item.action && action(item, item.action)}
+                    {item.secondaryAction && action(item, item.secondaryAction)}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => dismiss(item.id)}
+                aria-label={t("Dismiss notification")}
+                className="shrink-0 -mr-1 -mt-1 p-2 rounded-md text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            </div>
+          );
+        })}
+      </section>
+    </>
   );
 }

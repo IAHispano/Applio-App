@@ -1,5 +1,5 @@
-import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { releaseVersion } from "./release-version.mjs";
@@ -67,9 +67,12 @@ if (manifestIndex >= 0) {
     releaseDate: new Date().toISOString(),
   };
   if (Object.keys(platforms).length) {
+    const notes = process.env.RELEASE_NOTES_FILE
+      ? fs.readFileSync(process.env.RELEASE_NOTES_FILE, "utf8")
+      : `Applio ${version}\n\nRelease notes: https://github.com/${repository}/releases/tag/v${version}`;
     fs.writeFileSync(
       path.join(directory, "latest.json"),
-      `${JSON.stringify({ version, notes: `Applio ${version}`, pub_date: new Date().toISOString(), platforms }, null, 2)}\n`,
+      `${JSON.stringify({ version, notes, pub_date: new Date().toISOString(), platforms }, null, 2)}\n`,
     );
     // JSON is valid YAML, and avoids a separate YAML serializer dependency.
     for (const [name, feed] of Object.entries(legacy))

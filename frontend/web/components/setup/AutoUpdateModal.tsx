@@ -1,492 +1,237 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowDownCircle,
-  CheckCircle2,
-  ExternalLink,
-  Loader2,
-  RefreshCw,
-  ShieldAlert,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ArrowDownCircle, RefreshCw, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import ReleaseChanges from "@/components/ReleaseChanges";
 import { Button, Dialog, IconButton } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { apiGet, apiSend, cleanVersion, displayVersion, errMsg } from "@/lib/api";
+import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-
-export interface VersionCheckData {
-  local: string;
-  latest: string;
-  status: "up-to-date" | "behind" | "ahead" | "unknown";
-  versionsBehind: number;
-  isOutdated: boolean;
-  isDev?: boolean;
-  releaseName?: string;
-  releaseNotes?: string;
-  publishedAt?: string;
-  htmlUrl?: string;
-  downloadUrl?: string;
-}
-
-interface DesktopUpdaterState {
-  status:
-    | "idle"
-    | "checking"
-    | "available"
-    | "not-available"
-    | "downloading"
-    | "downloaded"
-    | "error"
-    | "dev-mode";
-  version?: string;
-  percent?: number;
-  message?: string;
-  releaseNotes?: string;
-}
-
-const UPDATE_POSTPONED_SESSION_KEY = "applio:update-postponed-version";
+import {
+  type DesktopUpdaterState,
+  deferUpdate,
+  desktopUpdater,
+  updateIsDeferred,
+  type VersionCheckData,
+} from "@/lib/update-policy";
 
 export default function AutoUpdateModal() {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
-  const [versionData, setVersionData] = useState<VersionCheckData | null>(null);
-  const [, setUpdaterState] = useState<DesktopUpdaterState | null>(null);
-  const [updating, setUpdating] = useState(false);
-  const [updateStep, setUpdateStep] = useState<"idle" | "downloading" | "ready" | "done" | "error">("idle");
-  const [updateProgress, setUpdateProgress] = useState<number | null>(null);
-  const [statusMessage, setStatusMessage] = useState("");
-  const [errorMsg, setErrorMsg] = useState("");
-
-  const autoTriggeredRef = useRef(false);
+  const [version, setVersion] = useState<VersionCheckData | null>(null);
+  const [native, setNative] = useState<DesktopUpdaterState | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const checking = useRef(false);
+  const manualRequested = useRef(false);
+  const starting = useRef(false);
   const versionRef = useRef<VersionCheckData | null>(null);
-  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  // Desktop bridge reference
-  const getBridge = useCallback(() => {
-    if (typeof window === "undefined") return null;
-    return (
-      window as unknown as {
-        applio?: {
-          updater?: {
-            getStatus: () => Promise<DesktopUpdaterState>;
-            check: () => Promise<unknown>;
-            download?: () => Promise<unknown>;
-            quitAndInstall: () => void;
-            onStatusChange: (cb: (s: DesktopUpdaterState) => void) => () => void;
-          };
-        };
-      }
-    ).applio;
-  }, []);
-
-  // Update installation handler
-  const startUpdate = useCallback(async () => {
-    setUpdating(true);
-    setErrorMsg("");
-    setUpdateStep("downloading");
-    setUpdateProgress(null);
-    setStatusMessage(t("Starting update…"));
-
-    const bridge = getBridge();
-
-    // 1. If Tauri Desktop updater is available and functional
-    if (bridge?.updater) {
-      try {
-        let currentStatus = await bridge.updater.getStatus();
-        if (currentStatus.status !== "available" && currentStatus.status !== "downloaded") {
-          await bridge.updater.check();
-          currentStatus = await bridge.updater.getStatus();
-        }
-        if (currentStatus.status === "downloaded") {
-          setUpdateStep("ready");
-          setStatusMessage(t("Update downloaded. Restarting Applio…"));
-          timersRef.current.push(
-            setTimeout(() => {
-              bridge.updater?.quitAndInstall();
-            }, 1200),
-          );
-          return;
-        }
-
-        if (currentStatus.status === "available" && bridge.updater.download) {
-          await bridge.updater.download();
-        } else {
-          throw new Error(currentStatus.message || t("Download failed"));
-        }
-        return;
-      } catch {
-        // Fallback to git / API update below if desktop updater fails
-      }
-    }
-
-    // 2. Web / Git / API fallback updater
-    try {
-      setStatusMessage(t("Applying update via repository…"));
-      setUpdateProgress(null);
-      const res = await apiSend<{
-        success: boolean;
-        method: string;
-        version?: string;
-        message?: string;
-        downloadUrl?: string;
-      }>("/api/settings/apply-update", "POST");
-
-      if (res.success && res.method === "git") {
-        setUpdateStep("done");
-        setStatusMessage(t("Applio updated successfully! Restart the application to load the new version."));
-      } else if (res.downloadUrl || versionRef.current?.downloadUrl) {
-        const url = res.downloadUrl || versionRef.current?.downloadUrl;
-        if (url && typeof window !== "undefined") {
-          window.open(url, "_blank");
-        }
-        setUpdating(false);
-        setUpdateStep("done");
-        setStatusMessage(t("Installer opened in your browser. Run the installer to complete the update."));
-      } else {
-        setUpdateStep("error");
-        setErrorMsg(res.message || t("Download failed"));
-        setUpdating(false);
-      }
-    } catch (err) {
-      setUpdateStep("error");
-      setErrorMsg(errMsg(err));
-      setUpdating(false);
-    }
-  }, [getBridge, t]);
-
-  // Check version on startup
-  const checkForUpdates = useCallback(async () => {
-    // 1. Disable update modal completely in development mode
-    if (process.env.NODE_ENV === "development") {
+  const checkForUpdates = useCallback(async (manual = false) => {
+    if (checking.current) {
+      if (manual) manualRequested.current = true;
       return;
     }
-
-    // 2. Disable in desktop Tauri dev-mode
-    const bridge = getBridge();
-    if (bridge?.updater) {
-      try {
-        const st = await bridge.updater.getStatus();
-        if (st?.status === "dev-mode") {
-          return;
-        }
-      } catch {
-        /* non-fatal */
-      }
-    }
-
+    if (!manual && process.env.NODE_ENV === "development") return;
+    checking.current = true;
     try {
-      // Fetch version check from API (server caches GitHub for an hour)
-      const data = await apiGet<VersionCheckData>("/api/settings/version-check");
-
-      // 3. Disable if API reports dev environment
-      if (data.isDev) {
-        return;
-      }
-
-      versionRef.current = data;
-      setVersionData(data);
-
-      if (data.status === "behind") {
-        const postponedVersion =
-          typeof sessionStorage !== "undefined" ? sessionStorage.getItem(UPDATE_POSTPONED_SESSION_KEY) : null;
-
-        // If postponed in this session, do not show
-        if (postponedVersion && cleanVersion(postponedVersion) === cleanVersion(data.latest)) {
-          return;
-        }
-
-        // Show update modal
+      const updater = desktopUpdater();
+      const [metadata, status] = await Promise.allSettled([
+        apiGet<VersionCheckData>(`/api/settings/version-check${manual ? "?refresh=1" : ""}`, { ttlMs: 0 }),
+        updater?.check(),
+      ]);
+      const data = metadata.status === "fulfilled" ? metadata.value : null;
+      const state = status.status === "fulfilled" ? status.value : undefined;
+      if (state) setNative(state);
+      if (!manual && !manualRequested.current && (data?.isDev || state?.status === "dev-mode")) return;
+      const available = state?.status === "available" || state?.status === "downloaded";
+      const candidate =
+        available && state?.version
+          ? {
+              local: data?.local || "",
+              latest: state.version,
+              status: "behind" as const,
+              versionsBehind: 1,
+              isOutdated: false,
+              releaseNotes:
+                state.releaseNotes ||
+                (data?.latest.replace(/^v/, "") === state.version.replace(/^v/, "")
+                  ? data.releaseNotes
+                  : undefined),
+            }
+          : data?.status === "behind"
+            ? data
+            : manual || manualRequested.current
+              ? versionRef.current
+              : null;
+      if (!candidate) return;
+      versionRef.current = candidate;
+      setVersion(candidate);
+      if (manual || manualRequested.current || !updateIsDeferred(candidate.latest)) {
+        setError("");
+        setMessage("");
         setOpen(true);
-
-        // If the user is running a few updates older, auto-trigger update
-        if (data.isOutdated) {
-          if (!autoTriggeredRef.current) {
-            autoTriggeredRef.current = true;
-            // Short delay to let modal render and show notice
-            timersRef.current.push(
-              setTimeout(() => {
-                void startUpdate();
-              }, 800),
-            );
-          }
-        }
       }
-    } catch {
-      /* non-fatal if offline */
+    } finally {
+      checking.current = false;
+      manualRequested.current = false;
     }
-
-    if (bridge?.updater) void bridge.updater.check().catch(() => {});
-  }, [getBridge, startUpdate]);
+  }, []);
 
   useEffect(() => {
-    const bridge = getBridge();
-    if (!bridge?.updater) return;
-    const unsubscribe = bridge.updater.onStatusChange((st) => {
-      setUpdaterState(st);
-      if (st.status === "downloading") {
-        setUpdating(true);
-        setUpdateStep("downloading");
-        setUpdateProgress(st.percent ?? null);
-        setStatusMessage(t("Downloading update…"));
-      } else if (st.status === "downloaded") {
-        setUpdating(false);
-        setUpdateStep("ready");
-        setStatusMessage(t("Update ready to install."));
-        if (versionRef.current?.isOutdated) {
-          timersRef.current.push(setTimeout(() => bridge.updater?.quitAndInstall(), 1500));
-        }
-      } else if (st.status === "error") {
-        setUpdating(false);
-        setUpdateStep("error");
-        setErrorMsg(st.message || t("Download failed"));
-      }
+    const updater = desktopUpdater();
+    return updater?.onStatusChange((state) => {
+      setNative(state);
+      if (state.status === "error") setError(state.message || t("Download failed"));
     });
-    return unsubscribe;
-  }, [getBridge, t]);
-
-  useEffect(
-    () => () => {
-      for (const timer of timersRef.current) clearTimeout(timer);
-    },
-    [],
-  );
+  }, [t]);
 
   useEffect(() => {
-    // Never run auto-update timer in development mode
-    if (process.env.NODE_ENV === "development") return;
-
+    const show = () => {
+      void checkForUpdates(true);
+    };
     const timer = setTimeout(() => {
       void checkForUpdates();
     }, 1200);
-
-    return () => clearTimeout(timer);
+    const interval = setInterval(() => {
+      void checkForUpdates();
+    }, 3600000);
+    window.addEventListener("applio:show-update", show);
+    return () => {
+      clearTimeout(timer);
+      clearInterval(interval);
+      window.removeEventListener("applio:show-update", show);
+    };
   }, [checkForUpdates]);
 
-  const handleClose = useCallback(() => {
+  async function startUpdate() {
+    if (starting.current) return;
+    starting.current = true;
+    setBusy(true);
+    setError("");
+    setMessage(t("Starting update…"));
     try {
-      if (versionData?.latest) {
-        sessionStorage.setItem(UPDATE_POSTPONED_SESSION_KEY, versionData.latest);
+      const updater = desktopUpdater();
+      if (updater) {
+        let state = await updater.getStatus();
+        if (state.status !== "dev-mode") {
+          if (state.status !== "available" && state.status !== "downloaded") state = await updater.check();
+          if (state.status === "available") state = await updater.download();
+          setNative(state);
+          if (state.status !== "downloaded") throw new Error(state.message || t("Download failed"));
+          setMessage(t("Update ready to install. Restart when you are ready."));
+          return;
+        }
       }
-    } catch {
-      /* non-fatal */
+      const result = await apiSend<{
+        success: boolean;
+        method: string;
+        message?: string;
+        downloadUrl?: string;
+      }>("/api/settings/apply-update", "POST");
+      if (result.success && result.method === "git") {
+        setMessage(t("Repository updated. Rebuild and restart the application to load the new version."));
+      } else {
+        const url = result.downloadUrl || versionRef.current?.downloadUrl;
+        if (!url) throw new Error(result.message || t("Download failed"));
+        window.open(url, "_blank", "noopener,noreferrer");
+        setMessage(t("Installer opened in your browser. Run the installer to complete the update."));
+      }
+    } catch (cause) {
+      setMessage("");
+      setError(errMsg(cause));
+    } finally {
+      starting.current = false;
+      setBusy(false);
     }
+  }
+
+  async function installUpdate() {
+    if (starting.current) return;
+    starting.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const updater = desktopUpdater();
+      if (!updater) throw new Error(t("Desktop updater is unavailable."));
+      await updater.quitAndInstall();
+    } catch (cause) {
+      setError(errMsg(cause));
+    } finally {
+      starting.current = false;
+      setBusy(false);
+    }
+  }
+
+  function close() {
+    if (version && !busy) deferUpdate(version.latest);
     setOpen(false);
-  }, [versionData?.latest]);
+  }
 
-  const handleRestartNow = () => {
-    const bridge = getBridge();
-    if (bridge?.updater) {
-      bridge.updater.quitAndInstall();
-    } else if (typeof window !== "undefined") {
-      window.location.reload();
-    }
-  };
-
-  if (!open || !versionData || versionData.status !== "behind") return null;
-
-  const isOutdated = versionData.isOutdated;
-  const versionsBehind = versionData.versionsBehind || 1;
-
+  if (!open || !version) return null;
+  const downloading = busy || native?.status === "downloading";
+  const ready = native?.status === "downloaded";
   return (
     <Dialog
-      isOpen={open}
-      onClose={handleClose}
+      isOpen
+      onClose={close}
       aria-labelledby="update-modal-title"
-      className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xl"
     >
-      <div
-        className={`relative w-full max-w-lg rounded-2xl border ${
-          isOutdated ? "border-red-500/30 shadow-red-500/10" : "border-white/15"
-        } bg-[#121212]/95 backdrop-blur-2xl shadow-2xl overflow-hidden flex flex-col`}
-      >
-        {/* Ambient top highlight */}
-        <div
-          className={`absolute inset-x-0 top-0 h-px ${
-            isOutdated
-              ? "bg-gradient-to-r from-transparent via-red-500/50 to-transparent"
-              : "bg-gradient-to-r from-transparent via-white/30 to-transparent"
-          } pointer-events-none`}
-        />
-
-        <div className="p-5 sm:p-6 bg-white/[0.02] flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3 min-w-0">
-            <div
-              className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border ${
-                isOutdated
-                  ? "bg-red-500/10 border-red-500/30 text-red-400 shadow-lg shadow-red-500/10"
-                  : "bg-white/10 border-white/15 text-white"
-              }`}
-            >
-              {isOutdated ? (
-                <ShieldAlert className="w-5 h-5 text-red-400" />
-              ) : (
-                <Sparkles className="w-5 h-5 text-white" />
-              )}
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2
-                  id="update-modal-title"
-                  className="text-base sm:text-lg font-bold text-white tracking-tight m-0"
-                >
-                  {isOutdated ? t("Security Update Required") : t("Applio Update Available")}
-                </h2>
-                <span
-                  className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                    isOutdated
-                      ? "bg-red-500/15 border-red-500/30 text-red-300 font-sans"
-                      : "bg-white/10 border-white/15 text-neutral-200 font-sans"
-                  }`}
-                >
-                  {displayVersion(versionData.latest)}
-                </span>
-              </div>
-              <p className="text-xs text-neutral-400 m-0">
-                {isOutdated
-                  ? t("Running an outdated release. Updating automatically for security.")
-                  : `${t("Current:")} ${displayVersion(versionData.local)} • ${t("Latest:")} ${displayVersion(versionData.latest)}`}
-              </p>
-            </div>
-          </div>
-
-          {/* Dismiss close button - always available and clickable */}
-          <IconButton size="md" icon={<X size={16} />} label={t("Close")} onClick={handleClose} />
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-4 text-xs sm:text-sm text-neutral-300">
-          {/* Security Alert Banner when multiple versions behind */}
-          {isOutdated && (
-            <div className="p-3.5 rounded-xl border border-red-500/20 bg-red-500/[0.06] flex items-start gap-3 text-neutral-200">
-              <ShieldAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-semibold text-xs text-red-300 m-0">
-                  {t("Critical Version Notice")} ({versionsBehind} {t("updates behind")})
-                </p>
-                <p className="text-xs text-neutral-300 m-0 leading-relaxed">
-                  {t(
-                    "Your current version of Applio is significantly older than the latest release. To protect against known vulnerabilities, ensure dependency security, and maintain model inference integrity, this update is applied automatically.",
-                  )}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Regular Update Notice */}
-          {!isOutdated && (
-            <p className="text-xs text-neutral-300 m-0 leading-relaxed">
-              {t(
-                "A new version of Applio is ready to install with performance enhancements, fixes, and updated features.",
-              )}
+      <div className="w-full max-w-xl max-h-[90dvh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] p-5 sm:p-6 space-y-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h2 id="update-modal-title" className="flex items-center gap-2 text-lg font-semibold m-0">
+              <Sparkles size={20} aria-hidden="true" />
+              {t("Applio Update Available")}
+            </h2>
+            <p className="text-xs text-[var(--muted)] m-0">
+              {t("Current:")} {displayVersion(version.local)} · {t("Latest:")}{" "}
+              {displayVersion(version.latest)}
             </p>
-          )}
-
-          {/* Progress / Status Display */}
-          {(updating || updateStep !== "idle") && (
-            <div className="p-4 rounded-xl bg-black/40 border border-white/10 space-y-3">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium text-white flex items-center gap-2">
-                  {updateStep === "downloading" && <Loader2 size={13} className="animate-spin text-white" />}
-                  {updateStep === "ready" && <CheckCircle2 size={13} className="text-emerald-400" />}
-                  {updateStep === "done" && <CheckCircle2 size={13} className="text-emerald-400" />}
-                  {updateStep === "error" && <AlertTriangle size={13} className="text-red-400" />}
-                  <span>{statusMessage || t("Processing update…")}</span>
-                </span>
-              </div>
-
-              {updateStep !== "error" && (
-                <ProgressBar
-                  progress={updateStep === "ready" || updateStep === "done" ? 100 : updateProgress}
-                  label={t("Processing update…")}
-                  activity={statusMessage || t("Processing update…")}
-                />
-              )}
-
-              {errorMsg && <p className="text-xs text-red-400 m-0 font-medium">{errorMsg}</p>}
-            </div>
-          )}
-
-          {/* Release Notes Changelog Snippet */}
-          {versionData.releaseNotes && (
-            <div className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-neutral-200">
-                  {t("What's New in")} {displayVersion(versionData.latest)}:
-                </span>
-                {versionData.htmlUrl && (
-                  <a
-                    href={versionData.htmlUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-neutral-400 hover:text-white flex items-center gap-1 transition-colors"
-                  >
-                    <span>{t("Full changelog")}</span>
-                    <ExternalLink size={11} />
-                  </a>
-                )}
-              </div>
-              <div className="max-h-36 overflow-y-auto p-3 rounded-xl bg-black/40 border border-white/5 text-xs text-neutral-400 font-sans space-y-1 scrollbar-thin">
-                {versionData.releaseNotes
-                  .split("\n")
-                  .filter((line) => line.trim().length > 0)
-                  .slice(0, 10)
-                  .map((line) => (
-                    <p key={line} className="m-0 leading-tight">
-                      {line.replace(/^-\s*/, "• ")}
-                    </p>
-                  ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Modal Footer */}
-        <div className="p-4 sm:p-5 bg-black/40 backdrop-blur-md flex items-center justify-between gap-3">
-          <div className="text-[11px] text-neutral-500 min-w-0 truncate">
-            {isOutdated
-              ? t("Automatic security update in progress…")
-              : t("You can update now or choose later.")}
           </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Later / Dismiss Button - always clickable to close */}
-            {updateStep !== "ready" && updateStep !== "done" && (
-              <button
-                type="button"
-                onClick={handleClose}
-                className="px-4 py-2 rounded-xl text-xs font-medium text-neutral-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer border border-transparent"
-              >
-                {updating ? t("Dismiss") : t("Update later")}
-              </button>
-            )}
-
-            {/* Action CTA Button */}
-            {updateStep === "ready" ? (
-              <Button onClick={handleRestartNow} icon={<RefreshCw size={13} />}>
-                {t("Restart & Apply")}
-              </Button>
-            ) : updateStep === "done" ? (
-              <Button onClick={handleRestartNow} icon={<RefreshCw size={13} />}>
-                {t("Reload App")}
-              </Button>
-            ) : updateStep === "downloading" ? (
-              <Button disabled loading>
-                {isOutdated ? t("Updating…") : t("Downloading…")}
-              </Button>
-            ) : (
-              <Button
-                disabled={updating}
-                onClick={() => void startUpdate()}
-                icon={<ArrowDownCircle size={14} />}
-              >
-                {t("Update now")}
-              </Button>
-            )}
-          </div>
+          <IconButton size="md" icon={<X size={16} />} label={t("Close")} onClick={close} />
         </div>
+        <p className="text-sm leading-relaxed m-0">
+          {t(
+            "We recommend updating for the latest fixes, improvements, and features. You choose when to update.",
+          )}
+        </p>
+        <ReleaseChanges
+          local={version.local}
+          latest={version.latest}
+          notes={version.releaseNotes || native?.releaseNotes}
+        />
+        {native?.status === "downloading" && (
+          <ProgressBar progress={native.percent} label={t("Downloading update…")} />
+        )}
+        {message && (
+          <p role="status" className="text-xs leading-relaxed m-0">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="text-xs text-red-400 m-0">
+            {error}
+          </p>
+        )}
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+          <Button variant="ghost" size="md" onClick={close}>
+            {downloading ? t("Hide") : t("Remind me with the next update")}
+          </Button>
+          <Button
+            size="md"
+            loading={downloading}
+            onClick={() => void (ready ? installUpdate() : startUpdate())}
+            icon={ready ? <RefreshCw size={14} /> : <ArrowDownCircle size={14} />}
+          >
+            {ready ? t("Restart and Update") : t("Update")}
+          </Button>
+        </div>
+        <p className="text-xs text-[var(--muted)] m-0">
+          {t("You can update anytime from Settings → Version & Updates.")}
+        </p>
       </div>
     </Dialog>
   );

@@ -41,6 +41,52 @@ struct ProcessRecord {
     pid: u32,
     port: u16,
 }
+
+// A Python name alone is not proof of ownership: recorded pids can be reused.
+// Require our exact entry point, app directory and port before signaling.
+#[cfg(any(unix, test))]
+fn is_realtime_command(args: &[std::ffi::OsString], code: &std::path::Path, port: u16) -> bool {
+    let python = args
+        .first()
+        .and_then(|arg| std::path::Path::new(arg).file_name())
+        .is_some_and(|name| {
+            name.to_string_lossy()
+                .to_ascii_lowercase()
+                .contains("python")
+        });
+    let pair = |flag: &str, value: &std::ffi::OsStr| {
+        args.windows(2)
+            .any(|args| args[0] == flag && args[1] == value)
+    };
+    python
+        && pair("-m", std::ffi::OsStr::new("uvicorn"))
+        && args
+            .iter()
+            .any(|arg| arg == "backend.python.realtime.service:app")
+        && pair("--app-dir", code.as_os_str())
+        && pair("--port", std::ffi::OsStr::new(&port.to_string()))
+}
+
+#[cfg(unix)]
+async fn owned_realtime_pids(code: std::path::PathBuf, port: u16) -> Vec<u32> {
+    tokio::task::spawn_blocking(move || {
+        use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+        let mut system = System::new();
+        system.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_cmd(UpdateKind::Always),
+        );
+        system
+            .processes()
+            .iter()
+            .filter(|(_, process)| is_realtime_command(process.cmd(), &code, port))
+            .map(|(pid, _)| pid.as_u32())
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
+}
 pub struct Realtime {
     runtime: EngineRuntime,
     pub port: u16,
@@ -162,47 +208,35 @@ impl Realtime {
             tokio::time::sleep(Duration::from_millis(100)).await;
         }
     }
-    /// Reclaim the port from an engine of a previous run. The record file is
-    /// only written by this engine for this port and the pid must still look
-    /// like the Python interpreter, so an unrelated listener is left alone.
+    /// Recognize leftovers even when an older build or a forced exit left no
+    /// pid record. Unrelated Python services must never be terminated.
     #[cfg(unix)]
     async fn reap_stale_process(&self) -> bool {
-        let Ok(text) = std::fs::read_to_string(self.record_path()) else {
-            return false;
-        };
-        let Some(record) = serde_json::from_str::<ProcessRecord>(&text)
-            .ok()
-            .filter(|record| record.port == self.port)
-        else {
-            self.clear_process_record();
-            return false;
-        };
-        if !crate::process::process_alive(record.pid) {
-            self.clear_process_record();
+        let pids = owned_realtime_pids(self.runtime.code.clone(), self.port).await;
+        if pids.is_empty() {
             return false;
         }
-        if crate::process::process_name(record.pid)
-            .is_some_and(|name| !name.to_ascii_lowercase().contains("python"))
-        {
-            // The pid was recycled by an unrelated process; the record is stale.
-            self.clear_process_record();
-            return false;
+        for pid in pids {
+            self.log(&format!(
+                "Reclaiming realtime port {} from a previous run (pid {}).",
+                self.port, pid
+            ));
+            crate::process::signal_process(pid, false);
         }
-        self.log(&format!(
-            "Reclaiming realtime port {} from a previous run (pid {}).",
-            self.port, record.pid
-        ));
-        crate::process::signal_process(record.pid, false);
         if !self.wait_for_port_release(Duration::from_secs(3)).await {
-            crate::process::signal_process(record.pid, true);
+            // Refresh identity before escalation; a terminated process's pid
+            // may already belong to something else.
+            for pid in owned_realtime_pids(self.runtime.code.clone(), self.port).await {
+                crate::process::signal_process(pid, true);
+            }
         }
         let released = self.wait_for_port_release(Duration::from_secs(2)).await;
         if released {
             self.clear_process_record();
         } else {
             self.log(&format!(
-                "A previous realtime engine (pid {}) still holds the port.",
-                record.pid
+                "Realtime port {} is still occupied after cleanup.",
+                self.port
             ));
         }
         released
@@ -393,5 +427,98 @@ impl Realtime {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{ffi::OsString, path::Path};
+
+    fn command() -> Vec<OsString> {
+        [
+            "/usr/bin/python3",
+            "-m",
+            "uvicorn",
+            "--app-dir",
+            "/Applications/Applio.app/Contents/Resources/app",
+            "backend.python.realtime.service:app",
+            "--host",
+            "127.0.0.1",
+            "--port",
+            "8001",
+        ]
+        .into_iter()
+        .map(OsString::from)
+        .collect()
+    }
+
+    #[test]
+    fn recognizes_only_this_apps_realtime_command() {
+        let code = Path::new("/Applications/Applio.app/Contents/Resources/app");
+        let args = command();
+        assert!(is_realtime_command(&args, code, 8001));
+        assert!(!is_realtime_command(&args, code, 8002));
+        assert!(!is_realtime_command(&args, Path::new("/other/app"), 8001));
+        for index in [0, 2, 5] {
+            let mut unrelated = args.clone();
+            unrelated[index] = "unrelated".into();
+            assert!(!is_realtime_command(&unrelated, code, 8001));
+        }
+        assert!(!is_realtime_command(&[], code, 8001));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn discovers_recordless_engine_and_releases_its_port() {
+        let directory = tempfile::tempdir().unwrap();
+        // A tiny stand-in uvicorn uses only Python's standard library.
+        std::fs::write(
+            directory.path().join("uvicorn.py"),
+            r#"
+import socket, sys, time
+listener = socket.socket()
+listener.bind(('127.0.0.1', int(sys.argv[sys.argv.index('--port') + 1])))
+listener.listen()
+time.sleep(60)
+"#,
+        )
+        .unwrap();
+        let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, 0)).unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        let code = directory.path().to_path_buf();
+        let spec = crate::process::CommandSpec::new("python3", &code).args([
+            OsString::from("-m"),
+            "uvicorn".into(),
+            "--app-dir".into(),
+            code.clone().into_os_string(),
+            "backend.python.realtime.service:app".into(),
+            "--port".into(),
+            port.to_string().into(),
+        ]);
+        let mut process = ManagedProcess::spawn(&spec).unwrap();
+        let pid = process.id().unwrap();
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if tokio::net::TcpStream::connect((std::net::Ipv4Addr::LOCALHOST, port))
+                    .await
+                    .is_ok()
+                {
+                    break;
+                }
+                tokio::time::sleep(Duration::from_millis(25)).await;
+            }
+        })
+        .await
+        .expect("test listener did not start");
+        assert!(owned_realtime_pids(code.clone(), port).await.contains(&pid));
+        assert!(!owned_realtime_pids(code, port - 1).await.contains(&pid));
+        crate::process::signal_process(pid, false);
+        tokio::time::timeout(Duration::from_secs(5), process.wait())
+            .await
+            .unwrap()
+            .unwrap();
+        let _released = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).unwrap();
     }
 }

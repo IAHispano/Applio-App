@@ -16,6 +16,7 @@ import {
 import { useCallback, useEffect, useMemo, useState } from "react";
 import BridgeModeCard from "@/components/BridgeModeCard";
 import PageHeader from "@/components/layout/PageHeader";
+import ReleaseChanges from "@/components/ReleaseChanges";
 import {
   Badge,
   Button,
@@ -27,10 +28,13 @@ import {
   ToggleField,
 } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { apiGet, apiSend, displayVersion, errMsg } from "@/lib/api";
+import { apiGet, apiSend, clearApiCache, displayVersion, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
+import { restartApiAndWait } from "@/lib/settings-actions";
 import { applyTheme, fontCss, type ThemeFile } from "@/lib/theme";
+import { toast } from "@/lib/toast";
+import { type DesktopUpdaterState, desktopUpdater, type VersionCheckData } from "@/lib/update-policy";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface FontOption {
@@ -153,28 +157,7 @@ interface AppConfig {
   [key: string]: unknown;
 }
 
-interface VersionCheck {
-  local?: string;
-  latest?: string;
-  status?: string;
-  error?: string;
-}
-
-interface DesktopUpdaterState {
-  status:
-    | "idle"
-    | "checking"
-    | "available"
-    | "not-available"
-    | "downloading"
-    | "downloaded"
-    | "error"
-    | "dev-mode";
-  version?: string;
-  percent?: number;
-  message?: string;
-  releaseNotes?: string;
-}
+type VersionCheck = Partial<VersionCheckData> & { error?: string };
 
 export default function SettingsPage() {
   const { t } = useI18n();
@@ -236,6 +219,9 @@ export default function SettingsPage() {
   const [canPickFolder, setCanPickFolder] = useState(false);
   const [pickingFolder, setPickingFolder] = useState(false);
   const [canQuit, setCanQuit] = useState(false);
+  const [restarting, setRestarting] = useState(false);
+  const [quitting, setQuitting] = useState(false);
+  const [installingUpdate, setInstallingUpdate] = useState(false);
 
   useEffect(() => {
     setCanPickFolder(
@@ -367,38 +353,33 @@ export default function SettingsPage() {
 
   const checkVersion = useCallback(async () => {
     setError("");
-    const bridge =
-      typeof window !== "undefined"
-        ? (
-            window as unknown as {
-              applio?: {
-                updater?: { check: () => Promise<{ status?: string }>; quitAndInstall: () => void };
-              };
-            }
-          ).applio
-        : undefined;
-
-    if (bridge?.updater) {
-      setVer(null);
-      setUpdaterState({ status: "checking" });
-      try {
-        const res = await bridge.updater.check();
-        if (res?.status === "dev-mode") {
-          const v = await apiGet<VersionCheck>("/api/settings/version-check");
-          setVer(v);
-        }
-      } catch (e) {
-        setUpdaterState({ status: "error", message: errMsg(e) });
-      }
-      return;
-    }
-
-    try {
-      setVer(await apiGet<VersionCheck>("/api/settings/version-check"));
-    } catch (e) {
-      setVer({ error: errMsg(e) });
-    }
+    const updater = desktopUpdater();
+    if (updater) setUpdaterState({ status: "checking" });
+    const [metadata, native] = await Promise.allSettled([
+      apiGet<VersionCheck>("/api/settings/version-check?refresh=1", { ttlMs: 0 }),
+      updater?.check(),
+    ]);
+    if (metadata.status === "fulfilled") setVer(metadata.value);
+    else setVer({ error: errMsg(metadata.reason) });
+    if (native.status === "fulfilled" && native.value) setUpdaterState(native.value);
+    else if (native.status === "rejected")
+      setUpdaterState({ status: "error", message: errMsg(native.reason) });
   }, [setVer]);
+
+  async function installUpdate() {
+    setInstallingUpdate(true);
+    setError("");
+    try {
+      const updater = desktopUpdater();
+      if (!updater) throw new Error(t("Desktop updater is unavailable."));
+      await updater.quitAndInstall();
+    } catch (cause) {
+      setError(errMsg(cause));
+      toast(errMsg(cause), "error");
+    } finally {
+      setInstallingUpdate(false);
+    }
+  }
 
   useEffect(() => {
     load();
@@ -461,13 +442,39 @@ export default function SettingsPage() {
   }
 
   async function restartApi() {
-    setRestartMsg("");
+    if (restarting || quitting) return;
+    setRestarting(true);
+    setRestartMsg(t("API is restarting."));
     setError("");
+    toast(t("API is restarting."), "info", { id: "settings-restart", duration: 45000 });
     try {
-      const r = await apiSend<{ message: string }>("/api/settings/restart", "POST");
-      setRestartMsg(r.message);
+      await restartApiAndWait();
+      clearApiCache();
+      setRestartMsg(t("API restarted."));
+      toast(t("API restarted."), "success", { id: "settings-restart" });
+      await load();
     } catch (e) {
       setError(errMsg(e));
+      setRestartMsg(t(errMsg(e)));
+      toast(t(errMsg(e)), "error", { id: "settings-restart" });
+    } finally {
+      setRestarting(false);
+    }
+  }
+
+  async function quitApplio() {
+    if (quitting || restarting) return;
+    setQuitting(true);
+    setError("");
+    toast(t("Quitting Applio…"), "info", { id: "settings-quit", duration: 30000 });
+    try {
+      const quit = (window as unknown as { applio?: { quit?: () => Promise<void> } }).applio?.quit;
+      if (!quit) throw new Error(t("Desktop quit is unavailable."));
+      await quit();
+    } catch (e) {
+      setQuitting(false);
+      setError(errMsg(e));
+      toast(errMsg(e), "error", { id: "settings-quit" });
     }
   }
 
@@ -919,14 +926,17 @@ export default function SettingsPage() {
           description={t("Check for official Applio updates and apply package releases.")}
           action={
             <div className="flex items-center gap-2">
+              {(updaterState?.status === "available" ||
+                ((!updaterState || updaterState.status === "dev-mode") && ver?.status === "behind")) && (
+                <Button size="md" onClick={() => window.dispatchEvent(new Event("applio:show-update"))}>
+                  {t("Update")}
+                </Button>
+              )}
               {updaterState?.status === "downloaded" && (
                 <Button
                   size="md"
-                  onClick={() => {
-                    (
-                      window as unknown as { applio?: { updater?: { quitAndInstall: () => void } } }
-                    ).applio?.updater?.quitAndInstall();
-                  }}
+                  onClick={installUpdate}
+                  loading={installingUpdate}
                   icon={<RefreshCw size={14} />}
                 >
                   {t("Restart and Update")}
@@ -937,7 +947,11 @@ export default function SettingsPage() {
                 size="md"
                 variant="ghost"
                 onClick={checkVersion}
-                disabled={updaterState?.status === "checking" || updaterState?.status === "downloading"}
+                disabled={
+                  installingUpdate ||
+                  updaterState?.status === "checking" ||
+                  updaterState?.status === "downloading"
+                }
                 icon={
                   <RefreshCw
                     size={14}
@@ -985,22 +999,19 @@ export default function SettingsPage() {
             </p>
           )}
 
-          {updaterState?.status === "downloaded" && updaterState.releaseNotes && (
-            <div className="max-w-xl p-3 rounded-xl bg-black/30 border border-white/5 space-y-1">
-              <p className="text-xs text-neutral-400 font-medium m-0">
-                {t("What's new in")} {displayVersion(updaterState.version)}
-              </p>
-              <p className="text-xs text-neutral-300 leading-relaxed m-0 whitespace-pre-wrap">
-                {updaterState.releaseNotes}
-              </p>
-            </div>
+          {(updaterState?.version || ver?.latest) && (
+            <ReleaseChanges
+              local={localVer || ver?.local || String(cfg.version || "")}
+              latest={updaterState?.version || ver?.latest || ""}
+              notes={updaterState?.releaseNotes || ver?.releaseNotes}
+            />
           )}
 
           {ver && (!updaterState || updaterState.status === "dev-mode") && (
             <p className="text-xs text-neutral-400 m-0" role="status" aria-live="polite">
               {ver.error ||
                 `${displayVersion(ver.latest)} — ${
-                  ver.status === "up-to-date" || ver.status === "up to date"
+                  ver.status === "up-to-date"
                     ? t("Up to date")
                     : ver.status === "behind"
                       ? t("Update available")
@@ -1150,10 +1161,12 @@ export default function SettingsPage() {
             size="md"
             variant="ghost"
             onClick={restartApi}
+            loading={restarting}
+            disabled={quitting}
             icon={<Power size={14} className="text-white" />}
             className="w-full sm:w-auto"
           >
-            {t("Restart API")}
+            {restarting ? t("Restarting…") : t("Restart API")}
           </Button>
         </div>
       </Card>
@@ -1170,20 +1183,20 @@ export default function SettingsPage() {
           <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <p className="text-xs text-[var(--muted)] m-0 leading-relaxed">
               {t(
-                "Closing the window keeps Applio in the tray only while realtime, jobs, or Bridge Mode are active; otherwise closing exits.",
+                "Closing the window keeps Applio running in the system tray. Choose Quit Applio to exit completely.",
               )}
             </p>
 
             <Button
               size="md"
               variant="ghost"
-              onClick={() => {
-                (window as unknown as { applio?: { quit?: () => void } }).applio?.quit?.();
-              }}
+              onClick={quitApplio}
+              loading={quitting}
+              disabled={restarting}
               icon={<LogOut size={14} className="text-white" />}
               className="w-full sm:w-auto"
             >
-              {t("Quit Applio")}
+              {quitting ? t("Quitting Applio…") : t("Quit Applio")}
             </Button>
           </div>
         </Card>

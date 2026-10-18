@@ -21,7 +21,6 @@ import WaveSurfer from "wavesurfer.js";
 import Hover from "wavesurfer.js/plugins/hover";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
-import { notifyDownloadCompleted } from "@/lib/toast";
 
 export interface AudioWavePlayerProps {
   src: string;
@@ -611,9 +610,6 @@ function AudioWavePlayerInner({
               download={filename || displayName}
               aria-label={`${t("Download audio")}: ${displayName}`}
               title={t("Download audio")}
-              onClick={() => {
-                notifyDownloadCompleted(filename || displayName, t);
-              }}
               style={resultLabel ? undefined : { padding: 0 }}
               className={`${resultLabel ? btnText : btnSquare} bg-white/5 hover:bg-white/10 active:bg-white/15 border border-white/10 hover:border-white/20 text-neutral-300 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer shrink-0 shadow-xs`}
             >

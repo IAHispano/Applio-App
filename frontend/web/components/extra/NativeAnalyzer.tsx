@@ -6,7 +6,7 @@ import WaveSurfer from "wavesurfer.js";
 import Spectrogram from "wavesurfer.js/dist/plugins/spectrogram";
 import { Button, StatTile } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
-import { notifyDownloadCompleted } from "@/lib/toast";
+import { notifyDownload } from "@/lib/toast";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface NativeAnalyzerProps {
@@ -373,7 +373,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
     a.href = out.toDataURL("image/png");
     a.download = fileName;
     a.click();
-    notifyDownloadCompleted(fileName, t);
+    notifyDownload(fileName, a.href, t);
   }
 
   if (!file && !fallbackPath) return null;

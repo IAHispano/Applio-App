@@ -58,7 +58,7 @@ pub async fn updater_command(
                 operation.update = None;
                 let update = updater.check().await.map_err(|e| e.to_string())?;
                 if let Some(update) = update {
-                    let status = json!({"status": "available", "version": update.version});
+                    let status = json!({"status": "available", "version": update.version, "releaseNotes": update.body});
                     operation.update = Some(update);
                     Ok(publish(&app, updates, status))
                 } else {

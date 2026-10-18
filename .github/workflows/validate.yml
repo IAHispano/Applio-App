@@ -1,4 +1,4 @@
-name: Validate migration
+name: Validate release readiness
 
 on:
   pull_request:
@@ -18,7 +18,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest, macos-15-intel, ubuntu-24.04]
+        include:
+          - os: windows-latest
+            bundles: nsis
+          - os: macos-latest
+            bundles: dmg,app
+          - os: macos-15-intel
+            bundles: dmg,app
+          - os: ubuntu-24.04
+            bundles: appimage,deb
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -32,6 +40,11 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test lazy realtime initialization and model caches
+        run: python scripts/check-realtime-service.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -40,16 +53,38 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf gstreamer1.0-plugins-base gstreamer1.0-plugins-good
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Check TypeScript
         run: pnpm -r typecheck
+      - name: Test realtime audio
+        run: node --test scripts/check-realtime-audio.mjs
+      - name: Test Settings actions
+        run: node --test scripts/check-settings-actions.mjs
+      - name: Test optional updates and release notes
+        run: node --test scripts/check-update-policy.mjs
       - name: Check Rust formatting
         run: node scripts/cargo.mjs fmt --all -- --check
-      - name: Build desktop and exported interface
-        # Unsigned builds keep validation available to forked PRs. Release
-        # signing and installer generation remain in the release workflow.
+      - name: Test native API
+        run: node scripts/cargo.mjs test -p applio-api --lib
+      - name: Build unsigned installers and exported interface
+        # Exercise release-mode packaging without publishing or signing secrets.
         working-directory: frontend/desktop
-        run: pnpm exec tauri build --debug --no-bundle
+        run: pnpm exec tauri build --bundles ${{ matrix.bundles }}
         env:
           NODE_OPTIONS: --max-old-space-size=4096
+      - name: Verify AppImage media bundle
+        if: runner.os == 'Linux'
+        run: node scripts/check-appimage-media.mjs
+      - name: Upload installers for platform acceptance tests
+        uses: actions/upload-artifact@v5
+        with:
+          name: validation-${{ matrix.os }}
+          path: |
+            target/release/bundle/nsis/*.exe
+            target/release/bundle/dmg/*.dmg
+            target/release/bundle/appimage/*.AppImage
+            target/release/bundle/deb/*.deb
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

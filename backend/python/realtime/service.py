@@ -5,17 +5,16 @@ instance is discarded when the socket closes, so each "Start Streaming"
 reloads the checkpoint, the embedder and the F0 model from disk, and the first
 blocks of a cold process also compile the device kernels. This adapter caches
 those heavyweight modules across connections (keyed by file identity and
-device) and preloads the pipeline in a background thread right after the
-engine starts, using the last realtime settings saved by the app. Request
-handling stays in the pinned engine; this module only re-exports its app.
-
-Set APPLIO_REALTIME_PREWARM=0 to keep the caches but skip the startup load.
+device). Models load only when the pinned engine handles an explicit audio
+connection, after the API acquires the realtime GPU lease. Starting this
+server must never construct a pipeline or capture CUDA graphs in a background
+thread: that can overlap training or the live connection's own warmup.
+Request handling stays in the pinned engine; this module re-exports its app.
 """
 
 import os
 import sys
 import threading
-import time
 import traceback
 from pathlib import Path
 
@@ -179,140 +178,9 @@ def _install_caches():
     pipeline.Realtime_Pipeline.setup_f0 = setup_f0
 
 
-def _float(settings, key, default):
-    try:
-        return float(settings.get(key, default))
-    except (TypeError, ValueError):
-        return float(default)
-
-
-def _saved_settings():
-    try:
-        from rvc.lib.user_config import load_config
-
-        saved = load_config().get("realtime")
-    except Exception:
-        return None
-    return saved if isinstance(saved, dict) else None
-
-
-def _warm_options(saved):
-    """Map the app's saved realtime settings onto engine init parameters."""
-    model = str(saved.get("model_file") or "").strip()
-    if not model:
-        return None
-    auto = bool(saved.get("auto_chunk", True))
-    chunk_ms = _float(saved, "chunk_ms", 30.0)
-    if auto or chunk_ms <= 0:
-        chunk_ms = 100.0
-    return {
-        "block_frame": max(480, min(48000, round(chunk_ms * 48))),
-        "cross_fade_overlap_size": _float(saved, "cross_fade_overlap_size", 0.05),
-        "extra_convert_size": _float(saved, "extra_convert_size", 2.5),
-        "model_path": model,
-        "index_path": str(saved.get("index_file") or "").strip(),
-        "f0_method": str(saved.get("f0_method") or "fcpe"),
-        "embedder_model": str(saved.get("embedder_model") or "contentvec"),
-        "embedder_model_custom": str(saved.get("embedder_model_custom") or ""),
-        "silent_threshold": int(_float(saved, "silent_threshold", -60.0)),
-        "vad_enabled": bool(saved.get("vad_enabled", True)),
-        "vad_sensitivity": 1,
-        "vad_frame_ms": 30,
-        "sid": int(_float(saved, "sid", 0.0)),
-        "formant_shifting": bool(saved.get("formant_shifting", False)),
-        "formant_qfrency": _float(saved, "formant_qfrency", 1.0),
-        "formant_timbre": _float(saved, "formant_timbre", 1.0),
-    }
-
-
-def _warmup_options(saved):
-    return {
-        "f0_up_key": int(_float(saved, "pitch", 0.0)),
-        "index_rate": _float(saved, "index_rate", 0.0),
-        "protect": _float(saved, "protect", 0.5),
-        "volume_envelope": _float(saved, "volume_envelope", 1.0),
-        "f0_autotune": bool(saved.get("autotune", False)),
-        "f0_autotune_strength": _float(saved, "autotune_strength", 1.0),
-        "proposed_pitch": bool(saved.get("proposed_pitch", False)),
-        "proposed_pitch_threshold": _float(saved, "proposed_pitch_threshold", 155.0),
-    }
-
-
-def _prewarm():
-    try:
-        _prewarm_inner()
-    except Exception:
-        traceback.print_exc()
-
-
-def _prewarm_inner():
-    saved = _saved_settings()
-    if not saved:
-        return
-    options = _warm_options(saved)
-    if options is None:
-        return
-    if client.vc_instance is not None or client.active_audio_ws is not None:
-        return
-
-    import torch
-    from rvc.realtime.core import AUDIO_SAMPLE_RATE
-    from rvc.realtime.utils.chunks import automatic_block_frame
-
-    warmup_options = _warmup_options(saved)
-    started = time.perf_counter()
-    print(
-        f"[prewarm] Loading realtime model: {options['model_path']}",
-        flush=True,
-    )
-    instance = None
-    try:
-        instance = client.VoiceChanger(**options)
-        if client.vc_instance is not None or client.active_audio_ws is not None:
-            # A stream started while the model was loading; the caches still
-            # shave that load off the next connection.
-            return
-        decoder = instance.vc_model.pipeline.vc
-        decoder.decoder_fp16 = bool(
-            saved.get("decoder_fp16", False)
-        ) and decoder.vocoder in ("HiFi-GAN", "MRF HiFi-GAN")
-        warmup_ms = instance.warmup(**warmup_options)
-        if bool(saved.get("auto_chunk", True)):
-            # Mirror the connection handler so the final block size is warm.
-            block_frame = options["block_frame"]
-            for _ in range(3):
-                needed = automatic_block_frame(warmup_ms, AUDIO_SAMPLE_RATE)
-                if needed <= block_frame:
-                    break
-                block_frame = needed
-                instance.block_frame = block_frame
-                instance.vc_model.realloc(
-                    block_frame,
-                    instance.extra_frame,
-                    instance.crossfade_frame,
-                    instance.sola_search_frame,
-                )
-                instance.generate_strength()
-                warmup_ms = instance.warmup(**warmup_options)
-        print(
-            f"[prewarm] Realtime model ready in {time.perf_counter() - started:.1f}s.",
-            flush=True,
-        )
-    finally:
-        if instance is not None:
-            del instance
-            torch.cuda.empty_cache()
-
-
 def _boot():
     try:
         _install_caches()
-    except Exception:
-        traceback.print_exc()
-    if os.environ.get("APPLIO_REALTIME_PREWARM", "1") == "0":
-        return
-    try:
-        threading.Thread(target=_prewarm, name="realtime-prewarm", daemon=True).start()
     except Exception:
         traceback.print_exc()
 

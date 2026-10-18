@@ -144,7 +144,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update -qq
-          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf
+          sudo apt-get install --no-install-recommends -y libwebkit2gtk-4.1-dev build-essential curl wget file libxdo-dev libssl-dev librsvg2-dev libayatana-appindicator3-dev patchelf gstreamer1.0-plugins-base gstreamer1.0-plugins-good
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --prefer-offline
@@ -158,6 +158,22 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
             ${{ runner.os }}-nextjs-
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Check release regressions
+        run: node --test scripts/check-realtime-audio.mjs scripts/check-settings-actions.mjs scripts/check-update-policy.mjs
+
+      - name: Test lazy realtime initialization and model caches
+        run: python scripts/check-realtime-service.py
+
+      - name: Check TypeScript
+        run: pnpm -r typecheck
+
+      - name: Test native API lifecycle
+        run: node scripts/cargo.mjs test -p applio-api --lib
+
       - name: Build app
         run: ${{ matrix.build-command }}
         env:
@@ -165,6 +181,10 @@ jobs:
           APPLIO_UPDATER_PUBLIC_KEY: ${{ secrets.APPLIO_UPDATER_PUBLIC_KEY }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+
+      - name: Verify AppImage media bundle
+        if: runner.os == 'Linux'
+        run: node scripts/check-appimage-media.mjs
 
       - name: Collect Tauri installers
         run: node scripts/collect-tauri-artifacts.mjs
@@ -190,10 +210,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
-          # Shallow + tags is enough for the changelog (last tag + recent
-          # commits) and much faster than the full history.
+          # Full history keeps every commit between release tags available.
           ref: ${{ needs.prepare.outputs.commit }}
-          fetch-depth: 100
+          fetch-depth: 0
           fetch-tags: true
 
       - name: Setup Node.js
@@ -202,23 +221,12 @@ jobs:
           node-version: 22
           package-manager-cache: false
 
-      - name: Get commit messages since last tag
-        id: changelog
-        run: |
-          REPO_URL="https://github.com/${{ github.repository }}"
-          LAST_TAG=$(git describe --tags --abbrev=0 || echo "")
-          echo "Last tag: $LAST_TAG"
-
-          if [ -z "$LAST_TAG" ]; then
-            LOG_RANGE="HEAD"
-          else
-            LOG_RANGE="$LAST_TAG..HEAD"
-          fi
-
-          COMMITS=$(git log $LOG_RANGE -n 50 --pretty=format:"- [\`%h\`]($REPO_URL/commit/%H) %s (%an)")
-          echo "changelog<<EOF" >> $GITHUB_OUTPUT
-          echo "$COMMITS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Generate release notes with commit and comparison links
+        run: node scripts/release-notes.mjs
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/applio-release-notes.md
 
       - name: Download all artifacts
         uses: actions/download-artifact@v5
@@ -234,6 +242,7 @@ jobs:
         env:
           RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_NOTES_FILE: ${{ runner.temp }}/applio-release-notes.md
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -242,11 +251,7 @@ jobs:
           target_commitish: ${{ needs.prepare.outputs.commit }}
           name: Applio v${{ needs.prepare.outputs.version }}
           files: release-files/*
-          body: |
-            ${{ steps.changelog.outputs.changelog }}
-
-            ### macOS first launch
-            The app is not Apple-notarized yet. If macOS reports Applio is "damaged", run `xattr -cr /Applications/Applio.app` and open it again.
+          body_path: ${{ runner.temp }}/applio-release-notes.md
           draft: false
           prerelease: ${{ inputs.prerelease }}
           make_latest: ${{ !inputs.prerelease && 'true' || 'false' }}

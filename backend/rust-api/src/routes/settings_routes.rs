@@ -42,7 +42,7 @@ pub fn router(engine: Arc<NativeEngine>) -> Router {
 }
 async fn restart(State(state): State<Arc<Settings>>) -> Json<Value> {
     state.engine.restart_token().cancel();
-    Json(json!({"ok":true,"message":"API is restarting."}))
+    Json(json!({"ok":true,"message":"API is restarting.","instanceId":state.engine.instance_id}))
 }
 
 async fn presence(State(state): State<Arc<Settings>>) -> Json<Value> {

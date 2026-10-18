@@ -1,5 +1,21 @@
 export type VoiceFocusVariant = "off" | "c20" | "c50" | "c100";
 
+export function realtimeMicrophoneConstraints(
+  deviceId: string,
+  variant: VoiceFocusVariant,
+): MediaTrackConstraints {
+  return {
+    deviceId: { exact: deviceId },
+    channelCount: { ideal: 1 },
+    sampleRate: { ideal: 48000 },
+    noiseSuppression: variant === "off",
+    echoCancellation: variant === "off",
+    // Automatic gain boosts quiet rooms and mouse clicks between phrases.
+    // Input gain is controlled explicitly by the realtime gain slider.
+    autoGainControl: false,
+  };
+}
+
 let supportProbe: Promise<boolean> | null = null;
 
 /**
@@ -29,6 +45,9 @@ export async function connectVoiceFocus(
   stream: MediaStream,
   variant: Exclude<VoiceFocusVariant, "off">,
 ): Promise<() => Promise<void>> {
+  // WebKit may suspend capture until the graph is running. Initialize the
+  // Voice Focus worklet only after the context has started rendering.
+  await context.resume();
   // Load the SDK and AWS model assets only when explicitly enabled.
   const { default: Transformer } = await import(
     "amazon-chime-sdk-js/build/voicefocus/VoiceFocusDeviceTransformer"

@@ -42,7 +42,12 @@ import { realtimeWsUrl } from "@/lib/realtime-ws";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useRealtimeTray } from "@/lib/useRealtimeTray";
 import { useSpeakers } from "@/lib/useSpeakers";
-import { connectVoiceFocus, type VoiceFocusVariant, voiceFocusSupported } from "@/lib/voice-focus";
+import {
+  connectVoiceFocus,
+  realtimeMicrophoneConstraints,
+  type VoiceFocusVariant,
+  voiceFocusSupported,
+} from "@/lib/voice-focus";
 
 function apiWs(path: string): string {
   return realtimeWsUrl(path);
@@ -558,17 +563,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     try {
       let block = Math.round(((autoChunk ? 100 : chunkMs) * 48000) / 1000);
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: { exact: inDev },
-          channelCount: { ideal: 1 },
-          sampleRate: { ideal: 48000 },
-          // Voice Focus needs the raw signal. Without it, ask for the browser
-          // processing that WebKit leaves off by default, so clicks and room
-          // noise stay quiet.
-          ...(voiceFocus !== "off"
-            ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-            : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
-        },
+        audio: realtimeMicrophoneConstraints(inDev, voiceFocus),
       });
       openingStream = stream;
       if (openingEpoch !== streamEpochRef.current) throw new Error("Stream start cancelled");
@@ -591,6 +586,10 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       }
       const src = ctx.createMediaStreamSource(stream);
       const inNode = new AudioWorkletNode(ctx, "input-processor");
+      // This worklet sends samples over its message port and writes silence
+      // to its output. Keep it connected so WebKit pulls the entire capture
+      // branch, including Voice Focus, even while playback has no data yet.
+      inNode.connect(ctx.destination);
       if (voiceFocus === "off") src.connect(inNode);
       else {
         try {
@@ -603,6 +602,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           setVoiceFocusUnsupported(true);
           setVoiceFocusError(errMsg(error));
           setVoiceFocus("off");
+          await stream.getAudioTracks()[0]?.applyConstraints(realtimeMicrophoneConstraints(inDev, "off"));
           src.connect(inNode);
           setMsg(
             t("Voice Focus could not start, using the raw microphone: {message}", {
@@ -1228,16 +1228,18 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
         let cleanup: (() => Promise<void>) | undefined;
         let committed = false;
         try {
-          stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              deviceId: { exact: inDev },
-              channelCount: { ideal: 1 },
-              sampleRate: { ideal: 48000 },
-              ...(voiceFocus !== "off"
-                ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-                : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
-            },
-          });
+          // Reopening the same microphone can mute the existing track in
+          // WebKit. A Voice Focus change only needs different constraints.
+          if (previous.input === inDev) {
+            stream = session.stream;
+            await stream
+              .getAudioTracks()[0]
+              ?.applyConstraints(realtimeMicrophoneConstraints(inDev, voiceFocus));
+          } else {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: realtimeMicrophoneConstraints(inDev, voiceFocus),
+            });
+          }
           if (cancelled || sessRef.current !== session) return;
           source = session.ctx.createMediaStreamSource(stream);
           bridge = session.ctx.createGain();
@@ -1264,9 +1266,10 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           audioRoutingRef.current.input = inDev;
           audioRoutingRef.current.focus = voiceFocus;
           committed = true;
-          oldStream.getTracks().forEach((track) => {
-            track.stop();
-          });
+          if (oldStream !== stream)
+            oldStream.getTracks().forEach((track) => {
+              track.stop();
+            });
           void oldCleanup?.().catch(() => {});
           setVoiceFocusError("");
           setMsg(t("Settings applied"));
@@ -1279,9 +1282,16 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           }
         } finally {
           if (!committed) {
-            stream?.getTracks().forEach((track) => {
-              track.stop();
-            });
+            if (stream !== session.stream) {
+              stream?.getTracks().forEach((track) => {
+                track.stop();
+              });
+            } else if (!cancelled && sessRef.current === session) {
+              await stream
+                ?.getAudioTracks()[0]
+                ?.applyConstraints(realtimeMicrophoneConstraints(previous.input, previous.focus))
+                .catch(() => {});
+            }
             source?.disconnect();
             bridge?.disconnect();
             await cleanup?.().catch(() => {});

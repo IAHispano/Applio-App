@@ -44,7 +44,7 @@
     },
     chooseFolder: (defaultPath) => invoke("choose_folder", { defaultPath }),
     restartAfterSetup: (jobId) => invoke("restart_after_setup", { jobId }),
-    quit: () => void invoke("quit_app"),
+    quit: () => invoke("quit_app"),
     showJobNotification: (value) => invoke("notify_job", { value }),
     onNavigate: (callback) => listen("app-navigate", callback),
     onJobOpen: (callback) => listen("job-open", callback),
@@ -56,7 +56,7 @@
       getStatus: () => update("status"),
       check: () => update("check"),
       download: () => update("download"),
-      quitAndInstall: () => void update("install").catch(console.error),
+      quitAndInstall: () => update("install"),
       onStatusChange: (callback) => listen("updater-status", callback),
     },
   });

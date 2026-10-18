@@ -61,6 +61,6 @@ fn routes(config: ApiConfig, engine: Arc<NativeEngine>, cors: bool) -> Router {
 }
 async fn health(State(engine): State<Arc<NativeEngine>>) -> Json<Value> {
     Json(
-        json!({"ok":true,"service":"applio-rust-api","runtime":"rust","compatibilityService":false,"repoRoot":engine.runtime.data,"python":engine.runtime.python_bin(),"time":chrono::Utc::now().to_rfc3339()}),
+        json!({"ok":true,"instanceId":engine.instance_id,"service":"applio-rust-api","runtime":"rust","compatibilityService":false,"repoRoot":engine.runtime.data,"python":engine.runtime.python_bin(),"time":chrono::Utc::now().to_rfc3339()}),
     )
 }

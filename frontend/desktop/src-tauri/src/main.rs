@@ -52,20 +52,29 @@ pub struct AppState {
 impl AppState {
     async fn stop(&self) {
         self.ready.store(false, Ordering::SeqCst);
-        if let Some(host) = self.host.lock().await.take() {
-            host.stop().await;
-        }
         let server = self.server.lock().unwrap().take();
-        if let Some((stop, mut server)) = server {
+        if let Some((stop, _)) = &server {
             stop.cancel();
-            if tokio::time::timeout(std::time::Duration::from_secs(25), &mut server)
-                .await
-                .is_err()
-            {
-                server.abort();
-                let _ = server.await;
-            }
         }
+        let host = self.host.lock().await.take();
+        tokio::join!(
+            async move {
+                if let Some(host) = host {
+                    host.stop().await;
+                }
+            },
+            async move {
+                if let Some((_, mut server)) = server {
+                    if tokio::time::timeout(std::time::Duration::from_secs(25), &mut server)
+                        .await
+                        .is_err()
+                    {
+                        server.abort();
+                        let _ = server.await;
+                    }
+                }
+            }
+        );
     }
     async fn host(&self) -> Result<Arc<Host>, String> {
         self.host
@@ -96,57 +105,6 @@ fn focus(app: &AppHandle) {
     }
 }
 
-/// True while background work keeps the app useful after the window closes.
-/// Closing hides to the tray only in that case; otherwise it quits, so users
-/// are never left with a process they cannot exit.
-async fn services_busy(app: &AppHandle) -> bool {
-    let state = app.state::<AppState>();
-    if !state.ready.load(Ordering::SeqCst) {
-        return false;
-    }
-    let realtime = state.realtime.lock().unwrap().clone();
-    let active_stream = realtime
-        .as_ref()
-        .filter(|(_, at)| at.elapsed().as_secs() < 10)
-        .is_some_and(|(value, _)| value["streaming"] == true || value["connecting"] == true);
-    if active_stream {
-        return true;
-    }
-    if let Ok(host) = state.host().await {
-        if let Ok(status) = host.call("bridge:status", None).await {
-            if matches!(status["status"].as_str(), Some("starting" | "sharing")) {
-                return true;
-            }
-        }
-    }
-    let Ok(client) = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(std::time::Duration::from_secs(2))
-        .build()
-    else {
-        return false;
-    };
-    let Ok(response) = client.get("http://127.0.0.1:8000/api/jobs").send().await else {
-        return false;
-    };
-    let Ok(value) = response.json::<Value>().await else {
-        return false;
-    };
-    let scheduling = &value["scheduling"];
-    let live_job = value["jobs"].as_array().is_some_and(|jobs| {
-        jobs.iter()
-            .any(|job| matches!(job["status"].as_str(), Some("queued" | "running")))
-    });
-    live_job
-        || scheduling["realtime"] == true
-        || scheduling["active"]
-            .as_array()
-            .is_some_and(|list| !list.is_empty())
-        || scheduling["queued"]
-            .as_array()
-            .is_some_and(|list| !list.is_empty())
-}
-
 /// Explain, once per installation, why the window closed to the tray and how to
 /// exit the app completely.
 fn tray_hint(app: &AppHandle) {
@@ -170,7 +128,7 @@ fn tray_hint(app: &AppHandle) {
         .builder()
         .title(translate("Applio keeps running in the background"))
         .body(translate(
-            "Realtime, jobs, or Bridge Mode are still active. Click the tray icon to reopen the window, or right-click it and choose Quit Applio to exit completely.",
+            "Click the tray icon to reopen Applio, or choose Quit Applio from the tray menu to exit completely.",
         ))
         .show();
 }
@@ -653,32 +611,20 @@ fn main() {
             let handle = app.handle().clone();
             window.on_window_event(move |event| match event {
                 tauri::WindowEvent::CloseRequested { api, .. } => {
-                    // While background work is active the window hides to the
-                    // tray; otherwise closing really quits.
                     if handle.state::<AppState>().quitting.load(Ordering::SeqCst) {
                         return;
                     }
                     api.prevent_close();
-                    let handle = handle.clone();
-                    tauri::async_runtime::spawn(async move {
-                        // Hiding is only safe when a tray icon can bring the
-                        // window back; without one, closing always quits.
-                        let tray_ready =
-                            handle.state::<AppState>().tray_ready.load(Ordering::SeqCst);
-                        if tray_ready && services_busy(&handle).await {
-                            if let Some(window) = handle.get_webview_window("main") {
-                                let _ = window.hide();
-                            }
-                            tray_hint(&handle);
-                        } else {
-                            // The window disappears immediately; cleanup runs
-                            // behind the scenes before the process exits.
-                            if let Some(window) = handle.get_webview_window("main") {
-                                let _ = window.hide();
-                            }
-                            handle.exit(0);
-                        }
-                    });
+                    if let Some(window) = handle.get_webview_window("main") {
+                        let _ = window.hide();
+                    }
+                    // Keep the app running, including when idle. If the tray
+                    // failed to initialize, quit so the window cannot be lost.
+                    if handle.state::<AppState>().tray_ready.load(Ordering::SeqCst) {
+                        tray_hint(&handle);
+                    } else {
+                        handle.exit(0);
+                    }
                 }
                 tauri::WindowEvent::Resized(_) => {
                     if let Some(window) = handle.get_webview_window("main") {

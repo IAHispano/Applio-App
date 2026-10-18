@@ -32,6 +32,11 @@
     "resources": {
       "../resources/": "app/"
     },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      }
+    },
     "windows": {
       "nsis": {
         "installMode": "currentUser",

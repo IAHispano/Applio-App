@@ -164,6 +164,7 @@ impl Drop for SourceUpdate {
 }
 
 pub struct NativeEngine {
+    pub instance_id: String,
     pub runtime: EngineRuntime,
     pub jobs: JobStore,
     pub scheduler: Scheduler,
@@ -203,6 +204,7 @@ impl NativeEngine {
         let worker = InferenceWorker::new(runtime.worker_command()?);
         let realtime = crate::realtime::Realtime::new(runtime.clone(), options.realtime_port);
         Ok(Arc::new(Self {
+            instance_id: uuid::Uuid::new_v4().to_string(),
             runtime,
             jobs,
             worker,
@@ -430,7 +432,7 @@ impl NativeEngine {
             return Ok(());
         }
         self.request_shutdown();
-        let worker = self.worker.stop().await;
+        let (realtime, worker) = tokio::join!(self.realtime.stop(), self.worker.stop());
         let mut tasks = std::mem::take(&mut *self.tasks.lock().await);
         if tokio::time::timeout(Duration::from_secs(10), async {
             while tasks.join_next().await.is_some() {}
@@ -442,6 +444,7 @@ impl NativeEngine {
             while tasks.join_next().await.is_some() {}
         }
         let history = self.jobs.flush().await;
+        realtime?;
         worker?;
         history?;
         self.jobs.seal().await;

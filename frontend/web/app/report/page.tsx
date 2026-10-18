@@ -1,12 +1,13 @@
 "use client";
 
-import { Bug, Copy, Cpu, Download, ExternalLink, Video } from "lucide-react";
+import { Bug, Copy, Cpu, Download, ExternalLink, MessageCircle, Video } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import { apiGet, apiSend, errMsg, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { diagnosticRuntime, formatDiagnostics, issueReportUrl } from "@/lib/report";
+import { DISCORD_SUPPORT_URL } from "@/lib/support";
 import { toast } from "@/lib/toast";
 
 interface SystemInfo {
@@ -93,6 +94,20 @@ export default function ReportPage() {
           {msg}
         </Alert>
       )}
+
+      <Card>
+        <CardHeader
+          icon={<MessageCircle size={18} />}
+          title={t("Get help on Discord")}
+          description={t(
+            "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.",
+            { channel: "#applio-app-testers" },
+          )}
+        />
+        <Button href={DISCORD_SUPPORT_URL} target="_blank" icon={<ExternalLink size={16} />}>
+          {t("Join our Discord")}
+        </Button>
+      </Card>
 
       {/* Guide Card */}
       <Card>
