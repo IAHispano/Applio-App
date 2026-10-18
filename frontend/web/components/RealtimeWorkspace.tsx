@@ -563,11 +563,12 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           channelCount: { ideal: 1 },
           sampleRate: { ideal: 48000 },
           // Voice Focus needs the raw signal. Without it, ask for the browser
-          // processing that WebKit leaves off by default, so clicks and room
-          // noise stay quiet.
+          // denoising WebKit leaves off by default, so clicks and room noise
+          // stay quiet. AGC stays off: it amplifies quiet room noise, which is
+          // what makes the microphone feel oversensitive.
           ...(voiceFocus !== "off"
             ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-            : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
+            : { noiseSuppression: true, autoGainControl: false, echoCancellation: true }),
         },
       });
       openingStream = stream;
@@ -1235,7 +1236,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
               sampleRate: { ideal: 48000 },
               ...(voiceFocus !== "off"
                 ? { noiseSuppression: false, autoGainControl: false, echoCancellation: false }
-                : { noiseSuppression: true, autoGainControl: true, echoCancellation: true }),
+                : { noiseSuppression: true, autoGainControl: false, echoCancellation: true }),
             },
           });
           if (cancelled || sessRef.current !== session) return;
