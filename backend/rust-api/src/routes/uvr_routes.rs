@@ -51,6 +51,30 @@ fn title(value: &str) -> String {
         None => String::new(),
     }
 }
+fn with_download_status(data_root: &Path, catalog: Value) -> Value {
+    let uvr_root = data_root.join("rvc/models/uvr");
+    let mut list = catalog["models"].as_array().cloned().unwrap_or_default();
+    for model in &mut list {
+        let key = model["key"].as_str().unwrap_or_default();
+        let files: Vec<&str> = model["files"]
+            .as_array()
+            .map(|items| items.iter().filter_map(Value::as_str).collect())
+            .unwrap_or_default();
+        let downloaded = !key.is_empty()
+            && !files.is_empty()
+            && files.iter().all(|name| {
+                std::fs::metadata(uvr_root.join(key).join(name))
+                    .is_ok_and(|meta| meta.is_file() && meta.len() > 0)
+            });
+        if let Some(obj) = model.as_object_mut() {
+            obj.remove("key");
+            obj.remove("files");
+            obj.insert("downloaded".into(), Value::Bool(downloaded));
+        }
+    }
+    list.sort_by_key(|model| !model["downloaded"].as_bool().unwrap_or(false));
+    json!({ "models": list })
+}
 async fn models(State(state): State<Arc<Uvr>>) -> Result<Json<Value>, Error> {
     let engine = &state.engine;
     let path = engine.runtime.code.join("uvr/models.py");
@@ -63,11 +87,11 @@ async fn models(State(state): State<Arc<Uvr>>) -> Result<Json<Value>, Error> {
         let models:Result<Vec<_>>=models.iter().map(|model|{
             let stems=model["stems"].as_array().context("Invalid model catalog stems")?;
             let stems:Result<Vec<_>>=stems.iter().map(|stem|stem.as_str().map(title).context("Invalid stem label")).collect();
-            Ok(json!({"filename":model["filename"],"name":model["label"],"type":model["arch"].as_str().unwrap_or_default().to_uppercase(),"stems":stems?,"target_stem":model["target"].as_str().map(title)}))
+            Ok(json!({"key":model["key"],"files":model["files"],"filename":model["filename"],"name":model["label"],"type":model["arch"].as_str().unwrap_or_default().to_uppercase(),"stems":stems?,"target_stem":model["target"].as_str().map(title)}))
         }).collect();
         Ok(json!({"models":models?}))
     }).await.map_err(Error::internal)?;
-    Ok(Json(models))
+    Ok(Json(with_download_status(&engine.runtime.data, models)))
 }
 pub(crate) fn cli_args(params: &Value, input: &Path, output: &Path) -> Vec<String> {
     let mut args = vec![

@@ -30,6 +30,7 @@ interface UvrModel {
   type: string;
   stems: string[];
   target_stem: string | null;
+  downloaded?: boolean;
 }
 
 interface UvrStem {
@@ -41,6 +42,8 @@ interface UvrStem {
 const DEFAULT_MODEL = "UVR-MDX-NET-Voc_FT.onnx";
 
 function pickDefaultModel(models: UvrModel[]): string {
+  const downloaded = models.find((m) => m.downloaded);
+  if (downloaded) return downloaded.filename;
   if (models.some((m) => m.filename === DEFAULT_MODEL)) return DEFAULT_MODEL;
   const vocals = models.find((m) => (m.target_stem ?? "").toLowerCase().includes("vocal"));
   return vocals?.filename ?? models[0]?.filename ?? "";
@@ -283,8 +286,8 @@ export default function UvrPage() {
               options={models.map((m) => ({
                 value: m.filename,
                 label: m.name,
-                description: `${m.type} · ${(m.stems ?? []).join(" / ") || "stems"}`,
-                badge: m.type,
+                description: `${m.type} · ${(m.stems ?? []).join(" / ") || "stems"}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
+                badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
               }))}
               description={t(SETTING_HELP.separation)}
             />
@@ -318,6 +321,7 @@ export default function UvrPage() {
 
         {selectedModel && (
           <div className="flex items-center gap-2 flex-wrap">
+            {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
             <Badge variant="neutral">{selectedModel.type}</Badge>
             {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
               <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
