@@ -1,88 +1,110 @@
 name: Bug report
-description: Report a problem you encountered
+description: Help us reproduce a problem with Applio Desktop.
 title: "[Bug]: "
 labels: ["bug"]
 body:
-  - type: input
-    id: project
+  - type: markdown
     attributes:
-      label: Project Version
-      description: Which project versions are affected?
-      placeholder: "3.2.1, 3.2.2, 3.2.3"
+      value: |
+        Thanks for helping improve Applio! A clear report lets us reproduce and fix your issue faster.
+        Describe one problem per report and include a **screenshot or short video showing it**.
+        For help collecting details, open **Report a Bug** in Applio. You can also join our [Discord](https://discord.gg/wY7gmqTyEV) and ask in **#applio-app-testers**.
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Which feature is affected?
+      options:
+        - Installation or app startup
+        - Voice conversion / inference
+        - Realtime Voice Changer
+        - Training or datasets
+        - Audio separation
+        - Text to speech
+        - Downloads or file export
+        - Updates
+        - Settings, tray, or quitting
+        - Other (explain below)
     validations:
       required: true
-  - type: input
-    id: platform
-    attributes:
-      label: Platform and OS Version
-      description: Which platforms or operating systems are affected?
-      placeholder: "Windows 10 64-bit, Firefox 123"
-    validations:
-      required: true
-  - type: input
-    id: devices
-    attributes:
-      label: Affected Devices
-      description: Does this only occur on specific devices?
-      placeholder: "All, iPhone X, iPhone SE, iPad Air, MacBook Pro"
-    validations:
-      required: true
-  - type: input
-    id: existing-issues
-    attributes:
-      label: Existing Issues
-      description: Are there any similar existing issues?
-      placeholder: "#69"
-    validations:
-      required: false
   - type: textarea
     id: what-happened
     attributes:
-      label: What happened?
-      description: Clearly and concisely describe the bug.
-      placeholder: Tell us what happened.
+      label: What went wrong?
+      description: Tell us what you were trying to do, what happened instead, and how often it happens. Include the exact error text if there is one.
+      placeholder: "Example: After converting a WAV file, clicking Download does nothing. The audio plays inside Applio, but no file is saved. This happens every time, including after restarting."
     validations:
       required: true
   - type: textarea
     id: repro-steps
     attributes:
-      label: Steps to reproduce
-      value: |
-        1. 
-        2. 
-        3. 
-        ...
+      label: How can we reproduce it?
+      description: Start from opening Applio. List the page, buttons, relevant settings, and input/model details. Include enough detail for someone else to repeat the problem.
+      placeholder: |
+        1. Open Applio and go to Voice Conversion.
+        2. Select [model name/type], load a [format, duration] audio file, and set [relevant settings].
+        3. Click Convert and wait for the output.
+        4. Click Download on the output player. No file is saved and no dialog appears.
     validations:
       required: true
   - type: textarea
     id: expected-behavior
     attributes:
-      label: Expected behavior
-      description: What should have happened?
-      placeholder: What did you expect to happen?
+      label: What did you expect to happen?
+      description: Describe the result you expected so we can compare it with the actual behavior.
+      placeholder: "Example: Clicking Download should save the converted audio, or open a dialog where I can choose its location."
     validations:
       required: true
   - type: textarea
-    id: attachments
-    attributes:
-      label: Attachments
-      description: Please include code snippets, stack traces, or compiler errors.
-      placeholder: Paste code snippets, stack traces, and compiler errors here
-    validations:
-      required: false
-  - type: textarea
     id: screenshots
     attributes:
-      label: Screenshots or Videos
-      description: Add screenshots, gifs, or videos to help explain your problem.
-      placeholder: Upload screenshots, gifs, and videos here
+      label: Screenshot or video of the problem
+      description: Drag a screenshot or short video into this field, paste it from your clipboard, or provide a publicly accessible video link. Show the affected screen, relevant settings, and error. For audio issues, include output sound in the recording when possible. Hide private information first.
+      placeholder: "Attach your screenshot/video here. In Applio, Report a Bug → Record Screen can capture a reproduction; download the clip and attach it here. Clips are not attached automatically."
+    validations:
+      required: true
+  - type: checkboxes
+    id: media-confirmation
+    attributes:
+      label: Visual evidence
+      options:
+        - label: I attached a screenshot or video, or included an accessible video link, showing this problem.
+          required: true
+  - type: textarea
+    id: system
+    attributes:
+      label: System diagnostics
+      description: Open Applio → Report a Bug → Copy Diagnostics and paste the result here. This is filled in automatically when you use Open GitHub Issue in the app. If Applio will not start, enter your app version, operating system/version, and CPU architecture manually.
+      placeholder: |
+        Applio Desktop version:
+        Engine revision:
+        Operating system and version:
+        Architecture (x86_64 / Apple Silicon / other):
+        Python version:
+        CPU cores and RAM:
+    validations:
+      required: true
+  - type: textarea
+    id: hardware-settings
+    attributes:
+      label: Relevant hardware and settings
+      description: Include your CPU/chip, GPU and driver version if applicable. For realtime/audio issues, include microphone, output device, sample rate, and Voice Focus mode. On Linux, include your distro, desktop, and Wayland/X11 session. Write "Not applicable" for details unrelated to your issue.
+      placeholder: "Example (realtime): Mac M4, built-in microphone, headphones, 48 kHz, Voice Focus C20. Audio works with Voice Focus Off but becomes silent with C20."
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages and logs
+      description: Paste the full error or relevant terminal/app logs around the failure. Text is easier to investigate than a screenshot of logs. Remove private paths, tokens, or other sensitive information.
+      placeholder: Paste the error and the lines immediately before and after it. If no error appears, say so.
+      render: text
     validations:
       required: false
   - type: textarea
     id: additional
     attributes:
-      label: Additional Information
-      description: Add any other useful information about the problem here.
-      placeholder: Is there any additional helpful information you can share?
+      label: What else have you tried?
+      description: Mention whether this worked in an older Applio version, any workaround, related issue numbers, or settings/devices you already tested. Link a small reproduction file or public model if it helps.
+      placeholder: "Example: Worked in 0.3.0, started failing in 1.0.1. Restarting and changing the output folder did not help. Related issue: #19."
     validations:
       required: false

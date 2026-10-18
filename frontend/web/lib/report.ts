@@ -28,9 +28,8 @@ export function formatDiagnostics(info: DiagnosticInfo): string {
 
 export function issueReportUrl(info: DiagnosticInfo): string {
   const url = new URL(`${ECOSYSTEM.projects.desktop.issues}/new`);
-  url.searchParams.set(
-    "body",
-    `**Describe the bug**\n\n**Steps to reproduce**\n\n**Expected behavior**\n\n**System**\n${formatDiagnostics(info)}`,
-  );
+  // Open the guided form so diagnostics cannot replace the required report.
+  url.searchParams.set("template", "BUG.yml");
+  url.searchParams.set("system", formatDiagnostics(info));
   return url.href;
 }

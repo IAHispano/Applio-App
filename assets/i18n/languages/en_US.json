@@ -1665,5 +1665,10 @@
   "Repository updated. Rebuild and restart the application to load the new version.": "Repository updated. Rebuild and restart the application to load the new version.",
   "Get help on Discord": "Get help on Discord",
   "Join our Discord": "Join our Discord",
-  "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.": "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel."
+  "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.": "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.",
+  "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.": "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.",
+  "Click 'Open GitHub Issue' to open the guided bug form with your system diagnostics already filled in. Complete every required field.": "Click 'Open GitHub Issue' to open the guided bug form with your system diagnostics already filled in. Complete every required field.",
+  "Help us reproduce your issue: include clear steps, relevant settings, and a screenshot or short video.": "Help us reproduce your issue: include clear steps, relevant settings, and a screenshot or short video.",
+  "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.": "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.",
+  "Write the exact steps and settings, what you expected, what happened instead, and how often it happens.": "Write the exact steps and settings, what you expected, what happened instead, and how often it happens."
 }

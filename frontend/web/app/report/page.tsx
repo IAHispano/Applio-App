@@ -115,16 +115,28 @@ export default function ReportPage() {
           icon={<Bug size={18} />}
           title={t("How to Report an Issue on GitHub")}
           description={t(
-            "Follow these steps to record a reproduction clip and submit a detailed bug report.",
+            "Help us reproduce your issue: include clear steps, relevant settings, and a screenshot or short video.",
           )}
         />
         <ol className="space-y-2 text-xs text-neutral-300 m-0 pl-4 leading-relaxed">
-          <li>{t("Click on 'Record Screen' to start recording the issue you are experiencing.")}</li>
-          <li>{t("Once you have finished reproducing the issue, click 'Stop Recording'.")}</li>
-          <li>{t("Go to GitHub Issues and click on 'New Issue'.")}</li>
           <li>
             {t(
-              "Complete the provided issue template, paste the diagnostic information below, and attach the recorded screen clip.",
+              "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Write the exact steps and settings, what you expected, what happened instead, and how often it happens.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Click 'Open GitHub Issue' to open the guided bug form with your system diagnostics already filled in. Complete every required field.",
+            )}
+          </li>
+          <li>
+            {t(
+              "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.",
             )}
           </li>
         </ol>
