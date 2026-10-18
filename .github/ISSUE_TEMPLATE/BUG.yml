@@ -7,6 +7,7 @@ body:
     attributes:
       value: |
         Thanks for helping improve Applio! A clear report lets us reproduce and fix your issue faster.
+        **Security vulnerability?** Follow our [security policy](https://github.com/IAHispano/Applio-App/security/policy) to report it privately instead of using this public form.
         Describe one problem per report and include a **screenshot or short video showing it**.
         For help collecting details, open **Report a Bug** in Applio. You can also join our [Discord](https://discord.gg/wY7gmqTyEV) and ask in **#applio-app-testers**.
   - type: dropdown

@@ -26,4 +26,4 @@ Use `pnpm dev` for the browser UI, `pnpm typecheck` to check types, and
 Build installers with `pnpm build:win`, `pnpm build:mac`, or `pnpm build:linux`
 on the corresponding platform.
 
-[MIT License](LICENSE) · [Terms of Use](TERMS_OF_USE.md) · Built on [Applio](https://github.com/IAHispano/Applio).
+[MIT License](LICENSE) · [Terms of Use](TERMS_OF_USE.md) · [Security Policy](SECURITY.md) · Built on [Applio](https://github.com/IAHispano/Applio).
