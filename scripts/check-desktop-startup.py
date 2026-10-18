@@ -24,13 +24,21 @@ def main():
     executable = Path(sys.argv[1]).resolve(strict=True)
     with tempfile.TemporaryDirectory(prefix="applio-startup-") as directory:
         root = Path(directory)
-        environment = dict(os.environ, HOME=str(root), XDG_CONFIG_HOME=str(root / "config"),
-                           XDG_DATA_HOME=str(root / "data"), XDG_CACHE_HOME=str(root / "cache"))
+        environment = dict(
+            os.environ,
+            HOME=str(root),
+            XDG_CONFIG_HOME=str(root / "config"),
+            XDG_DATA_HOME=str(root / "data"),
+            XDG_CACHE_HOME=str(root / "cache"),
+        )
         # Ignore proxy settings for the loopback application services.
         http = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
         def request(path, method="GET"):
-            with http.open(urllib.request.Request("http://127.0.0.1:3000" + path, method=method), timeout=3) as response:
+            with http.open(
+                urllib.request.Request("http://127.0.0.1:3000" + path, method=method),
+                timeout=3,
+            ) as response:
                 return response.read()
 
         def wait_for(predicate, message):
@@ -48,20 +56,36 @@ def main():
             raise RuntimeError(message)
 
         with (root / "process.log").open("w+") as log:
-            process = subprocess.Popen([str(executable), *sys.argv[2:]], env=environment,
-                                       stdout=log, stderr=log, start_new_session=True)
+            process = subprocess.Popen(
+                [str(executable), *sys.argv[2:]],
+                env=environment,
+                stdout=log,
+                stderr=log,
+                start_new_session=True,
+            )
             try:
-                health = wait_for(lambda: json.loads(request("/api/health")), "API did not start")
+                health = wait_for(
+                    lambda: json.loads(request("/api/health")), "API did not start"
+                )
                 assert health["ok"] and health["instanceId"]
                 assert b"<html" in request("/")
-                wait_for(lambda: any("Interface ready" in path.read_text(errors="replace")
-                                     for path in root.rglob("launcher.log")),
-                         "Native WebView did not finish loading the interface")
+                wait_for(
+                    lambda: any(
+                        "Interface ready" in path.read_text(errors="replace")
+                        for path in root.rglob("launcher.log")
+                    ),
+                    "Native WebView did not finish loading the interface",
+                )
                 response = json.loads(request("/api/settings/restart", "POST"))
                 assert response["instanceId"] == health["instanceId"]
-                wait_for(lambda: json.loads(request("/api/health"))["instanceId"] != health["instanceId"],
-                         "API restart did not create a new generation")
-                print("Packaged desktop: native WebView ready, exported UI served, API restart verified.")
+                wait_for(
+                    lambda: json.loads(request("/api/health"))["instanceId"]
+                    != health["instanceId"],
+                    "API restart did not create a new generation",
+                )
+                print(
+                    "Packaged desktop: native WebView ready, exported UI served, API restart verified."
+                )
             except Exception:
                 log.flush()
                 log.seek(0)

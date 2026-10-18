@@ -32,16 +32,21 @@ class RealtimeServiceTests(unittest.TestCase):
         realtime.client = client
         realtime.configuration = configuration
         realtime.pipeline = pipeline
-        modules = {"rvc": types.ModuleType("rvc"), "rvc.realtime": realtime,
-                   "rvc.realtime.client": client,
-                   "rvc.realtime.configuration": configuration,
-                   "rvc.realtime.pipeline": pipeline}
+        modules = {
+            "rvc": types.ModuleType("rvc"),
+            "rvc.realtime": realtime,
+            "rvc.realtime.client": client,
+            "rvc.realtime.configuration": configuration,
+            "rvc.realtime.pipeline": pipeline,
+        }
         spec = importlib.util.spec_from_file_location(
             "realtime_service_check",
             Path(__file__).resolve().parents[1] / "backend/python/realtime/service.py",
         )
         self.service = importlib.util.module_from_spec(spec)
-        with patch.dict(sys.modules, modules), patch.dict(os.environ, {"APPLIO_REALTIME_PREWARM": "1"}), patch.object(threading.Thread, "start") as start:
+        with patch.dict(sys.modules, modules), patch.dict(
+            os.environ, {"APPLIO_REALTIME_PREWARM": "1"}
+        ), patch.object(threading.Thread, "start") as start:
             spec.loader.exec_module(self.service)
             start.assert_not_called()
         client.VoiceChanger.assert_not_called()
@@ -53,7 +58,10 @@ class RealtimeServiceTests(unittest.TestCase):
 
     def test_server_start_is_lazy_even_with_legacy_prewarm_flag(self):
         self.assertTrue(self.service._installed)
-        self.assertIs(self.configuration.RealtimeVoiceConverter, self.pipeline.RealtimeVoiceConverter)
+        self.assertIs(
+            self.configuration.RealtimeVoiceConverter,
+            self.pipeline.RealtimeVoiceConverter,
+        )
         self.assertNotIn("torch", self.service.__dict__)
 
     def test_model_reuse_invalidates_changed_weights_and_device(self):
@@ -70,7 +78,12 @@ class RealtimeServiceTests(unittest.TestCase):
 
     def test_concurrent_connections_share_a_single_load(self):
         with ThreadPoolExecutor(max_workers=8) as pool:
-            results = list(pool.map(lambda _: self.pipeline.RealtimeVoiceConverter("model", "cpu"), range(32)))
+            results = list(
+                pool.map(
+                    lambda _: self.pipeline.RealtimeVoiceConverter("model", "cpu"),
+                    range(32),
+                )
+            )
         self.assertTrue(all(value is results[0] for value in results))
         self.converter.assert_called_once()
 
@@ -81,7 +94,12 @@ class RealtimeServiceTests(unittest.TestCase):
         self.strip.assert_called_once_with(embedding)
         embedding.to.assert_called_once_with("cpu")
         pipeline = self.pipeline.Realtime_Pipeline()
-        pipeline.device, pipeline.sample_rate, pipeline.window, pipeline.use_f0 = "cpu", 48000, 160, True
+        pipeline.device, pipeline.sample_rate, pipeline.window, pipeline.use_f0 = (
+            "cpu",
+            48000,
+            160,
+            True,
+        )
         first = pipeline.setup_f0("fcpe")
         self.assertIs(first, pipeline.setup_f0("fcpe"))
         pipeline.device = "cuda"
