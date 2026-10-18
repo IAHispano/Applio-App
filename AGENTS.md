@@ -13,6 +13,18 @@
 - `assets/ecosystem.json`: official project links. `assets/i18n/languages`:
   translation dictionaries, with `en_US.json` as the key authority.
 
+The desktop execution path is React → same-origin Rust API → scheduler/job →
+managed Python worker or CLI → pinned engine. The Gradio path is
+`backend/applio/app.py` → `tabs/` callbacks → `backend/applio/core.py` → engine.
+The root `core.py` is a separate desktop CLI adapter that loads the pinned core
+and adds app integrations; do not confuse the two files.
+
+Production serves exported HTML through `backend/rust-api/src/runtime/web_host.rs`;
+it has no Next.js server. Development uses the rewrites in
+`frontend/web/next.config.ts`. New web pages must also be reachable through the
+Rust host and navigation; do not introduce production Next.js server routes or
+server-only runtime dependencies for an API that belongs in Rust.
+
 ## Development
 
 Use Node.js 22+, the pnpm version in `package.json`, stable Rust, Python 3.12,
@@ -48,17 +60,102 @@ merely repeat the code, commented-out implementations, and speculative TODOs.
 
 ## Gradio and desktop parity
 
-For shared engine features and fixes, inspect both `backend/applio/app.py` and
-`backend/applio/tabs/`, as well as the desktop web UI, Rust API, and Python
-adapters. Keep controls, defaults, validation, engine parameters, saved settings,
-and outputs consistent across the Gradio and desktop interfaces. A change in one
-UI does not automatically reach the other. Trace each affected path and verify
-both where possible; explicitly report any remaining parity gap.
+Read the relevant feature end to end before editing. Use these starting points;
+trace their imports and call sites rather than assuming this list is exhaustive.
+
+| Feature | Gradio starting point | Desktop starting points |
+| --- | --- | --- |
+| Conversion and batch | `backend/applio/tabs/inference/inference.py` | `frontend/web/components/InferenceForm.tsx`, `BatchForm.tsx`, `ConversionParameters.tsx`; Rust `routes/processing_routes.rs`, `routes/batch_routes.rs`, `inference/infer_params.rs` |
+| Text to speech | `backend/applio/tabs/tts/tts.py` | `frontend/web/components/TtsForm.tsx`; Rust `routes/processing_routes.rs` and the shared inference contract |
+| Training | `backend/applio/tabs/train/train.py` | `frontend/web/app/train/page.tsx`; Rust `routes/training_routes.rs`, `training/training_params.rs`, `training/training_artifacts.rs` |
+| Realtime | `backend/applio/tabs/realtime/realtime.py`, `backend/applio/tabs/realtime/main.js`, `backend/applio/rvc/realtime/client.py` | `frontend/web/components/RealtimeWorkspace.tsx`, `frontend/web/lib/realtime-*.ts`; Rust `routes/realtime_routes.rs`, `execution/realtime.rs`; `backend/python/realtime/service.py` |
+| Settings and model presets | `backend/applio/tabs/settings/`, inference preset callbacks, `rvc/lib/user_config.py` | `frontend/web/app/settings/page.tsx`, `frontend/web/lib/model-presets.ts`; Rust `routes/settings_routes.rs`, `execution/engine_runtime.rs` |
+
+Rust paths in this table are relative to `backend/rust-api/src`; component
+filenames without a directory share the preceding component's directory.
+The settings row's `rvc/` reference is inside the pinned submodule.
+
+For a shared parameter or behavior change, follow this sequence:
+
+1. Inspect the engine function signature, parser, and actual implementation.
+   Check Gradio `.click()`/`.change()` input ordering and result bindings; adding
+   a control without wiring the callback does not implement the feature.
+2. Compare desktop controls and defaults, API payload names, Rust normalization,
+   worker/CLI translation, and output handling. Preserve units, ranges, enum
+   values, nullable/optional behavior, speaker IDs, and dependencies between
+   controls. Verify disabled and unsupported states as well as the happy path.
+3. Check single conversion, batch overrides, TTS reuse, model presets, resets,
+   and saved realtime settings wherever they reuse the changed parameter.
+   Keep both configuration templates aligned when their shared defaults change.
+4. Exercise both entry paths with equivalent settings when available, checking
+   actual engine arguments and results. Label controls being present separately
+   from the engine accepting and applying them. State remaining parity gaps.
+
+Existing capabilities and defaults can differ across interfaces. Investigate
+the reason before aligning them; do not silently remove a desktop capability or
+change audio defaults just to make the UIs look identical. Document intentional
+differences briefly in the final change explanation.
 
 Desktop-specific window, tray, installer, and native updater behavior belongs
 in the desktop integration. When shared changes require editing the submodule,
 account for its own translation files and track the engine revision/pin rather
 than leaving uncommitted submodule changes that release checks will reject.
+
+## Contracts and shared state
+
+- Rust validates conversion/TTS using
+  `backend/rust-api/src/inference/inference-schema.json`; training uses
+  `training/training-schema.json`, and separation uses `routes/uvr-schema.json`.
+  The latter two paths are relative to `backend/rust-api/src`. Update the relevant
+  schema and serializer with the UI, not just TypeScript types. Preserve the
+  inference `cliOrder`, Python argument names, and training argument formatting.
+- Desktop conversion defaults live in `frontend/web/lib/useConversionParameters.ts`;
+  model presets are persisted through `model-presets.ts` and the settings API.
+  Compare these with the Rust schemas and Gradio values whenever defaults change.
+- `backend/python/inference/runtime.py` selects the pinned worker/CLI and applies
+  the optimized adapter. `worker.py` adapts the upstream worker AST and checks its
+  converter import. When updating the submodule, verify these assumptions and
+  the newline-delimited JSON protocol used by Rust `execution/worker.rs`:
+  request IDs, readiness, logs, completion/error messages, and cancellation.
+  Keep heavy ML imports lazy; unrelated utility commands must not load a model.
+- Long operations return HTTP 202 with `jobId`; observe completion through the
+  job API. Keep `execution/jobs.rs`, job routes, `frontend/web/lib/api.ts`,
+  `useJob.ts`, and shared job components consistent. Preserve job history,
+  progress/log events, stop behavior, and error details; a queued request is not
+  a successful conversion. Prefer existing API helpers and cache invalidation.
+- Use `ConfigStore` in Rust `execution/engine_runtime.rs` for desktop settings.
+  Preserve template merging, existing user values, atomic writes, and the rule
+  that installed package versions are not overridden by saved settings. Gradio
+  uses `backend/applio/rvc/lib/user_config.py`; respect its environment overrides.
+- Installed code, writable data, configuration, and model storage are separate.
+  Follow Tauri `src/runtime.rs`, Rust `runtime/app_runtime.rs`, and `EngineRuntime`
+  for their resolution. Reuse path validation and model-relative `logs/` aliases;
+  do not derive data locations from the current directory or break moved model
+  folders. Preserve transactional storage moves and legacy import behavior.
+
+## Interface cohesion and native boundaries
+
+Reuse `frontend/web/components/ui`, layout components, CSS theme tokens, and
+shared conversion controls. Preserve keyboard access, labels, focus handling,
+loading/error states, and the setup/terms guards in the root layout and AppShell.
+Keep implementation details out of user flows unless they help a user decide.
+
+`workspace-state.ts` holds session drafts; persisted preferences and model presets
+have separate storage. Preserve that distinction. AppShell keeps realtime mounted
+through `PersistentWorkspace` so navigation does not stop a stream; avoid extending
+this to ordinary pages that would keep hidden polling or audio running. Release
+streams, listeners, sockets, timers, and object URLs through their existing helpers.
+
+`window.applio` is injected by Tauri `src/bridge.js` only for the local app origin.
+Browser and remote Bridge pages do not have native IPC. Guard native actions and
+maintain a usable browser path. A new native command must agree across its Rust
+handler/registration, explicit permissions/capabilities, bridge method, and caller.
+Do not broaden origin or navigation permissions to fix a UI bug.
+
+For remote features, review both Rust `bridge/bridge_policy.rs` and
+`frontend/web/lib/bridge-mode.tsx`. Host-only routes, authorization, allowed methods,
+and streamed/polled updates are distinct from local desktop behavior; never expose
+a privileged operation just because its local API exists.
 
 ## Platforms and translations
 
@@ -68,6 +165,12 @@ native dependencies, audio backends, Linux Wayland/X11, and macOS Apple Silicon
 and Intel where relevant. Preserve CPU and supported accelerator paths. Verify
 affected platforms when available and clearly state what remains untested.
 
+Use Rust `execution/gpu_runtime.rs`, `execution/gpu-devices.json`, and
+`setup/setup_requirements.rs` under `backend/rust-api/src` for GPU policy and
+dependency selection. Compare upstream `rvc/configs/config.py` when changing
+device support; do not duplicate accelerator detection or install a single
+platform's Torch/ONNX dependencies unconditionally.
+
 For every new or changed user-facing string, use the appropriate i18n helper
 and update all supported language dictionaries with actual translations. Keep
 placeholders and formatting consistent; adding an English key or copying English
@@ -75,6 +178,12 @@ into other locales is not a completed translation. Desktop dictionaries live in
 `assets/i18n/languages`; Gradio has its own in
 `backend/applio/assets/i18n/languages`. Update the dictionaries for each affected
 interface and reuse existing keys when their meaning matches.
+
+The desktop uses `useI18n()`/`translate()`; Gradio uses its own i18n loader. Include
+tooltips, errors, empty states, accessibility labels, native tray/notifications,
+and new option labels. Keep stable API enum values and configuration keys separate
+from translated display text. The existing i18n extractor and sync tools help
+check key coverage; English fallback entries do not prove translation completion.
 
 ## Verification
 
@@ -124,6 +233,13 @@ Keep development-only documentation, test folders, and build/verification script
 out of published installers and runtime resources. Ship only runtime requirements,
 required notices/licenses, and relevant product assets. Review resource staging
 when changing dependencies or packaging so development folders do not leak in.
+
+`frontend/desktop/scripts/stage-resources.mjs` controls the runtime resource set.
+If an adapter, engine module, catalog, or runtime asset is added, confirm that it
+is staged and its dependencies are installed by setup. Root `requirements.txt`
+includes the pinned engine requirements; separation uses optional requirements
+and setup's platform-specific dependency selection. Do not rely on packages
+available only in the developer's global Python or Node environment.
 
 The validation workflow builds unsigned installers and runs packaged Linux/macOS
 startup checks. The release workflow changes versions, pushes a version commit,
