@@ -101,7 +101,6 @@
   "Applying settings…": "جارٍ تطبيق الإعدادات…",
   "Applying update via repository…": "جارٍ تطبيق التحديث عبر المستودع…",
   "Approve": "موافقة",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "وافق على هذا الجهاز في الإعدادات ← وضع الجسر على الكمبيوتر المضيف. تحقق من تطابق الرمز:",
   "Architecture": "البنية",
   "Are you sure you want to permanently delete": "هل أنت متأكد من رغبتك في الحذف نهائيًا:",
   "Audio Analyzer": "محلل الصوت",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} مكتملة · {failed} فاشلة · {total} إجماليًا",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} من الصوت. النتائج إشارات للمراجعة وليست حكمًا على جودة الصوت.",
   "{label} numeric value": "القيمة الرقمية لـ {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "يطلب {name} الوصول. تحقق من الرمز {code} في الإعدادات ← وضع الجسر.",
   "{n} files selected": "تم تحديد {n} ملفات",
-  "…or pick from assets/audios": "…أو اختر من assets/audios"
+  "…or pick from assets/audios": "…أو اختر من assets/audios",
+  "Preferences": "التفضيلات",
+  "Appearance": "المظهر",
+  "Audio engine": "محرك الصوت",
+  "Storage": "التخزين",
+  "Updates": "التحديثات",
+  "Application": "التطبيق",
+  "Settings sections": "أقسام الإعدادات",
+  "Open the desktop app to share this computer with your other devices.": "افتح تطبيق سطح المكتب لمشاركة هذا الكمبيوتر مع أجهزتك الأخرى.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "يطلب {name} الوصول. تحقق من الرمز {code} في وضع الجسر.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "وافق على هذا الجهاز في وضع الجسر على الكمبيوتر المضيف. تحقق من تطابق الرمز:"
 }

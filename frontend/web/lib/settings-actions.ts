@@ -23,3 +23,13 @@ export async function restartApiAndWait(): Promise<void> {
   }
   throw new Error("API restart timed out. Please restart Applio.");
 }
+
+/** Serialize preference writes and keep later changes saveable after a failed request. */
+export function createSettingsSaveQueue<Patch, Result>(write: (patch: Patch) => Promise<Result>) {
+  let pending: Promise<unknown> = Promise.resolve();
+  return (patch: Patch): Promise<Result> => {
+    const result = pending.then(() => write(patch));
+    pending = result.catch(() => undefined);
+    return result;
+  };
+}

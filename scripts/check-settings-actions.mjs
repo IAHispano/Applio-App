@@ -218,3 +218,153 @@ test("separator profiles submit schema-valid settings and preserve model, batch 
     assert.equal(profile().value, "1", `${arch} reset profile`);
   }
 });
+
+
+test("settings writes preserve order and recover after a rejected request", async () => {
+  const source = fs.readFileSync(new URL("../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
+  const exports = {};
+  new Function("exports", outputText)(exports);
+  const written = [];
+  let release;
+  const firstPending = new Promise((resolve) => { release = resolve; });
+  const save = exports.createSettingsSaveQueue(async (patch) => {
+    written.push(patch);
+    if (written.length === 1) { await firstPending; throw new Error("Write failed"); }
+    return patch;
+  });
+  const first = assert.rejects(save({ precision: "fp32" }), /Write failed/);
+  const second = save({ precision: "fp16" });
+  const third = save({ theme: { file: "midnight.json" } });
+  await Promise.resolve();
+  assert.deepEqual(written, [{ precision: "fp32" }]);
+  release();
+  await first;
+  assert.deepEqual(await second, { precision: "fp16" });
+  await third;
+  assert.deepEqual(written, [{ precision: "fp32" }, { precision: "fp16" }, { theme: { file: "midnight.json" } }]);
+});
+
+test("Bridge management has a static host route and desktop notifications target it", () => {
+  const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  assert.match(read("backend/rust-api/src/runtime/web_host.rs"), /"\/bridge-mode"/);
+  assert.match(read("frontend/web/components/layout/nav.ts"), /to: "\/bridge-mode"/);
+  assert.match(read("frontend/web/lib/bridge-mode.tsx"), /REMOTE_HOST_ROUTES = new Set\(\[[\s\S]*?"\/bridge-mode"/);
+  assert.match(read("frontend/web/app/bridge-mode/page.tsx"), /<BridgeModeCard/);
+  assert.doesNotMatch(read("frontend/web/app/settings/page.tsx"), /BridgeModeCard/);
+  assert.match(read("frontend/desktop/src-tauri/src/runtime.rs"), /extra\("href", "\/bridge-mode"\)/);
+  assert.match(read("frontend/desktop/src-tauri/src/main.rs"), /href == "\/bridge-mode"/);
+  const key = "{name} is requesting access. Check code {code} in Bridge Mode.";
+  for (const file of fs.readdirSync(new URL("../assets/i18n/languages/", import.meta.url))) {
+    const dict = JSON.parse(read(`assets/i18n/languages/${file}`));
+    for (const label of ["Preferences", "Appearance", "Audio engine", "Storage", "Updates", "Application", "Settings sections", "Approve this device in Bridge Mode on your host. Check that the code matches:", "Open the desktop app to share this computer with your other devices.", key]) {
+      assert.ok(dict[label], `${file}: ${label}`);
+    }
+    assert.deepEqual(dict[key].match(/\{\w+\}/g).sort(), ["{code}", "{name}"], file);
+  }
+});
+
+test("Bridge browser fallback avoids polling and desktop polling stops when its page unmounts", async () => {
+  const source = fs.readFileSync(new URL("../frontend/web/components/BridgeModeCard.tsx", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
+  for (const native of [false, true]) {
+    const states = [], effects = [], cleared = [];
+    let cursor = 0, polls = 0, requests = 0;
+    const jsx = (type, props) => ({ type, props });
+    const exports = {};
+    const bridge = { getStatus: async () => { requests++; return { status: "stopped", devices: [] }; } };
+    new Function("exports", "require", "setInterval", "clearInterval", outputText)(exports, (name) => {
+      if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
+      if (name === "react") return {
+        useState: (initial) => {
+          const index = cursor++;
+          if (!(index in states)) states[index] = initial;
+          return [states[index], (value) => { states[index] = value; }];
+        },
+        useRef: () => ({ current: null }), useEffect: (effect) => effects.push(effect),
+      };
+      if (name === "@/lib/i18n") return { useI18n: () => ({ t: (key) => key }) };
+      if (name === "@/lib/bridge-mode") return { desktopBridgeMode: () => native ? bridge : undefined };
+      return new Proxy({}, { get: (_, key) => key });
+    }, () => { polls++; return 42; }, (id) => cleared.push(id));
+    exports.default();
+    const dispose = effects[0]();
+    await Promise.resolve();
+    cursor = 0;
+    const tree = exports.default();
+    if (native) {
+      assert.equal(requests, 1);
+      assert.equal(polls, 1);
+      dispose();
+      assert.deepEqual(cleared, [42]);
+    } else {
+      assert.equal(tree.props.children.props.description, "Open the desktop app to share this computer with your other devices.");
+      assert.equal(requests, 0);
+      assert.equal(polls, 0);
+      assert.equal(dispose, undefined);
+    }
+  }
+});
+
+
+test("Settings ignores superseded save responses and keeps an unsaved author draft", async () => {
+  const source = fs.readFileSync(new URL("../frontend/web/app/settings/page.tsx", import.meta.url), "utf8");
+  const actions = fs.readFileSync(new URL("../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
+  const actionExports = {};
+  new Function("exports", ts.transpileModule(actions, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(actionExports);
+  const config = { model_index_filter: true, precision: "fp16", model_author: "Saved author", version: "1.0.3" };
+  const drafts = new Map([["page:settings:cfg", config]]), hooks = [];
+  let cursor = 0;
+  const workspace = (key, initial) => {
+    if (!drafts.has(key)) drafts.set(key, initial);
+    return [drafts.get(key), (value) => drafts.set(key, typeof value === "function" ? value(drafts.get(key)) : value)];
+  };
+  const pending = [];
+  const jsx = (type, props) => ({ type, props });
+  const exports = {};
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
+  new Function("exports", "require", "setTimeout", outputText)(exports, (name) => {
+    if (name === "react/jsx-runtime") return { jsx, jsxs: jsx };
+    if (name === "react") return {
+      useEffect() {}, useCallback: (fn) => fn,
+      useState: (initial) => {
+        const index = cursor++;
+        if (!(index in hooks)) hooks[index] = initial;
+        return [hooks[index], (value) => { hooks[index] = typeof value === "function" ? value(hooks[index]) : value; }];
+      },
+      useMemo: (fn) => { const index = cursor++; return hooks[index] ??= fn(); },
+      useRef: (initial) => { const index = cursor++; return hooks[index] ??= { current: initial }; },
+    };
+    if (name === "@/lib/workspace-state") return { useWorkspaceState: workspace };
+    if (name === "@/lib/i18n") return { useI18n: () => ({ t: (key) => key }) };
+    if (name === "@/lib/api") return { displayVersion: (value) => value, apiSend: (url, method, patch) => new Promise((resolve) => pending.push({ url, method, patch, resolve })) };
+    if (name === "@/lib/settings-actions") return actionExports;
+    if (name === "@/lib/setting-help") return { SETTING_HELP: {} };
+    if (name === "@/lib/update-policy") return { desktopUpdater: () => null };
+    return new Proxy({}, { get: (_, key) => key });
+  }, () => 0);
+  const nodes = (node) => !node || typeof node !== "object" ? [] : Array.isArray(node) ? node.flatMap(nodes) : [node, ...nodes(node.props?.children)];
+  const render = () => { cursor = 0; return nodes(exports.default()); };
+  const control = (id) => render().find((node) => node.props?.id === id).props;
+  const select = (section) => render().find((node) => node.type === "SegmentedControl").props.onChange(section);
+  select("settings-audio");
+  control("settings-model-author").onChange({ target: { value: "Draft author" } });
+  select("settings-general");
+  control("settings-filter-checkbox").onChange(false);
+  await Promise.resolve();
+  control("settings-filter-checkbox").onChange(true);
+  assert.equal(pending.length, 1);
+  assert.deepEqual(pending[0].patch, { model_index_filter: false });
+  pending[0].resolve({ config: { ...config, model_index_filter: false } });
+  await new Promise(setImmediate);
+  assert.equal(drafts.get("page:settings:cfg").model_index_filter, true, "an older response cannot replace the newer choice");
+  assert.equal(pending.length, 2);
+  assert.equal(pending[1].url, "/api/settings");
+  assert.equal(pending[1].method, "PUT");
+  assert.deepEqual(pending[1].patch, { model_index_filter: true });
+  pending[1].resolve({ config });
+  await new Promise(setImmediate);
+  select("settings-audio");
+  assert.equal(control("settings-model-author").value, "Draft author");
+  assert.equal(render().filter((node) => node.props?.role === "tabpanel" && !node.props.hidden).length, 1);
+});

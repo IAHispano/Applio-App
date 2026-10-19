@@ -13,6 +13,7 @@ import {
   Settings,
   ShieldCheck,
   SlidersHorizontal,
+  Smartphone,
   Sparkles,
 } from "lucide-react";
 
@@ -92,7 +93,12 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/jobs",
         blurb: "Recent jobs, outputs and interrupted work",
       },
-      { icon: Settings, label: "Settings", to: "/settings", blurb: "Engine configuration and preferences" },
+      {
+        icon: Smartphone,
+        label: "Bridge Mode",
+        to: "/bridge-mode",
+        blurb: "Your Applio, on any device. Processing stays on this computer.",
+      },
       { icon: Bug, label: "Report a Bug", to: "/report", blurb: "System diagnostics and issue reporting" },
       {
         icon: ShieldCheck,
@@ -100,8 +106,19 @@ export const NAV_SECTIONS: NavSection[] = [
         to: "/your-data",
         blurb: "Understand your rights, local processing, and optional online features.",
       },
+      { icon: Settings, label: "Settings", to: "/settings", blurb: "Engine configuration and preferences" },
     ],
   },
 ];
 
 export const MENU: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
+
+// These host pages remain usable before engine dependencies are installed.
+export const SETUP_OPTIONAL_ROUTES = new Set([
+  "/",
+  "/settings",
+  "/bridge-mode",
+  "/report",
+  "/api-access",
+  "/your-data",
+]);

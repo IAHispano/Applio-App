@@ -101,7 +101,6 @@
   "Applying settings…": "設定を適用中…",
   "Applying update via repository…": "リポジトリ経由でアップデートを適用中…",
   "Approve": "承認",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "ホストコンピューターの設定 → ブリッジモードでこのデバイスを承認してください。コードが一致することを確認してください：",
   "Architecture": "アーキテクチャ",
   "Are you sure you want to permanently delete": "完全に削除してもよろしいですか",
   "Audio Analyzer": "音声アナライザー",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done}件完了 · {failed}件失敗 · 合計{total}件",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "音声の長さ：{duration}。検出結果は確認のための目安で、声質の評価ではありません。",
   "{label} numeric value": "{label} の数値",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name}がアクセスをリクエストしています。設定 → ブリッジモードでコード{code}を確認してください。",
   "{n} files selected": "{n}個のファイルを選択",
-  "…or pick from assets/audios": "…または assets/audios から選択"
+  "…or pick from assets/audios": "…または assets/audios から選択",
+  "Preferences": "基本設定",
+  "Appearance": "外観",
+  "Audio engine": "オーディオエンジン",
+  "Storage": "ストレージ",
+  "Updates": "アップデート",
+  "Application": "アプリケーション",
+  "Settings sections": "設定のカテゴリ",
+  "Open the desktop app to share this computer with your other devices.": "デスクトップアプリを開いて、このコンピューターを他のデバイスと共有してください。",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} がアクセスを要求しています。ブリッジモードでコード {code} を確認してください。",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "ホストコンピューターのブリッジモードでこのデバイスを承認してください。コードが一致することを確認してください："
 }

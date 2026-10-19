@@ -27,6 +27,7 @@ export function desktopBridgeMode(): DesktopBridgeMode | undefined {
 export const REMOTE_HOST_ROUTES = new Set([
   "/",
   "/settings",
+  "/bridge-mode",
   "/setup",
   "/models",
   "/train",

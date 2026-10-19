@@ -101,7 +101,6 @@
   "Applying settings…": "सेटिंग लागू हो रही हैं…",
   "Applying update via repository…": "रिपॉजिटरी के माध्यम से अपडेट लागू किया जा रहा है…",
   "Approve": "अनुमति दें",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "मुख्य कंप्यूटर पर सेटिंग → ब्रिज मोड में इस डिवाइस को अनुमति दें। जाँचें कि कोड मेल खाता है:",
   "Architecture": "आर्किटेक्चर",
   "Are you sure you want to permanently delete": "क्या आप वाकई स्थायी रूप से हटाना चाहते हैं",
   "Audio Analyzer": "ऑडियो विश्लेषक",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} पूरे · {failed} विफल · कुल {total}",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} ऑडियो। निष्कर्ष समीक्षा के संकेत हैं, आवाज़ की गुणवत्ता का निर्णय नहीं।",
   "{label} numeric value": "{label} संख्यात्मक मान",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} पहुँच माँग रहा है। सेटिंग → ब्रिज मोड में {code} कोड जाँचें।",
   "{n} files selected": "{n} फ़ाइलें चुनी गईं",
-  "…or pick from assets/audios": "…या assets/audios से चुनें"
+  "…or pick from assets/audios": "…या assets/audios से चुनें",
+  "Preferences": "प्राथमिकताएँ",
+  "Appearance": "दिखावट",
+  "Audio engine": "ऑडियो इंजन",
+  "Storage": "स्टोरेज",
+  "Updates": "अपडेट",
+  "Application": "एप्लिकेशन",
+  "Settings sections": "सेटिंग अनुभाग",
+  "Open the desktop app to share this computer with your other devices.": "इस कंप्यूटर को अपने अन्य उपकरणों के साथ साझा करने के लिए डेस्कटॉप ऐप खोलें।",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} एक्सेस का अनुरोध कर रहा है। ब्रिज मोड में कोड {code} जाँचें।",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "मुख्य कंप्यूटर पर ब्रिज मोड में इस डिवाइस को अनुमति दें। जाँचें कि कोड मेल खाता है:"
 }

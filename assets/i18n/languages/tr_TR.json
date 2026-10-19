@@ -101,7 +101,6 @@
   "Applying settings…": "Ayarlar uygulanıyor…",
   "Applying update via repository…": "Depo üzerinden güncelleme uygulanıyor…",
   "Approve": "Onayla",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Ana bilgisayarınızda Ayarlar → Köprü modu bölümünde bu cihazı onaylayın. Kodların eşleştiğini kontrol edin:",
   "Architecture": "Mimari",
   "Are you sure you want to permanently delete": "Kalıcı olarak silmek istediğinizden emin misiniz:",
   "Audio Analyzer": "Ses Analizörü",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} tamamlandı · {failed} başarısız · toplam {total}",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} ses. Bulgular inceleme sinyalleridir; ses kalitesi hakkında bir yargı değildir.",
   "{label} numeric value": "{label} sayısal değeri",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} erişim istiyor. Ayarlar → Köprü modu bölümünde {code} kodunu kontrol edin.",
   "{n} files selected": "{n} dosya seçildi",
-  "…or pick from assets/audios": "…veya assets/audios dizininden seçin"
+  "…or pick from assets/audios": "…veya assets/audios dizininden seçin",
+  "Preferences": "Tercihler",
+  "Appearance": "Görünüm",
+  "Audio engine": "Ses motoru",
+  "Storage": "Depolama",
+  "Updates": "Güncellemeler",
+  "Application": "Uygulama",
+  "Settings sections": "Ayar bölümleri",
+  "Open the desktop app to share this computer with your other devices.": "Bu bilgisayarı diğer cihazlarınızla paylaşmak için masaüstü uygulamasını açın.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} erişim istiyor. Köprü modunda {code} kodunu kontrol edin.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Ana bilgisayarınızda Köprü modu bölümünde bu cihazı onaylayın. Kodların eşleştiğini kontrol edin:"
 }

@@ -101,7 +101,6 @@
   "Applying settings…": "Đang áp dụng cài đặt…",
   "Applying update via repository…": "Đang áp dụng bản cập nhật qua kho lưu trữ…",
   "Approve": "Phê duyệt",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Phê duyệt thiết bị trong Cài đặt → Chế độ cầu nối trên máy chủ. Kiểm tra mã trùng khớp:",
   "Architecture": "Kiến trúc",
   "Are you sure you want to permanently delete": "Bạn có chắc chắn muốn xóa vĩnh viễn",
   "Audio Analyzer": "Phân tích Âm thanh",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} hoàn tất · {failed} thất bại · tổng {total}",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} âm thanh. Phát hiện là dấu hiệu để xem xét, không phải đánh giá chất lượng giọng nói.",
   "{label} numeric value": "Giá trị số {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} đang yêu cầu truy cập. Kiểm tra mã {code} trong Cài đặt → Chế độ cầu nối.",
   "{n} files selected": "Đã chọn {n} tệp",
-  "…or pick from assets/audios": "…hoặc chọn từ assets/audios"
+  "…or pick from assets/audios": "…hoặc chọn từ assets/audios",
+  "Preferences": "Tùy chọn",
+  "Appearance": "Giao diện",
+  "Audio engine": "Bộ máy âm thanh",
+  "Storage": "Lưu trữ",
+  "Updates": "Cập nhật",
+  "Application": "Ứng dụng",
+  "Settings sections": "Các mục cài đặt",
+  "Open the desktop app to share this computer with your other devices.": "Mở ứng dụng máy tính để chia sẻ máy tính này với các thiết bị khác của bạn.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} đang yêu cầu quyền truy cập. Kiểm tra mã {code} trong chế độ cầu nối.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Phê duyệt thiết bị trong Chế độ cầu nối trên máy chủ. Kiểm tra mã trùng khớp:"
 }

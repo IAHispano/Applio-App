@@ -103,7 +103,6 @@
   "Applying settings…": "Applying settings…",
   "Applying update via repository…": "Applying update via repository…",
   "Approve": "Approve",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:",
   "Architecture": "Architecture",
   "Are you sure you want to permanently delete": "Are you sure you want to permanently delete",
   "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.": "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} completed · {failed} failed · {total} total",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} of audio. Findings are signals for review, not a judgment of voice quality.",
   "{label} numeric value": "{label} numeric value",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} is requesting access. Check code {code} in Settings → Bridge Mode.",
   "{n} files selected": "{n} files selected",
-  "…or pick from assets/audios": "…or pick from assets/audios"
+  "…or pick from assets/audios": "…or pick from assets/audios",
+  "Preferences": "Preferences",
+  "Appearance": "Appearance",
+  "Audio engine": "Audio engine",
+  "Storage": "Storage",
+  "Updates": "Updates",
+  "Application": "Application",
+  "Settings sections": "Settings sections",
+  "Open the desktop app to share this computer with your other devices.": "Open the desktop app to share this computer with your other devices.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} is requesting access. Check code {code} in Bridge Mode.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approve this device in Bridge Mode on your host. Check that the code matches:"
 }

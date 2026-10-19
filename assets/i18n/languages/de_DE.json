@@ -101,7 +101,6 @@
   "Applying settings…": "Einstellungen werden angewendet…",
   "Applying update via repository…": "Update wird über das Repository angewendet…",
   "Approve": "Bestätigen",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Bestätige dieses Gerät unter Einstellungen → Brückenmodus auf deinem Hostcomputer. Prüfe, ob die Codes übereinstimmen:",
   "Architecture": "Architektur",
   "Are you sure you want to permanently delete": "Bist du sicher, dass du dies dauerhaft löschen möchtest:",
   "Audio Analyzer": "Audio-Analysator",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} abgeschlossen · {failed} fehlgeschlagen · {total} insgesamt",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} Audio. Befunde sind Hinweise zur Prüfung, keine Bewertung der Stimmqualität.",
   "{label} numeric value": "Numerischer Wert für {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} fordert Zugriff an. Prüfe den Code {code} unter Einstellungen → Brückenmodus.",
   "{n} files selected": "{n} Dateien ausgewählt",
-  "…or pick from assets/audios": "…oder aus assets/audios auswählen"
+  "…or pick from assets/audios": "…oder aus assets/audios auswählen",
+  "Preferences": "Einstellungen",
+  "Appearance": "Darstellung",
+  "Audio engine": "Audio-Engine",
+  "Storage": "Speicher",
+  "Updates": "Updates",
+  "Application": "Anwendung",
+  "Settings sections": "Einstellungsbereiche",
+  "Open the desktop app to share this computer with your other devices.": "Öffne die Desktop-App, um diesen Computer mit deinen anderen Geräten zu teilen.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} fordert Zugriff an. Prüfe den Code {code} im Brückenmodus.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Bestätige dieses Gerät unter Brückenmodus auf deinem Hostcomputer. Prüfe, ob die Codes übereinstimmen:"
 }

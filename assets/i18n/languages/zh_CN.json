@@ -101,7 +101,6 @@
   "Applying settings…": "正在应用设置…",
   "Applying update via repository…": "正在通过代码仓库应用更新…",
   "Approve": "批准",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "在主机的设置 → 桥接模式中批准此设备。请确认代码一致：",
   "Architecture": "模型架构",
   "Are you sure you want to permanently delete": "您确定要永久删除吗：",
   "Audio Analyzer": "音频分析器",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} 个已完成 · {failed} 个失败 · 总计 {total} 个",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "音频长度为{duration}。检测结果仅供检查参考，并非对音色质量的评价。",
   "{label} numeric value": "{label} 数值",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name}正在请求访问。请在设置 → 桥接模式中检查代码{code}。",
   "{n} files selected": "已选择 {n} 个文件",
-  "…or pick from assets/audios": "…或从 assets/audios 中选择"
+  "…or pick from assets/audios": "…或从 assets/audios 中选择",
+  "Preferences": "偏好设置",
+  "Appearance": "外观",
+  "Audio engine": "音频引擎",
+  "Storage": "存储",
+  "Updates": "更新",
+  "Application": "应用程序",
+  "Settings sections": "设置分类",
+  "Open the desktop app to share this computer with your other devices.": "打开桌面应用，即可与您的其他设备共享此计算机。",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} 正在请求访问。请在桥接模式中核对代码 {code}。",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "在主机的桥接模式中批准此设备。请确认代码一致："
 }

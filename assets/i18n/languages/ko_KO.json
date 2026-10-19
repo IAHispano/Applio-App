@@ -101,7 +101,6 @@
   "Applying settings…": "설정 적용 중…",
   "Applying update via repository…": "저장소를 통해 업데이트 적용 중…",
   "Approve": "승인",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "호스트 컴퓨터의 설정 → 브리지 모드에서 이 기기를 승인하세요. 코드가 일치하는지 확인하세요:",
   "Architecture": "아키텍처",
   "Are you sure you want to permanently delete": "영구적으로 삭제하시겠습니까",
   "Audio Analyzer": "오디오 분석기",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done}개 완료 · {failed}개 실패 · 총 {total}개",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "오디오 길이 {duration}. 결과는 검토를 위한 신호이며 음성 품질에 대한 평가가 아닙니다.",
   "{label} numeric value": "{label} 수치",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name}님이 접근을 요청합니다. 설정 → 브리지 모드에서 코드 {code}를 확인하세요.",
   "{n} files selected": "파일 {n}개 선택됨",
-  "…or pick from assets/audios": "…또는 assets/audios에서 선택"
+  "…or pick from assets/audios": "…또는 assets/audios에서 선택",
+  "Preferences": "환경 설정",
+  "Appearance": "모양",
+  "Audio engine": "오디오 엔진",
+  "Storage": "저장 공간",
+  "Updates": "업데이트",
+  "Application": "애플리케이션",
+  "Settings sections": "설정 항목",
+  "Open the desktop app to share this computer with your other devices.": "다른 기기와 이 컴퓨터를 공유하려면 데스크톱 앱을 여세요.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} 님이 액세스를 요청하고 있습니다. 브리지 모드에서 코드 {code}를 확인하세요.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "호스트 컴퓨터의 브리지 모드에서 이 기기를 승인하세요. 코드가 일치하는지 확인하세요:"
 }

@@ -101,7 +101,6 @@
   "Applying settings…": "Menerapkan pengaturan…",
   "Applying update via repository…": "Menerapkan pembaruan melalui repositori…",
   "Approve": "Setujui",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Setujui perangkat ini di Pengaturan → Mode jembatan pada komputer utama. Pastikan kodenya cocok:",
   "Architecture": "Arsitektur",
   "Are you sure you want to permanently delete": "Apakah Anda yakin ingin menghapus secara permanen",
   "Audio Analyzer": "Penganalisis Audio",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} selesai · {failed} gagal · total {total}",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} audio. Temuan adalah petunjuk untuk ditinjau, bukan penilaian kualitas suara.",
   "{label} numeric value": "nilai numerik {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} meminta akses. Periksa kode {code} di Pengaturan → Mode jembatan.",
   "{n} files selected": "{n} berkas dipilih",
-  "…or pick from assets/audios": "…atau pilih dari assets/audios"
+  "…or pick from assets/audios": "…atau pilih dari assets/audios",
+  "Preferences": "Preferensi",
+  "Appearance": "Tampilan",
+  "Audio engine": "Mesin audio",
+  "Storage": "Penyimpanan",
+  "Updates": "Pembaruan",
+  "Application": "Aplikasi",
+  "Settings sections": "Bagian pengaturan",
+  "Open the desktop app to share this computer with your other devices.": "Buka aplikasi desktop untuk berbagi komputer ini dengan perangkat Anda yang lain.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} meminta akses. Periksa kode {code} di mode jembatan.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Setujui perangkat ini di Mode jembatan pada komputer utama. Pastikan kodenya cocok:"
 }

@@ -27,6 +27,7 @@ pub fn router(api: Router, root: PathBuf) -> Router {
         "/jobs",
         "/jobs/view",
         "/settings",
+        "/bridge-mode",
         "/report",
         "/setup",
     ] {
@@ -109,4 +110,47 @@ async fn asset_headers(request: Request, next: Next) -> Response {
             .unwrap(),
     );
     response
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, http::StatusCode};
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn bridge_management_serves_exported_page_and_navigation_payload() {
+        let export = tempfile::tempdir().unwrap();
+        std::fs::write(export.path().join("bridge-mode.html"), "Bridge management").unwrap();
+        std::fs::write(export.path().join("bridge-mode.txt"), "Bridge payload").unwrap();
+        let app = router(Router::new(), export.path().to_owned());
+        for path in ["/bridge-mode", "/bridge-mode/", "/bridge-mode.txt"] {
+            let response = app
+                .clone()
+                .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{path}");
+            let content_type = response.headers()["content-type"].to_str().unwrap();
+            assert!(
+                content_type.starts_with(if path.ends_with(".txt") {
+                    "text/x-component"
+                } else {
+                    "text/html"
+                }),
+                "{path}: {content_type}"
+            );
+            let body = axum::body::to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap();
+            assert_eq!(
+                body.as_ref(),
+                if path.ends_with(".txt") {
+                    b"Bridge payload".as_slice()
+                } else {
+                    b"Bridge management".as_slice()
+                }
+            );
+        }
+    }
 }

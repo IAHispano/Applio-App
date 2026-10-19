@@ -101,7 +101,6 @@
   "Applying settings…": "Aplicando ajustes…",
   "Applying update via repository…": "Aplicando actualización mediante el repositorio…",
   "Approve": "Aprobar",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Aprueba este dispositivo en Ajustes → Modo puente de tu ordenador principal. Comprueba que el código coincide:",
   "Architecture": "Arquitectura",
   "Are you sure you want to permanently delete": "¿Estás seguro de que deseas eliminar permanentemente",
   "Audio Analyzer": "Analizador de Audio",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} completados · {failed} fallidos · {total} en total",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} de audio. Los hallazgos son indicios para revisar, no una valoración de la calidad de la voz.",
   "{label} numeric value": "Valor numérico de {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} solicita acceso. Comprueba el código {code} en Ajustes → Modo puente.",
   "{n} files selected": "{n} archivos seleccionados",
-  "…or pick from assets/audios": "…o elige de assets/audios"
+  "…or pick from assets/audios": "…o elige de assets/audios",
+  "Preferences": "Preferencias",
+  "Appearance": "Apariencia",
+  "Audio engine": "Motor de audio",
+  "Storage": "Almacenamiento",
+  "Updates": "Actualizaciones",
+  "Application": "Aplicación",
+  "Settings sections": "Secciones de ajustes",
+  "Open the desktop app to share this computer with your other devices.": "Abre la aplicación de escritorio para compartir este equipo con tus otros dispositivos.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} solicita acceso. Comprueba el código {code} en el modo puente.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Aprueba este dispositivo en Modo puente de tu ordenador principal. Comprueba que el código coincide:"
 }

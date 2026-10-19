@@ -101,7 +101,6 @@
   "Applying settings…": "Применение настроек…",
   "Applying update via repository…": "Применение обновления из репозитория…",
   "Approve": "Одобрить",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Одобрите устройство в Настройки → Режим моста на основном компьютере. Проверьте совпадение кода:",
   "Architecture": "Архитектура",
   "Are you sure you want to permanently delete": "Вы уверены, что хотите навсегда удалить",
   "Audio Analyzer": "Анализатор аудио",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} завершено · {failed} ошибок · {total} всего",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} аудио. Результаты — сигналы для проверки, а не оценка качества голоса.",
   "{label} numeric value": "Числовое значение {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} запрашивает доступ. Сверьте код {code} в Настройки → Режим моста.",
   "{n} files selected": "Выбрано файлов: {n}",
-  "…or pick from assets/audios": "…или выберите из assets/audios"
+  "…or pick from assets/audios": "…или выберите из assets/audios",
+  "Preferences": "Предпочтения",
+  "Appearance": "Оформление",
+  "Audio engine": "Аудиодвижок",
+  "Storage": "Хранилище",
+  "Updates": "Обновления",
+  "Application": "Приложение",
+  "Settings sections": "Разделы настроек",
+  "Open the desktop app to share this computer with your other devices.": "Откройте настольное приложение, чтобы предоставить другим своим устройствам доступ к этому компьютеру.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} запрашивает доступ. Проверьте код {code} в режиме моста.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Одобрите устройство в Режим моста на основном компьютере. Проверьте совпадение кода:"
 }

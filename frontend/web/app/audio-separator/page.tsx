@@ -384,7 +384,7 @@ export default function UvrPage() {
   }
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack">
+    <div className="w-full max-w-[1600px] mx-auto flex flex-col page-stack">
       <PageHeader
         title={t("Audio Separator")}
         description={t(
@@ -392,32 +392,37 @@ export default function UvrPage() {
         )}
       />
 
-      {/* Source & Model */}
-      <Card>
-        <CardHeader
-          icon={<FileAudio size={18} />}
-          title={t("Source & Model")}
-          description={t("Pick the song to split and the separation engine to use.")}
-          action={
-            <div className="flex items-center gap-2">
-              <Button size="xs" variant="ghost" onClick={() => setImportOpen(true)} icon={<Plus size={12} />}>
-                {t("Import model")}
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                onClick={() => void loadModels()}
-                disabled={modelsLoading}
-                icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
-              >
-                {t("Reload models")}
-              </Button>
-            </div>
-          }
-        />
+      <div className="grid grid-cols-1 gap-5 items-start">
+        <Card className="min-w-0">
+          <CardHeader
+            icon={<FileAudio size={18} />}
+            step={1}
+            title={t("Source & Model")}
+            description={t("Pick the song to split and the separation engine to use.")}
+            action={
+              <div className="flex items-center gap-2">
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => setImportOpen(true)}
+                  icon={<Plus size={12} />}
+                >
+                  {t("Import model")}
+                </Button>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => void loadModels()}
+                  disabled={modelsLoading}
+                  icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
+                >
+                  {t("Reload models")}
+                </Button>
+              </div>
+            }
+          />
 
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-6 items-start">
-          <div className="min-w-0">
+          <div className="space-y-5">
             <AudioDropzone
               audioFile={audioFile}
               inputPath={inputPath}
@@ -427,75 +432,86 @@ export default function UvrPage() {
               onRefreshAudios={refreshSampleAudios}
               youtube
             />
-          </div>
-          <div className="min-w-0 space-y-5 rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-4 sm:p-5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5 sm:col-span-2">
-                <label htmlFor="uvr-model">{t("Separation model")}</label>
-                <CustomSelect
-                  id="uvr-model"
-                  value={model}
-                  onValueChange={handleModelChange}
-                  disabled={modelsLoading || models.length === 0}
-                  placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
-                  className="w-full"
-                  options={models.map((m) => ({
-                    value: m.filename,
-                    label: m.name,
-                    description: `${m.type} · ${(m.stems ?? []).map((stem) => t(stem)).join(" / ")}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
-                    badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
-                  }))}
-                />
+            <div className="space-y-4 border-t border-[var(--border)] pt-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <label htmlFor="uvr-model">{t("Separation model")}</label>
+                  <CustomSelect
+                    id="uvr-model"
+                    value={model}
+                    onValueChange={handleModelChange}
+                    disabled={modelsLoading || models.length === 0}
+                    placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
+                    className="w-full"
+                    options={models.map((m) => ({
+                      value: m.filename,
+                      label: m.name,
+                      description: `${m.type} · ${(m.stems ?? []).map((stem) => t(stem)).join(" / ")}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
+                      badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
+                    }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="uvr-format">{t("Output format")}</label>
+                  <CustomSelect
+                    id="uvr-format"
+                    value={format}
+                    onValueChange={setFormat}
+                    className="w-full"
+                    options={["WAV", "MP3", "FLAC"]}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="uvr-stems">{t("Stems to keep")}</label>
+                  <CustomSelect
+                    id="uvr-stems"
+                    value={stemMode}
+                    onValueChange={setStemMode}
+                    className="w-full"
+                    options={[
+                      { value: "all", label: t("All stems") },
+                      ...modelStems.map((s) => ({ value: s, label: `${t(s)} · ${t("only")}` })),
+                    ]}
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-format">{t("Output format")}</label>
-                <CustomSelect
-                  id="uvr-format"
-                  value={format}
-                  onValueChange={setFormat}
-                  className="w-full"
-                  options={["WAV", "MP3", "FLAC"]}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-stems">{t("Stems to keep")}</label>
-                <CustomSelect
-                  id="uvr-stems"
-                  value={stemMode}
-                  onValueChange={setStemMode}
-                  className="w-full"
-                  options={[
-                    { value: "all", label: t("All stems") },
-                    ...modelStems.map((s) => ({ value: s, label: `${t(s)} · ${t("only")}` })),
-                  ]}
-                />
-              </div>
+
+              {selectedModel && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
+                  <Badge variant="neutral">{selectedModel.type}</Badge>
+                  {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
+                    <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
+                      {t(s)}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+
+              {selectedModel && !selectedModel.downloaded && (
+                <p className="field-help m-0">
+                  {t("Models download on first use and are reused for offline separation.")}
+                </p>
+              )}
             </div>
-
-            {selectedModel && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
-                <Badge variant="neutral">{selectedModel.type}</Badge>
-                {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
-                  <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
-                    {t(s)}
-                  </Badge>
-                ))}
-              </div>
-            )}
-
-            {selectedModel && !selectedModel.downloaded && (
-              <p className="field-help m-0">
-                {t("Models download on first use and are reused for offline separation.")}
-              </p>
-            )}
-            {error && (
-              <Alert variant="error" onDismiss={() => setError("")}>
-                {error}
-              </Alert>
-            )}
-
-            <div className="space-y-4">
+          </div>
+        </Card>
+        <Card className="min-w-0">
+          <CardHeader
+            step={2}
+            icon={<FlaskConical size={18} />}
+            title={t("Separation Settings")}
+            description={
+              arch
+                ? t(
+                    "Quality / VRAM trade-offs specific to the {arch} architecture. Defaults suit most songs.",
+                    { arch },
+                  )
+                : t("Pick a model above to tune its separation settings.")
+            }
+          />
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
               {profileArchitecture && (
                 <div className="space-y-1.5">
                   <label htmlFor="uvr-profile">{t("Processing profile")}</label>
@@ -517,7 +533,7 @@ export default function UvrPage() {
                   </p>
                 </div>
               )}
-              <div className="min-w-0 space-y-1.5 sm:max-w-md">
+              <div className="min-w-0 space-y-1.5">
                 <label htmlFor="uvr-device" className="block text-xs text-[var(--muted)]">
                   {t("Device")}
                 </label>
@@ -534,6 +550,316 @@ export default function UvrPage() {
                   description={t(SETTING_HELP.gpu)}
                 />
               </div>
+            </div>
+            <Disclosure className="!mt-0" icon={<FlaskConical size={16} />} title={t("Advanced Settings")}>
+              <div className="flex items-center justify-between gap-3">
+                {arch && <Badge>{arch}</Badge>}
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  disabled={!arch}
+                  icon={<RotateCcw size={13} />}
+                  onClick={resetSettings}
+                >
+                  {t("Reset defaults")}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {arch === "VR" && (
+                  <>
+                    <SliderField
+                      id="uvr-vr-aggr"
+                      label={t("VR Aggression")}
+                      value={vrAggression}
+                      min={1}
+                      max={100}
+                      step={1}
+                      onChange={setVrAggression}
+                      description={t(
+                        "Intensity of primary stem extraction — higher removes more but can damage instruments.",
+                      )}
+                    />
+                    <SliderField
+                      id="uvr-vr-window"
+                      label={t("VR Window Size")}
+                      value={vrWindow}
+                      min={320}
+                      max={1024}
+                      step={32}
+                      onChange={setVrWindow}
+                      description={t("Lower windows give cleaner output but take longer.")}
+                    />
+                    <SliderField
+                      id="uvr-vr-batch"
+                      label={t("VR Batch Size")}
+                      value={vrBatch}
+                      min={1}
+                      max={16}
+                      step={1}
+                      onChange={setVrBatch}
+                      description={t("Higher batches run faster but use more VRAM.")}
+                    />
+                    <ToggleField
+                      id="uvr-vr-tta"
+                      label={t("Test-Time Augmentation")}
+                      checked={vrTta}
+                      onChange={setVrTta}
+                      description={t("Slow second pass that improves quality.")}
+                    />
+                    <ToggleField
+                      id="uvr-vr-high-end"
+                      label={t("High-End Process")}
+                      checked={vrHighEnd}
+                      onChange={setVrHighEnd}
+                      description={t("Mirror the missing high-frequency range of the output.")}
+                    />
+                    <ToggleField
+                      id="uvr-vr-post-process"
+                      label={t("Post-Process Vocals")}
+                      checked={vrPostProcess}
+                      onChange={setVrPostProcess}
+                      description={t("Mute low-volume vocals left in the instrumental.")}
+                    />
+                    {vrPostProcess && (
+                      <SliderField
+                        id="uvr-vr-post-threshold"
+                        label={t("Post-Process Threshold")}
+                        value={vrPostThreshold}
+                        min={0.01}
+                        max={0.3}
+                        step={0.01}
+                        onChange={setVrPostThreshold}
+                        description={t("Lower values remove more leftover residues.")}
+                      />
+                    )}
+                  </>
+                )}
+                {arch === "MDX" && (
+                  <>
+                    <SliderField
+                      id="uvr-mdx-seg"
+                      label={t("MDX Segment Size")}
+                      value={mdxSegment}
+                      min={32}
+                      max={4000}
+                      step={32}
+                      onChange={setMdxSegment}
+                      description={t("Larger consumes more resources, but may give better results.")}
+                    />
+                    <SliderField
+                      id="uvr-mdx-overlap"
+                      label={t("MDX Overlap")}
+                      value={mdxOverlap}
+                      min={0}
+                      max={0.99}
+                      step={0.01}
+                      onChange={setMdxOverlap}
+                      description={t(
+                        "Higher overlap is cleaner but slower. Above ~0.93 gets tremendously slow with little gain.",
+                      )}
+                    />
+                    <SliderField
+                      id="uvr-mdx-batch"
+                      label={t("MDX Batch Size")}
+                      value={mdxBatch}
+                      min={1}
+                      max={16}
+                      step={1}
+                      onChange={setMdxBatch}
+                      description={t(
+                        "Larger batches can improve speed when the model supports them; fixed-batch models keep their required size.",
+                      )}
+                    />
+                    <SliderField
+                      id="uvr-mdx-hop"
+                      label={t("MDX Hop Length")}
+                      value={mdxHop}
+                      min={32}
+                      max={2048}
+                      step={32}
+                      onChange={setMdxHop}
+                      description={t("Stride of the network — only change if you know what you're doing.")}
+                    />
+                    <ToggleField
+                      id="uvr-mdx-denoise"
+                      label={t("Denoise Output")}
+                      checked={mdxDenoise}
+                      onChange={setMdxDenoise}
+                      description={t("Dual-pass denoise; reduces MDX noise but can muddy instrumentals.")}
+                    />
+                  </>
+                )}
+                {arch === "MDXC" && (
+                  <>
+                    <SliderField
+                      id="uvr-mdxc-seg"
+                      label={t("MDXC Segment Size")}
+                      value={mdxcSegment}
+                      min={32}
+                      max={4000}
+                      step={32}
+                      onChange={setMdxcSegment}
+                      description={t("Larger consumes more resources, but may give better results.")}
+                    />
+                    <SliderField
+                      id="uvr-mdxc-overlap"
+                      label={t("MDXC Overlap")}
+                      value={mdxcOverlap}
+                      min={1}
+                      max={50}
+                      step={1}
+                      onChange={setMdxcOverlap}
+                      description={t("Overlapping prediction windows — higher is cleaner but slower.")}
+                    />
+                    <SliderField
+                      id="uvr-mdxc-batch"
+                      label={t("MDXC Batch Size")}
+                      value={mdxcBatch}
+                      min={1}
+                      max={16}
+                      step={1}
+                      onChange={setMdxcBatch}
+                      description={t("Higher batches run faster but use more VRAM.")}
+                    />
+                    <ToggleField
+                      id="uvr-mdxc-override-segment"
+                      label={t("Override Model Segment Size")}
+                      checked={mdxcOverrideSegment}
+                      onChange={setMdxcOverrideSegment}
+                      description={t(
+                        "Always use the segment size above instead of the larger automatic one selected for short songs.",
+                      )}
+                    />
+                    <SliderField
+                      id="uvr-mdxc-pitch-shift"
+                      label={t("MDXC Pitch Shift")}
+                      value={mdxcPitchShift}
+                      min={-12}
+                      max={12}
+                      step={1}
+                      onChange={setMdxcPitchShift}
+                      description={t(
+                        "Shift audio pitch by a number of semitones while processing. May improve output for deep/high vocals.",
+                      )}
+                    />
+                  </>
+                )}
+                {arch === "DEMUCS" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label htmlFor="uvr-demucs-seg">{t("Demucs Segment Size (seconds)")}</label>
+                      <input
+                        id="uvr-demucs-seg"
+                        type="number"
+                        min={1}
+                        value={demucsSegment}
+                        onChange={(e) => setDemucsSegment(e.target.value)}
+                        placeholder={t("Default (optimal size)")}
+                        className="w-full mt-1"
+                        aria-describedby={`${"uvr-demucs-seg"}-help`}
+                      />
+                      <SettingHelp text={t(SETTING_HELP.demucsSegment)} controlId={"uvr-demucs-seg"} />
+                    </div>
+                    <SliderField
+                      id="uvr-demucs-shifts"
+                      label={t("Demucs Shifts")}
+                      value={demucsShifts}
+                      min={0}
+                      max={20}
+                      step={1}
+                      onChange={setDemucsShifts}
+                      description={t("More shifted predictions average out artifacts but take longer.")}
+                    />
+                    <SliderField
+                      id="uvr-demucs-overlap"
+                      label={t("Demucs Overlap")}
+                      value={demucsOverlap}
+                      min={0}
+                      max={0.99}
+                      step={0.01}
+                      onChange={setDemucsOverlap}
+                      description={t("Impacts quality more than shifts; above ~0.75 gets very slow.")}
+                    />
+                    <ToggleField
+                      id="uvr-demucs-split"
+                      label={t("Chunk Splitting")}
+                      checked={demucsSplit}
+                      onChange={setDemucsSplit}
+                      description={t("Split the track into chunks to save VRAM.")}
+                      className="mt-3"
+                    />
+                  </>
+                )}
+                {arch === "ROFORMER" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <label htmlFor="uvr-roformer-chunk">{t("Roformer Chunk Size (seconds)")}</label>
+                      <input
+                        id="uvr-roformer-chunk"
+                        type="number"
+                        min={1}
+                        value={roformerChunk}
+                        onChange={(e) => setRoformerChunk(e.target.value)}
+                        placeholder={t("Model default (from config)")}
+                        className="w-full mt-1"
+                        aria-describedby={`${"uvr-roformer-chunk"}-help`}
+                      />
+                      <SettingHelp text={t(SETTING_HELP.roformerChunk)} controlId={"uvr-roformer-chunk"} />
+                      <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
+                        {t(
+                          "Higher than the training value can help until quality degrades; lower it if you run out of VRAM.",
+                        )}
+                      </p>
+                    </div>
+                    <SliderField
+                      id="uvr-roformer-overlap"
+                      label={t("Roformer Overlap")}
+                      value={roformerOverlap}
+                      min={1}
+                      max={32}
+                      step={1}
+                      onChange={setRoformerOverlap}
+                      description={t(
+                        "4 is balanced for speed and quality; higher is slightly cleaner but much slower.",
+                      )}
+                    />
+                    <SliderField
+                      id="uvr-roformer-batch"
+                      label={t("Roformer Batch Size")}
+                      value={roformerBatch}
+                      min={1}
+                      max={16}
+                      step={1}
+                      onChange={setRoformerBatch}
+                      description={t("Higher batches run faster but use more VRAM.")}
+                    />
+                    <ToggleField
+                      id="uvr-roformer-denoise"
+                      label={t("Denoise Output")}
+                      checked={roformerDenoise}
+                      onChange={setRoformerDenoise}
+                      description={t("Dual-pass Roformer denoise; reduces noise but doubles inference time.")}
+                    />
+                  </>
+                )}
+                {arch !== "VR" &&
+                  arch !== "MDX" &&
+                  arch !== "MDXC" &&
+                  arch !== "DEMUCS" &&
+                  arch !== "ROFORMER" && (
+                    <p className="text-xs text-neutral-400 m-0 sm:col-span-2">
+                      {t("Pick a model above to tune its separation settings.")}
+                    </p>
+                  )}
+              </div>
+            </Disclosure>
+            <div className="space-y-3 border-t border-[var(--border)] pt-4">
+              {error && (
+                <Alert variant="error" onDismiss={() => setError("")}>
+                  {error}
+                </Alert>
+              )}
+
               <Button
                 onClick={separate}
                 disabled={
@@ -552,319 +878,8 @@ export default function UvrPage() {
               )}
             </div>
           </div>
-        </div>
-      </Card>
-
-      {/* Separation settings (per architecture) */}
-      <Disclosure
-        className="!mt-0"
-        icon={<FlaskConical size={16} />}
-        title={t("Separation Settings")}
-        description={
-          arch
-            ? t("Quality / VRAM trade-offs specific to the {arch} architecture. Defaults suit most songs.", {
-                arch,
-              })
-            : t("Pick a model above to tune its separation settings.")
-        }
-      >
-        <div className="flex items-center justify-between gap-3">
-          {arch && <Badge>{arch}</Badge>}
-          <Button
-            size="xs"
-            variant="ghost"
-            disabled={!arch}
-            icon={<RotateCcw size={13} />}
-            onClick={resetSettings}
-          >
-            {t("Reset defaults")}
-          </Button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          {arch === "VR" && (
-            <>
-              <SliderField
-                id="uvr-vr-aggr"
-                label={t("VR Aggression")}
-                value={vrAggression}
-                min={1}
-                max={100}
-                step={1}
-                onChange={setVrAggression}
-                description={t(
-                  "Intensity of primary stem extraction — higher removes more but can damage instruments.",
-                )}
-              />
-              <SliderField
-                id="uvr-vr-window"
-                label={t("VR Window Size")}
-                value={vrWindow}
-                min={320}
-                max={1024}
-                step={32}
-                onChange={setVrWindow}
-                description={t("Lower windows give cleaner output but take longer.")}
-              />
-              <SliderField
-                id="uvr-vr-batch"
-                label={t("VR Batch Size")}
-                value={vrBatch}
-                min={1}
-                max={16}
-                step={1}
-                onChange={setVrBatch}
-                description={t("Higher batches run faster but use more VRAM.")}
-              />
-              <ToggleField
-                id="uvr-vr-tta"
-                label={t("Test-Time Augmentation")}
-                checked={vrTta}
-                onChange={setVrTta}
-                description={t("Slow second pass that improves quality.")}
-              />
-              <ToggleField
-                id="uvr-vr-high-end"
-                label={t("High-End Process")}
-                checked={vrHighEnd}
-                onChange={setVrHighEnd}
-                description={t("Mirror the missing high-frequency range of the output.")}
-              />
-              <ToggleField
-                id="uvr-vr-post-process"
-                label={t("Post-Process Vocals")}
-                checked={vrPostProcess}
-                onChange={setVrPostProcess}
-                description={t("Mute low-volume vocals left in the instrumental.")}
-              />
-              {vrPostProcess && (
-                <SliderField
-                  id="uvr-vr-post-threshold"
-                  label={t("Post-Process Threshold")}
-                  value={vrPostThreshold}
-                  min={0.01}
-                  max={0.3}
-                  step={0.01}
-                  onChange={setVrPostThreshold}
-                  description={t("Lower values remove more leftover residues.")}
-                />
-              )}
-            </>
-          )}
-          {arch === "MDX" && (
-            <>
-              <SliderField
-                id="uvr-mdx-seg"
-                label={t("MDX Segment Size")}
-                value={mdxSegment}
-                min={32}
-                max={4000}
-                step={32}
-                onChange={setMdxSegment}
-                description={t("Larger consumes more resources, but may give better results.")}
-              />
-              <SliderField
-                id="uvr-mdx-overlap"
-                label={t("MDX Overlap")}
-                value={mdxOverlap}
-                min={0}
-                max={0.99}
-                step={0.01}
-                onChange={setMdxOverlap}
-                description={t(
-                  "Higher overlap is cleaner but slower. Above ~0.93 gets tremendously slow with little gain.",
-                )}
-              />
-              <SliderField
-                id="uvr-mdx-batch"
-                label={t("MDX Batch Size")}
-                value={mdxBatch}
-                min={1}
-                max={16}
-                step={1}
-                onChange={setMdxBatch}
-                description={t(
-                  "Larger batches can improve speed when the model supports them; fixed-batch models keep their required size.",
-                )}
-              />
-              <SliderField
-                id="uvr-mdx-hop"
-                label={t("MDX Hop Length")}
-                value={mdxHop}
-                min={32}
-                max={2048}
-                step={32}
-                onChange={setMdxHop}
-                description={t("Stride of the network — only change if you know what you're doing.")}
-              />
-              <ToggleField
-                id="uvr-mdx-denoise"
-                label={t("Denoise Output")}
-                checked={mdxDenoise}
-                onChange={setMdxDenoise}
-                description={t("Dual-pass denoise; reduces MDX noise but can muddy instrumentals.")}
-              />
-            </>
-          )}
-          {arch === "MDXC" && (
-            <>
-              <SliderField
-                id="uvr-mdxc-seg"
-                label={t("MDXC Segment Size")}
-                value={mdxcSegment}
-                min={32}
-                max={4000}
-                step={32}
-                onChange={setMdxcSegment}
-                description={t("Larger consumes more resources, but may give better results.")}
-              />
-              <SliderField
-                id="uvr-mdxc-overlap"
-                label={t("MDXC Overlap")}
-                value={mdxcOverlap}
-                min={1}
-                max={50}
-                step={1}
-                onChange={setMdxcOverlap}
-                description={t("Overlapping prediction windows — higher is cleaner but slower.")}
-              />
-              <SliderField
-                id="uvr-mdxc-batch"
-                label={t("MDXC Batch Size")}
-                value={mdxcBatch}
-                min={1}
-                max={16}
-                step={1}
-                onChange={setMdxcBatch}
-                description={t("Higher batches run faster but use more VRAM.")}
-              />
-              <ToggleField
-                id="uvr-mdxc-override-segment"
-                label={t("Override Model Segment Size")}
-                checked={mdxcOverrideSegment}
-                onChange={setMdxcOverrideSegment}
-                description={t(
-                  "Always use the segment size above instead of the larger automatic one selected for short songs.",
-                )}
-              />
-              <SliderField
-                id="uvr-mdxc-pitch-shift"
-                label={t("MDXC Pitch Shift")}
-                value={mdxcPitchShift}
-                min={-12}
-                max={12}
-                step={1}
-                onChange={setMdxcPitchShift}
-                description={t(
-                  "Shift audio pitch by a number of semitones while processing. May improve output for deep/high vocals.",
-                )}
-              />
-            </>
-          )}
-          {arch === "DEMUCS" && (
-            <>
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-demucs-seg">{t("Demucs Segment Size (seconds)")}</label>
-                <input
-                  id="uvr-demucs-seg"
-                  type="number"
-                  min={1}
-                  value={demucsSegment}
-                  onChange={(e) => setDemucsSegment(e.target.value)}
-                  placeholder={t("Default (optimal size)")}
-                  className="w-full mt-1"
-                  aria-describedby={`${"uvr-demucs-seg"}-help`}
-                />
-                <SettingHelp text={t(SETTING_HELP.demucsSegment)} controlId={"uvr-demucs-seg"} />
-              </div>
-              <SliderField
-                id="uvr-demucs-shifts"
-                label={t("Demucs Shifts")}
-                value={demucsShifts}
-                min={0}
-                max={20}
-                step={1}
-                onChange={setDemucsShifts}
-                description={t("More shifted predictions average out artifacts but take longer.")}
-              />
-              <SliderField
-                id="uvr-demucs-overlap"
-                label={t("Demucs Overlap")}
-                value={demucsOverlap}
-                min={0}
-                max={0.99}
-                step={0.01}
-                onChange={setDemucsOverlap}
-                description={t("Impacts quality more than shifts; above ~0.75 gets very slow.")}
-              />
-              <ToggleField
-                id="uvr-demucs-split"
-                label={t("Chunk Splitting")}
-                checked={demucsSplit}
-                onChange={setDemucsSplit}
-                description={t("Split the track into chunks to save VRAM.")}
-                className="mt-3"
-              />
-            </>
-          )}
-          {arch === "ROFORMER" && (
-            <>
-              <div className="space-y-1.5">
-                <label htmlFor="uvr-roformer-chunk">{t("Roformer Chunk Size (seconds)")}</label>
-                <input
-                  id="uvr-roformer-chunk"
-                  type="number"
-                  min={1}
-                  value={roformerChunk}
-                  onChange={(e) => setRoformerChunk(e.target.value)}
-                  placeholder={t("Model default (from config)")}
-                  className="w-full mt-1"
-                  aria-describedby={`${"uvr-roformer-chunk"}-help`}
-                />
-                <SettingHelp text={t(SETTING_HELP.roformerChunk)} controlId={"uvr-roformer-chunk"} />
-                <p className="text-[11px] text-neutral-500 m-0 leading-relaxed">
-                  {t(
-                    "Higher than the training value can help until quality degrades; lower it if you run out of VRAM.",
-                  )}
-                </p>
-              </div>
-              <SliderField
-                id="uvr-roformer-overlap"
-                label={t("Roformer Overlap")}
-                value={roformerOverlap}
-                min={1}
-                max={32}
-                step={1}
-                onChange={setRoformerOverlap}
-                description={t(
-                  "4 is balanced for speed and quality; higher is slightly cleaner but much slower.",
-                )}
-              />
-              <SliderField
-                id="uvr-roformer-batch"
-                label={t("Roformer Batch Size")}
-                value={roformerBatch}
-                min={1}
-                max={16}
-                step={1}
-                onChange={setRoformerBatch}
-                description={t("Higher batches run faster but use more VRAM.")}
-              />
-              <ToggleField
-                id="uvr-roformer-denoise"
-                label={t("Denoise Output")}
-                checked={roformerDenoise}
-                onChange={setRoformerDenoise}
-                description={t("Dual-pass Roformer denoise; reduces noise but doubles inference time.")}
-              />
-            </>
-          )}
-          {arch !== "VR" && arch !== "MDX" && arch !== "MDXC" && arch !== "DEMUCS" && arch !== "ROFORMER" && (
-            <p className="text-xs text-neutral-400 m-0 sm:col-span-2 xl:col-span-4">
-              {t("Pick a model above to tune its separation settings.")}
-            </p>
-          )}
-        </div>
-      </Disclosure>
+        </Card>
+      </div>
 
       {/* Results */}
       {(jobId || busy) && (

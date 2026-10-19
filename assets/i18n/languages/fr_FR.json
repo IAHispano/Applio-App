@@ -101,7 +101,6 @@
   "Applying settings…": "Application des paramètres…",
   "Applying update via repository…": "Application de la mise à jour via le dépôt…",
   "Approve": "Approuver",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Approuvez cet appareil dans Paramètres → Mode passerelle sur votre ordinateur hôte. Vérifiez que le code correspond :",
   "Architecture": "Architecture",
   "Are you sure you want to permanently delete": "Êtes-vous sûr de vouloir supprimer définitivement",
   "Audio Analyzer": "Analyseur audio",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} terminés · {failed} échoués · {total} au total",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} d’audio. Les résultats sont des indices à examiner, pas un jugement sur la qualité de la voix.",
   "{label} numeric value": "valeur numérique {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} demande l’accès. Vérifiez le code {code} dans Paramètres → Mode passerelle.",
   "{n} files selected": "{n} fichiers sélectionnés",
-  "…or pick from assets/audios": "…ou choisir depuis assets/audios"
+  "…or pick from assets/audios": "…ou choisir depuis assets/audios",
+  "Preferences": "Préférences",
+  "Appearance": "Apparence",
+  "Audio engine": "Moteur audio",
+  "Storage": "Stockage",
+  "Updates": "Mises à jour",
+  "Application": "Application",
+  "Settings sections": "Rubriques des paramètres",
+  "Open the desktop app to share this computer with your other devices.": "Ouvrez l’application de bureau pour partager cet ordinateur avec vos autres appareils.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} demande un accès. Vérifiez le code {code} dans le mode passerelle.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approuvez cet appareil dans Mode passerelle sur votre ordinateur hôte. Vérifiez que le code correspond :"
 }

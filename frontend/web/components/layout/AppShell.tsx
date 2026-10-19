@@ -6,6 +6,7 @@ import { useEffect, useRef } from "react";
 import HalloweenEffects from "@/components/HalloweenEffects";
 import Link from "@/components/layout/IntentLink";
 import { BottomNav } from "@/components/layout/MobileNav";
+import { SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
 import PageTransition from "@/components/layout/PageTransition";
 import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
 import Sidebar from "@/components/layout/Sidebar";
@@ -20,8 +21,6 @@ import { useSetup } from "@/lib/setup";
 import { workspaceScroll } from "@/lib/workspace-state";
 
 const RealtimeWorkspace = dynamic(() => import("@/components/RealtimeWorkspace"), { ssr: false });
-
-const UNGUARDED_ROUTES = new Set(["/", "/settings", "/report", "/api-access", "/your-data"]);
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
@@ -95,7 +94,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, [router]);
   const { isReady, loading } = useSetup();
 
-  const isGuardedRoute = !UNGUARDED_ROUTES.has(pathname) && !pathname.startsWith("/jobs/");
+  const isGuardedRoute = !SETUP_OPTIONAL_ROUTES.has(pathname) && !pathname.startsWith("/jobs/");
   const showBarrier = !isReady && !loading && isGuardedRoute;
 
   const hostOnly = remote && REMOTE_HOST_ROUTES.has(pathname);

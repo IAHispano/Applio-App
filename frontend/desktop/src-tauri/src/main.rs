@@ -655,7 +655,7 @@ fn main() {
                 let Some(href) = notification.extra().get("href").and_then(Value::as_str) else {
                     return;
                 };
-                if href == "/settings" || valid_job_link(href) {
+                if href == "/settings" || href == "/bridge-mode" || valid_job_link(href) {
                     focus(&notification_handle);
                     let event = if href.starts_with("/jobs/") {
                         "job-open"

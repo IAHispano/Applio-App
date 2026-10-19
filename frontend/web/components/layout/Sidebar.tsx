@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowRight, BookOpen, Globe, MessageCircle } from "lucid
 import { usePathname } from "next/navigation";
 import HalloweenThemePrompt from "@/components/HalloweenThemePrompt";
 import Link from "@/components/layout/IntentLink";
-import { NAV_SECTIONS } from "@/components/layout/nav";
+import { NAV_SECTIONS, SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
 import SupportLink from "@/components/SupportLink";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { DOCS_URL, WEBSITE_URL } from "@/lib/ecosystem";
@@ -91,13 +91,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
               {section.items.map((item) => {
                 const Icon = item.icon;
                 const active = pathname === item.to;
-                const itemNeedsSetup =
-                  !isReady &&
-                  !loading &&
-                  item.to !== "/" &&
-                  item.to !== "/settings" &&
-                  item.to !== "/report" &&
-                  item.to !== "/your-data";
+                const itemNeedsSetup = !isReady && !loading && !SETUP_OPTIONAL_ROUTES.has(item.to);
 
                 return (
                   <li key={item.to}>

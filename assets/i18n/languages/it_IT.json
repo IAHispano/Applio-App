@@ -101,7 +101,6 @@
   "Applying settings…": "Applicazione delle impostazioni…",
   "Applying update via repository…": "Applicazione dell'aggiornamento tramite repository…",
   "Approve": "Autorizza",
-  "Approve this device in Settings → Bridge Mode on your host. Check that the code matches:": "Autorizza questo dispositivo in Impostazioni → Modalità ponte sul computer principale. Verifica che il codice coincida:",
   "Architecture": "Architettura",
   "Are you sure you want to permanently delete": "Sei sicuro di voler eliminare definitivamente",
   "Audio Analyzer": "Analizzatore Audio",
@@ -1771,7 +1770,16 @@
   "{done} completed · {failed} failed · {total} total": "{done} completati · {failed} non riusciti · {total} totali",
   "{duration} of audio. Findings are signals for review, not a judgment of voice quality.": "{duration} di audio. I risultati sono indizi da verificare, non un giudizio sulla qualità della voce.",
   "{label} numeric value": "valore numerico {label}",
-  "{name} is requesting access. Check code {code} in Settings → Bridge Mode.": "{name} richiede accesso. Verifica il codice {code} in Impostazioni → Modalità ponte.",
   "{n} files selected": "{n} file selezionati",
-  "…or pick from assets/audios": "…o scegli da assets/audios"
+  "…or pick from assets/audios": "…o scegli da assets/audios",
+  "Preferences": "Preferenze",
+  "Appearance": "Aspetto",
+  "Audio engine": "Motore audio",
+  "Storage": "Archiviazione",
+  "Updates": "Aggiornamenti",
+  "Application": "Applicazione",
+  "Settings sections": "Sezioni delle impostazioni",
+  "Open the desktop app to share this computer with your other devices.": "Apri l’app desktop per condividere questo computer con gli altri dispositivi.",
+  "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} richiede l’accesso. Verifica il codice {code} nella modalità ponte.",
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Autorizza questo dispositivo in Modalità ponte sul computer principale. Verifica che il codice coincida:"
 }

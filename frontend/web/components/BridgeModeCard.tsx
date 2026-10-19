@@ -26,7 +26,7 @@ import { useI18n } from "@/lib/i18n";
 
 export default function BridgeModeCard() {
   const { t } = useI18n();
-  const [available, setAvailable] = useState(false);
+  const [available, setAvailable] = useState<boolean | null>(null);
   const [state, setState] = useState<BridgeState>({ status: "stopped", devices: [] });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -37,8 +37,8 @@ export default function BridgeModeCard() {
 
   useEffect(() => {
     const bridge = desktopBridgeMode();
+    setAvailable(!!bridge);
     if (!bridge) return;
-    setAvailable(true);
     let disposed = false;
     const refresh = async () => {
       try {
@@ -93,7 +93,24 @@ export default function BridgeModeCard() {
     }
   };
 
-  if (!available) return null;
+  if (available === null)
+    return (
+      <Card>
+        <p role="status" className="field-help m-0">
+          {t("Loading…")}
+        </p>
+      </Card>
+    );
+  if (!available)
+    return (
+      <Card>
+        <CardHeader
+          icon={<Monitor size={20} />}
+          title={t("Bridge Mode is unavailable.")}
+          description={t("Open the desktop app to share this computer with your other devices.")}
+        />
+      </Card>
+    );
   const sharing = state.status === "sharing";
   const starting = state.status === "starting";
   const pending = state.devices.filter((device) => device.status === "pending");
@@ -105,8 +122,7 @@ export default function BridgeModeCard() {
     <Card id="bridge-mode" className="bridge-card">
       <CardHeader
         icon={<Smartphone size={19} />}
-        title={t("Bridge Mode")}
-        description={t("Your Applio, on any device. Processing stays on this computer.")}
+        title={t("Connect another device")}
         action={
           <div className="flex items-center gap-3 flex-wrap">
             <Badge

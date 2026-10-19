@@ -590,6 +590,17 @@ mod tests {
             StatusCode::UNAUTHORIZED
         );
         gateway.sessions.approve(&device.id).unwrap();
+        for path in ["/bridge-mode", "/bridge-mode/", "/bridge-mode.txt"] {
+            assert_eq!(
+                app.clone()
+                    .oneshot(request("GET", path))
+                    .await
+                    .unwrap()
+                    .status(),
+                StatusCode::NOT_FOUND,
+                "{path}"
+            );
+        }
         for (method, path) in [
             ("POST", "/api/setup/install"),
             ("POST", "/api/plugins/install"),

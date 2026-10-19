@@ -103,6 +103,8 @@ impl Host {
         let config = paths.config.clone();
         let code = paths.code.clone();
         let notifications = app.clone();
+        let notification_code = paths.code.clone();
+        let notification_config = paths.config.clone();
         let bridge = BridgeMode::new(
             Options {
                 cache_dir: paths.config.join("cache/bridge-helper"),
@@ -112,15 +114,21 @@ impl Host {
                 language: Arc::new(move || crate::language::load(&code, &config)),
                 on_request: Arc::new(move |device| {
                     use tauri_plugin_notification::NotificationExt;
+                    let (_, dictionary) =
+                        crate::language::load(&notification_code, &notification_config);
+                    let title = "Applio Bridge · Connection request";
+                    let body = "{name} is requesting access. Check code {code} in Bridge Mode.";
+                    let body = dictionary[body]
+                        .as_str()
+                        .unwrap_or(body)
+                        .replace("{code}", &device.code)
+                        .replace("{name}", &device.name);
                     let _ = notifications
                         .notification()
                         .builder()
-                        .title("Applio Bridge · Connection request")
-                        .extra("href", "/settings")
-                        .body(format!(
-                            "{} is requesting access. Check code {} in Settings → Bridge Mode.",
-                            device.name, device.code
-                        ))
+                        .title(dictionary[title].as_str().unwrap_or(title))
+                        .extra("href", "/bridge-mode")
+                        .body(body)
                         .show();
                 }),
             },
