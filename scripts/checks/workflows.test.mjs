@@ -503,3 +503,132 @@ assert pipeline.call_args.kwargs["sid"] == 3
 write.assert_called_once_with("out.wav", output, 44100, format="WAV")
 `], { encoding: "utf8", windowsHide: true });
 });
+
+test("pitch windows cover an hour without gaps, duplicate joins or duration-sized model input", () => {
+  execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
+import ast, types
+from array import array
+from pathlib import Path
+
+class Contour(array):
+ def __new__(cls, values=()): return super().__new__(cls, 'f', values)
+ def reshape(self, *args): return self
+ def __mul__(self, value): return Contour(item * value for item in self)
+
+np = types.SimpleNamespace(
+ float32='float32', float64='float64',
+ empty=lambda count, **kwargs: Contour([0]*count),
+ asarray=lambda values: Contour(values),
+ concatenate=lambda parts: Contour(value for part in parts for value in part),
+ arange=lambda count: Contour(range(count)),
+)
+# This check deliberately needs neither ML packages nor an hour-sized waveform.
+namespace = {'np': np}
+root = Path('backend/applio/rvc/lib/predictors')
+tree = ast.parse((root / 'chunking.py').read_text(encoding='utf-8'))
+exec(compile(ast.Module(body=[n for n in tree.body if isinstance(n, ast.FunctionDef)], type_ignores=[]), 'chunking.py', 'exec'), namespace)
+extract = namespace['extract_pitch']
+class Audio:
+ def __init__(self, length, offset=0): self.length, self.offset, self.size = length, offset, length
+ def __len__(self): return self.length
+ def __getitem__(self, key):
+  start, end, step = key.indices(self.length)
+  assert step == 1
+  return Audio(end-start, self.offset+start)
+
+for rate, hop in [(16000, 160), (44100, 512)]:
+ for tail in [0, 1, hop-1, hop]:
+  source = Audio(rate*3600+tail)
+  calls = []
+  def infer(window):
+   assert window.offset % hop == 0
+   calls.append((window.offset, len(window)))
+   return Contour(range(window.offset//hop, (window.offset+len(window))//hop+1))
+  result = extract(source, infer, rate, hop)
+  assert list(result) == list(range(len(source)//hop+1)), (rate, hop, tail)
+  assert max(length for _, length in calls) <= int(12*rate)
+  assert all(calls[i][0] > calls[i-1][0] for i in range(1,len(calls)))
+  # Check context trimming independently of the perfect frame-clock prediction.
+  def contextual(window):
+   values = infer(window)
+   context = rate//hop
+   if window.offset: values[:context] = Contour([-1]*context)
+   if window.offset+len(window) < len(source): values[-context:] = Contour([-1]*context)
+   return values
+  assert all(value >= 0 for value in extract(source, contextual, rate, hop))
+short = Audio(16000)
+sentinel = object()
+assert extract(short, lambda window: sentinel if window is short else None) is sentinel
+try:
+ extract(Audio(16000*11), lambda window: Contour())
+except ValueError as error:
+ assert 'fewer frames' in str(error)
+else: raise AssertionError('A truncated pitch contour must fail instead of silently dropping audio')
+
+# Exercise the actual entry methods: threshold, range and device arguments must
+# reach the window callbacks used by Gradio, desktop, training and curve tools.
+for file, cls, method in [('RMVPE.py','RMVPE0Predictor','infer_from_audio'), ('f0.py','CREPE','get_f0'), ('f0.py','FCPE','get_f0')]:
+ tree = ast.parse((root/file).read_text(encoding='utf-8'))
+ definition = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name==cls)
+ fn = next(n for n in definition.body if isinstance(n, ast.FunctionDef) and n.name==method)
+ exec(compile(ast.Module(body=[fn],type_ignores=[]),file,'exec'),namespace)
+ calls=[]
+ def window(audio,*args):
+  calls.append((len(audio),args)); return Contour([220]*(len(audio)//160+1))
+ obj=types.SimpleNamespace(sample_rate=16000,hop_size=160,_infer_window=window)
+ result=namespace[method](obj,Audio(16000*3600))
+ assert len(result)==360001 and max(size for size,_ in calls)<=192000
+ if cls=='CREPE': assert all(args==(50,1100,'full') for _,args in calls)
+ elif cls=='FCPE': assert all(args==(0.006,) for _,args in calls)
+ else: assert all(args==(0.03,) for _,args in calls)
+
+# Silence must survive the shared conversion normalizer before any extractor.
+tree=ast.parse(Path('backend/applio/rvc/infer/pipeline.py').read_text(encoding='utf-8'))
+cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='Pipeline')
+fn=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='get_f0')
+stop=next(i for i,n in enumerate(fn.body) if isinstance(n,ast.If) and isinstance(n.test,ast.Compare) and isinstance(n.test.left,ast.Name) and n.test.left.id=='f0_method')
+fn.body=fn.body[:stop]+[ast.Return(value=ast.Name(id='x',ctx=ast.Load()))]
+exec(compile(ast.fix_missing_locations(ast.Module(body=[fn],type_ignores=[])),'pipeline.py','exec'),namespace)
+class NormalizedAudio:
+ def __init__(self,scale): self.scale,self.divisor=scale,None
+ def astype(self,*args): return self
+ def __itruediv__(self,divisor):
+  assert divisor>0, 'Silence cannot be divided by zero'
+  self.divisor=divisor
+  return self
+np.abs=lambda audio:audio
+np.quantile=lambda audio,q:audio.scale
+for scale in (0,0.5):
+ audio=NormalizedAudio(scale)
+ assert namespace['get_f0'](types.SimpleNamespace(device='cpu'),audio,100) is audio
+ assert audio.divisor==(scale if scale else None)
+
+# The optional RMVPE octave guide must be bounded before doubling sample rate.
+tree=ast.parse((root/'f0.py').read_text(encoding='utf-8'))
+cls=next(n for n in tree.body if isinstance(n,ast.ClassDef) and n.name=='RMVPE')
+fn=next(n for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='_half_speed_guide')
+exec(compile(ast.Module(body=[fn],type_ignores=[]),'f0.py','exec'),namespace)
+calls=[]
+def guide(window,threshold):
+ assert threshold==.03
+ calls.append(len(window))
+ return Contour([880]*(len(window)//160+1))
+result=namespace['_half_speed_guide'](types.SimpleNamespace(sample_rate=16000,hop_size=160,_half_speed_window=guide),Audio(16000*3600),360001,.03)
+assert len(result)==360001 and max(calls)<=192000
+
+# SWIFT has its own 16ms clock and existing 30-second contextual windows.
+tree=ast.parse((root/'Swift.py').read_text(encoding='utf-8'))
+fn=next(n for cls in tree.body if isinstance(cls,ast.ClassDef) and cls.name=='SwiftPredictor' for n in cls.body if isinstance(n,ast.FunctionDef) and n.name=='detect')
+namespace.update(SAMPLE_RATE=16000,HOP=256,FRAME_PERIOD=.016,FMIN=46.875,FMAX=2093.75,WINDOW_FRAMES=1875,LEFT_FRAMES=11,LOOKAHEAD_FRAMES=10,_to_mono=lambda audio:audio)
+exec(compile(ast.Module(body=[fn],type_ignores=[]),'Swift.py','exec'),namespace)
+calls=[]
+def run(window,*args):
+ calls.append(len(window))
+ values=Contour(range(window.offset//256,(window.offset+len(window))//256))
+ return values,Contour([1]*len(values))
+timestamps,pitch,confidence=namespace['detect'](types.SimpleNamespace(_run=run),Audio(16000*3600+159))
+assert list(pitch)==list(range(225000))
+assert len(timestamps)==len(confidence)==225000
+assert max(calls)<16000*31
+`], { encoding: "utf8", windowsHide: true });
+});
