@@ -2,7 +2,6 @@
 
 import os
 
-import numpy as np
 import soundfile as sf
 import torch
 import torch.nn.functional as F
@@ -18,7 +17,7 @@ def load_config(config_path):
         return yaml.load(f, Loader=yaml.FullLoader)
 
 
-def load_weights(model, ckpt_path, logger=None):
+def load_weights(model, ckpt_path):
     try:
         state = torch.load(ckpt_path, map_location="cpu", weights_only=True)
     except Exception:
@@ -35,7 +34,9 @@ def load_weights(model, ckpt_path, logger=None):
     return model
 
 
-def _getWindowingArray(window_size, fade_size):
+def _windowing_array(window_size, fade_size):
+    if fade_size <= 0:
+        return torch.ones(window_size)
     fadein = torch.linspace(0, 1, fade_size)
     fadeout = torch.linspace(1, 0, fade_size)
     window = torch.ones(window_size)
@@ -86,7 +87,7 @@ class RoformerSeparator(BaseSeparator):
             f"Roformer {self.roformer_class} kwargs: {sorted(model_kwargs)}"
         )
         model = model_cls(**model_kwargs)
-        load_weights(model, self.model_path, self.logger)
+        load_weights(model, self.model_path)
         model.to(self.torch_device)
         model.eval()
         self.model_run = model
@@ -108,21 +109,22 @@ class RoformerSeparator(BaseSeparator):
             self.input_bit_depth = 16
 
         mix = self.prepare_mix(self.audio_file_path)
-        mix_tensor = torch.tensor(mix, dtype=torch.float32)
+        mix_tensor = torch.from_numpy(mix).to(dtype=torch.float32)
 
         chunk_size = self.chunk_size
         fade_size = chunk_size // 10
         step = max(1, chunk_size // self.overlap)
         border = chunk_size - step
         length_init = mix_tensor.shape[-1]
-        windowing_array = _getWindowingArray(chunk_size, fade_size)
+        windowing_array = _windowing_array(chunk_size, fade_size)
 
         if length_init > 2 * border and border > 0:
             mix_tensor = F.pad(mix_tensor, (border, border), mode="reflect")
 
         results = {}
-        counters = {}
+        counter = torch.zeros(mix_tensor.shape[-1])
         order = []
+        selected_indices = []
 
         with torch.inference_mode():
             i = 0
@@ -151,59 +153,79 @@ class RoformerSeparator(BaseSeparator):
                             x = (x1 + -x2) * 0.5
                         else:
                             x = self.model_run(arr)
-                        x = x.detach().cpu()
-
+                        # Single-target architectures return (batch, channels, samples).
+                        if x.ndim == 3:
+                            x = x.unsqueeze(1)
+                        if x.ndim != 4 or x.shape[0] != len(batch_locations):
+                            raise ValueError(
+                                f"Invalid Roformer output shape: {tuple(x.shape)}"
+                            )
                         if not order:
                             order = self._stem_names(x.shape[1])
-                            for name in order:
-                                results[name] = torch.zeros_like(mix_tensor)
-                                counters[name] = torch.zeros_like(mix_tensor)
-
-                        window = windowing_array.clone()
-                        if i - step == 0:
-                            window[:fade_size] = 1
-                        elif i >= mix_tensor.shape[1]:
-                            window[-fade_size:] = 1
-
+                            selected_indices = [
+                                idx
+                                for idx, name in enumerate(order)
+                                if not self.output_single_stem
+                                or name.lower() == self.output_single_stem.lower()
+                                or (
+                                    len(order) == 1
+                                    and self.output_single_stem.lower()
+                                    == self.counterpart.lower()
+                                )
+                            ]
+                            if not selected_indices:
+                                raise ValueError(
+                                    f"Unknown output stem: {self.output_single_stem}"
+                                )
+                            for idx in selected_indices:
+                                results[order[idx]] = torch.zeros_like(mix_tensor)
+                        # Keep duration-scaled storage on CPU and allocate only requested stems.
+                        x = x[:, selected_indices].detach().cpu()
                         for j, (start, seg_len) in enumerate(batch_locations):
-                            for idx, name in enumerate(order):
+                            window = windowing_array
+                            if self.overlap == 1:
+                                window = torch.ones_like(windowing_array)
+                            elif start == 0 or start + seg_len == mix_tensor.shape[-1]:
+                                window = windowing_array.clone()
+                                if start == 0:
+                                    window[:fade_size] = 1
+                                if start + seg_len == mix_tensor.shape[-1]:
+                                    window[max(0, seg_len - fade_size) : seg_len] = 1
+                            counter[start : start + seg_len] += window[:seg_len]
+                            for idx, source_idx in enumerate(selected_indices):
                                 stem = x[j, idx, ..., :seg_len]
                                 if stem.shape[0] == 1:
-                                    stem = stem.repeat(2, 1)
-                                results[name][..., start : start + seg_len] += (
-                                    stem * window[..., :seg_len]
+                                    stem = stem.expand(2, -1)
+                                results[order[source_idx]][..., start : start + seg_len] += (
+                                    stem * window[:seg_len]
                                 )
-                                counters[name][..., start : start + seg_len] += window[
-                                    ..., :seg_len
-                                ]
 
                         batch_data.clear()
                         batch_locations.clear()
-                    progress_bar.update(step)
+                    progress_bar.update(min(step, mix_tensor.shape[-1] - (i - step)))
 
         stems = {}
-        for name in order:
-            source = (results[name] / counters[name]).detach().cpu().numpy()
-            np.nan_to_num(source, copy=False, nan=0.0)
+        for name, result in results.items():
+            with torch.inference_mode():
+                result.div_(counter.clamp_min(torch.finfo(counter.dtype).tiny))
+            source = result.numpy()
             if length_init > 2 * border and border > 0:
                 source = source[..., border:-border]
             stems[name] = source
 
-        if len(order) == 1:
+        if len(order) == 1 and (
+            not self.output_single_stem
+            or self.output_single_stem.lower() == self.counterpart.lower()
+        ):
             only = order[0]
             stems[self.counterpart] = mix - stems[only]
 
         output_files = []
         for stem_name, source in stems.items():
-            if (
-                self.output_single_stem
-                and self.output_single_stem.lower() != stem_name.lower()
-            ):
-                continue
-            stem_path = self.get_stem_output_path(stem_name, custom_output_names)
-            self.logger.info(f"Saving {stem_name} stem to {stem_path}...")
-            self.final_process(stem_path, source.T, stem_name)
-            output_files.append(stem_path)
+            if self.should_output_stem(stem_name):
+                output_files.append(
+                    self.save_stem(stem_name, source.T, custom_output_names)
+                )
 
         return output_files
 

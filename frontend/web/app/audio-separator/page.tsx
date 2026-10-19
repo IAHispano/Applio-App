@@ -1,7 +1,17 @@
 "use client";
 
-import { Download, FileAudio, FlaskConical, Music4, Plus, RefreshCw, Split, Wand2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Download,
+  FileAudio,
+  FlaskConical,
+  Music4,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Split,
+  Wand2,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ImportModelDialog from "@/components/ImportModelDialog";
 import { JobPanelContent } from "@/components/JobPanel";
@@ -14,6 +24,7 @@ import {
   Card,
   CardHeader,
   CustomSelect,
+  Disclosure,
   SliderField,
   ToggleField,
 } from "@/components/ui";
@@ -39,6 +50,32 @@ interface UvrStem {
   file: string;
   url: string;
 }
+
+// Profiles change processing effort, never model, chunk size, batch or export settings.
+const PROFILES = {
+  VR: [
+    [1024, false],
+    [512, false],
+    [320, true],
+  ],
+  MDX: [
+    [0.1, false],
+    [0.25, false],
+    [0.5, true],
+  ],
+  MDXC: [[2], [8], [16]],
+  DEMUCS: [
+    [0.1, 0],
+    [0.25, 2],
+    [0.5, 4],
+  ],
+  ROFORMER: [
+    [1, false],
+    [2, false],
+    [4, true],
+  ],
+} as const;
+const PROFILE_LABELS = ["Fast", "Balanced", "Detailed"] as const;
 
 const DEFAULT_MODEL = "UVR-MDX-NET-Voc_FT.onnx";
 
@@ -107,19 +144,27 @@ export default function UvrPage() {
 
   const [importOpen, setImportOpen] = useState(false);
 
-  const loadModels = useCallback(async () => {
-    setModelsLoading(true);
-    try {
-      const data = await apiGet<{ models: UvrModel[] }>("/api/uvr/models", { force: true });
-      setModels(data.models);
-      setModel((cur) => (data.models.some((m) => m.filename === cur) ? cur : pickDefaultModel(data.models)));
-      setError("");
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setModelsLoading(false);
-    }
-  }, [setModels, setModel]);
+  const modelsRequest = useRef(0);
+  const loadModels = useCallback(
+    async (showLoading = true) => {
+      const request = ++modelsRequest.current;
+      if (showLoading) setModelsLoading(true);
+      try {
+        const data = await apiGet<{ models: UvrModel[] }>("/api/uvr/models", { force: true });
+        if (request !== modelsRequest.current) return;
+        setModels(data.models);
+        setModel((cur) =>
+          data.models.some((m) => m.filename === cur) ? cur : pickDefaultModel(data.models),
+        );
+        setError("");
+      } catch (e) {
+        if (request === modelsRequest.current) setError(errMsg(e));
+      } finally {
+        if (request === modelsRequest.current) setModelsLoading(false);
+      }
+    },
+    [setModels, setModel],
+  );
 
   // After an import completes: refresh the catalog, select the new model and
   // close the dialog (the dialog itself is already reset).
@@ -146,10 +191,13 @@ export default function UvrPage() {
     refreshSampleAudios();
     const onFocus = () => {
       refreshSampleAudios();
-      loadModels();
+      void loadModels(false);
     };
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    return () => {
+      modelsRequest.current++;
+      window.removeEventListener("focus", onFocus);
+    };
   }, [loadModels, refreshSampleAudios]);
 
   useEffect(() => {
@@ -172,12 +220,71 @@ export default function UvrPage() {
       .catch(() => setGpuDevices([]));
   }, [setGpuDevices]);
 
+  useEffect(() => {
+    if (job?.id && job.status === "done") void loadModels(false);
+  }, [job?.id, job?.status, loadModels]);
+
   const selectedModel = useMemo(() => models.find((m) => m.filename === model), [models, model]);
   const modelStems = useMemo(() => {
     const list = (selectedModel?.stems ?? []).filter((s) => s && s !== "Unknown");
     return list.length > 0 ? list : ["Vocals", "Instrumental"];
   }, [selectedModel]);
   const arch = (selectedModel?.type ?? "").toUpperCase();
+
+  const profileArchitecture = arch in PROFILES ? (arch as keyof typeof PROFILES) : null;
+  const currentProfileSettings =
+    arch === "VR"
+      ? [vrWindow, vrTta]
+      : arch === "MDX"
+        ? [mdxOverlap, mdxDenoise]
+        : arch === "MDXC"
+          ? [mdxcOverlap]
+          : arch === "DEMUCS"
+            ? [demucsOverlap, demucsShifts]
+            : arch === "ROFORMER"
+              ? [roformerOverlap, roformerDenoise]
+              : [];
+  const profileIndex = profileArchitecture
+    ? PROFILES[profileArchitecture].findIndex((values) =>
+        values.every((value, index) => value === currentProfileSettings[index]),
+      )
+    : -1;
+  const profileSummary =
+    arch === "VR"
+      ? `${t("VR Window Size")}: ${vrWindow} · ${t("Test-Time Augmentation")}: ${t(vrTta ? "Yes" : "No")}`
+      : arch === "MDX"
+        ? `${t("MDX Overlap")}: ${mdxOverlap} · ${t("Denoise Output")}: ${t(mdxDenoise ? "Yes" : "No")}`
+        : arch === "MDXC"
+          ? `${t("MDXC Overlap")}: ${mdxcOverlap}`
+          : arch === "DEMUCS"
+            ? `${t("Demucs Overlap")}: ${demucsOverlap} · ${t("Demucs Shifts")}: ${demucsShifts}`
+            : arch === "ROFORMER"
+              ? `${t("Roformer Overlap")}: ${roformerOverlap} · ${t("Denoise Output")}: ${t(roformerDenoise ? "Yes" : "No")}`
+              : "";
+
+  function applyProfile(value: string) {
+    if (!profileArchitecture || !["0", "1", "2"].includes(value)) return;
+    const index = Number(value) as 0 | 1 | 2;
+    if (arch === "VR") {
+      const [window, tta] = PROFILES.VR[index];
+      setVrWindow(window);
+      setVrTta(tta);
+    } else if (arch === "MDX") {
+      const [overlap, denoise] = PROFILES.MDX[index];
+      setMdxOverlap(overlap);
+      setMdxDenoise(denoise);
+    } else if (arch === "MDXC") {
+      setMdxcOverlap(PROFILES.MDXC[index][0]);
+    } else if (arch === "DEMUCS") {
+      const [overlap, shifts] = PROFILES.DEMUCS[index];
+      setDemucsOverlap(overlap);
+      setDemucsShifts(shifts);
+    } else if (arch === "ROFORMER") {
+      const [overlap, denoise] = PROFILES.ROFORMER[index];
+      setRoformerOverlap(overlap);
+      setRoformerDenoise(denoise);
+    }
+  }
 
   function handleModelChange(filename: string) {
     setModel(filename);
@@ -188,6 +295,40 @@ export default function UvrPage() {
     [job],
   );
   const running = job?.status === "running" || job?.status === "queued";
+
+  function resetSettings() {
+    if (arch === "VR") {
+      setVrAggression(5);
+      setVrWindow(512);
+      setVrBatch(1);
+      setVrTta(false);
+      setVrHighEnd(false);
+      setVrPostProcess(false);
+      setVrPostThreshold(0.2);
+    } else if (arch === "MDX") {
+      setMdxSegment(256);
+      setMdxOverlap(0.25);
+      setMdxBatch(1);
+      setMdxHop(1024);
+      setMdxDenoise(false);
+    } else if (arch === "MDXC") {
+      setMdxcSegment(256);
+      setMdxcOverlap(8);
+      setMdxcBatch(1);
+      setMdxcOverrideSegment(false);
+      setMdxcPitchShift(0);
+    } else if (arch === "DEMUCS") {
+      setDemucsSegment("");
+      setDemucsShifts(2);
+      setDemucsOverlap(0.25);
+      setDemucsSplit(true);
+    } else if (arch === "ROFORMER") {
+      setRoformerChunk("");
+      setRoformerOverlap(2);
+      setRoformerBatch(1);
+      setRoformerDenoise(false);
+    }
+  }
 
   async function separate() {
     setError("");
@@ -251,16 +392,10 @@ export default function UvrPage() {
         )}
       />
 
-      <Alert variant="info">
-        {t(
-          "First run downloads the selected model weights (50–300 MB) into rvc/models/uvr. Afterwards separation works fully offline.",
-        )}
-      </Alert>
-
       {/* Source & Model */}
       <Card>
         <CardHeader
-          icon={<FileAudio size={18} className="text-white" />}
+          icon={<FileAudio size={18} />}
           title={t("Source & Model")}
           description={t("Pick the song to split and the separation engine to use.")}
           action={
@@ -271,7 +406,7 @@ export default function UvrPage() {
               <Button
                 size="xs"
                 variant="ghost"
-                onClick={loadModels}
+                onClick={() => void loadModels()}
                 disabled={modelsLoading}
                 icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
               >
@@ -281,133 +416,170 @@ export default function UvrPage() {
           }
         />
 
-        <AudioDropzone
-          audioFile={audioFile}
-          inputPath={inputPath}
-          sampleAudios={sampleAudios}
-          onFileSelect={setAudioFile}
-          onPathSelect={setInputPath}
-          onRefreshAudios={refreshSampleAudios}
-          youtube
-        />
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="space-y-1.5 sm:col-span-1">
-            <label htmlFor="uvr-model">{t("Separation model")}</label>
-            <CustomSelect
-              id="uvr-model"
-              value={model}
-              onOpen={loadModels}
-              onValueChange={handleModelChange}
-              disabled={modelsLoading || models.length === 0}
-              placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
-              className="w-full"
-              options={models.map((m) => ({
-                value: m.filename,
-                label: m.name,
-                description: `${m.type} · ${(m.stems ?? []).join(" / ") || "stems"}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
-                badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
-              }))}
-              description={t(SETTING_HELP.separation)}
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-6 items-start">
+          <div className="min-w-0">
+            <AudioDropzone
+              audioFile={audioFile}
+              inputPath={inputPath}
+              sampleAudios={sampleAudios}
+              onFileSelect={setAudioFile}
+              onPathSelect={setInputPath}
+              onRefreshAudios={refreshSampleAudios}
+              youtube
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="uvr-format">{t("Output format")}</label>
-            <CustomSelect
-              id="uvr-format"
-              value={format}
-              onValueChange={setFormat}
-              className="w-full"
-              options={["WAV", "MP3", "FLAC"]}
-              description={t(SETTING_HELP.export)}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="uvr-stems">{t("Stems to keep")}</label>
-            <CustomSelect
-              id="uvr-stems"
-              value={stemMode}
-              onValueChange={setStemMode}
-              className="w-full"
-              options={[
-                { value: "all", label: t("All stems") },
-                ...modelStems.map((s) => ({ value: s, label: `${s} · ${t("only")}` })),
-              ]}
-              description={t(SETTING_HELP.stems)}
-            />
-          </div>
-        </div>
+          <div className="min-w-0 space-y-5 rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-4 sm:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5 sm:col-span-2">
+                <label htmlFor="uvr-model">{t("Separation model")}</label>
+                <CustomSelect
+                  id="uvr-model"
+                  value={model}
+                  onValueChange={handleModelChange}
+                  disabled={modelsLoading || models.length === 0}
+                  placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
+                  className="w-full"
+                  options={models.map((m) => ({
+                    value: m.filename,
+                    label: m.name,
+                    description: `${m.type} · ${(m.stems ?? []).map((stem) => t(stem)).join(" / ")}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
+                    badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
+                  }))}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-format">{t("Output format")}</label>
+                <CustomSelect
+                  id="uvr-format"
+                  value={format}
+                  onValueChange={setFormat}
+                  className="w-full"
+                  options={["WAV", "MP3", "FLAC"]}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="uvr-stems">{t("Stems to keep")}</label>
+                <CustomSelect
+                  id="uvr-stems"
+                  value={stemMode}
+                  onValueChange={setStemMode}
+                  className="w-full"
+                  options={[
+                    { value: "all", label: t("All stems") },
+                    ...modelStems.map((s) => ({ value: s, label: `${t(s)} · ${t("only")}` })),
+                  ]}
+                />
+              </div>
+            </div>
 
-        {selectedModel && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
-            <Badge variant="neutral">{selectedModel.type}</Badge>
-            {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
-              <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
-                {s}
-              </Badge>
-            ))}
-          </div>
-        )}
+            {selectedModel && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
+                <Badge variant="neutral">{selectedModel.type}</Badge>
+                {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
+                  <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
+                    {t(s)}
+                  </Badge>
+                ))}
+              </div>
+            )}
 
-        {error && <Alert variant="error">{error}</Alert>}
+            {selectedModel && !selectedModel.downloaded && (
+              <p className="field-help m-0">
+                {t("Models download on first use and are reused for offline separation.")}
+              </p>
+            )}
+            {error && (
+              <Alert variant="error" onDismiss={() => setError("")}>
+                {error}
+              </Alert>
+            )}
 
-        <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
-          <div className="min-w-0 space-y-1.5 sm:max-w-md">
-            <label htmlFor="uvr-device" className="block text-xs text-neutral-400">
-              {t("Device")}
-            </label>
-            <CustomSelect
-              id="uvr-device"
-              value={device}
-              onValueChange={setDevice}
-              className="w-full"
-              options={[
-                { value: "auto", label: t("Auto (GPU if available)") },
-                { value: "cpu", label: t("CPU (saves VRAM)") },
-                ...gpuDevices.map((g) => ({ value: g.id, label: g.name })),
-              ]}
-              description={t(SETTING_HELP.gpu)}
-            />
+            <div className="space-y-4">
+              {profileArchitecture && (
+                <div className="space-y-1.5">
+                  <label htmlFor="uvr-profile">{t("Processing profile")}</label>
+                  <CustomSelect
+                    id="uvr-profile"
+                    value={String(profileIndex)}
+                    onValueChange={applyProfile}
+                    className="w-full"
+                    options={[
+                      ...PROFILE_LABELS.map((label, index) => ({ value: String(index), label: t(label) })),
+                      ...(profileIndex === -1 ? [{ value: "-1", label: t("Custom…") }] : []),
+                    ]}
+                    description={t(
+                      "Profiles adjust windowing, overlap and extra passes. Results depend on the recording and model.",
+                    )}
+                  />
+                  <p className="text-xs text-[var(--muted)] m-0" aria-live="polite">
+                    {profileSummary}
+                  </p>
+                </div>
+              )}
+              <div className="min-w-0 space-y-1.5 sm:max-w-md">
+                <label htmlFor="uvr-device" className="block text-xs text-[var(--muted)]">
+                  {t("Device")}
+                </label>
+                <CustomSelect
+                  id="uvr-device"
+                  value={device}
+                  onValueChange={setDevice}
+                  className="w-full"
+                  options={[
+                    { value: "auto", label: t("Auto (GPU if available)") },
+                    { value: "cpu", label: t("CPU (saves VRAM)") },
+                    ...gpuDevices.map((g) => ({ value: g.id, label: g.name })),
+                  ]}
+                  description={t(SETTING_HELP.gpu)}
+                />
+              </div>
+              <Button
+                onClick={separate}
+                disabled={
+                  busy || running || modelsLoading || (!audioFile && !inputPath.trim()) || !selectedModel
+                }
+                loading={busy}
+                icon={<Split size={16} />}
+                className="w-full"
+              >
+                {running ? t("Separating…") : t("Separate Stems")}
+              </Button>
+              {running && (
+                <span className="text-xs text-neutral-400 sm:col-span-2">
+                  {t("Downloading weights on first run takes a while.")}
+                </span>
+              )}
+            </div>
           </div>
-          <Button
-            onClick={separate}
-            disabled={busy || running || (!audioFile && !inputPath.trim()) || !model}
-            loading={busy}
-            icon={<Split size={16} />}
-            className="w-full sm:w-auto sm:mt-6"
-          >
-            {running ? t("Separating…") : t("Separate Stems")}
-          </Button>
-          {running && (
-            <span className="text-xs text-neutral-400 sm:col-span-2">
-              {t("Downloading weights on first run takes a while.")}
-            </span>
-          )}
         </div>
       </Card>
 
       {/* Separation settings (per architecture) */}
-      <Card>
-        <CardHeader
-          icon={<FlaskConical size={18} className="text-white" />}
-          title={t("Separation Settings")}
-          description={
-            arch
-              ? t(
-                  "Quality / VRAM trade-offs specific to the {arch} architecture. Defaults suit most songs.",
-                  { arch },
-                )
-              : t("Pick a model above to tune its separation settings.")
-          }
-          action={
-            arch ? (
-              <Badge variant="neutral" size="sm">
-                {arch}
-              </Badge>
-            ) : undefined
-          }
-        />
+      <Disclosure
+        className="!mt-0"
+        icon={<FlaskConical size={16} />}
+        title={t("Separation Settings")}
+        description={
+          arch
+            ? t("Quality / VRAM trade-offs specific to the {arch} architecture. Defaults suit most songs.", {
+                arch,
+              })
+            : t("Pick a model above to tune its separation settings.")
+        }
+      >
+        <div className="flex items-center justify-between gap-3">
+          {arch && <Badge>{arch}</Badge>}
+          <Button
+            size="xs"
+            variant="ghost"
+            disabled={!arch}
+            icon={<RotateCcw size={13} />}
+            onClick={resetSettings}
+          >
+            {t("Reset defaults")}
+          </Button>
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {arch === "VR" && (
             <>
@@ -510,7 +682,9 @@ export default function UvrPage() {
                 max={16}
                 step={1}
                 onChange={setMdxBatch}
-                description={t("Higher batches run faster but use more VRAM.")}
+                description={t(
+                  "Larger batches can improve speed when the model supports them; fixed-batch models keep their required size.",
+                )}
               />
               <SliderField
                 id="uvr-mdx-hop"
@@ -690,23 +864,27 @@ export default function UvrPage() {
             </p>
           )}
         </div>
-      </Card>
+      </Disclosure>
 
       {/* Results */}
       {(jobId || busy) && (
         <Card>
           <CardHeader
-            icon={<Music4 size={18} className="text-white" />}
+            icon={<Music4 size={18} />}
             title={t("Separated Stems")}
             description={t("Preview each stem and download what you need.")}
           />
+          <JobPanelContent jobId={jobId} activity={activity} embedded showOutput={false} />
           {stems.length > 0 ? (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
               {stems.map((s) => (
-                <div key={s.file} className="p-3 rounded-xl bg-black/30 border border-white/5 space-y-2">
+                <div
+                  key={s.file}
+                  className="p-4 min-w-0 rounded-xl bg-[var(--input-bg)] border border-[var(--border)] space-y-3"
+                >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <Badge variant={/vocals/i.test(s.label) ? "success" : "neutral"} dot>
-                      {s.label}
+                      {t(s.label)}
                     </Badge>
                     <Button
                       href={s.url}
@@ -714,7 +892,7 @@ export default function UvrPage() {
                       variant="ghost"
                       size="xs"
                       icon={<Download size={13} />}
-                      aria-label={`${t("Download")} ${s.label}`}
+                      aria-label={`${t("Download")} ${t(s.label)}`}
                     >
                       {t("Download")}
                     </Button>
@@ -729,7 +907,6 @@ export default function UvrPage() {
               {t("Stems appear here after separation.")}
             </p>
           )}
-          <JobPanelContent jobId={jobId} activity={activity} embedded />
         </Card>
       )}
 

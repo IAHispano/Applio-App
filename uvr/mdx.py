@@ -1,11 +1,9 @@
-"""MDX-architecture separator (.onnx models, onnx2torch + torch/CUDA inference)."""
+"""MDX separator with native ONNX Runtime and optional torch conversion."""
 
 import os
 import platform
 
 import numpy as np
-import onnx
-import onnx2torch
 import onnxruntime as ort
 import torch
 from tqdm import tqdm
@@ -31,26 +29,48 @@ class MdxSeparator(BaseSeparator):
 
         self.load_model()
 
-        self.n_bins = 0
         self.trim = 0
         self.chunk_size = 0
         self.gen_size = 0
         self.stft = None
-        self.primary_source = None
-        self.secondary_source = None
-        self.audio_file_path = None
-        self.audio_file_base = None
 
     def load_model(self):
         if self.segment_size == self.dim_t:
-            self.uses_pytorch_inference = False
             options = ort.SessionOptions()
             options.log_severity_level = 3
+            execution_providers = list(self.onnx_execution_provider)
+            self.onnx_stream = None
+            if (
+                self.torch_device.type == "cuda"
+                and not torch.version.hip
+                and "CUDAExecutionProvider" in execution_providers
+                and "CUDAExecutionProvider" in ort.get_available_providers()
+            ):
+                # ORT treats a null/default stream pointer as no user stream.
+                # Retain an explicit stream so producer/consumer ordering is reliable.
+                self.onnx_stream = torch.cuda.Stream(device=self.torch_device)
+                execution_providers = [
+                    (
+                        "CUDAExecutionProvider",
+                        {
+                            "device_id": self.onnx_stream.device.index,
+                            "user_compute_stream": str(self.onnx_stream.cuda_stream),
+                        },
+                    )
+                    if provider == "CUDAExecutionProvider"
+                    else provider
+                    for provider in execution_providers
+                ]
             session = ort.InferenceSession(
                 self.model_path,
-                providers=self.onnx_execution_provider,
+                providers=execution_providers,
                 sess_options=options,
             )
+            self.onnx_session = session
+            self.onnx_input = session.get_inputs()[0]
+            self.onnx_output = session.get_outputs()[0]
+            if "CUDAExecutionProvider" not in session.get_providers():
+                self.onnx_stream = None
             providers = session.get_providers()
             requested = (
                 self.onnx_execution_provider[0]
@@ -61,10 +81,24 @@ class MdxSeparator(BaseSeparator):
                 self.logger.warning(
                     f"ONNX Runtime could not activate {requested}; using {providers}."
                 )
-            self.model_run = lambda spek: session.run(
-                None, {"input": spek.cpu().numpy()}
-            )[0]
+            batch_dimension = self.onnx_input.shape[0]
+            self.fixed_batch_size = (
+                batch_dimension
+                if isinstance(batch_dimension, int) and batch_dimension > 0
+                else None
+            )
+            self.inference_batch_size = self.fixed_batch_size or self.batch_size
+            if self.fixed_batch_size and self.fixed_batch_size != self.batch_size:
+                self.logger.info(
+                    f"ONNX model uses a fixed batch size of {self.fixed_batch_size}."
+                )
+            self.model_run = self.run_onnx
         else:
+            import onnx
+            import onnx2torch
+
+            self.fixed_batch_size = None
+            self.inference_batch_size = self.batch_size
             if platform.system() == "Windows":
                 onnx_model = onnx.load(self.model_path)
                 self.model_run = onnx2torch.convert(onnx_model)
@@ -75,7 +109,64 @@ class MdxSeparator(BaseSeparator):
                 "Model converted from ONNX to torch (segment size != dim_t); processing may be slower."
             )
 
+    def run_onnx(self, spectrum):
+        # Only bind shapes established by model metadata. Custom graphs with
+        # unknown output dimensions retain ONNX Runtime's allocating CPU path.
+        dimensions = {
+            name: size
+            for name, size in zip(self.onnx_input.shape, spectrum.shape)
+            if isinstance(name, str)
+        }
+        output_shape = [
+            dimension if isinstance(dimension, int) else dimensions.get(dimension)
+            for dimension in (self.onnx_output.shape or [])
+        ]
+        if (
+            self.onnx_stream is None
+            or spectrum.device != self.onnx_stream.device
+            or spectrum.dtype != torch.float32
+            or self.onnx_input.type != "tensor(float)"
+            or self.onnx_output.type != "tensor(float)"
+            or not output_shape
+            or not all(isinstance(size, int) and size > 0 for size in output_shape)
+        ):
+            return self.onnx_session.run(
+                [self.onnx_output.name],
+                {self.onnx_input.name: spectrum.cpu().numpy()},
+            )[0]
+
+        caller_stream = torch.cuda.current_stream(spectrum.device)
+        self.onnx_stream.wait_stream(caller_stream)
+        with torch.cuda.stream(self.onnx_stream):
+            contiguous = spectrum.contiguous()
+            output = torch.empty(output_shape, dtype=spectrum.dtype, device=spectrum.device)
+            binding = self.onnx_session.io_binding()
+            binding.bind_input(
+                self.onnx_input.name,
+                "cuda",
+                spectrum.device.index,
+                np.float32,
+                tuple(contiguous.shape),
+                contiguous.data_ptr(),
+            )
+            binding.bind_output(
+                self.onnx_output.name,
+                "cuda",
+                spectrum.device.index,
+                np.float32,
+                tuple(output.shape),
+                output.data_ptr(),
+            )
+            self.onnx_session.run_with_iobinding(binding)
+            # Retain allocator ownership until ORT's stream has consumed the input.
+            spectrum.record_stream(self.onnx_stream)
+        caller_stream.wait_stream(self.onnx_stream)
+        output.record_stream(caller_stream)
+        return output
+
     def separate(self, audio_file_path, custom_output_names=None):
+        self.primary_source = None
+        self.secondary_source = None
         self.audio_file_path = audio_file_path
         self.audio_file_base = os.path.splitext(os.path.basename(audio_file_path))[0]
 
@@ -87,131 +178,87 @@ class MdxSeparator(BaseSeparator):
             min_peak=self.amplification_threshold,
         )
 
-        source = self.demix(mix) * peak
-        if not isinstance(self.primary_source, np.ndarray):
-            self.primary_source = source.T
-
-        output_files = []
-        if not isinstance(self.secondary_source, np.ndarray):
-            raw_mix = self.demix(mix, is_match_mix=True)
+        self.primary_source = (self.demix(mix) * peak).T
+        if self.should_output_stem(self.secondary_stem_name):
             if self.invert_using_spec:
+                raw_mix = self.demix(mix, is_match_mix=True)
                 self.secondary_source = spec_utils.invert_stem(
                     raw_mix, self.primary_source * self.compensate
                 )
             else:
                 self.secondary_source = (-self.primary_source * self.compensate) + mix.T
 
-        if (
-            not self.output_single_stem
-            or self.output_single_stem.lower() == self.secondary_stem_name.lower()
-        ):
-            self.secondary_stem_output_path = self.get_stem_output_path(
-                self.secondary_stem_name, custom_output_names
+        return [
+            self.save_stem(name, source, custom_output_names)
+            for name, source in (
+                (self.secondary_stem_name, self.secondary_source),
+                (self.primary_stem_name, self.primary_source),
             )
-            self.logger.info(
-                f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
-            )
-            self.final_process(
-                self.secondary_stem_output_path,
-                self.secondary_source,
-                self.secondary_stem_name,
-            )
-            output_files.append(self.secondary_stem_output_path)
-
-        if (
-            not self.output_single_stem
-            or self.output_single_stem.lower() == self.primary_stem_name.lower()
-        ):
-            self.primary_stem_output_path = self.get_stem_output_path(
-                self.primary_stem_name, custom_output_names
-            )
-            self.logger.info(
-                f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
-            )
-            self.final_process(
-                self.primary_stem_output_path,
-                self.primary_source,
-                self.primary_stem_name,
-            )
-            output_files.append(self.primary_stem_output_path)
-
-        return output_files
+            if self.should_output_stem(name)
+        ]
 
     def initialize_model_settings(self):
-        self.n_bins = self.n_fft // 2 + 1
         self.trim = self.n_fft // 2
         self.chunk_size = self.hop_length * (self.segment_size - 1)
         self.gen_size = self.chunk_size - 2 * self.trim
+        if self.gen_size <= 0:
+            raise ValueError("MDX segment size and hop length must exceed the FFT window")
         self.stft = STFT(
             self.logger, self.n_fft, self.hop_length, self.dim_f, self.torch_device
         )
 
     def demix(self, mix, is_match_mix=False):
         self.initialize_model_settings()
-        chunk_size = self.hop_length * (self.segment_size - 1)
+        chunk_size = self.chunk_size
         overlap = 0.02 if is_match_mix else self.overlap
-        gen_size = chunk_size - 2 * self.trim
-        pad = gen_size + self.trim - (mix.shape[-1] % gen_size)
-        mixture = np.concatenate(
-            (
-                np.zeros((2, self.trim), dtype="float32"),
-                mix,
-                np.zeros((2, pad), dtype="float32"),
-            ),
-            1,
-        )
-        step = int((1 - overlap) * chunk_size)
+        pad = self.gen_size + self.trim - (mix.shape[-1] % self.gen_size)
+        mixture = np.pad(mix, ((0, 0), (self.trim, pad)))
+        step = max(1, int((1 - overlap) * chunk_size))
+        result = np.zeros_like(mixture, dtype=np.float32)
+        # Every channel uses the same window; keep a single coverage buffer.
+        divider = np.zeros(mixture.shape[-1], dtype=np.float32)
+        batch_size = self.inference_batch_size
+        starts = range(0, mixture.shape[-1], step)
+        full_window = np.hanning(chunk_size).astype(np.float32) if overlap else None
 
-        result = np.zeros((1, 2, mixture.shape[-1]), dtype=np.float32)
-        divider = np.zeros((1, 2, mixture.shape[-1]), dtype=np.float32)
-        tar_waves_ = []
-        total_chunks = (mixture.shape[-1] + step - 1) // step
-
-        for i in tqdm(range(0, mixture.shape[-1], step), desc="Separating"):
-            start = i
-            end = min(i + chunk_size, mixture.shape[-1])
-            chunk_size_actual = end - start
-            window = None
-            if overlap != 0:
-                window = np.hanning(chunk_size_actual)
-                window = np.tile(window[None, None, :], (1, 2, 1))
-            mix_part_ = mixture[:, start:end]
-            if end != i + chunk_size:
-                mix_part_ = np.concatenate(
-                    (mix_part_, np.zeros((2, (i + chunk_size) - end), dtype="float32")),
-                    axis=-1,
+        with torch.inference_mode(), tqdm(total=len(starts), desc="Separating") as progress:
+            for offset in range(0, len(starts), batch_size):
+                locations = starts[offset : offset + batch_size]
+                actual_batch = self.fixed_batch_size or len(locations)
+                batch = np.zeros((actual_batch, 2, chunk_size), dtype=np.float32)
+                for index, start in enumerate(locations):
+                    length = min(chunk_size, mixture.shape[-1] - start)
+                    batch[index, :, :length] = mixture[:, start : start + length]
+                predictions = self.run_model(
+                    torch.from_numpy(batch).to(self.torch_device),
+                    is_match_mix=is_match_mix,
                 )
-            mix_part = torch.tensor([mix_part_], dtype=torch.float32).to(
-                self.torch_device
-            )
-            with torch.no_grad():
-                for mix_wave in mix_part.split(self.batch_size):
-                    tar_waves = self.run_model(mix_wave, is_match_mix=is_match_mix)
-                    if window is not None:
-                        tar_waves[..., :chunk_size_actual] *= window
-                        divider[..., start:end] += window
+                for index, start in enumerate(locations):
+                    length = min(chunk_size, mixture.shape[-1] - start)
+                    window = full_window
+                    if overlap and length != chunk_size:
+                        window = np.hanning(length).astype(np.float32)
+                    if window is None:
+                        result[:, start : start + length] += predictions[index, :, :length]
+                        divider[start : start + length] += 1
                     else:
-                        divider[..., start:end] += 1
-                    result[..., start:end] += tar_waves[..., : end - start]
+                        result[:, start : start + length] += predictions[index, :, :length] * window
+                        divider[start : start + length] += window
+                progress.update(len(locations))
 
-        tar_waves = result / divider
-        tar_waves_.append(tar_waves)
-        tar_waves_ = np.vstack(tar_waves_)[:, :, self.trim : -self.trim]
-        tar_waves = np.concatenate(tar_waves_, axis=-1)[:, : mix.shape[-1]]
-        return tar_waves[:, 0:None]
+        np.divide(result, divider, out=result, where=divider > 0)
+        return result[:, self.trim : self.trim + mix.shape[-1]]
 
     def run_model(self, mix, is_match_mix=False):
-        spek = self.stft(mix.to(self.torch_device))
-        spek[:, :, :3, :] *= 0
+        spek = self.stft(mix)
+        spek[:, :, :3, :] = 0
         if is_match_mix:
-            spec_pred = spek.cpu().numpy()
+            spec_pred = spek
         elif self.enable_denoise:
             spec_pred = (self.model_run(-spek) * -0.5) + (self.model_run(spek) * 0.5)
         else:
             spec_pred = self.model_run(spek)
-        return (
-            self.stft.inverse(torch.tensor(spec_pred).to(self.torch_device))
-            .cpu()
-            .detach()
-            .numpy()
-        )
+        # Converted models and bound ONNX outputs stay on the inference device;
+        # the generic ONNX fallback returns NumPy and needs a device transfer.
+        spec_pred = torch.as_tensor(spec_pred, device=self.torch_device)
+        return self.stft.inverse(spec_pred).cpu().numpy()

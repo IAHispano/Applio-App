@@ -15,7 +15,7 @@ uvr/
                    --list-models, --list-variants and --fetch-only.
   separator.py     Orchestrator: download, arch dispatch, stem naming.
   models.py        Catalog (VR/MDX/MDXC/Demucs/MSST-Roformer + custom_models.json).
-  base.py          Shared mix prep, soundfile writing, downloads, devices.
+  base.py          Shared mix prep, atomic audio writing, stem exports, devices.
   spectral.py      Spectral DSP helpers.
   stft.py device.py tfc_tdf_v3.py  Shared low-level helpers.
   vr.py            VR-architecture separator (.pth).
@@ -37,7 +37,19 @@ uvr/
 
 - Weights download on first use into `rvc/models/uvr/<model-key>/`, relative
   to the app data root (the repository root in development), and are reused
-  afterwards. The catalog (`--list-models`) never imports torch.
+  afterwards. Catalog and fetch-only commands do not import torch; inference
+  imports only the selected architecture. GPU inference remains job-scheduled.
+- MDX batches independent windows when the model accepts a dynamic batch;
+  fixed-batch ONNX models retain their declared batch size. Torch predictions
+  stay on their device through inverse STFT. Native CUDA ONNX graphs also
+  bind device buffers directly when their output shapes are known, sharing
+  the torch CUDA stream; other providers and unknown shapes retain the generic
+  path. STFT caches its window and uses native complex tensors. The residual
+  uses no extra reconstruction pass unless spectral inversion is requested.
+- MDXC keeps duration-scaled overlap buffers on CPU and transfers active batches
+  to the accelerator. Roformer shares one overlap counter across channels and
+  stems, and retains only requested stems. These paths bound VRAM growth without
+  changing the selected overlap, denoise, format, or model defaults.
 - User models: entries in `rvc/models/uvr/custom_models.json` (same schema as
   `models.py`; merged at import). A `null` URL marks a local-only file: place
   the weights (and any yaml) in the model's folder yourself; separation runs

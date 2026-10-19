@@ -8,8 +8,6 @@ import traceback
 import librosa
 import numpy as np
 import soundfile as sf
-import torch
-from scipy.signal import correlate, hilbert
 
 OPERATING_SYSTEM = platform.system()
 SYSTEM_ARCH = platform.platform()

@@ -99,7 +99,11 @@ async fn models(State(state): State<Arc<Uvr>>) -> Result<Json<Value>, Error> {
         }).collect();
         Ok(json!({"models":models?}))
     }).await.map_err(Error::internal)?;
-    Ok(Json(with_download_status(&engine.runtime.data, models)))
+    let data_root = engine.runtime.data.clone();
+    let catalog = tokio::task::spawn_blocking(move || with_download_status(&data_root, models))
+        .await
+        .map_err(Error::internal)?;
+    Ok(Json(catalog))
 }
 pub(crate) fn cli_args(params: &Value, input: &Path, output: &Path) -> Vec<String> {
     let mut args = vec![
@@ -188,6 +192,10 @@ async fn run_step(
     let progress = PROGRESS.get_or_init(|| Regex::new(r"(\d{1,3})%\s*\|").unwrap());
     let spec = engine.runtime.python_command(args)?;
     let result = ManagedProcess::run(&spec, token, |_, line| {
+        if let Some(stage) = separation_stage(line) {
+            engine.jobs.stage(&job.id, stage, None, None);
+            return;
+        }
         let trimmed: String = line.trim().chars().take(1000).collect();
         if !trimmed.is_empty() {
             engine.jobs.log(&job.id, &trimmed);
@@ -203,7 +211,7 @@ async fn run_step(
                 .and_then(|job| job.progress)
                 .is_none_or(|current| percent > current)
             {
-                engine.jobs.progress(&job.id, percent.into());
+                engine.jobs.progress(&job.id, percent.min(99).into());
             }
         }
     })
@@ -211,6 +219,13 @@ async fn run_step(
     result.ensure_success()?;
     Ok(result.stdout)
 }
+fn separation_stage(line: &str) -> Option<&str> {
+    match line.trim().strip_prefix("APPLIO_STAGE:")? {
+        stage @ ("Downloading models…" | "Loading models…" | "Separating…") => Some(stage),
+        _ => None,
+    }
+}
+
 fn encode_segment(value: &str) -> String {
     let mut result = String::new();
     for byte in value.bytes() {
@@ -235,20 +250,12 @@ async fn separate(State(state): State<Arc<Uvr>>, request: Request) -> Accepted {
             .runtime
             .require_file(&string(&input.body, "inputPath"))?
     };
-    let saved = json!({"inputPath":audio,"model":params["model"],"outputFormat":params["outputFormat"],"device":params["device"]});
-    // CPU separations stay outside the GPU lease so slow jobs never block realtime.
-    let resource = if params["device"] == "cpu" {
-        None
-    } else {
-        Some(Resource::Gpu)
-    };
+    let mut saved = params.clone();
+    saved["inputPath"] = json!(audio);
     let job = engine
-        .start_job(
-            JobType::Other,
-            saved,
-            resource,
-            move |engine, job, token| run_separation(engine, job, token, params, audio),
-        )
+        .start_job(JobType::Other, saved, None, move |engine, job, token| {
+            run_separation(engine, job, token, params, audio)
+        })
         .await
         .map_err(Error::internal)?;
     input.retain();
@@ -478,7 +485,7 @@ async fn custom_models(State(state): State<Arc<Uvr>>, request: Request) -> Accep
         .start_job(
             JobType::Other,
             json!({"model": key}),
-            None,
+            Some(Resource::ModelDownload),
             move |engine, job, token| run_fetch(engine, job, token, key),
         )
         .await
@@ -521,11 +528,54 @@ async fn run_separation(
     params: Value,
     audio: std::path::PathBuf,
 ) -> Result<JobResult> {
-    engine
-        .jobs
-        .stage(&job.id, "Audio separation setup", None, None);
-    run_step(&engine, &job, &token, vec!["uvr/install.py".into()]).await?;
-    engine.jobs.log(&job.id, "UVR dependencies ready.");
+    // Provisioning never loads an architecture. Serialize optional installs and
+    // shared model transfers without reserving the accelerator for network I/O.
+    {
+        engine
+            .jobs
+            .stage(&job.id, "Waiting for a download slot.", None, None);
+        let _download = engine
+            .scheduler
+            .acquire(&job.id, Resource::ModelDownload, &token)
+            .await?
+            .context("Stopped by user")?;
+        engine
+            .jobs
+            .stage(&job.id, "Audio separation setup", None, None);
+        run_step(&engine, &job, &token, vec!["uvr/install.py".into()]).await?;
+        run_step(
+            &engine,
+            &job,
+            &token,
+            vec![
+                "uvr/separate.py".into(),
+                "--fetch-only".into(),
+                string(&params, "model"),
+            ],
+        )
+        .await?;
+    }
+    let _gpu = if params["device"] == "cpu" {
+        None
+    } else {
+        engine.jobs.stage(
+            &job.id,
+            "Waiting for the GPU to become available.",
+            None,
+            None,
+        );
+        let lease = engine
+            .scheduler
+            .acquire(&job.id, Resource::Gpu, &token)
+            .await?
+            .context("Stopped by user")?;
+        // Release the resident converter only while owning the same GPU lease.
+        engine.worker.stop().await?;
+        Some(lease)
+    };
+    if token.is_cancelled() {
+        bail!("Stopped by user");
+    }
     let output = engine
         .runtime
         .outputs
@@ -534,52 +584,250 @@ async fn run_separation(
     engine.jobs.stage(&job.id, "Separating audio…", None, None);
     let stdout = run_step(&engine, &job, &token, cli_args(&params, &audio, &output)).await?;
     let data = json_result(&stdout)?;
+    engine.jobs.stage(&job.id, "Checking output…", None, None);
+    let mut result = separation_result(&engine.runtime.data, &output, &data).await?;
+    result.result["message"] = json!(format!(
+        "Separated {} stems with {}.",
+        result.result["stems"].as_array().unwrap().len(),
+        string(&params, "model")
+    ));
+    engine.jobs.progress(&job.id, 100.0);
+    Ok(result)
+}
+
+async fn separation_result(data_root: &Path, output: &Path, data: &Value) -> Result<JobResult> {
     let stems = data["stems"].as_object().context("No stems produced.")?;
     if stems.is_empty() {
         bail!("No stems produced.");
     }
-    let mut result = Vec::new();
     let output = tokio::fs::canonicalize(output).await?;
+    let mut result = Vec::new();
+    let mut output_file = None;
     for (label, file) in stems {
         let file = file.as_str().context("Invalid stem filename")?;
-        let actual = tokio::fs::canonicalize(engine.runtime.data.join(file)).await?;
-        if !actual.is_file() || !actual.starts_with(&output) {
+        let actual = tokio::fs::canonicalize(data_root.join(file)).await?;
+        let metadata = tokio::fs::metadata(&actual).await?;
+        if !metadata.is_file() || !actual.starts_with(&output) {
             bail!("Separator reported a stem outside its output folder");
         }
-        let url = if file.split('/').any(|part| part == "..") || Path::new(file).is_absolute() {
-            let name = actual
-                .strip_prefix(&output)?
-                .to_string_lossy()
-                .replace('\\', "/");
-            format!(
-                "/outputs/{}/{}",
-                encode_segment(&output.file_name().unwrap_or_default().to_string_lossy()),
-                name.split('/')
-                    .map(encode_segment)
-                    .collect::<Vec<_>>()
-                    .join("/")
-            )
-        } else {
-            format!(
-                "/{}",
-                file.split('/')
-                    .map(encode_segment)
-                    .collect::<Vec<_>>()
-                    .join("/")
-            )
-        };
+        if metadata.len() == 0 {
+            bail!("No stems produced.");
+        }
+        let name = actual
+            .strip_prefix(&output)?
+            .to_string_lossy()
+            .replace('\\', "/");
+        let url = format!(
+            "/outputs/{}/{}",
+            encode_segment(&output.file_name().unwrap_or_default().to_string_lossy()),
+            name.split('/')
+                .map(encode_segment)
+                .collect::<Vec<_>>()
+                .join("/")
+        );
+        if output_file.is_none() || data["outputFile"].as_str() == Some(file) {
+            output_file = Some(path_string(&actual));
+        }
         result.push(json!({"label":label,"file":file,"url":url}));
     }
-    engine.jobs.progress(&job.id, 100.0);
-    Ok(JobResult::new(
-        json!({"stems":result,"message":format!("Separated {} stems with {}.",result.len(),string(&params,"model"))}),
-        None,
-    ))
+    Ok(JobResult::new(json!({"stems":result}), output_file))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn progress_stages_only_accept_known_separator_messages() {
+        assert_eq!(
+            separation_stage("APPLIO_STAGE:Separating…"),
+            Some("Separating…")
+        );
+        assert_eq!(
+            separation_stage("APPLIO_STAGE:Loading models…"),
+            Some("Loading models…")
+        );
+        assert_eq!(
+            separation_stage("APPLIO_STAGE:Downloading models…"),
+            Some("Downloading models…")
+        );
+        assert_eq!(separation_stage("Separating: 100% |"), None);
+        assert_eq!(separation_stage("APPLIO_STAGE:unknown"), None);
+    }
+
+    #[tokio::test]
+    async fn separation_outputs_validate_files_and_preserve_primary_download() {
+        let root = tempfile::tempdir().unwrap();
+        let output = root.path().join("moved outputs/uvr_1");
+        tokio::fs::create_dir_all(&output).await.unwrap();
+        let primary = output.join("song (vocals).wav");
+        let secondary = output.join("song (instrumental).wav");
+        tokio::fs::write(&primary, b"audio").await.unwrap();
+        tokio::fs::write(&secondary, b"audio").await.unwrap();
+        let data =
+            json!({"stems":{"Vocals":primary,"Instrumental":secondary},"outputFile":primary});
+        let result = separation_result(root.path(), &output, &data)
+            .await
+            .unwrap();
+        assert_eq!(
+            result.output_file,
+            Some(path_string(
+                &tokio::fs::canonicalize(&primary).await.unwrap()
+            ))
+        );
+        assert_eq!(
+            result.result["stems"][1]["url"],
+            "/outputs/uvr_1/song%20(vocals).wav"
+        );
+        let outside = root.path().join("outside.wav");
+        tokio::fs::write(&outside, b"audio").await.unwrap();
+        assert!(
+            separation_result(root.path(), &output, &json!({"stems":{"Vocals":outside}}))
+                .await
+                .is_err()
+        );
+        tokio::fs::write(&primary, b"").await.unwrap();
+        assert!(separation_result(root.path(), &output, &data)
+            .await
+            .is_err());
+        assert!(
+            separation_result(root.path(), &output, &json!({"stems":{}}))
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn separation_prepares_without_gpu_and_cancels_queued_inference() {
+        let root = tempfile::tempdir().unwrap();
+        for (name, source) in [
+            ("assets/config_template.json", "{}"),
+            ("backend/applio/rvc/configs/config.py", ""),
+            ("uvr/install.py", "print('ready')"),
+            (
+                "uvr/separate.py",
+                r#"
+import json, sys, time
+from pathlib import Path
+if '--fetch-only' in sys.argv:
+    Path('fetch-started').touch()
+    while not Path('allow-fetch').exists():
+        time.sleep(0.02)
+    print('APPLIO_JSON:' + json.dumps({'filename':'fixture.onnx'}), flush=True)
+else:
+    Path('inference-started').touch()
+    output = Path(sys.argv[sys.argv.index('--output-dir') + 1]) / 'Vocals.wav'
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_bytes(b'fixture-output')
+    print('APPLIO_JSON:' + json.dumps({'stems':{'Vocals':str(output)},'outputFile':str(output)}), flush=True)
+"#,
+            ),
+        ] {
+            let path = root.path().join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, source).unwrap();
+        }
+        let config = crate::ApiConfig {
+            code_root: root.path().into(),
+            data_root: root.path().join("data"),
+            config_dir: root.path().join("config"),
+        };
+        let runtime = crate::engine_runtime::EngineRuntime::with_python(
+            &config,
+            Some(if cfg!(windows) { "python" } else { "python3" }.into()),
+        )
+        .unwrap();
+        let engine = NativeEngine::open(
+            runtime.clone(),
+            Arc::new(crate::engine::RuntimeReadiness::new(runtime, true)),
+        )
+        .unwrap();
+        let data = &engine.runtime.data;
+        let token = CancellationToken::new();
+        let gpu = engine
+            .scheduler
+            .acquire("existing-gpu-work", Resource::Gpu, &token)
+            .await
+            .unwrap()
+            .unwrap();
+        async fn submit(engine: &Arc<NativeEngine>, device: &str) -> Job {
+            let params =
+                normalize(&json!({"model":"fixture.onnx", "device":device, "mdxOverlap":0.5}))
+                    .unwrap();
+            let audio = engine.runtime.data.join("input.wav");
+            engine
+                .start_job(
+                    JobType::Other,
+                    params.clone(),
+                    None,
+                    move |engine, job, token| run_separation(engine, job, token, params, audio),
+                )
+                .await
+                .unwrap()
+        }
+        let queued = submit(&engine, "auto").await;
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            while !data.join("fetch-started").exists() {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(!data.join("inference-started").exists());
+        std::fs::write(data.join("allow-fetch"), "").unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+            while !engine.scheduler.status().queued.contains(&queued.id) {
+                tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+            }
+        })
+        .await
+        .unwrap();
+        // Downloads can proceed while separation waits for an occupied GPU.
+        let download = tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            engine
+                .scheduler
+                .acquire("another-download", Resource::ModelDownload, &token),
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+        drop(download);
+        engine.jobs.cancellation(&queued.id).unwrap().cancel();
+        async fn terminal(engine: &NativeEngine, id: &str) -> Job {
+            tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                loop {
+                    let job = engine.jobs.get(id).unwrap();
+                    if !job.active() {
+                        return job;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                }
+            })
+            .await
+            .unwrap()
+        }
+        assert_eq!(
+            terminal(&engine, &queued.id).await.status,
+            crate::jobs::JobStatus::Error
+        );
+        assert!(!data.join("inference-started").exists());
+        assert!(!engine.scheduler.status().queued.contains(&queued.id));
+        // Explicit CPU work still completes while another job owns the GPU.
+        let cpu = submit(&engine, "cpu").await;
+        let completed = terminal(&engine, &cpu.id).await;
+        assert_eq!(
+            completed.status,
+            crate::jobs::JobStatus::Done,
+            "{:?}",
+            completed.error
+        );
+        assert!(completed.output_file.is_some());
+        assert_eq!(completed.params.unwrap()["mdxOverlap"], 0.5);
+        drop(gpu);
+        engine.shutdown().await.unwrap();
+    }
 
     #[test]
     fn cli_args_maps_schema_defaults_for_every_arch() {

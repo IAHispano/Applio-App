@@ -1,26 +1,31 @@
 """Applio UVR orchestrator: model download, arch dispatch, single-file separation."""
 
 import hashlib
+import importlib
 import json
 import logging
 import os
+import sys
 
 from uvr import OUTPUT_MODELS_DIRNAME
 from uvr import models as catalog
-from uvr.demucs import DemucsSeparator
-from uvr.mdx import MdxSeparator
-from uvr.mdxc import MdxcSeparator
-from uvr.roformer import RoformerSeparator
-from uvr.vr import VrSeparator
-from uvr.base import download_file, select_onnx_providers, select_torch_device
 
 ARCH_CLASSES = {
-    "vr": VrSeparator,
-    "mdx": MdxSeparator,
-    "demucs": DemucsSeparator,
-    "roformer": RoformerSeparator,
-    "mdxc": MdxcSeparator,
+    "vr": ("uvr.vr", "VrSeparator"),
+    "mdx": ("uvr.mdx", "MdxSeparator"),
+    "demucs": ("uvr.demucs", "DemucsSeparator"),
+    "roformer": ("uvr.roformer", "RoformerSeparator"),
+    "mdxc": ("uvr.mdxc", "MdxcSeparator"),
 }
+
+
+def _resolve_model(model_key):
+    model = catalog.resolve(model_key)
+    if model is None:
+        raise ValueError(
+            f"Unknown UVR model '{model_key}'. Available: {', '.join(sorted(catalog.BY_KEY))}"
+        )
+    return model
 
 
 def _md5(path):
@@ -108,10 +113,9 @@ def _default_arch_params(arch):
 
 def ensure_model_files(model, models_dir=None, logger=None):
     """Download or verify every catalog file of a model. Returns its models dir."""
-    models_dir = models_dir or os.path.join(
-        os.getcwd(), OUTPUT_MODELS_DIRNAME, model.key
-    )
+    models_dir = models_dir or os.path.join(os.getcwd(), OUTPUT_MODELS_DIRNAME, model.key)
     os.makedirs(models_dir, exist_ok=True)
+    print("APPLIO_STAGE:Downloading models…", file=sys.stderr, flush=True)
     for filename, url in model.files:
         model_path = os.path.join(models_dir, filename)
         if url is None:
@@ -124,7 +128,18 @@ def ensure_model_files(model, models_dir=None, logger=None):
             if logger:
                 logger.debug(f"Local model file already present: {model_path}")
             continue
-        download_file(url, model_path, logger=logger)
+        if os.path.isfile(model_path) and os.path.getsize(model_path) > 0:
+            continue
+        from rvc.lib.tools.http_download import download_http
+        from tqdm import tqdm
+
+        with tqdm(unit="B", unit_scale=True, desc=filename) as bar:
+            def progress(received, total):
+                bar.total = total or None
+                bar.n = received
+                bar.refresh()
+
+            download_http(url, model_path, progress=progress)
     return models_dir
 
 
@@ -136,12 +151,7 @@ def fetch_model(model_key, logger=None):
     job with this flag so link imports show download progress as jobs.
     """
     logger = logger or logging.getLogger("uvr")
-    model = catalog.resolve(model_key)
-    if model is None:
-        raise ValueError(
-            f"Unknown UVR model '{model_key}'. "
-            f"Available: {', '.join(sorted(catalog.BY_KEY))}"
-        )
+    model = _resolve_model(model_key)
     models_dir = ensure_model_files(model, None, logger)
     info = {"key": model.key, "files": [name for name, _ in model.files]}
     if model.arch in ("roformer", "mdxc", "demucs"):
@@ -154,6 +164,17 @@ def fetch_model(model_key, logger=None):
             catalog.patch_custom_entry(model.key, stems, info["target"])
     info["filename"] = info["files"][0]
     return info
+
+
+def _stem_labels(model, separator):
+    if model.arch == "demucs":
+        return list(model.stems)
+    labels = [separator.primary_stem_name, separator.secondary_stem_name]
+    if model.arch == "mdxc":
+        labels = [*separator.model_data_cfg.training.instruments, *labels]
+    elif model.arch == "roformer":
+        labels = [*(getattr(separator, "instruments", None) or []), *labels]
+    return list(dict.fromkeys(labels))
 
 
 def separate_stems(
@@ -169,15 +190,13 @@ def separate_stems(
 ):
     """Separate one audio file. Returns {stem_name: absolute_path}."""
     logger = logger or logging.getLogger("uvr")
-    model = catalog.resolve(model_key)
-    if model is None:
-        raise ValueError(
-            f"Unknown UVR model '{model_key}'. Available: {', '.join(sorted(catalog.BY_KEY))}"
-        )
-
+    model = _resolve_model(model_key)
     models_dir = ensure_model_files(model, models_dir, logger)
 
     output_dir = os.path.abspath(output_dir) if output_dir else None
+    # Imports and model construction happen only in the scheduled inference process.
+    from uvr.base import select_onnx_providers, select_torch_device
+
     torch_device = select_torch_device(use_gpu)
     logger.info(f"Separating with {model.label} on {torch_device}...")
 
@@ -199,18 +218,9 @@ def separate_stems(
             )
         roformer_config = yaml_path
     model_data = _model_data_for(model.arch, weight_path)
-    if model.arch == "demucs":
-        model_data = {
-            **model_data,
-            "primary_stem": model_data.get("primary_stem", "Vocals"),
-        }
-
     common_config = {
         "logger": logger,
-        "log_level": logging.INFO,
         "torch_device": torch_device,
-        "torch_device_cpu": select_torch_device(False),
-        "torch_device_mps": None,
         "onnx_execution_provider": select_onnx_providers(
             use_gpu and torch_device.type == "cuda"
         ),
@@ -238,8 +248,12 @@ def separate_stems(
             **arch_params,
             **{k: v for k, v in arch_overrides.items() if v is not None},
         }
-    arch = ARCH_CLASSES[model.arch](common_config, arch_params)
+    print("APPLIO_STAGE:Loading models…", file=sys.stderr, flush=True)
+    module_name, class_name = ARCH_CLASSES[model.arch]
+    arch_class = getattr(importlib.import_module(module_name), class_name)
+    arch = arch_class(common_config, arch_params)
     try:
+        print("APPLIO_STAGE:Separating…", file=sys.stderr, flush=True)
         paths = arch.separate(input_path)
     finally:
         try:
@@ -247,12 +261,7 @@ def separate_stems(
         except Exception:
             pass
 
-    if model.arch == "demucs":
-        labels = list(model.stems)
-    elif model.arch == "roformer" and getattr(arch, "instruments", None):
-        labels = list(arch.instruments)
-    else:
-        labels = [arch.primary_stem_name, arch.secondary_stem_name]
+    labels = _stem_labels(model, arch)
     stems = {}
     for path in paths:
         # Archs return paths relative to output_dir; resolve to absolute.

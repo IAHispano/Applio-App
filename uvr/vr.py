@@ -122,22 +122,17 @@ class VrSeparator(BaseSeparator):
         v_spec = np.nan_to_num(v_spec, nan=0.0, posinf=0.0, neginf=0.0)
 
         output_files = []
-        # Note: logic similar to the following should probably be added to the other architectures
-        # Check if output_single_stem is set to a value that would result in no output files
+        # Preserve VR's fallback to both stems for an unsupported selection.
         if self.output_single_stem and (
             self.output_single_stem.lower() != self.primary_stem_name.lower()
             and self.output_single_stem.lower() != self.secondary_stem_name.lower()
         ):
-            # If so, reset output_single_stem to None to save both stems
             self.output_single_stem = None
             self.logger.warning(
                 f"The output_single_stem setting '{self.output_single_stem}' does not match any of the output files: '{self.primary_stem_name}' and '{self.secondary_stem_name}'. For this model '{self.model_name}', the output_single_stem setting will be ignored and all output files will be saved."
             )
 
-        if (
-            not self.output_single_stem
-            or self.output_single_stem.lower() == self.primary_stem_name.lower()
-        ):
+        if self.should_output_stem(self.primary_stem_name):
             if not isinstance(self.primary_source, np.ndarray):
                 self.primary_source = self.spec_to_wav(y_spec).T
                 if self.model_samplerate != 44100:
@@ -146,23 +141,13 @@ class VrSeparator(BaseSeparator):
                         orig_sr=self.model_samplerate,
                         target_sr=44100,
                     ).T
-            self.primary_stem_output_path = self.get_stem_output_path(
-                self.primary_stem_name, custom_output_names
+            output_files.append(
+                self.save_stem(
+                    self.primary_stem_name, self.primary_source, custom_output_names
+                )
             )
-            self.logger.info(
-                f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
-            )
-            self.final_process(
-                self.primary_stem_output_path,
-                self.primary_source,
-                self.primary_stem_name,
-            )
-            output_files.append(self.primary_stem_output_path)
 
-        if (
-            not self.output_single_stem
-            or self.output_single_stem.lower() == self.secondary_stem_name.lower()
-        ):
+        if self.should_output_stem(self.secondary_stem_name):
             if not isinstance(self.secondary_source, np.ndarray):
                 self.secondary_source = self.spec_to_wav(v_spec).T
                 if self.model_samplerate != 44100:
@@ -171,18 +156,11 @@ class VrSeparator(BaseSeparator):
                         orig_sr=self.model_samplerate,
                         target_sr=44100,
                     ).T
-            self.secondary_stem_output_path = self.get_stem_output_path(
-                self.secondary_stem_name, custom_output_names
+            output_files.append(
+                self.save_stem(
+                    self.secondary_stem_name, self.secondary_source, custom_output_names
+                )
             )
-            self.logger.info(
-                f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
-            )
-            self.final_process(
-                self.secondary_stem_output_path,
-                self.secondary_source,
-                self.secondary_stem_name,
-            )
-            output_files.append(self.secondary_stem_output_path)
 
         return output_files
 

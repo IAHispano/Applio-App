@@ -15,6 +15,7 @@ export interface JobPanelProps {
   compact?: boolean;
   showLogs?: boolean;
   embedded?: boolean;
+  showOutput?: boolean;
 }
 
 // Polls a job, shows status, and renders its output file cleanly without CLI clutter.
@@ -29,6 +30,7 @@ export function JobPanelContent({
   compact,
   showLogs = false,
   embedded = false,
+  showOutput = true,
   activity,
 }: JobPanelProps & { activity: ReturnType<typeof useJob> }) {
   const { t } = useI18n();
@@ -54,7 +56,7 @@ export function JobPanelContent({
     );
   }
 
-  const out = job.outputFile;
+  const out = showOutput ? job.outputFile : null;
   const sidecars: Array<{ label: string; file: string }> = [];
   if (job.result) {
     for (const [k, v] of Object.entries(job.result)) {

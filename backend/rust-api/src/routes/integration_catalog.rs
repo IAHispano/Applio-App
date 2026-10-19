@@ -1,4 +1,4 @@
-//! One catalog drives the authenticated allowlist, OpenAPI and in-app reference.
+//! The full catalog drives dispatch; a curated subset drives workflow documentation.
 use serde_json::{json, Value};
 use std::sync::OnceLock;
 
@@ -85,6 +85,41 @@ pub(crate) fn catalog() -> &'static Value {
     })
 }
 
+// Keep app administration and UI plumbing out of integration documentation without
+// removing existing routes from the authenticated dispatch allowlist.
+pub(crate) fn reference_catalog() -> Value {
+    Value::Array(
+        catalog()
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|operation| {
+                matches!(
+                    operation["path"].as_str().unwrap(),
+                    "/v1/applio/inference"
+                        | "/v1/applio/inference/batch"
+                        | "/v1/applio/tts"
+                        | "/v1/applio/tts/voices"
+                        | "/v1/applio/models"
+                        | "/v1/applio/models/speakers"
+                        | "/v1/applio/uvr/models"
+                        | "/v1/applio/uvr/separate"
+                        | "/v1/applio/train/datasets"
+                        | "/v1/applio/train/upload-dataset"
+                        | "/v1/applio/train/pipeline"
+                        | "/v1/applio/voice-blender"
+                        | "/v1/applio/realtime/config"
+                        | "/v1/applio/realtime/start"
+                        | "/v1/applio/realtime/status"
+                        | "/v1/applio/realtime/stop"
+                        | "/v1/applio/realtime/ws-audio"
+                )
+            })
+            .cloned()
+            .collect(),
+    )
+}
+
 pub(crate) fn allowed(method: &str, path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     if path.contains('\\')
@@ -108,7 +143,7 @@ pub(crate) fn allowed(method: &str, path: &str) -> bool {
 }
 
 pub(crate) fn add_openapi(schema: &mut Value) {
-    for operation in catalog().as_array().unwrap() {
+    for operation in reference_catalog().as_array().unwrap() {
         let method = operation["method"].as_str().unwrap().to_lowercase();
         let path = operation["path"].as_str().unwrap();
         let response = operation["response"].as_str().unwrap();
@@ -209,6 +244,8 @@ mod tests {
             ("GET", "/v1/applio/jobs/abc/events", true),
             ("DELETE", "/v1/applio/models/logs%2Fvoice%2Fvoice.pth", true),
             ("POST", "/v1/applio/integrations/key", false),
+            ("GET", "/v1/applio/uvr/variants", false),
+            ("POST", "/v1/applio/uvr/custom-models", false),
             ("POST", "/v1/applio/models/library", false),
             ("GET", "/v1/applio/outputs/secrets", false),
             ("GET", "/v1/applio/../settings", false),
@@ -227,10 +264,17 @@ mod tests {
                 .get("application/json")
                 .is_none()
         );
-        assert_eq!(
-            schema["paths"]["/v1/applio/jobs/{id}/events"]["get"]["x-applio-response"],
-            "sse"
-        );
+        assert!(schema["paths"].get("/v1/applio/settings").is_none());
+        assert!(schema["paths"].get("/v1/applio/jobs/{id}").is_none());
+        assert!(allowed("PUT", "/v1/applio/settings"));
+        let reference = reference_catalog();
+        assert_eq!(reference.as_array().unwrap().len(), 18);
+        for operation in reference.as_array().unwrap() {
+            let path = operation["path"].as_str().unwrap();
+            let method = operation["method"].as_str().unwrap();
+            assert!(allowed(method, path), "{method} {path}");
+            assert!(schema["paths"][path][method.to_lowercase()].is_object());
+        }
         assert_eq!(
             schema["paths"]["/v1/applio/realtime/ws-audio"]["get"]["x-applio-response"],
             "websocket"

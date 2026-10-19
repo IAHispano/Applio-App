@@ -3,6 +3,7 @@
 import {
   Activity,
   ArrowRight,
+  BookOpen,
   Check,
   Code2,
   Copy,
@@ -18,7 +19,18 @@ import { useCallback, useEffect, useState } from "react";
 import ApiReference from "@/components/ApiReference";
 import Link from "@/components/layout/IntentLink";
 import PageHeader from "@/components/layout/PageHeader";
-import { Alert, Badge, Button, Card, CardHeader, CustomSelect, IconButton, StatTile } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  Disclosure,
+  IconButton,
+  SegmentedControl,
+  StatTile,
+} from "@/components/ui";
 import { apiGet, apiSend, errMsg, type Job } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -32,34 +44,47 @@ interface ApiStatus {
   models: { id: string; name: string }[];
 }
 
-function CodeSample({ code }: { code: string }) {
+function CopyButton({ value, onError }: { value: string; onError: (message: string) => void }) {
   const { t } = useI18n();
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState("");
   useEffect(() => {
-    if (copied) {
-      const timer = setTimeout(() => setCopied(false), 1800);
-      return () => clearTimeout(timer);
-    }
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), 1800);
+    return () => clearTimeout(timer);
   }, [copied]);
   return (
-    <div className="relative min-w-0">
+    <Button
+      size="xs"
+      variant="ghost"
+      icon={copied ? <Check size={13} /> : <Copy size={13} />}
+      onClick={() => {
+        void navigator.clipboard
+          .writeText(value)
+          .then(() => setCopied(true))
+          .catch(() => onError(t("Could not copy. Select and copy the text manually.")));
+      }}
+    >
+      {t("Copy")}
+    </Button>
+  );
+}
+
+function CodeSample({ code, label }: { code: string; label?: string }) {
+  const { t } = useI18n();
+  const [error, setError] = useState("");
+  return (
+    <div className="api-code-sample">
+      <div className="api-code-toolbar">
+        <span className="inline-flex items-center gap-2 text-xs text-[var(--muted)]">
+          <Terminal size={13} aria-hidden="true" /> {label || t("Examples")}
+        </span>
+        <CopyButton value={code} onError={setError} />
+      </div>
       <pre className="api-code">
         <code>{code}</code>
       </pre>
-      <IconButton
-        className="!absolute right-3 top-3"
-        icon={copied ? <Check size={14} /> : <Copy size={14} />}
-        label={t("Copy")}
-        onClick={() => {
-          void navigator.clipboard
-            .writeText(code)
-            .then(() => setCopied(true))
-            .catch(() => setError(t("Could not copy. Select and copy the text manually.")));
-        }}
-      />
       {error && (
-        <p role="alert" className="field-help">
+        <p role="alert" className="field-help p-3 m-0">
           {error}
         </p>
       )}
@@ -69,6 +94,7 @@ function CodeSample({ code }: { code: string }) {
 
 export default function ApiAccessPage() {
   const { t } = useI18n();
+  const [view, setView] = useState("api-start");
   const [status, setStatus] = useState<ApiStatus | null>(null);
   const [key, setKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -140,7 +166,7 @@ export default function ApiAccessPage() {
   }
   const selected = model || "applio-your-model-id";
   const snippets: Record<string, string> = {
-    python: `import os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    base_url="${base}/v1",\n    api_key=os.environ["APPLIO_API_KEY"],\n    timeout=600.0,\n)\n\nwith client.audio.speech.with_streaming_response.create(\n    model="${selected}",\n    voice="en-US-AriaNeural",\n    input="Hello from Applio.",\n    response_format="wav",\n) as response:\n    response.stream_to_file("speech.wav")`,
+    python: `# pip install openai\nimport os\nfrom openai import OpenAI\n\nclient = OpenAI(\n    base_url="${base}/v1",\n    api_key=os.environ["APPLIO_API_KEY"],\n    timeout=600.0,\n)\n\nwith client.audio.speech.with_streaming_response.create(\n    model="${selected}",\n    voice="en-US-AriaNeural",\n    input="Hello from Applio.",\n    response_format="wav",\n) as response:\n    response.stream_to_file("speech.wav")`,
     curl: `curl "${base}/v1/models" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY"\n\ncurl "${base}/v1/audio/speech" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model":"${selected}","voice":"en-US-AriaNeural","input":"Hello from Applio.","response_format":"wav"}' \\\n  --output speech.wav`,
     workflow: `# 1. Submit a conversion (returns HTTP 202 and jobId)\ncurl "${base}/v1/audio/conversions" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY" \\\n  -F "audio=@input.wav" \\\n  -F "model=${selected}" \\\n  -F "pitch=0" -F "exportFormat=WAV"\n\n# 2. Poll until job.status is done (or error)\ncurl "${base}/v1/jobs/$JOB_ID" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY"\n\n# 3. Download the completed audio\ncurl "${base}/v1/jobs/$JOB_ID/content" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY" \\\n  --output converted.wav\n\n# Cancel queued or running work\ncurl -X POST "${base}/v1/jobs/$JOB_ID/cancel" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY"`,
   };
@@ -153,8 +179,7 @@ export default function ApiAccessPage() {
     ["POST", "/v1/jobs/{id}/cancel", "Stop"],
     ["GET", "/v1/jobs/{id}/artifacts", "Download"],
     ["GET", "/v1/jobs/{id}/artifacts/{index}", "Download"],
-    ["GET", "/v1/capabilities", "API reference"],
-    ["GET", "/v1/openapi.json", "OpenAPI schema"],
+    ["GET", "/v1/applio/tts/voices", "Text to Speech"],
   ];
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
@@ -163,7 +188,13 @@ export default function ApiAccessPage() {
         description={t("Connect apps and automate audio workflows")}
         guide={false}
       >
-        <Button href="#api-reference" variant="ghost" size="sm" className="page-header-action">
+        <Button
+          onClick={() => setView("api-docs")}
+          icon={<BookOpen size={14} />}
+          variant="ghost"
+          size="sm"
+          className="page-header-action"
+        >
           {t("Documentation")}
         </Button>
         <Button
@@ -194,7 +225,7 @@ export default function ApiAccessPage() {
           </p>
           <div className="flex flex-wrap gap-2">
             <Badge variant={status?.enabled ? "success" : "neutral"} dot>
-              {t(status?.enabled ? "Ready" : "Disabled")}
+              {t(status ? (status.enabled ? "Ready" : "Disabled") : "Loading…")}
             </Badge>
             <Badge>
               <span className="inline-flex items-center gap-1.5">
@@ -204,7 +235,10 @@ export default function ApiAccessPage() {
           </div>
         </div>
         <div className="api-address">
-          <span className="field-help">{t("Base URL")}</span>
+          <div className="flex justify-between items-center gap-3">
+            <span className="field-label m-0">{t("Base URL")}</span>
+            <CopyButton value={`${base}/v1`} onError={setError} />
+          </div>
           <code>{base}/v1</code>
           <span className="field-help">
             {t("Keep Applio running. API keys and Bridge access are separate.")}
@@ -217,184 +251,242 @@ export default function ApiAccessPage() {
         <StatTile label={t("Active jobs")} value={status?.active ?? "—"} icon={<Activity size={15} />} />
         <StatTile label={t("Models")} value={status?.models.length ?? "—"} icon={<Code2 size={15} />} />
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-12 card-grid items-start">
-        <div className="xl:col-span-5 space-y-4">
-          <Card className="space-y-4">
-            <CardHeader
-              icon={<KeyRound size={18} />}
-              title={t("API key")}
-              description={t(
-                "Create a key, copy it into your app, and keep it private. Rotating or revoking it stops future requests.",
-              )}
-            />
-            <div className="flex gap-2 items-center">
-              <input
-                className="min-w-0 flex-1 font-mono"
-                aria-label={t("API key")}
-                type={showKey ? "text" : "password"}
-                autoComplete="off"
-                spellCheck={false}
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                placeholder="applio_…"
+      <SegmentedControl
+        value={view}
+        onChange={setView}
+        ariaLabel={t("API & Workflows")}
+        tabPanels
+        options={[
+          { value: "api-start", label: t("Quick start"), icon: Code2 },
+          { value: "api-docs", label: t("API reference"), icon: BookOpen },
+          { value: "api-activity", label: t("Recent API jobs"), icon: Activity },
+        ]}
+      />
+      <div id="panel-api-start" role="tabpanel" aria-labelledby="tab-api-start" hidden={view !== "api-start"}>
+        <div className="api-setup-grid">
+          <div className="space-y-4 min-w-0">
+            <Card className="space-y-4">
+              <CardHeader
+                step={1}
+                title={t("API key")}
+                description={t(
+                  "Create a key, copy it into your app, and keep it private. Rotating or revoking it stops future requests.",
+                )}
               />
-              <IconButton
-                label={t(showKey ? "Hide API key" : "Show API key")}
-                icon={showKey ? <EyeOff size={15} /> : <Eye size={15} />}
-                onClick={() => setShowKey(!showKey)}
-              />
-              <IconButton
-                label={t("Copy")}
-                disabled={!key}
-                icon={keyCopied ? <Check size={15} /> : <Copy size={15} />}
-                onClick={() => {
-                  void navigator.clipboard
-                    .writeText(key)
-                    .then(() => setKeyCopied(true))
-                    .catch(() => setError(t("Could not copy. Select and copy the text manually.")));
-                }}
-              />
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              <Button size="sm" loading={busy} onClick={() => void changeKey()} icon={<KeyRound size={14} />}>
-                {t(status?.enabled ? "Rotate API key" : "Create API key")}
-              </Button>
-              <Button size="sm" variant="ghost" disabled={!key || busy} onClick={() => void testConnection()}>
-                {t("Test connection")}
-              </Button>
-              {status?.enabled && (
+              <div className="flex gap-2 items-center">
+                <input
+                  className="min-w-0 flex-1 font-mono"
+                  aria-label={t("API key")}
+                  type={showKey ? "text" : "password"}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={key}
+                  onChange={(event) => {
+                    setKey(event.target.value);
+                    setProbe("");
+                  }}
+                  placeholder="applio_…"
+                />
+                <IconButton
+                  label={t(showKey ? "Hide API key" : "Show API key")}
+                  icon={showKey ? <EyeOff size={15} /> : <Eye size={15} />}
+                  onClick={() => setShowKey(!showKey)}
+                />
+                <IconButton
+                  label={t("Copy")}
+                  disabled={!key}
+                  icon={keyCopied ? <Check size={15} /> : <Copy size={15} />}
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(key)
+                      .then(() => setKeyCopied(true))
+                      .catch(() => setError(t("Could not copy. Select and copy the text manually.")));
+                  }}
+                />
+              </div>
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   size="sm"
-                  variant="danger"
-                  disabled={busy}
-                  icon={<Trash2 size={14} />}
-                  onClick={() => void changeKey(true)}
+                  loading={busy}
+                  disabled={!status}
+                  onClick={() => void changeKey()}
+                  icon={<KeyRound size={14} />}
                 >
-                  {t("Revoke API key")}
+                  {t(status?.enabled ? "Rotate API key" : "Create API key")}
                 </Button>
-              )}
-            </div>
-            {probe && <CodeSample code={probe} />}
-            <p className="field-help m-0">
-              {t("The key is only returned when created. Save it before leaving this page.")}
-            </p>
-          </Card>
-          <Card className="space-y-3">
-            <CardHeader icon={<Terminal size={18} />} title={t("Endpoints")} />
-            <div className="api-endpoints">
-              {endpoints.map(([method, path, label]) => (
-                <div key={path}>
-                  <span className={`api-method ${method === "POST" ? "api-method-post" : ""}`}>{method}</span>
-                  <div>
-                    <code>{path}</code>
-                    <span>{t(label)}</span>
-                  </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={!key || busy}
+                  onClick={() => void testConnection()}
+                >
+                  {t("Test connection")}
+                </Button>
+                {status?.enabled && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    disabled={busy}
+                    icon={<Trash2 size={14} />}
+                    onClick={() => void changeKey(true)}
+                  >
+                    {t("Revoke API key")}
+                  </Button>
+                )}
+              </div>
+              {probe && (
+                <div className="space-y-3" role="status">
+                  <Badge variant="success" dot>
+                    {t("Ready")}
+                  </Badge>
+                  <Disclosure title={t("Response")}>
+                    <CodeSample code={probe} label="JSON" />
+                  </Disclosure>
                 </div>
-              ))}
-            </div>
-            <p className="field-help">
-              {t("Every /v1 request needs Authorization: Bearer followed by your API key.")}
-            </p>
-          </Card>
-        </div>
-        <div className="xl:col-span-7 space-y-4">
-          <Card className="space-y-4">
-            <CardHeader icon={<Code2 size={18} />} title={t("Quick start")} />
-            <label className="field-label" htmlFor="api-example-model">
-              {t("Voice Model")}
-            </label>
-            <CustomSelect
-              id="api-example-model"
-              aria-label={t("Voice Model")}
-              value={model}
-              onValueChange={setModel}
-              placeholder={t("Select a voice model…")}
-              options={
-                status?.models.map((model) => ({
-                  value: model.id,
-                  label: model.name,
-                  description: model.id,
-                })) || []
-              }
-            />
-            {!status?.models.length && (
+              )}
+              <p className="field-help m-0">
+                {t("The key is only returned when created. Save it before leaving this page.")}
+              </p>
+            </Card>
+            <Disclosure title={t("Endpoints")} icon={<Terminal size={16} />}>
+              <div className="api-endpoints">
+                {endpoints.map(([method, path, label]) => (
+                  <div key={path}>
+                    <span className={`api-method ${method === "POST" ? "api-method-post" : ""}`}>
+                      {method}
+                    </span>
+                    <div>
+                      <code>{path}</code>
+                      <span>{t(label)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <p className="field-help">
+                {t("Every /v1 request needs Authorization: Bearer followed by your API key.")}
+              </p>
+            </Disclosure>
+          </div>
+          <div className="space-y-4 min-w-0">
+            <Card className="space-y-4">
+              <CardHeader step={2} title={t("Quick start")} />
+              <label className="field-label" htmlFor="api-example-model">
+                {t("Voice Model")}
+              </label>
+              <CustomSelect
+                id="api-example-model"
+                aria-label={t("Voice Model")}
+                value={model}
+                onValueChange={setModel}
+                placeholder={t("Select a voice model…")}
+                options={
+                  status?.models.map((model) => ({
+                    value: model.id,
+                    label: model.name,
+                    description: model.id,
+                  })) || []
+                }
+              />
+              {status && !status.models.length && (
+                <p className="field-help">
+                  {t(
+                    "Install a voice model to generate speech. Model listing and authentication work without one.",
+                  )}
+                </p>
+              )}
+              <SegmentedControl
+                value={example}
+                onChange={setExample}
+                ariaLabel={t("Examples")}
+                options={[
+                  { value: "python", label: "Python SDK" },
+                  { value: "curl", label: "cURL" },
+                  { value: "workflow", label: t("Workflow") },
+                ]}
+              />
+              <CodeSample
+                code={snippets[example]}
+                label={example === "python" ? "Python SDK" : example === "curl" ? "cURL" : t("Workflow")}
+              />
+              {example !== "workflow" && (
+                <p className="field-help">
+                  {t(
+                    "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.",
+                  )}
+                </p>
+              )}
               <p className="field-help">
                 {t(
-                  "Install a voice model to generate speech. Model listing and authentication work without one.",
+                  "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.",
                 )}
               </p>
-            )}
-            <fieldset className="flex flex-wrap gap-2 border-0 p-0 m-0" aria-label={t("Examples")}>
-              {["python", "curl", "workflow"].map((name) => (
-                <Button
-                  key={name}
-                  size="xs"
-                  variant={example === name ? "primary" : "ghost"}
-                  aria-pressed={example === name}
-                  onClick={() => setExample(name)}
-                >
-                  {name === "python" ? "Python SDK" : name === "curl" ? "cURL" : t("Workflow")}
-                </Button>
-              ))}
-            </fieldset>
-            <CodeSample code={snippets[example]} />
-            <p className="field-help">
-              {t(
-                "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.",
-              )}
-            </p>
-            <p className="field-help">
-              {t(
-                "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.",
-              )}
-            </p>
-            <CodeSample
-              code={`curl "${base}/v1/openapi.json" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY"\n\ncurl -H "Authorization: Bearer $APPLIO_API_KEY" "${base}/v1/applio/tts/voices"`}
-            />
-            <p className="field-help">
-              {t(
-                "Use voice shortName values from the voice catalog. Conversion uses the same parameters as the Convert Audio tab.",
-              )}
-            </p>
-          </Card>
+              <Disclosure title={t("Documentation")} icon={<BookOpen size={16} />}>
+                <CodeSample
+                  label="cURL"
+                  code={`curl "${base}/v1/openapi.json" \\\n  -H "Authorization: Bearer $APPLIO_API_KEY"\n\ncurl -H "Authorization: Bearer $APPLIO_API_KEY" "${base}/v1/applio/tts/voices"`}
+                />
+                <p className="field-help">
+                  {t(
+                    "Use voice shortName values from the voice catalog. Conversion uses the same parameters as the Convert Audio tab.",
+                  )}
+                </p>
+              </Disclosure>
+            </Card>
+          </div>
         </div>
       </div>
-      <ApiReference base={base} />
-      <Card className="space-y-3">
-        <CardHeader
-          icon={<Activity size={18} />}
-          title={t("Recent API jobs")}
-          action={
-            <Link href="/jobs" className="flex gap-1 items-center text-xs">
-              {t("Job history")}
-              <ArrowRight size={13} />
-            </Link>
-          }
-        />
-        <p className="field-help">
-          {t(
-            "Metrics cover retained API jobs, not lifetime usage. Speech jobs appear after validation and admission.",
-          )}
-        </p>
-        {status?.jobs.length ? (
-          status.jobs.map((job) => (
-            <Link
-              key={job.id}
-              href={`/jobs/view?id=${encodeURIComponent(job.id)}`}
-              className="flex flex-wrap justify-between items-center gap-3 rounded-lg border border-[var(--border)] px-3 py-2"
-            >
-              <span className="font-mono text-xs">{job.id}</span>
-              <Badge
-                variant={job.status === "done" ? "success" : job.status === "error" ? "danger" : "neutral"}
+      <div id="panel-api-docs" role="tabpanel" aria-labelledby="tab-api-docs" hidden={view !== "api-docs"}>
+        <ApiReference base={base} />
+      </div>
+      <div
+        id="panel-api-activity"
+        role="tabpanel"
+        aria-labelledby="tab-api-activity"
+        hidden={view !== "api-activity"}
+      >
+        <Card className="space-y-3">
+          <CardHeader
+            icon={<Activity size={18} />}
+            title={t("Recent API jobs")}
+            action={
+              <Link href="/jobs" className="flex gap-1 items-center text-xs">
+                {t("Job history")}
+                <ArrowRight size={13} />
+              </Link>
+            }
+          />
+          <p className="field-help">
+            {t(
+              "Metrics cover retained API jobs, not lifetime usage. Speech jobs appear after validation and admission.",
+            )}
+          </p>
+          {status?.jobs.length ? (
+            status.jobs.map((job) => (
+              <Link
+                key={job.id}
+                href={`/jobs/view?id=${encodeURIComponent(job.id)}`}
+                className="flex flex-wrap justify-between items-center gap-3 rounded-lg border border-[var(--border)] px-3 py-2"
               >
-                {t({ done: "Completed", error: "Error", queued: "Queued", running: "Running" }[job.status])}
-              </Badge>
-            </Link>
-          ))
-        ) : (
-          <p className="field-help">{t("No API jobs yet")}</p>
-        )}
-      </Card>
+                <span className="font-mono text-xs">{job.id}</span>
+                <Badge
+                  variant={job.status === "done" ? "success" : job.status === "error" ? "danger" : "neutral"}
+                >
+                  {t({ done: "Completed", error: "Error", queued: "Queued", running: "Running" }[job.status])}
+                </Badge>
+              </Link>
+            ))
+          ) : (
+            <div className="api-jobs-empty">
+              <Activity size={26} aria-hidden="true" />
+              <p className="text-sm m-0">{t(status ? "No API jobs yet" : "Loading…")}</p>
+              <Button size="sm" variant="ghost" onClick={() => setView("api-start")}>
+                {t("Quick start")}
+                <ArrowRight size={14} />
+              </Button>
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }

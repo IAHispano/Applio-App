@@ -46,21 +46,18 @@ class MdxcSeparator(BaseSeparator):
         self.overlap = overlap
         self.batch_size = batch_size
 
-        # Amount of pitch shift to apply during processing (this does NOT affect the pitch of the output audio):
-        # • Whole numbers indicate semitones.
-        # • Using higher pitches may cut the upper bandwidth, even in high-quality models.
-        # • Upping the pitch can be better for tracks with deeper vocals.
-        # • Dropping the pitch may take more processing time but works well for tracks with high-pitched vocals.
+        # Pitch shifting is reversed after inference so the output keeps its pitch.
         self.pitch_shift = arch_config.get("pitch_shift", 0)
 
         self.process_all_stems = arch_config.get("process_all_stems", True)
 
         self.load_model()
-
-        self.primary_source = None
-        self.secondary_source = None
-        self.audio_file_path = None
-        self.audio_file_base = None
+        instruments = list(self.model_data_cfg.training.instruments)
+        if len(instruments) == 2 and not self.model_data_cfg.training.target_instrument:
+            # Configs may use lowercase or custom stem names; dictionary lookups
+            # and output selection must use those exact names.
+            self.primary_stem_name = instruments[0]
+            self.secondary_stem_name = instruments[1]
 
         # Only mark primary stem as main target for single-target models.
         # Multi-stem models should not trigger residual subtraction logic.
@@ -103,111 +100,47 @@ class MdxcSeparator(BaseSeparator):
             mix=mix, override_model_segment_size=override_model_segment_size
         )
 
-        output_files = []
         if isinstance(source, dict):
-            stem_list = []
-            if self.model_data_cfg.training.target_instrument:
-                stem_list = [self.model_data_cfg.training.target_instrument]
-            else:
-                stem_list = self.model_data_cfg.training.instruments
-
-            is_multi_stem_model = len(stem_list) > 2
-            should_process_all_stems = self.process_all_stems and is_multi_stem_model
-
-            if should_process_all_stems:
-                self.logger.debug("Processing all stems from multi-stem model...")
-                for stem_name in stem_list:
-                    stem_output_path = self.get_stem_output_path(
-                        stem_name, custom_output_names
+            target = self.model_data_cfg.training.target_instrument
+            stem_names = [target] if target else self.model_data_cfg.training.instruments
+            if self.process_all_stems and len(stem_names) > 2:
+                return [
+                    self.save_stem(
+                        name,
+                        spec_utils.normalize(
+                            wave=source[name],
+                            max_peak=self.normalization_threshold,
+                            min_peak=self.amplification_threshold,
+                        ).T,
+                        custom_output_names,
                     )
-                    stem_source = spec_utils.normalize(
-                        wave=source[stem_name],
-                        max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold,
-                    ).T
+                    for name in stem_names
+                    if self.should_output_stem(name)
+                ]
 
-                    self.logger.info(
-                        f"Saving {stem_name} stem to {stem_output_path}..."
-                    )
-                    self.final_process(stem_output_path, stem_source, stem_name)
-                    output_files.append(stem_output_path)
-            else:
-                # Standard processing for primary and secondary stems
-                if not isinstance(self.primary_source, np.ndarray):
-                    self.primary_source = spec_utils.normalize(
-                        wave=source[self.primary_stem_name],
-                        max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold,
-                    ).T
-
-                if not isinstance(self.secondary_source, np.ndarray):
-                    self.secondary_source = spec_utils.normalize(
-                        wave=source[self.secondary_stem_name],
-                        max_peak=self.normalization_threshold,
-                        min_peak=self.amplification_threshold,
-                    ).T
-
-                if (
-                    not self.output_single_stem
-                    or self.output_single_stem.lower()
-                    == self.secondary_stem_name.lower()
-                ):
-                    self.secondary_stem_output_path = self.get_stem_output_path(
-                        self.secondary_stem_name, custom_output_names
-                    )
-
-                    self.logger.info(
-                        f"Saving {self.secondary_stem_name} stem to {self.secondary_stem_output_path}..."
-                    )
-                    self.final_process(
-                        self.secondary_stem_output_path,
-                        self.secondary_source,
-                        self.secondary_stem_name,
-                    )
-                    output_files.append(self.secondary_stem_output_path)
-
-                if (
-                    not self.output_single_stem
-                    or self.output_single_stem.lower() == self.primary_stem_name.lower()
-                ):
-                    self.primary_stem_output_path = self.get_stem_output_path(
-                        self.primary_stem_name, custom_output_names
-                    )
-
-                    self.logger.info(
-                        f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
-                    )
-                    self.final_process(
-                        self.primary_stem_output_path,
-                        self.primary_source,
-                        self.primary_stem_name,
-                    )
-                    output_files.append(self.primary_stem_output_path)
-
+            self.primary_source = spec_utils.normalize(
+                wave=source[self.primary_stem_name],
+                max_peak=self.normalization_threshold,
+                min_peak=self.amplification_threshold,
+            ).T
+            self.secondary_source = spec_utils.normalize(
+                wave=source[self.secondary_stem_name],
+                max_peak=self.normalization_threshold,
+                min_peak=self.amplification_threshold,
+            ).T
+            stem_sources = [
+                (self.secondary_stem_name, self.secondary_source),
+                (self.primary_stem_name, self.primary_source),
+            ]
         else:
-            # Handle case when source is not a dictionary (single source model)
-            if (
-                not self.output_single_stem
-                or self.output_single_stem.lower() == self.primary_stem_name.lower()
-            ):
-                self.primary_stem_output_path = self.get_stem_output_path(
-                    self.primary_stem_name, custom_output_names
-                )
+            self.primary_source = source.T
+            stem_sources = [(self.primary_stem_name, self.primary_source)]
 
-                if not isinstance(self.primary_source, np.ndarray):
-                    self.primary_source = source.T
-
-                self.logger.info(
-                    f"Saving {self.primary_stem_name} stem to {self.primary_stem_output_path}..."
-                )
-                self.final_process(
-                    self.primary_stem_output_path,
-                    self.primary_source,
-                    self.primary_stem_name,
-                )
-                output_files.append(self.primary_stem_output_path)
-
-        return output_files
+        return [
+            self.save_stem(name, stem_source, custom_output_names)
+            for name, stem_source in stem_sources
+            if self.should_output_stem(name)
+        ]
 
     def _use_model_segment_override(self, audio_duration_seconds: float) -> bool:
         """Resolve the segment-size override for one input without mutating the separator."""
@@ -222,17 +155,7 @@ class MdxcSeparator(BaseSeparator):
         return self.override_model_segment_size or is_short_audio
 
     def pitch_fix(self, source, sr_pitched, orig_mix):
-        """
-        Change the pitch of the source audio by a number of semitones.
-
-        Args:
-            source (np.ndarray): The source audio to be pitch-shifted.
-            sr_pitched (int): The sample rate of the pitch-shifted audio.
-            orig_mix (np.ndarray): The original mix, used to match the shape of the pitch-shifted audio.
-
-        Returns:
-            np.ndarray: The pitch-shifted source audio.
-        """
+        """Reverse the processing pitch shift and restore the original duration."""
         source = spec_utils.change_pitch_semitones(
             source, sr_pitched, semitone_shift=self.pitch_shift
         )[0]
@@ -264,52 +187,39 @@ class MdxcSeparator(BaseSeparator):
         hop_length = self.model_data_cfg.audio.hop_length
         chunk_size = hop_length * (mdx_segment_size - 1)
         self.logger.debug(f"Chunk size: {chunk_size}")
-        hop_size = chunk_size // self.overlap
+        hop_size = max(1, chunk_size // self.overlap)
         mix_len = mix.shape[1]
         pad_size = hop_size - (mix_len - chunk_size) % hop_size
-        padded_length = mix_len + pad_size + 2 * (chunk_size - hop_size)
-
-        mix_t = torch.tensor(mix, dtype=torch.float32, device=self.torch_device)
+        # Full-track inputs and overlap buffers stay in host memory. Only the
+        # active batch belongs on the accelerator, independent of track duration.
+        mix_t = torch.from_numpy(mix).to(dtype=torch.float32)
         mix_t = torch.cat(
             [
-                torch.zeros(2, chunk_size - hop_size, device=self.torch_device),
+                torch.zeros(2, chunk_size - hop_size),
                 mix_t,
-                torch.zeros(
-                    2, pad_size + chunk_size - hop_size, device=self.torch_device
-                ),
+                torch.zeros(2, pad_size + chunk_size - hop_size),
             ],
             1,
         )
         chunks = mix_t.unfold(1, chunk_size, hop_size).transpose(0, 1)
-        batches = [
-            chunks[i : i + self.batch_size]
-            for i in range(0, len(chunks), self.batch_size)
-        ]
-
         accumulated_outputs = (
-            torch.zeros(num_stems, *mix_t.shape, device=self.torch_device)
+            torch.zeros(num_stems, *mix_t.shape)
             if num_stems > 1
             else torch.zeros_like(mix_t)
         )
-        with torch.no_grad():
-            count = 0
-            for batch in tqdm(batches, desc="Separating"):
-                single_batch_result = self.model_run(batch.to(self.torch_device))
-                for individual_output in single_batch_result:
-                    individual_output = (
-                        individual_output.to(self.torch_device)
-                        if individual_output.device != self.torch_device
-                        else individual_output
-                    )
-                    accumulated_outputs[
-                        ..., count * hop_size : count * hop_size + chunk_size
-                    ] += individual_output
-                    count += 1
+        coverage = torch.zeros(mix_t.shape[-1])
+        with torch.inference_mode():
+            for offset in tqdm(range(0, len(chunks), self.batch_size), desc="Separating"):
+                batch = chunks[offset : offset + self.batch_size].to(self.torch_device)
+                outputs = self.model_run(batch).cpu()
+                for index, individual_output in enumerate(outputs):
+                    start = (offset + index) * hop_size
+                    accumulated_outputs[..., start : start + chunk_size] += individual_output
+                    coverage[start : start + chunk_size] += 1
 
-        accumulated_outputs.div_(self.overlap)
-        inferenced_outputs = accumulated_outputs[
-            ..., chunk_size - hop_size : -(pad_size + chunk_size - hop_size)
-        ]
+        accumulated_outputs.div_(coverage.clamp_min(1))
+        start = chunk_size - hop_size
+        inferenced_outputs = accumulated_outputs[..., start : start + mix_len]
         del accumulated_outputs
 
         if num_stems > 1:
@@ -317,7 +227,7 @@ class MdxcSeparator(BaseSeparator):
 
             for key, value in zip(
                 self.model_data_cfg.training.instruments,
-                inferenced_outputs.cpu().detach().numpy(),
+                inferenced_outputs.numpy(),
             ):
                 if self.pitch_shift != 0:
                     sources[key] = self.pitch_fix(value, sample_rate, orig_mix)
@@ -327,30 +237,30 @@ class MdxcSeparator(BaseSeparator):
             del inferenced_outputs
 
             return sources
+
+        inferenced_output = inferenced_outputs.numpy()
+
+        del inferenced_outputs
+
+        # For single-target models (e.g., karaoke), also return the residual as secondary
+        if self.pitch_shift != 0:
+            self.logger.debug("Applying pitch correction for single instrument")
+            primary = self.pitch_fix(inferenced_output, sample_rate, orig_mix)
         else:
-            inferenced_output = inferenced_outputs.cpu().detach().numpy()
+            primary = inferenced_output
 
-            del inferenced_outputs
+        if self.is_primary_stem_main_target:
+            self.logger.debug(
+                "Single-target model detected; computing residual secondary stem from original mix"
+            )
+            # Ensure shapes match before residual subtraction
+            if primary.shape[1] != orig_mix.shape[1]:
+                primary = spec_utils.match_array_shapes(primary, orig_mix)
+            secondary = orig_mix - primary
+            return {
+                self.primary_stem_name: primary,
+                self.secondary_stem_name: secondary,
+            }
 
-            # For single-target models (e.g., karaoke), also return the residual as secondary
-            if self.pitch_shift != 0:
-                self.logger.debug("Applying pitch correction for single instrument")
-                primary = self.pitch_fix(inferenced_output, sample_rate, orig_mix)
-            else:
-                primary = inferenced_output
-
-            if self.is_primary_stem_main_target:
-                self.logger.debug(
-                    "Single-target model detected; computing residual secondary stem from original mix"
-                )
-                # Ensure shapes match before residual subtraction
-                if primary.shape[1] != orig_mix.shape[1]:
-                    primary = spec_utils.match_array_shapes(primary, orig_mix)
-                secondary = orig_mix - primary
-                return {
-                    self.primary_stem_name: primary,
-                    self.secondary_stem_name: secondary,
-                }
-
-            self.logger.debug("Returning inferenced output for single instrument")
-            return primary
+        self.logger.debug("Returning inferenced output for single instrument")
+        return primary

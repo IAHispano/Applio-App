@@ -406,7 +406,9 @@ impl NativeEngine {
                 if kind == JobType::Train
                     || task_job.params.as_ref().is_some_and(|p| {
                         !p["setup"].is_null()
-                            || (!p["model"].is_null() && !p["outputFormat"].is_null())
+                            || (resource == Some(Resource::Gpu)
+                                && !p["model"].is_null()
+                                && !p["outputFormat"].is_null())
                     })
                 {
                     engine.worker.stop().await?;

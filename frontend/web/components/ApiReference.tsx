@@ -1,8 +1,17 @@
 "use client";
 
-import { BookOpen, Check, Copy } from "lucide-react";
+import { BookOpen, Check, Copy, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { Alert, Badge, Button, Card, CardHeader, CustomSelect } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  Disclosure,
+  SegmentedControl,
+} from "@/components/ui";
 import { apiGet, errMsg } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 
@@ -94,6 +103,7 @@ export default function ApiReference({ base }: { base: string }) {
   const { t } = useI18n();
   const [operations, setOperations] = useState<Operation[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [group, setGroup] = useState("");
   const [selected, setSelected] = useState("POST /v1/applio/inference");
@@ -107,6 +117,9 @@ export default function ApiReference({ base }: { base: string }) {
       })
       .catch((error) => {
         if (active) setError(errMsg(error));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -140,9 +153,7 @@ export default function ApiReference({ base }: { base: string }) {
       <CardHeader
         icon={<BookOpen size={18} />}
         title={t("API reference")}
-        description={t(
-          "Use /v1/applio for the full app API. Paths and enum values match the app; OpenAI compatibility applies to /v1/models and /v1/audio/speech.",
-        )}
+        description={t("Core endpoints for audio, models, training, and realtime.")}
       />
       {error && (
         <Alert variant="error" onDismiss={() => setError("")}>
@@ -154,16 +165,23 @@ export default function ApiReference({ base }: { base: string }) {
           "API keys grant full local app control, including model deletion, plugin installation, settings, and setup. Keep them private.",
         )}
       </p>
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)] gap-5 items-start">
-        <div className="space-y-3 min-w-0">
-          <input
-            type="search"
-            className="form-control"
-            aria-label={t("Search endpoints")}
-            placeholder={t("Search endpoints")}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-          />
+      <div className="api-reference-grid">
+        <div className="api-reference-sidebar">
+          <div className="relative">
+            <Search
+              size={15}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)] pointer-events-none"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              className="form-control !pl-9"
+              aria-label={t("Search endpoints")}
+              placeholder={t("Search endpoints")}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
           <label htmlFor="api-operation-group" className="sr-only">
             {t("API reference")}
           </label>
@@ -179,10 +197,23 @@ export default function ApiReference({ base }: { base: string }) {
               })),
             ]}
           />
-          <div className="text-xs text-[var(--muted)]">
-            {visible.length} / {operations.length}
+          <div className="flex justify-between items-center gap-2 text-xs text-[var(--muted)]">
+            <span>{t("Endpoints")}</span>
+            <span className="tabular-nums">
+              {visible.length} / {operations.length}
+            </span>
           </div>
           <nav aria-label={t("API reference")} className="api-reference-list">
+            {loading && (
+              <p className="field-help" role="status">
+                {t("Loading…")}
+              </p>
+            )}
+            {!loading && !error && visible.length === 0 && (
+              <p className="field-help" role="status">
+                {t("No matching endpoints.")}
+              </p>
+            )}
             {visible.map((item) => (
               <button
                 type="button"
@@ -190,16 +221,19 @@ export default function ApiReference({ base }: { base: string }) {
                 aria-current={item === operation ? "true" : undefined}
                 onClick={() => setSelected(`${item.method} ${item.path}`)}
               >
-                <span className="text-[var(--accent)] text-[10px]">{item.method}</span>
+                <span className={`api-method ${item.method !== "GET" ? "api-method-post" : ""}`}>
+                  {item.method}
+                </span>
                 <code>{item.path.replace("/v1/applio/", "")}</code>
               </button>
             ))}
           </nav>
         </div>
         {operation && (
-          <div className="space-y-4 min-w-0">
-            <div className="flex flex-wrap gap-2 items-center">
-              <Badge>{operation.method}</Badge>
+          <div className="api-reference-detail">
+            <h3 className="text-sm font-semibold m-0">{t(operation.group)}</h3>
+            <div className="api-operation-header">
+              <Badge variant={operation.method === "GET" ? "success" : "neutral"}>{operation.method}</Badge>
               <code className="text-xs break-all">{operation.path}</code>
             </div>
             <p className="field-help">
@@ -218,85 +252,83 @@ export default function ApiReference({ base }: { base: string }) {
                 }
               </code>
             </p>
-            {operation.query && (
-              <details>
-                <summary>{t("Query parameters")}</summary>
-                <pre className="api-code mt-3">{JSON.stringify(operation.query, null, 2)}</pre>
-              </details>
-            )}
-            <details open key={operation.path + operation.method}>
-              <summary>{t("Parameters")}</summary>
-              <div className="api-parameter-list">
-                {Object.entries(operation.properties).map(([name, schema]) => (
-                  <div key={name}>
-                    <div className="flex gap-2 flex-wrap items-center">
-                      <code>{name}</code>
-                      <span className="field-help">
-                        {t(operation.required.includes(name) ? "Required" : "Optional")}
-                      </span>
-                    </div>
-                    <code>{JSON.stringify(schema)}</code>
-                  </div>
-                ))}
-                {Object.entries(operation.files || {}).map(([name, file]) => (
-                  <div key={name}>
-                    <code>{name}</code>
-                    <code>multipart · {JSON.stringify(file)}</code>
-                  </div>
-                ))}
+            <div className="api-code-sample">
+              <div className="api-code-toolbar">
+                <SegmentedControl
+                  value={language}
+                  onChange={setLanguage}
+                  ariaLabel={t("Examples")}
+                  options={[
+                    { value: "curl", label: "cURL" },
+                    { value: "python", label: "Python" },
+                  ]}
+                />
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  icon={copied ? <Check size={12} /> : <Copy size={12} />}
+                  onClick={() => {
+                    void navigator.clipboard
+                      .writeText(code)
+                      .then(() => setCopied(true))
+                      .catch(() => setError(t("Could not copy. Select and copy the text manually.")));
+                  }}
+                >
+                  {t("Copy")}
+                </Button>
               </div>
-            </details>
-            <div className="flex gap-2 items-center">
-              <Button
-                size="xs"
-                variant={language === "curl" ? "primary" : "ghost"}
-                aria-pressed={language === "curl"}
-                onClick={() => setLanguage("curl")}
-              >
-                cURL
-              </Button>
-              <Button
-                size="xs"
-                variant={language === "python" ? "primary" : "ghost"}
-                aria-pressed={language === "python"}
-                onClick={() => setLanguage("python")}
-              >
-                Python
-              </Button>
-              <Button
-                size="xs"
-                variant="ghost"
-                icon={copied ? <Check size={12} /> : <Copy size={12} />}
-                onClick={() => {
-                  void navigator.clipboard
-                    .writeText(code)
-                    .then(() => setCopied(true))
-                    .catch(() => setError(t("Could not copy. Select and copy the text manually.")));
-                }}
-              >
-                {t("Copy")}
-              </Button>
+              <pre className="api-code">
+                <code>{code}</code>
+              </pre>
             </div>
-            <pre className="api-code">
-              <code>{code}</code>
-            </pre>
+            {operation.query && (
+              <Disclosure title={t("Query parameters")}>
+                <pre className="api-code mt-3">{JSON.stringify(operation.query, null, 2)}</pre>
+              </Disclosure>
+            )}
+            {(Object.keys(operation.properties).length > 0 ||
+              Object.keys(operation.files || {}).length > 0) && (
+              <Disclosure title={t("Parameters")} key={operation.path + operation.method}>
+                <div className="api-parameter-list">
+                  {Object.entries(operation.properties).map(([name, schema]) => (
+                    <div key={name}>
+                      <div className="flex gap-2 flex-wrap items-center">
+                        <code>{name}</code>
+                        <span className="field-help">
+                          {t(operation.required.includes(name) ? "Required" : "Optional")}
+                        </span>
+                      </div>
+                      <code>{JSON.stringify(schema)}</code>
+                    </div>
+                  ))}
+                  {Object.entries(operation.files || {}).map(([name, file]) => (
+                    <div key={name}>
+                      <code>{name}</code>
+                      <code>multipart · {JSON.stringify(file)}</code>
+                    </div>
+                  ))}
+                </div>
+              </Disclosure>
+            )}
           </div>
         )}
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-[var(--muted)] leading-relaxed">
-        {[
-          "HTTP 202 returns jobId. Poll until done or error, then list artifacts and download their authenticated URLs.",
-          "Files are read on the Applio host. Upload files from another machine with multipart/form-data. Blend ratio is 0–1; 25% means 0.25.",
-          "Send Bearer authorization on HTTP requests, SSE connections, and WebSocket handshakes. Browser WebSocket clients need a local server proxy; never put keys in URLs.",
-          "Realtime: start the service, send init JSON over ws-audio, wait for ready, then send mono 48 kHz Float32 PCM blocks of block_frame samples. Wait for each binary reply before sending the next block. Stop the service when finished.",
-          "Native responses may contain /api or /outputs URLs. Use /v1/applio for API routes and the job artifact endpoints for authenticated downloads.",
-          "Native window controls, file dialogs, and signed desktop updates require the desktop app.",
-        ].map((text) => (
-          <p key={text} className="m-0 rounded-lg border border-[var(--border)] p-3">
-            {t(text)}
-          </p>
-        ))}
-      </div>
+      <Disclosure title={t("Documentation")} icon={<BookOpen size={16} />}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs text-[var(--muted)] leading-relaxed">
+          {[
+            "HTTP 202 returns jobId. Poll until done or error, then list artifacts and download their authenticated URLs.",
+            "Files are read on the Applio host. Upload files from another machine with multipart/form-data. Blend ratio is 0–1; 25% means 0.25.",
+            "Send Bearer authorization on HTTP requests, SSE connections, and WebSocket handshakes. Browser WebSocket clients need a local server proxy; never put keys in URLs.",
+            "Realtime: start the service, send init JSON over ws-audio, wait for ready, then send mono 48 kHz Float32 PCM blocks of block_frame samples. Wait for each binary reply before sending the next block. Stop the service when finished.",
+            "Native responses may contain /api or /outputs URLs. Use /v1/applio for API routes and the job artifact endpoints for authenticated downloads.",
+            "The reference covers core workflows. Download /v1/openapi.json for their schemas; /v1/capabilities lists all available operations, including app administration.",
+          ].map((text) => (
+            <p key={text} className="m-0 rounded-lg border border-[var(--border)] p-3">
+              {t(text)}
+            </p>
+          ))}
+        </div>
+      </Disclosure>
     </Card>
   );
 }

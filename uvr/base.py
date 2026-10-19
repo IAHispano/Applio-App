@@ -10,7 +10,6 @@ import librosa
 import numpy as np
 import soundfile as sf
 import torch
-from tqdm import tqdm
 
 from uvr import spectral as spec_utils
 from uvr.spectral import InvalidAudioDataError
@@ -89,25 +88,6 @@ def select_onnx_providers(use_gpu: bool):
     return ["CPUExecutionProvider"]
 
 
-def download_file(url: str, output_path: str, logger=None, timeout=300):
-    """Download a URL to disk with a progress bar; skip when already present."""
-    if os.path.isfile(output_path) and os.path.getsize(output_path) > 0:
-        if logger:
-            logger.debug(f"Model file already present: {output_path}")
-        return output_path
-    from rvc.lib.tools.http_download import download_http
-
-    with tqdm(unit="B", unit_scale=True, desc=os.path.basename(output_path)) as bar:
-
-        def progress(received, total):
-            bar.total = total or None
-            bar.n = received
-            bar.refresh()
-
-        download_http(url, output_path, progress=progress)
-    return output_path
-
-
 class BaseSeparator:
     """Common mix preparation, soundfile writing and stem path logic."""
 
@@ -141,7 +121,6 @@ class BaseSeparator:
         self.sample_rate = config.get("sample_rate", 44100)
         self.wav_subtype = "PCM_16"
         self.input_bit_depth = 16
-        self.input_subtype = "PCM_16"
 
         self.primary_stem_name = self.model_data.get("primary_stem", "Vocals")
         self.secondary_stem_name = self.secondary_stem(self.primary_stem_name)
@@ -163,7 +142,6 @@ class BaseSeparator:
         if not isinstance(mix, np.ndarray):
             try:
                 info = sf.info(mix)
-                self.input_subtype = info.subtype
                 self.input_bit_depth = (
                     24
                     if "24" in info.subtype
@@ -215,6 +193,19 @@ class BaseSeparator:
                 sf.write(temp_path, stem_source, self.sample_rate)
             else:
                 sf.write(temp_path, stem_source, self.sample_rate, subtype=subtype)
+
+    def should_output_stem(self, stem_name):
+        return (
+            not self.output_single_stem
+            or self.output_single_stem.lower() == stem_name.lower()
+        )
+
+    def save_stem(self, stem_name, source, custom_output_names=None):
+        """Write frame-major audio using the shared naming and export contract."""
+        stem_path = self.get_stem_output_path(stem_name, custom_output_names)
+        self.logger.info(f"Saving {stem_name} stem to {stem_path}...")
+        self.final_process(stem_path, source, stem_name)
+        return stem_path
 
     def final_process(self, stem_path, source, stem_name):
         self.write_audio(stem_path, source)
