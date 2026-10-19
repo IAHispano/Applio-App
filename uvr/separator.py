@@ -257,7 +257,9 @@ def separate_stems(
     for path in paths:
         # Archs return paths relative to output_dir; resolve to absolute.
         full = (
-            path if os.path.isabs(path) else os.path.join(output_dir or os.getcwd(), path)
+            path
+            if os.path.isabs(path)
+            else os.path.join(output_dir or os.getcwd(), path)
         )
         base = os.path.basename(full)
         lowered_base = base.lower()
