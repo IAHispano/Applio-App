@@ -1781,5 +1781,8 @@
   "Settings sections": "Einstellungsbereiche",
   "Open the desktop app to share this computer with your other devices.": "Öffne die Desktop-App, um diesen Computer mit deinen anderen Geräten zu teilen.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} fordert Zugriff an. Prüfe den Code {code} im Brückenmodus.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Bestätige dieses Gerät unter Brückenmodus auf deinem Hostcomputer. Prüfe, ob die Codes übereinstimmen:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Bestätige dieses Gerät unter Brückenmodus auf deinem Hostcomputer. Prüfe, ob die Codes übereinstimmen:",
+  "Preparing audio…": "Audio wird vorbereitet…",
+  "Reconstructing audio…": "Audio wird rekonstruiert…",
+  "Saving stems…": "Spuren werden gespeichert…"
 }

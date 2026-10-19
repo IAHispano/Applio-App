@@ -1781,5 +1781,8 @@
   "Settings sections": "सेटिंग अनुभाग",
   "Open the desktop app to share this computer with your other devices.": "इस कंप्यूटर को अपने अन्य उपकरणों के साथ साझा करने के लिए डेस्कटॉप ऐप खोलें।",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} एक्सेस का अनुरोध कर रहा है। ब्रिज मोड में कोड {code} जाँचें।",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "मुख्य कंप्यूटर पर ब्रिज मोड में इस डिवाइस को अनुमति दें। जाँचें कि कोड मेल खाता है:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "मुख्य कंप्यूटर पर ब्रिज मोड में इस डिवाइस को अनुमति दें। जाँचें कि कोड मेल खाता है:",
+  "Preparing audio…": "ऑडियो तैयार हो रहा है…",
+  "Reconstructing audio…": "ऑडियो का पुनर्निर्माण हो रहा है…",
+  "Saving stems…": "अलग किए गए ट्रैक सहेजे जा रहे हैं…"
 }

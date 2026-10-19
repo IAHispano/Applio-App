@@ -1781,5 +1781,8 @@
   "Settings sections": "أقسام الإعدادات",
   "Open the desktop app to share this computer with your other devices.": "افتح تطبيق سطح المكتب لمشاركة هذا الكمبيوتر مع أجهزتك الأخرى.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "يطلب {name} الوصول. تحقق من الرمز {code} في وضع الجسر.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "وافق على هذا الجهاز في وضع الجسر على الكمبيوتر المضيف. تحقق من تطابق الرمز:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "وافق على هذا الجهاز في وضع الجسر على الكمبيوتر المضيف. تحقق من تطابق الرمز:",
+  "Preparing audio…": "جارٍ تجهيز الصوت…",
+  "Reconstructing audio…": "جارٍ إعادة بناء الصوت…",
+  "Saving stems…": "جارٍ حفظ المسارات المفصولة…"
 }

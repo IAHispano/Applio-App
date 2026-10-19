@@ -122,6 +122,7 @@ class DemucsSeparator(BaseSeparator):
             ref_std = torch.zeros_like(ref_std)
         mix.sub_(ref_mean).div_(ref_std.clamp_min(torch.finfo(mix.dtype).eps))
 
+        self.report_stage("Separating…")
         with torch.no_grad():
             sources = apply_model(
                 model=self.demucs_model_instance,
@@ -135,6 +136,7 @@ class DemucsSeparator(BaseSeparator):
                 progress=True,
             )[0]
 
+        self.report_stage("Reconstructing audio…")
         sources.mul_(ref_std).add_(ref_mean)
         sources = sources.cpu().numpy()
         sources[[0, 1]] = sources[[1, 0]]

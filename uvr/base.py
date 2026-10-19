@@ -3,6 +3,7 @@
 import gc
 import os
 import re
+import sys
 from contextlib import contextmanager
 from logging import Logger
 
@@ -138,7 +139,22 @@ class BaseSeparator:
             return primary_stem.replace(self.NO_STEM, "")
         return f"{self.NO_STEM}{primary_stem}"
 
+    def report_stage(self, stage):
+        """Report the current phase without estimating whole-job completion."""
+        print(f"APPLIO_STAGE:{stage}", file=sys.stderr, flush=True)
+
+    @contextmanager
+    def inference_progress(self, *args, **kwargs):
+        """Keep measured inference progress separate from reconstruction and export."""
+        from tqdm import tqdm
+
+        self.report_stage("Separating…")
+        with tqdm(*args, **kwargs) as progress:
+            yield progress
+        self.report_stage("Reconstructing audio…")
+
     def prepare_mix(self, mix):
+        self.report_stage("Preparing audio…")
         if not isinstance(mix, np.ndarray):
             try:
                 info = sf.info(mix)
@@ -167,6 +183,7 @@ class BaseSeparator:
         return mix
 
     def write_audio(self, stem_path: str, stem_source):
+        self.report_stage("Saving stems…")
         stem_source = validate_audio_source(stem_source)
         stem_source = spec_utils.normalize(
             wave=stem_source,

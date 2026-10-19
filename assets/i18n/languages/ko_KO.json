@@ -1781,5 +1781,8 @@
   "Settings sections": "설정 항목",
   "Open the desktop app to share this computer with your other devices.": "다른 기기와 이 컴퓨터를 공유하려면 데스크톱 앱을 여세요.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} 님이 액세스를 요청하고 있습니다. 브리지 모드에서 코드 {code}를 확인하세요.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "호스트 컴퓨터의 브리지 모드에서 이 기기를 승인하세요. 코드가 일치하는지 확인하세요:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "호스트 컴퓨터의 브리지 모드에서 이 기기를 승인하세요. 코드가 일치하는지 확인하세요:",
+  "Preparing audio…": "오디오 준비 중…",
+  "Reconstructing audio…": "오디오 재구성 중…",
+  "Saving stems…": "분리된 트랙 저장 중…"
 }

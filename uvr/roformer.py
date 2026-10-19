@@ -6,7 +6,6 @@ import soundfile as sf
 import torch
 import torch.nn.functional as F
 import yaml
-from tqdm import tqdm
 
 from uvr.base import BaseSeparator
 from uvr.roformer_lib.registry import resolve as resolve_variant_class
@@ -131,7 +130,7 @@ class RoformerSeparator(BaseSeparator):
             batch_data = []
             batch_locations = []
             denoise: bool = self.enable_denoise
-            with tqdm(
+            with self.inference_progress(
                 total=mix_tensor.shape[1], desc="Separating", unit="samples"
             ) as progress_bar:
                 while i < mix_tensor.shape[1]:

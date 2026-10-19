@@ -1781,5 +1781,8 @@
   "Settings sections": "Settings sections",
   "Open the desktop app to share this computer with your other devices.": "Open the desktop app to share this computer with your other devices.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} is requesting access. Check code {code} in Bridge Mode.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approve this device in Bridge Mode on your host. Check that the code matches:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approve this device in Bridge Mode on your host. Check that the code matches:",
+  "Preparing audio…": "Preparing audio…",
+  "Reconstructing audio…": "Reconstructing audio…",
+  "Saving stems…": "Saving stems…"
 }

@@ -1781,5 +1781,8 @@
   "Settings sections": "設定のカテゴリ",
   "Open the desktop app to share this computer with your other devices.": "デスクトップアプリを開いて、このコンピューターを他のデバイスと共有してください。",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} がアクセスを要求しています。ブリッジモードでコード {code} を確認してください。",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "ホストコンピューターのブリッジモードでこのデバイスを承認してください。コードが一致することを確認してください："
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "ホストコンピューターのブリッジモードでこのデバイスを承認してください。コードが一致することを確認してください：",
+  "Preparing audio…": "音声を準備中…",
+  "Reconstructing audio…": "音声を再構成中…",
+  "Saving stems…": "分離したトラックを保存中…"
 }

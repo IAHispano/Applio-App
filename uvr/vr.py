@@ -165,6 +165,7 @@ class VrSeparator(BaseSeparator):
         return output_files
 
     def loading_mix(self):
+        self.report_stage("Preparing audio…")
         X_wave, X_spec_s = {}, {}
         bands_n = len(self.model_params.param["band"])
         audio_file = spec_utils.write_array_to_mem(
@@ -226,6 +227,7 @@ class VrSeparator(BaseSeparator):
 
     def inference_vr(self, X_spec, device, aggressiveness):
         def _execute(X_mag_pad, roi_size):
+            self.report_stage("Preparing audio…")
             X_dataset = []
             patches = (X_mag_pad.shape[2] - 2 * self.model_run.offset) // roi_size
             for i in tqdm(range(patches), desc="Separating"):
@@ -233,9 +235,11 @@ class VrSeparator(BaseSeparator):
                 X_dataset.append(X_mag_pad[:, :, start : start + self.window_size])
             X_dataset = np.asarray(X_dataset)
             self.model_run.eval()
-            with torch.no_grad():
+            with torch.no_grad(), self.inference_progress(
+                range(0, patches, self.batch_size), desc="Batches"
+            ) as batches:
                 mask = []
-                for i in tqdm(range(0, patches, self.batch_size), desc="Batches"):
+                for i in batches:
                     X_batch = torch.from_numpy(X_dataset[i : i + self.batch_size]).to(
                         device
                     )

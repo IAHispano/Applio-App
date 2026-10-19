@@ -1781,5 +1781,8 @@
   "Settings sections": "Bagian pengaturan",
   "Open the desktop app to share this computer with your other devices.": "Buka aplikasi desktop untuk berbagi komputer ini dengan perangkat Anda yang lain.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} meminta akses. Periksa kode {code} di mode jembatan.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Setujui perangkat ini di Mode jembatan pada komputer utama. Pastikan kodenya cocok:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Setujui perangkat ini di Mode jembatan pada komputer utama. Pastikan kodenya cocok:",
+  "Preparing audio…": "Menyiapkan audio…",
+  "Reconstructing audio…": "Merekonstruksi audio…",
+  "Saving stems…": "Menyimpan trek terpisah…"
 }

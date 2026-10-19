@@ -1781,5 +1781,8 @@
   "Settings sections": "Các mục cài đặt",
   "Open the desktop app to share this computer with your other devices.": "Mở ứng dụng máy tính để chia sẻ máy tính này với các thiết bị khác của bạn.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} đang yêu cầu quyền truy cập. Kiểm tra mã {code} trong chế độ cầu nối.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Phê duyệt thiết bị trong Chế độ cầu nối trên máy chủ. Kiểm tra mã trùng khớp:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Phê duyệt thiết bị trong Chế độ cầu nối trên máy chủ. Kiểm tra mã trùng khớp:",
+  "Preparing audio…": "Đang chuẩn bị âm thanh…",
+  "Reconstructing audio…": "Đang tái tạo âm thanh…",
+  "Saving stems…": "Đang lưu các phần âm thanh đã tách…"
 }

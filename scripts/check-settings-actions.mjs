@@ -368,3 +368,48 @@ test("Settings ignores superseded save responses and keeps an unsaved author dra
   assert.equal(control("settings-model-author").value, "Draft author");
   assert.equal(render().filter((node) => node.props?.role === "tabpanel" && !node.props.hidden).length, 1);
 });
+
+
+test("separator inference phases wrap measured passes and leave failures as failures", () => {
+  execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
+import ast, contextlib, io, sys, types
+from pathlib import Path
+from unittest.mock import patch
+
+paths = [Path("uvr") / (name + ".py") for name in ["base", "vr", "mdx", "mdxc", "roformer", "demucs"]]
+for path in paths:
+    ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+base = ast.parse(paths[0].read_text(encoding="utf-8"))
+original = next(node for node in base.body if isinstance(node, ast.ClassDef) and node.name == "BaseSeparator")
+methods = [node for node in original.body if isinstance(node, ast.FunctionDef) and node.name in {"report_stage", "inference_progress"}]
+module = ast.Module(body=[ast.ClassDef(name="ProgressProbe", bases=[], keywords=[], body=methods, decorator_list=[])], type_ignores=[])
+namespace = {"contextmanager": contextlib.contextmanager, "sys": sys}
+exec(compile(ast.fix_missing_locations(module), "uvr/base.py", "exec"), namespace)
+probe = namespace["ProgressProbe"]()
+closed = []
+class Progress:
+    def __init__(self, values=None, **kwargs): self.values = values
+    def __enter__(self): return self
+    def __exit__(self, *args): closed.append(True)
+    def __iter__(self): return iter(self.values)
+
+stream = io.StringIO()
+with patch.dict(sys.modules, {"tqdm": types.SimpleNamespace(tqdm=Progress)}), contextlib.redirect_stderr(stream):
+    for _ in range(2):
+        with probe.inference_progress(range(3), desc="Batches") as batches:
+            assert list(batches) == [0, 1, 2]
+    try:
+        with probe.inference_progress(range(3)):
+            raise RuntimeError("Inference failed")
+    except RuntimeError as error:
+        assert str(error) == "Inference failed"
+    else:
+        raise AssertionError("Inference failure was swallowed")
+assert len(closed) == 3
+assert stream.getvalue().splitlines() == [
+    "APPLIO_STAGE:Separating…", "APPLIO_STAGE:Reconstructing audio…",
+    "APPLIO_STAGE:Separating…", "APPLIO_STAGE:Reconstructing audio…",
+    "APPLIO_STAGE:Separating…",
+]
+`], { encoding: "utf8", windowsHide: true });
+});

@@ -5,7 +5,6 @@ import os
 import numpy as np
 import torch
 from ml_collections import ConfigDict
-from tqdm import tqdm
 
 from uvr import spectral as spec_utils
 from uvr.base import BaseSeparator
@@ -210,10 +209,10 @@ class MdxcSeparator(BaseSeparator):
             else torch.zeros_like(mix_t)
         )
         coverage = torch.zeros(mix_t.shape[-1])
-        with torch.inference_mode():
-            for offset in tqdm(
-                range(0, len(chunks), self.batch_size), desc="Separating"
-            ):
+        with torch.inference_mode(), self.inference_progress(
+            range(0, len(chunks), self.batch_size), desc="Separating"
+        ) as batches:
+            for offset in batches:
                 batch = chunks[offset : offset + self.batch_size].to(self.torch_device)
                 outputs = self.model_run(batch).cpu()
                 for index, individual_output in enumerate(outputs):

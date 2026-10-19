@@ -1781,5 +1781,8 @@
   "Settings sections": "Разделы настроек",
   "Open the desktop app to share this computer with your other devices.": "Откройте настольное приложение, чтобы предоставить другим своим устройствам доступ к этому компьютеру.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} запрашивает доступ. Проверьте код {code} в режиме моста.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Одобрите устройство в Режим моста на основном компьютере. Проверьте совпадение кода:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Одобрите устройство в Режим моста на основном компьютере. Проверьте совпадение кода:",
+  "Preparing audio…": "Подготовка аудио…",
+  "Reconstructing audio…": "Восстановление аудио…",
+  "Saving stems…": "Сохранение отдельных дорожек…"
 }

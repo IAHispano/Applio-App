@@ -1781,5 +1781,8 @@
   "Settings sections": "设置分类",
   "Open the desktop app to share this computer with your other devices.": "打开桌面应用，即可与您的其他设备共享此计算机。",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} 正在请求访问。请在桥接模式中核对代码 {code}。",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "在主机的桥接模式中批准此设备。请确认代码一致："
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "在主机的桥接模式中批准此设备。请确认代码一致：",
+  "Preparing audio…": "正在准备音频…",
+  "Reconstructing audio…": "正在重建音频…",
+  "Saving stems…": "正在保存分离音轨…"
 }

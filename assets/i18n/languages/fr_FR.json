@@ -1781,5 +1781,8 @@
   "Settings sections": "Rubriques des paramètres",
   "Open the desktop app to share this computer with your other devices.": "Ouvrez l’application de bureau pour partager cet ordinateur avec vos autres appareils.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} demande un accès. Vérifiez le code {code} dans le mode passerelle.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approuvez cet appareil dans Mode passerelle sur votre ordinateur hôte. Vérifiez que le code correspond :"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Approuvez cet appareil dans Mode passerelle sur votre ordinateur hôte. Vérifiez que le code correspond :",
+  "Preparing audio…": "Préparation de l’audio…",
+  "Reconstructing audio…": "Reconstruction de l’audio…",
+  "Saving stems…": "Enregistrement des pistes séparées…"
 }

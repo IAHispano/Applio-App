@@ -6,7 +6,6 @@ import platform
 import numpy as np
 import onnxruntime as ort
 import torch
-from tqdm import tqdm
 
 from uvr import spectral as spec_utils
 from uvr.base import BaseSeparator
@@ -229,7 +228,7 @@ class MdxSeparator(BaseSeparator):
         starts = range(0, mixture.shape[-1], step)
         full_window = np.hanning(chunk_size).astype(np.float32) if overlap else None
 
-        with torch.inference_mode(), tqdm(
+        with torch.inference_mode(), self.inference_progress(
             total=len(starts), desc="Separating"
         ) as progress:
             for offset in range(0, len(starts), batch_size):

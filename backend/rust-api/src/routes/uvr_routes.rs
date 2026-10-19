@@ -2,7 +2,7 @@
 use crate::{
     engine::{JobResult, NativeEngine},
     infer_params::{ParameterSchema, ValidationErrors},
-    jobs::{Job, JobType},
+    jobs::{Job, JobStore, JobType},
     metadata_cache::MetadataCache,
     process::{json_result, ManagedProcess},
     processing_routes::{accepted, path_string, ready, string, Accepted, Error},
@@ -188,42 +188,54 @@ async fn run_step(
     token: &CancellationToken,
     args: Vec<String>,
 ) -> Result<String> {
-    static PROGRESS: OnceLock<Regex> = OnceLock::new();
-    let progress = PROGRESS.get_or_init(|| Regex::new(r"(\d{1,3})%\s*\|").unwrap());
     let spec = engine.runtime.python_command(args)?;
     let result = ManagedProcess::run(&spec, token, |_, line| {
-        if let Some(stage) = separation_stage(line) {
-            engine.jobs.stage(&job.id, stage, None, None);
-            return;
-        }
-        let trimmed: String = line.trim().chars().take(1000).collect();
-        if !trimmed.is_empty() {
-            engine.jobs.log(&job.id, &trimmed);
-        }
-        if let Some(percent) = progress
-            .captures_iter(line)
-            .last()
-            .and_then(|capture| capture[1].parse::<u8>().ok())
-        {
-            if engine
-                .jobs
-                .get(&job.id)
-                .and_then(|job| job.progress)
-                .is_none_or(|current| percent > current)
-            {
-                engine.jobs.progress(&job.id, percent.min(99).into());
-            }
-        }
+        observe_separation_line(&engine.jobs, &job.id, line);
     })
     .await?;
     result.ensure_success()?;
     Ok(result.stdout)
 }
+fn observe_separation_line(jobs: &JobStore, id: &str, line: &str) {
+    if let Some(stage) = separation_stage(line) {
+        jobs.stage(id, stage, None, None);
+        return;
+    }
+    let trimmed: String = line.trim().chars().take(1000).collect();
+    if !trimmed.is_empty() {
+        jobs.log(id, &trimmed);
+    }
+    let stage = jobs.get(id).and_then(|job| job.stage);
+    if let Some(percent) = separation_progress(line, stage.as_deref()) {
+        jobs.progress(id, percent.into());
+    }
+}
+
 fn separation_stage(line: &str) -> Option<&str> {
     match line.trim().strip_prefix("APPLIO_STAGE:")? {
-        stage @ ("Downloading models…" | "Loading models…" | "Separating…") => Some(stage),
+        stage @ ("Downloading models…"
+        | "Loading models…"
+        | "Preparing audio…"
+        | "Separating…"
+        | "Reconstructing audio…"
+        | "Saving stems…") => Some(stage),
         _ => None,
     }
+}
+
+fn separation_progress(line: &str, stage: Option<&str>) -> Option<u8> {
+    // tqdm also measures fast preparation loops. Their 100% must never become
+    // inference progress, and a new inference pass may start again at zero.
+    if !matches!(stage, Some("Separating…" | "Downloading models…")) {
+        return None;
+    }
+    static PROGRESS: OnceLock<Regex> = OnceLock::new();
+    let progress = PROGRESS.get_or_init(|| Regex::new(r"(?:^|\s)(\d{1,3})%\s*\|").unwrap());
+    progress
+        .captures_iter(line)
+        .last()
+        .and_then(|capture| capture[1].parse::<u8>().ok())
+        .filter(|percent| *percent <= 100)
 }
 
 fn encode_segment(value: &str) -> String {
@@ -653,6 +665,59 @@ mod tests {
         );
         assert_eq!(separation_stage("Separating: 100% |"), None);
         assert_eq!(separation_stage("APPLIO_STAGE:unknown"), None);
+    }
+
+    #[tokio::test]
+    async fn separation_progress_tracks_active_work_instead_of_preparation_high_water_mark() {
+        let root = tempfile::tempdir().unwrap();
+        let jobs = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = jobs.create(JobType::Other, json!({})).unwrap();
+        jobs.running(&job.id);
+        for (line, stage, progress) in [
+            (
+                "APPLIO_STAGE:Downloading models…",
+                "Downloading models…",
+                None,
+            ),
+            ("weights: 100%|done|", "Downloading models…", Some(100)),
+            ("APPLIO_STAGE:Loading models…", "Loading models…", None),
+            ("APPLIO_STAGE:Preparing audio…", "Preparing audio…", None),
+            ("Preparing mix: 100%|done|", "Preparing audio…", None),
+            ("Separating: 100%|patches|", "Preparing audio…", None),
+            ("APPLIO_STAGE:Separating…", "Separating…", None),
+            ("Batches:   0%|start|", "Separating…", Some(0)),
+            ("Batches:  42%|working|", "Separating…", Some(42)),
+            ("Batches: 100%|done|", "Separating…", Some(100)),
+            (
+                "APPLIO_STAGE:Reconstructing audio…",
+                "Reconstructing audio…",
+                None,
+            ),
+            // TTA starts another measured pass, rather than freezing at 99%.
+            ("APPLIO_STAGE:Preparing audio…", "Preparing audio…", None),
+            ("APPLIO_STAGE:Separating…", "Separating…", None),
+            ("Batches:   0%|start|", "Separating…", Some(0)),
+            ("Batches:  25%|working|", "Separating…", Some(25)),
+            (
+                "APPLIO_STAGE:Reconstructing audio…",
+                "Reconstructing audio…",
+                None,
+            ),
+            ("APPLIO_STAGE:Saving stems…", "Saving stems…", None),
+            ("Unrelated: 100%|done|", "Saving stems…", None),
+        ] {
+            observe_separation_line(&jobs, &job.id, line);
+            let state = jobs.get(&job.id).unwrap();
+            assert_eq!(state.stage.as_deref(), Some(stage), "{line}");
+            assert_eq!(state.progress, progress, "{line}");
+            assert_eq!(state.status, crate::jobs::JobStatus::Running);
+        }
+        assert_eq!(
+            separation_progress("Batches: 999%|bad|", Some("Separating…")),
+            None
+        );
+        assert_eq!(separation_progress("1000%|bad|", Some("Separating…")), None);
+        jobs.seal().await;
     }
 
     #[tokio::test]

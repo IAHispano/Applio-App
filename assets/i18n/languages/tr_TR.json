@@ -1781,5 +1781,8 @@
   "Settings sections": "Ayar bölümleri",
   "Open the desktop app to share this computer with your other devices.": "Bu bilgisayarı diğer cihazlarınızla paylaşmak için masaüstü uygulamasını açın.",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} erişim istiyor. Köprü modunda {code} kodunu kontrol edin.",
-  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Ana bilgisayarınızda Köprü modu bölümünde bu cihazı onaylayın. Kodların eşleştiğini kontrol edin:"
+  "Approve this device in Bridge Mode on your host. Check that the code matches:": "Ana bilgisayarınızda Köprü modu bölümünde bu cihazı onaylayın. Kodların eşleştiğini kontrol edin:",
+  "Preparing audio…": "Ses hazırlanıyor…",
+  "Reconstructing audio…": "Ses yeniden oluşturuluyor…",
+  "Saving stems…": "Ayrılmış parçalar kaydediliyor…"
 }
