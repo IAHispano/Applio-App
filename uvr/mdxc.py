@@ -102,7 +102,9 @@ class MdxcSeparator(BaseSeparator):
 
         if isinstance(source, dict):
             target = self.model_data_cfg.training.target_instrument
-            stem_names = [target] if target else self.model_data_cfg.training.instruments
+            stem_names = (
+                [target] if target else self.model_data_cfg.training.instruments
+            )
             if self.process_all_stems and len(stem_names) > 2:
                 return [
                     self.save_stem(
@@ -209,12 +211,16 @@ class MdxcSeparator(BaseSeparator):
         )
         coverage = torch.zeros(mix_t.shape[-1])
         with torch.inference_mode():
-            for offset in tqdm(range(0, len(chunks), self.batch_size), desc="Separating"):
+            for offset in tqdm(
+                range(0, len(chunks), self.batch_size), desc="Separating"
+            ):
                 batch = chunks[offset : offset + self.batch_size].to(self.torch_device)
                 outputs = self.model_run(batch).cpu()
                 for index, individual_output in enumerate(outputs):
                     start = (offset + index) * hop_size
-                    accumulated_outputs[..., start : start + chunk_size] += individual_output
+                    accumulated_outputs[
+                        ..., start : start + chunk_size
+                    ] += individual_output
                     coverage[start : start + chunk_size] += 1
 
         accumulated_outputs.div_(coverage.clamp_min(1))

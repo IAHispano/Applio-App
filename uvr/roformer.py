@@ -196,9 +196,9 @@ class RoformerSeparator(BaseSeparator):
                                 stem = x[j, idx, ..., :seg_len]
                                 if stem.shape[0] == 1:
                                     stem = stem.expand(2, -1)
-                                results[order[source_idx]][..., start : start + seg_len] += (
-                                    stem * window[:seg_len]
-                                )
+                                results[order[source_idx]][
+                                    ..., start : start + seg_len
+                                ] += (stem * window[:seg_len])
 
                         batch_data.clear()
                         batch_locations.clear()
