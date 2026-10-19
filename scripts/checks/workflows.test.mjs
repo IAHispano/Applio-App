@@ -37,6 +37,75 @@ test("existing Halloween theme files activate scenery and switching themes clear
   assert.equal(root.dataset.themeEffects, "halloween");
 });
 
+test("the Halloween ambience plays the whole score instead of one repeated note", (t) => {
+  const options = { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX, target: ts.ScriptTarget.ES2022 };
+  const score = ts.transpileModule(
+    fs.readFileSync(new URL("../../frontend/web/lib/haunted-score.ts", import.meta.url), "utf8"),
+    { compilerOptions: options },
+  );
+  const scoreExports = {};
+  new Function("exports", "require", score.outputText)(scoreExports, () => ({}));
+  const component = ts.transpileModule(
+    fs.readFileSync(new URL("../../frontend/web/components/HalloweenEffects.tsx", import.meta.url), "utf8"),
+    { compilerOptions: options },
+  );
+
+  const started = [];
+  const node = () => ({
+    type: "sine",
+    frequency: { value: 0 },
+    detune: { value: 0 },
+    gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
+    threshold: { value: 0 },
+    ratio: { value: 0 },
+    Q: { value: 0 },
+    buffer: null,
+    loop: false,
+    connect() {
+      return this;
+    },
+    disconnect() {},
+    start(time) {
+      started.push({ hz: Math.round(this.frequency.value), time });
+    },
+    stop() {},
+  });
+  const context = {
+    currentTime: 0,
+    sampleRate: 48000,
+    destination: {},
+    createGain: node,
+    createOscillator: node,
+    createBufferSource: node,
+    createBiquadFilter: node,
+    createConvolver: node,
+    createDynamicsCompressor: node,
+    createBuffer: () => ({ getChannelData: () => new Float32Array(1024) }),
+  };
+
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const exports = {};
+  new Function("exports", "require", "document", component.outputText)(exports, (id) => {
+    if (id === "@/lib/haunted-score") return scoreExports;
+    return {};
+  }, { documentElement: { dataset: {} }, body: { style: {} } });
+  exports.startAmbience(context);
+  for (let step = 0; step < 300; step++) {
+    context.currentTime = step * 0.1;
+    t.mock.timers.tick(80);
+  }
+  t.mock.timers.reset();
+
+  // A broken queue replays the opening chord over and over; a working one
+  // walks through the melody, the bass line and the pad. The melody is the
+  // opening of "In the Hall of the Mountain King": B, C#, D, E, F#.
+  const pitches = new Set(started.map((note) => note.hz));
+  assert.ok(started.length > 40, `expected a busy score, got ${started.length} notes`);
+  for (const theme of [123, 139, 147, 165, 185]) {
+    assert.ok(pitches.has(theme), `expected the melody to reach ${theme} Hz`);
+  }
+});
+
 test("restart waits for a different API generation and tolerates reconnects", async () => {
   let calls = 0;
   await restart(async (url, options) => {

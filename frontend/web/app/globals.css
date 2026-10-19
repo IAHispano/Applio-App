@@ -242,6 +242,46 @@
 }
 
 /* Seasonal scenery stays at the edges and never intercepts app controls. */
+
+/* The distant landscape renders behind the interface so it can never cover
+   a card, a label or a control. It sits above the page background but below
+   the application chrome, which is raised to z-index 10 for that reason. */
+.haunt-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+
+/* Scene palette. A theme file overrides any of these through its "vars" map,
+   which is why the scene never hardcodes a colour of its own. */
+html[data-theme-effects="halloween"] {
+  --haunt-web: #d4b5de;
+  --haunt-web-faint: #b89ac9;
+  --haunt-spider: #21132c;
+  --haunt-spider-line: #9e658d;
+  --haunt-flame: #ffb654;
+  --haunt-moon: #cbb3dd;
+  --haunt-moon-glow: #a26add;
+  --haunt-bat: #100a1b;
+  --haunt-bat-rim: #bf8adc;
+  --haunt-pumpkin: #592515;
+  --haunt-pumpkin-line: #c66a31;
+  --haunt-stem: #8a8a5c;
+  --haunt-candle: #ff8a32;
+  --haunt-eye: #d4f19d;
+  --haunt-fog: rgb(161 139 186 / 0.14);
+  --haunt-fog-2: rgb(183 163 202 / 0.13);
+  --haunt-ember: #ffb454;
+  --haunt-ghost: #cbb9e6;
+  --haunt-star: #e8dcff;
+  --haunt-grave: #07040e;
+  --haunt-storm: #d9c6ff;
+  --haunt-glow: rgb(255 138 50 / 0.13);
+}
 .haunt-scene {
   position: fixed;
   inset: 0;
@@ -256,7 +296,7 @@
   top: 0;
   left: 0;
   width: clamp(120px, 17vw, 230px);
-  stroke: #d4b5de;
+  stroke: var(--haunt-web);
   stroke-width: 0.8;
   opacity: 0.22;
   mask-image: linear-gradient(135deg, #000 25%, transparent 77%);
@@ -266,6 +306,7 @@
   right: 0;
   transform: scaleX(-1);
   opacity: 0.17;
+  stroke: var(--haunt-web-faint);
 }
 .haunt-spider {
   position: absolute;
@@ -290,10 +331,10 @@
   height: 400px;
   left: 50%;
   bottom: 79%;
-  background: linear-gradient(transparent, #d4b5de88);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--haunt-web) 53%, transparent));
 }
 .haunt-legs {
-  stroke: #ab7d9f;
+  stroke: var(--haunt-spider-line);
   stroke-width: 2;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -301,16 +342,16 @@
   animation: haunt-legs 3.8s ease-in-out infinite;
 }
 .haunt-spider-eyes {
-  filter: drop-shadow(0 0 4px #ff9b42);
+  filter: drop-shadow(0 0 4px var(--haunt-flame));
 }
 .haunt-moon {
   position: absolute;
   right: 110px;
   top: 16px;
-  color: #b99dcc;
-  opacity: 0.13;
+  color: var(--haunt-moon);
+  opacity: 0.34;
   transform: rotate(-18deg);
-  filter: drop-shadow(0 0 19px #a26add);
+  filter: drop-shadow(0 0 19px var(--haunt-moon-glow));
 }
 .haunt-bats {
   position: absolute;
@@ -321,8 +362,8 @@
   top: 40px;
   left: -110px;
   width: 57px;
-  color: #100a1b;
-  filter: drop-shadow(0 0 1px #bf8adc88);
+  color: var(--haunt-bat);
+  filter: drop-shadow(0 0 1px color-mix(in srgb, var(--haunt-bat-rim) 53%, transparent));
   animation: haunt-flight 38s linear infinite;
 }
 .haunt-bat-1 {
@@ -354,7 +395,7 @@
   display: flex;
   align-items: flex-end;
   opacity: 0.85;
-  filter: drop-shadow(0 0 18px #ff74131c);
+  filter: drop-shadow(0 0 18px color-mix(in srgb, var(--haunt-candle) 11%, transparent));
 }
 .haunt-pumpkin {
   width: 79px;
@@ -367,7 +408,7 @@
 }
 .haunt-candle {
   animation: haunt-candle 5.7s ease-in-out infinite;
-  filter: drop-shadow(0 0 5px #ff8a32);
+  filter: drop-shadow(0 0 5px var(--haunt-candle));
 }
 .haunt-pumpkin-small .haunt-candle {
   animation-delay: -2s;
@@ -385,8 +426,8 @@
   width: 9px;
   height: 4px;
   border-radius: 70% 10%;
-  background: #d4f19d;
-  box-shadow: 0 0 8px #b1f66d88;
+  background: var(--haunt-eye);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--haunt-eye) 53%, transparent);
 }
 .haunt-eyes i + i {
   border-radius: 10% 70%;
@@ -399,8 +440,8 @@
   height: 170px;
   border-radius: 50%;
   background:
-    radial-gradient(ellipse at 25% 60%, #a18bba24, transparent 43%),
-    radial-gradient(ellipse at 72% 70%, #b7a3ca20, transparent 46%);
+    radial-gradient(ellipse at 25% 60%, var(--haunt-fog), transparent 43%),
+    radial-gradient(ellipse at 72% 70%, var(--haunt-fog-2), transparent 46%);
   filter: blur(20px);
   animation: haunt-fog 37s ease-in-out infinite alternate;
 }
@@ -423,8 +464,8 @@
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: #ffb454;
-  box-shadow: 0 0 5px #ff792b;
+  background: var(--haunt-ember);
+  box-shadow: 0 0 5px var(--haunt-ember);
   animation: haunt-ember calc(17s + var(--ember) * 1.3s) linear infinite;
   animation-delay: calc(var(--ember) * -3.7s);
 }
@@ -443,6 +484,85 @@
 }
 .haunt-controls .icon-btn {
   color: #e5b78e;
+}
+
+/* Warm candlelight breathing up from the floor of the scene. */
+.haunt-candlelight {
+  position: absolute;
+  inset: 0;
+  opacity: 0.6;
+  background: radial-gradient(ellipse at 50% 110%, var(--haunt-glow) 0%, transparent 64%);
+  animation: haunt-candlelight 11s ease-in-out infinite;
+}
+/* Distant storm. Two quick flashes per cycle, well under the 3-per-second
+   limit for flashing content. */
+.haunt-storm {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 64% 8%, var(--haunt-storm) 0%, transparent 56%);
+  opacity: 0;
+  animation: haunt-storm 29s linear infinite;
+}
+.haunt-stars {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 58%;
+}
+.haunt-stars i {
+  position: absolute;
+  top: calc(4% + var(--star) * 5.3%);
+  left: calc(2% + var(--star) * 5.6%);
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  opacity: 0.55;
+  background: var(--haunt-star);
+  box-shadow: 0 0 4px var(--haunt-star);
+  animation: haunt-twinkle calc(2.6s + var(--star) * 0.37s) ease-in-out infinite;
+  animation-delay: calc(var(--star) * -1.1s);
+}
+.haunt-ghost {
+  position: absolute;
+  top: 18%;
+  left: -90px;
+  width: 62px;
+  color: var(--haunt-ghost);
+  opacity: 0;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--haunt-ghost) 45%, transparent));
+  animation: haunt-ghost-drift 74s linear infinite;
+}
+.haunt-ghost svg {
+  display: block;
+  width: 100%;
+}
+/* Moonlit horizon: gives the graveyard silhouettes something to read against. */
+.haunt-horizon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: min(780px, 70vw);
+  height: 210px;
+  background: radial-gradient(
+    ellipse at 62% 100%,
+    color-mix(in srgb, var(--haunt-moon-glow) 26%, transparent) 0%,
+    transparent 68%
+  );
+}
+/* Graveyard horizon: a dark silhouette that grounds the bottom of the scene. */
+.haunt-graveyard {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: min(560px, 52vw);
+  color: var(--haunt-grave);
+  opacity: 0.92;
+  /* Fade the left edge so the hill never ends on a hard cliff. */
+  mask-image: linear-gradient(to right, transparent 0%, #000 22%);
+}
+.haunt-graveyard svg {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 html[data-theme-effects="halloween"] #main-content {
   background-image:
@@ -549,6 +669,67 @@ html[data-theme-effects="halloween"] .card:hover {
     transform: translate(35px, -48vh);
   }
 }
+@keyframes haunt-candlelight {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+@keyframes haunt-storm {
+  0%,
+  91%,
+  100% {
+    opacity: 0;
+  }
+  91.4% {
+    opacity: 0.2;
+  }
+  92% {
+    opacity: 0.03;
+  }
+  92.6% {
+    opacity: 0.24;
+  }
+  93.6%,
+  94% {
+    opacity: 0;
+  }
+}
+@keyframes haunt-twinkle {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+@keyframes haunt-ghost-drift {
+  0%,
+  6% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  14% {
+    opacity: 0.28;
+  }
+  40% {
+    opacity: 0.34;
+    transform: translate(48vw, -26px);
+  }
+  62% {
+    opacity: 0.22;
+    transform: translate(86vw, 14px);
+  }
+  74%,
+  100% {
+    opacity: 0;
+    transform: translate(104vw, -10px);
+  }
+}
 @media (max-width: 1023px) {
   .haunt-spider-left {
     left: 18px;
@@ -576,16 +757,30 @@ html[data-theme-effects="halloween"] .card:hover {
     bottom: -30px;
     opacity: 0.5;
   }
+  .haunt-graveyard {
+    width: 72vw;
+    opacity: 0.6;
+  }
+  .haunt-ghost {
+    width: 44px;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
   .haunt-scene *,
-  .haunt-scene *::before {
+  .haunt-scene *::before,
+  .haunt-backdrop *,
+  .haunt-backdrop *::before {
     animation: none !important;
   }
   .haunt-bats,
   .haunt-embers,
-  .haunt-eyes {
+  .haunt-eyes,
+  .haunt-storm,
+  .haunt-ghost {
     display: none;
+  }
+  .haunt-stars i {
+    opacity: 0.55;
   }
 }
 

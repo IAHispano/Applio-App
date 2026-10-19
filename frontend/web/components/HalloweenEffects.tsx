@@ -4,9 +4,11 @@ import { Moon, Volume2, VolumeX } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { type CSSProperties, useEffect, useRef, useState } from "react";
 import { IconButton } from "@/components/ui";
+import { buildMountainKingScore } from "@/lib/haunted-score";
 import { useI18n } from "@/lib/i18n";
 
 const EMBERS = Array.from({ length: 12 }, (_, offset) => ({ id: `ember-${offset}`, offset }));
+const STARS = Array.from({ length: 17 }, (_, offset) => ({ id: `star-${offset}`, offset }));
 
 function Cobweb({ mirror = false }: { mirror?: boolean }) {
   return (
@@ -36,10 +38,24 @@ function Spider({ className }: { className: string }) {
         <g className="haunt-legs">
           <path d="M42 44 23 26 8 34M40 49 17 43 3 55M40 55 18 62 9 78M44 60 32 76 29 88M58 44 77 26 92 34M60 49 83 43 97 55M60 55 82 62 91 78M56 60 68 76 71 88" />
         </g>
-        <ellipse cx="50" cy="39" rx="14" ry="20" fill="#21132c" stroke="#9e658d" />
-        <ellipse cx="50" cy="58" rx="11" ry="12" fill="#160c20" stroke="#9e658d" />
-        <path d="m44 31 6 9 6-9-6 4Z" fill="#dc7139" />
-        <g className="haunt-spider-eyes" fill="#ffb654">
+        <ellipse
+          cx="50"
+          cy="39"
+          rx="14"
+          ry="20"
+          fill="var(--haunt-spider)"
+          stroke="var(--haunt-spider-line)"
+        />
+        <ellipse
+          cx="50"
+          cy="58"
+          rx="11"
+          ry="12"
+          fill="var(--haunt-spider)"
+          stroke="var(--haunt-spider-line)"
+        />
+        <path d="m44 31 6 9 6-9-6 4Z" fill="var(--haunt-candle)" />
+        <g className="haunt-spider-eyes" fill="var(--haunt-flame)">
           <circle cx="46" cy="58" r="2.4" />
           <circle cx="54" cy="58" r="2.4" />
         </g>
@@ -56,46 +72,290 @@ function Pumpkin({ small = false }: { small?: boolean }) {
       viewBox="0 0 120 120"
       fill="none"
     >
-      <path d="m57 35 3-19 13-5-6 23" fill="#747647" stroke="#aaa265" strokeWidth="2" />
+      <path d="m57 35 3-19 13-5-6 23" fill="var(--haunt-stem)" stroke="var(--haunt-stem)" strokeWidth="2" />
       <path
         d="M60 34C29 17 6 47 13 79c6 27 26 33 47 26 22 8 44 0 49-28 6-31-18-59-49-43Z"
-        fill="#592515"
-        stroke="#c66a31"
+        fill="var(--haunt-pumpkin)"
+        stroke="var(--haunt-pumpkin-line)"
         strokeWidth="2"
       />
       <path
         d="M42 34C19 57 27 91 40 105M78 34c22 24 14 58 1 71M60 35v68"
-        stroke="#d67b38"
-        strokeOpacity=".3"
+        stroke="var(--haunt-pumpkin-line)"
+        strokeOpacity=".35"
         strokeWidth="2"
       />
-      <g className="haunt-candle" fill="#ffc35d" stroke="#ff9b42" strokeWidth="1.5">
+      <g className="haunt-candle" fill="var(--haunt-flame)" stroke="var(--haunt-candle)" strokeWidth="1.5">
         <path d="m31 53 20 14-23 1ZM88 53 68 67l24 1ZM60 67l-6 12h12ZM30 81l14 5 6-5 8 9 9-8 7 5 15-7c-6 22-46 25-59 1Z" />
       </g>
     </svg>
   );
 }
 
-// A periodic drone and music-box melody share one buffer. Integer-cycle drone
-// frequencies and silent note envelopes keep the loop boundary click-free.
-export function createHauntedLoop(context: AudioContext): AudioBuffer {
-  const seconds = 24;
-  const rate = 22050;
-  const buffer = context.createBuffer(1, seconds * rate, rate);
-  const samples = buffer.getChannelData(0);
-  const melody = [57, 60, 63, 62, 55, 58, 61, 60];
-  for (let index = 0; index < samples.length; index++) {
-    const time = index / rate;
-    const phase = 2 * Math.PI * time;
-    const beat = time % 3;
-    const note = 440 * 2 ** ((melody[Math.floor(time / 3)] - 69) / 12);
-    const envelope = Math.min(1, beat / 0.03) * Math.exp(-beat * 2.2) * Math.min(1, (3 - beat) / 0.1);
-    const bell = (Math.sin(phase * note) + 0.24 * Math.sin(phase * note * 2.01)) * envelope;
-    const breath = 0.7 + 0.3 * Math.sin(phase / 8);
-    samples[index] =
-      0.04 * Math.sin(phase * 55) * breath + 0.018 * Math.sin(phase * (1321 / 24)) + 0.055 * bell;
+function Ghost() {
+  // Built from primitives instead of one hand-written path: a semicircular
+  // dome plus three overlapping circles whose union is the scalloped hem.
+  // Group opacity (not fill-opacity) keeps the union from compounding where
+  // the circles overlap, so the silhouette stays clean.
+  return (
+    <div className="haunt-ghost">
+      <svg aria-hidden="true" viewBox="0 0 96 120" fill="none">
+        <g fill="currentColor" opacity=".26">
+          <path d="M18 84V56a30 30 0 0 1 60 0v28Z" />
+          <circle cx="28" cy="84" r="10" />
+          <circle cx="48" cy="84" r="10" />
+          <circle cx="68" cy="84" r="10" />
+        </g>
+        <ellipse cx="38" cy="52" rx="4.2" ry="5.6" fill="currentColor" fillOpacity=".7" />
+        <ellipse cx="58" cy="52" rx="4.2" ry="5.6" fill="currentColor" fillOpacity=".7" />
+        <path
+          d="M39 66q9 7 18 0"
+          stroke="currentColor"
+          strokeOpacity=".5"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+}
+
+function Graveyard() {
+  // A layered silhouette: a rolling hill, a bare tree set back from the
+  // screen edge, stones of mixed shapes sunk into the ground, and grass
+  // tufts that blend the stones into the hill.
+  return (
+    <div className="haunt-graveyard">
+      <svg aria-hidden="true" viewBox="0 0 560 170" fill="currentColor">
+        <path d="M0 170v-40c80-18 160 8 250-6 90-14 170 16 250 2 30-5 50-2 60-6v50Z" />
+        <g stroke="currentColor" strokeWidth="4" strokeLinecap="round" fill="none">
+          <path d="M150 142V70" />
+          <path d="M150 98 124 68" />
+          <path d="M150 84 178 54" />
+          <path d="M124 68 112 42" />
+          <path d="M178 54 190 34" />
+          <path d="M150 116 134 98" />
+        </g>
+        <path d="M236 140v-32a21 21 0 0 1 42 0v32Z" />
+        <path d="M306 142V86h10V74h10v12h10v56Z" />
+        <path d="M345 142V92l14-18 14 18v50Z" />
+        <path d="M400 144l-7-42 26-6 9 46Z" />
+        <path d="M450 146v-22a14 14 0 0 1 28 0v22Z" />
+        <path d="M282 146l5-14 5 14ZM330 148l4-11 5 11ZM378 146l6-15 5 15ZM436 150l4-12 5 12ZM492 150l5-13 4 13Z" />
+      </svg>
+    </div>
+  );
+}
+
+// The theme plays Grieg's "In the Hall of the Mountain King" as a music box
+// over the bass line; the score lives in lib/haunted-score as plain note data.
+const AMBIENCE_SCORE = buildMountainKingScore();
+
+function midiToHz(midi: number): number {
+  return 440 * 2 ** ((midi - 69) / 12);
+}
+
+// A decaying noise burst is a serviceable cathedral impulse response.
+function createImpulse(context: AudioContext, seconds: number): AudioBuffer {
+  const length = Math.floor(context.sampleRate * seconds);
+  const impulse = context.createBuffer(2, length, context.sampleRate);
+  for (let channel = 0; channel < 2; channel++) {
+    const data = impulse.getChannelData(channel);
+    for (let index = 0; index < length; index++) {
+      data[index] = (Math.random() * 2 - 1) * (1 - index / length) ** 2.6;
+    }
   }
-  return buffer;
+  return impulse;
+}
+
+// Music box voice: an inharmonic partial stack under a fast-decaying body.
+function playBell(
+  context: AudioContext,
+  out: AudioNode,
+  midi: number,
+  time: number,
+  level: number,
+  duration: number,
+) {
+  const frequency = midiToHz(midi);
+  const decay = Math.min(1.2, Math.max(0.22, duration * 0.8));
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0, time);
+  envelope.gain.linearRampToValueAtTime(level, time + 0.006);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+  envelope.connect(out);
+  const partials = [
+    [1, 1, decay],
+    [2.76, 0.26, decay * 0.42],
+    [5.4, 0.09, decay * 0.2],
+  ];
+  for (const [ratio, weight, partialDecay] of partials) {
+    const osc = context.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = frequency * ratio;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(weight, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + partialDecay);
+    osc.connect(gain).connect(envelope);
+    osc.start(time);
+    osc.stop(time + partialDecay + 0.05);
+  }
+}
+
+// Organ bed: a detuned saw pair through a low pass, with a slow swell.
+function playPad(
+  context: AudioContext,
+  out: AudioNode,
+  midi: number,
+  time: number,
+  duration: number,
+  level: number,
+) {
+  const filter = context.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 820;
+  filter.Q.value = 0.6;
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0.0001, time);
+  envelope.gain.linearRampToValueAtTime(level, time + 1.6);
+  envelope.gain.setValueAtTime(level, time + Math.max(1.7, duration - 2));
+  envelope.gain.linearRampToValueAtTime(0.0001, time + duration);
+  filter.connect(envelope).connect(out);
+  for (const detune of [-8, 8]) {
+    const osc = context.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = midiToHz(midi);
+    osc.detune.value = detune;
+    osc.connect(filter);
+    osc.start(time);
+    osc.stop(time + duration + 0.1);
+  }
+}
+
+function playBass(
+  context: AudioContext,
+  out: AudioNode,
+  midi: number,
+  time: number,
+  duration: number,
+  level: number,
+) {
+  const osc = context.createOscillator();
+  osc.type = "triangle";
+  osc.frequency.value = midiToHz(midi);
+  const attack = Math.min(0.5, duration * 0.35);
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0.0001, time);
+  envelope.gain.linearRampToValueAtTime(level, time + attack);
+  envelope.gain.setValueAtTime(level, time + Math.max(attack + 0.05, duration * 0.55));
+  envelope.gain.linearRampToValueAtTime(0.0001, time + duration);
+  osc.connect(envelope).connect(out);
+  osc.start(time);
+  osc.stop(time + duration + 0.1);
+}
+
+// Distant wind: filtered noise with a slow gust.
+function playWind(context: AudioContext, out: AudioNode) {
+  const length = Math.floor(context.sampleRate * 4);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let index = 0; index < length; index++) data[index] = Math.random() * 2 - 1;
+  const source = context.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+  const filter = context.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 380;
+  const gain = context.createGain();
+  gain.gain.value = 0.075;
+  const gust = context.createOscillator();
+  gust.frequency.value = 0.07;
+  const gustDepth = context.createGain();
+  gustDepth.gain.value = 0.028;
+  gust.connect(gustDepth).connect(gain.gain);
+  source.connect(filter).connect(gain).connect(out);
+  source.start();
+  gust.start();
+}
+
+// Builds the whole ambience graph and returns a stop function.
+export function startAmbience(context: AudioContext): () => void {
+  const master = context.createGain();
+  master.gain.value = 0.9;
+  const compressor = context.createDynamicsCompressor();
+  compressor.threshold.value = -12;
+  compressor.ratio.value = 3;
+  master.connect(compressor).connect(context.destination);
+
+  const reverb = context.createConvolver();
+  reverb.buffer = createImpulse(context, 3.4);
+  const wet = context.createGain();
+  wet.gain.value = 0.6;
+  const dry = context.createGain();
+  dry.gain.value = 0.55;
+  reverb.connect(wet).connect(master);
+  dry.connect(master);
+
+  const bus = (level: number) => {
+    const gain = context.createGain();
+    gain.gain.value = level;
+    gain.connect(dry);
+    gain.connect(reverb);
+    return gain;
+  };
+  const bellBus = bus(1);
+  const padBus = bus(0.9);
+  const bassBus = bus(0.8);
+  const windBus = bus(1);
+
+  playWind(context, windBus);
+
+  // Lookahead scheduler: notes are queued slightly ahead of the clock and
+  // the score repeats for as long as the ambience stays on.
+  const score = AMBIENCE_SCORE;
+  const loopSeconds = score.reduce((longest, note) => Math.max(longest, note.time + note.duration), 0);
+  let index = 0;
+  let cycleStart = context.currentTime + 0.3;
+  // Absolute clock time of the next note, which is what the queue compares
+  // against; the cycle start alone drifts into the past as the loop runs.
+  let nextAt = cycleStart;
+  const timer = setInterval(() => {
+    if (nextAt < context.currentTime - 1) {
+      // The clock ran ahead of the score (a frozen tab): restart the loop.
+      index = 0;
+      cycleStart = context.currentTime + 0.2;
+      nextAt = cycleStart;
+    }
+    const horizon = context.currentTime + 0.4;
+    while (index < score.length && nextAt <= horizon) {
+      const note = score[index++];
+      const when = nextAt;
+      if (note.voice === "bell") {
+        playBell(context, bellBus, note.pitch, when, note.level, note.duration);
+      } else if (note.voice === "pad") {
+        playPad(context, padBus, note.pitch, when, note.duration, note.level);
+      } else {
+        playBass(context, bassBus, note.pitch, when, note.duration, note.level);
+      }
+      nextAt = cycleStart + (index < score.length ? score[index].time : loopSeconds);
+    }
+    if (index >= score.length) {
+      index = 0;
+      cycleStart += loopSeconds;
+      nextAt = cycleStart + (score[0]?.time ?? 0);
+    }
+  }, 80);
+
+  return () => {
+    clearInterval(timer);
+    for (const node of [bellBus, padBus, bassBus, windBus, dry, wet, reverb, master, compressor]) {
+      try {
+        node.disconnect();
+      } catch {
+        /* Already disconnected. */
+      }
+    }
+  };
 }
 
 export function useHauntedSound(enabled: boolean, quiet: boolean) {
@@ -114,13 +374,7 @@ export function useHauntedSound(enabled: boolean, quiet: boolean) {
   useEffect(() => {
     const context = audio.current;
     if (!enabled || quiet || !context) return;
-    const source = context.createBufferSource();
-    const gain = context.createGain();
-    source.buffer = createHauntedLoop(context);
-    source.loop = true;
-    gain.gain.value = 0.45;
-    source.connect(gain).connect(context.destination);
-    source.start();
+    const stop = startAmbience(context);
     let disposed = false;
     const update = () => {
       if (disposed) return;
@@ -136,9 +390,7 @@ export function useHauntedSound(enabled: boolean, quiet: boolean) {
       document.addEventListener(event, update, true);
     return () => {
       disposed = true;
-      source.stop();
-      source.disconnect();
-      gain.disconnect();
+      stop();
       if (audio.current === context) audio.current = null;
       void context.close().catch(() => {});
       document.removeEventListener("visibilitychange", update);
@@ -168,7 +420,19 @@ function HauntedScene() {
 
   return (
     <>
+      {/* The landscape is a true background: it renders behind the interface
+          so it can never cover a card, a label or a control. */}
+      <div className="haunt-backdrop" aria-hidden="true">
+        <div className="haunt-horizon" />
+        <Graveyard />
+      </div>
+      {/* Everything else is translucent, so it can stay in front. */}
       <div className="haunt-scene" aria-hidden="true">
+        <div className="haunt-stars">
+          {STARS.map((star) => (
+            <i key={star.id} style={{ "--star": star.offset } as CSSProperties} />
+          ))}
+        </div>
         <div className="haunt-moon">
           <Moon size={72} strokeWidth={0.6} />
         </div>
@@ -192,10 +456,11 @@ function HauntedScene() {
                 <path d="M51 27C68 4 84 20 98 4c0 20-10 26-19 30-2-9-13-7-15 2-5-6-9-3-13-1Z" />
               </g>
               <path d="m45 16 5 5 5-5 3 17-8 12-8-12Z" />
-              <path d="M47 28h2m2 0h2" stroke="#ffb654" strokeWidth="2" />
+              <path d="M47 28h2m2 0h2" stroke="var(--haunt-flame)" strokeWidth="2" />
             </svg>
           ))}
         </div>
+        <Ghost />
         <div className="haunt-eyes">
           <i />
           <i />
@@ -211,6 +476,8 @@ function HauntedScene() {
             <i key={ember.id} style={{ "--ember": ember.offset } as CSSProperties} />
           ))}
         </div>
+        <div className="haunt-candlelight" />
+        <div className="haunt-storm" />
       </div>
       <div className="haunt-controls">
         <IconButton

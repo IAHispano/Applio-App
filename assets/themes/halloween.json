@@ -1,6 +1,6 @@
 {
   "name": "Halloween",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "effects": "halloween",
   "description": "Pumpkin orange and midnight purple, with a warm candlelit glow.",
   "mode": "dark",
@@ -46,6 +46,30 @@
     "dangerBgHover": "rgba(239, 68, 68, 0.22)",
     "dangerBorderHover": "rgba(239, 68, 68, 0.5)",
     "dangerTextHover": "#ffffff"
+  },
+  "vars": {
+    "--haunt-web": "#d4b5de",
+    "--haunt-web-faint": "#b89ac9",
+    "--haunt-spider": "#21132c",
+    "--haunt-spider-line": "#9e658d",
+    "--haunt-flame": "#ffb654",
+    "--haunt-moon": "#cbb3dd",
+    "--haunt-moon-glow": "#a26add",
+    "--haunt-bat": "#100a1b",
+    "--haunt-bat-rim": "#bf8adc",
+    "--haunt-pumpkin": "#592515",
+    "--haunt-pumpkin-line": "#c66a31",
+    "--haunt-stem": "#8a8a5c",
+    "--haunt-candle": "#ff8a32",
+    "--haunt-eye": "#d4f19d",
+    "--haunt-fog": "rgb(161 139 186 / 0.14)",
+    "--haunt-fog-2": "rgb(183 163 202 / 0.13)",
+    "--haunt-ember": "#ffb454",
+    "--haunt-ghost": "#cbb9e6",
+    "--haunt-star": "#e8dcff",
+    "--haunt-grave": "#07040e",
+    "--haunt-storm": "#d9c6ff",
+    "--haunt-glow": "rgb(255 138 50 / 0.13)"
   },
   "radius": {
     "card": "12px",

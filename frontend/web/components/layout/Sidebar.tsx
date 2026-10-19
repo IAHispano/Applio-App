@@ -179,7 +179,7 @@ export default function Sidebar() {
   const { t } = useI18n();
   return (
     <aside
-      className="hidden lg:flex flex-col w-[248px] shrink-0 bg-[var(--panel)] border border-[var(--border)] text-[var(--text)] p-3 ml-3 mr-0 my-4 rounded-xl select-none min-h-0 transition-colors duration-200"
+      className="hidden lg:flex flex-col w-[248px] shrink-0 bg-[var(--panel)] border border-[var(--border)] text-[var(--text)] p-3 ml-3 mr-0 my-4 rounded-xl select-none min-h-0 transition-colors duration-200 relative z-10"
       aria-label={t("Sidebar Navigation")}
     >
       <SidebarNavContent />

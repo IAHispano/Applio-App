@@ -146,6 +146,15 @@ const THEME_PRESETS: ThemePreset[] = [
     accent: "#ef4444",
     border: "#3d171d",
   },
+  {
+    id: "halloween.json",
+    name: "Halloween",
+    subtitle: "Pumpkin & Midnight",
+    bg: "#0c0811",
+    surface: "#24172f",
+    accent: "#ff9b42",
+    border: "#4b355b",
+  },
 ];
 
 const SETTINGS_SECTIONS = [

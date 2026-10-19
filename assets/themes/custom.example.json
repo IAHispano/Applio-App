@@ -1,7 +1,7 @@
 {
   "name": "Custom",
   "version": "1.0.0",
-  "description": "Example theme. Copy to <your-name>.json, edit, pick it in Settings → Appearance. Full guide: docs/themes.md.",
+  "description": "Example theme. Copy to <your-name>.json, edit, pick it in Settings → Appearance. \"vars\" sets any CSS custom property.",
   "mode": "dark",
   "colors": {
     "primary": "#ffffff",
@@ -71,6 +71,9 @@
     "input": "8px",
     "button": "10px",
     "pill": "999px"
+  },
+  "vars": {
+    "--space-section": "20px"
   },
   "titlebar": {
     "bg": "#0c0c0c",

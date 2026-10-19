@@ -8,8 +8,11 @@ export interface ThemeFile {
   version?: string;
   description?: string;
   mode?: string;
-  effects?: "halloween";
+  effects?: string;
   colors?: Record<string, string>;
+  // Arbitrary CSS custom properties. Escape hatch for anything the fixed
+  // color/radius/shadow tables below do not cover (e.g. seasonal scene tokens).
+  vars?: Record<string, string>;
   fonts?: { display?: string[]; body?: string[]; mono?: string[] };
   radius?: Record<string, string>;
   shadows?: Record<string, string>;
@@ -74,6 +77,12 @@ const SHADOW_TO_VAR: Record<string, string> = {
   button: "--shadow-button",
 };
 
+// A theme file may set any CSS custom property. Applied names are tracked so
+// switching themes clears the previous theme's values instead of leaking them.
+const appliedVars = new Set<string>();
+const CSS_VAR_NAME = /^--[a-z0-9][a-z0-9-]*$/i;
+const EFFECT_NAME = /^[a-z][a-z0-9-]*$/i;
+
 // Families prefixed with "google:" are loaded from Google Fonts on demand
 // (Gradio GoogleFont parity). Everything else is used as a system stack.
 function fontStack(families: string[] | undefined): { css: string; google: string[] } {
@@ -110,8 +119,15 @@ export function fontCss(families: string[] | undefined): string {
 
 export function applyTheme(theme: ThemeFile, file?: string): void {
   const root = document.documentElement;
+  // A theme may declare any effect scene; unknown names simply render nothing.
   // Existing writable theme files can predate the effects marker in the bundle.
-  root.dataset.themeEffects = theme.effects === "halloween" || file === "halloween.json" ? "halloween" : "";
+  const effect =
+    typeof theme.effects === "string" && EFFECT_NAME.test(theme.effects)
+      ? theme.effects
+      : file === "halloween.json"
+        ? "halloween"
+        : "";
+  root.dataset.themeEffects = effect;
 
   // Clear all previously applied theme CSS variables so switching cleanly resets
   for (const v of Object.values(COLOR_TO_VAR)) {
@@ -123,6 +139,10 @@ export function applyTheme(theme: ThemeFile, file?: string): void {
   for (const v of Object.values(SHADOW_TO_VAR)) {
     root.style.removeProperty(v);
   }
+  for (const name of appliedVars) {
+    root.style.removeProperty(name);
+  }
+  appliedVars.clear();
   root.style.removeProperty("--titlebar-bg");
   root.style.removeProperty("--titlebar-close-bg");
   root.style.removeProperty("--titlebar-close-text");
@@ -136,6 +156,11 @@ export function applyTheme(theme: ThemeFile, file?: string): void {
   for (const [key, value] of Object.entries(theme.colors || {})) {
     const v = COLOR_TO_VAR[key];
     if (v && typeof value === "string") root.style.setProperty(v, value);
+  }
+  for (const [name, value] of Object.entries(theme.vars || {})) {
+    if (!CSS_VAR_NAME.test(name) || typeof value !== "string") continue;
+    root.style.setProperty(name, value);
+    appliedVars.add(name);
   }
   if (theme.mode) {
     root.dataset.themeMode = theme.mode;
