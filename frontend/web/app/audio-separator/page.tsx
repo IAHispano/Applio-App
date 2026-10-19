@@ -432,7 +432,7 @@ export default function UvrPage() {
               onRefreshAudios={refreshSampleAudios}
               youtube
             />
-            <div className="space-y-4 border-t border-[var(--border)] pt-5">
+            <div className="space-y-4 pt-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-2">
                   <label htmlFor="uvr-model">{t("Separation model")}</label>
@@ -853,7 +853,7 @@ export default function UvrPage() {
                   )}
               </div>
             </Disclosure>
-            <div className="space-y-3 border-t border-[var(--border)] pt-4">
+            <div className="space-y-3 pt-4">
               {error && (
                 <Alert variant="error" onDismiss={() => setError("")}>
                   {error}

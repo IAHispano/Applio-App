@@ -149,6 +149,10 @@ export function applyTheme(theme: ThemeFile, file?: string): void {
     root.style.setProperty("--font-sans", body.css);
     document.body.style.fontFamily = body.css;
   }
+  // Code, logs and identifiers use their own face so they stay monospaced.
+  const mono = fontStack(fonts.mono);
+  for (const f of mono.google) ensureGoogleFont(f);
+  if (mono.css) root.style.setProperty("--font-mono", mono.css);
   for (const [key, value] of Object.entries(theme.radius || {})) {
     const v = RADIUS_TO_VAR[key];
     if (v && typeof value === "string") root.style.setProperty(v, value);

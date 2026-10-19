@@ -66,7 +66,7 @@
   line-height: 1.8;
   overflow: auto;
   max-height: 460px;
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   tab-size: 4;
 }
 .api-endpoints {
@@ -91,7 +91,7 @@
   min-width: 0;
 }
 .api-endpoints code {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 11px;
   overflow-wrap: anywhere;
 }
@@ -106,9 +106,7 @@
   background: color-mix(in srgb, var(--ok) 12%, transparent);
   color: var(--ok);
   text-align: center;
-  font:
-    600 9px ui-monospace,
-    monospace;
+  font: 600 9px var(--font-mono);
 }
 .api-method-post {
   background: var(--accent-soft);
@@ -251,6 +249,13 @@
   user-select: none;
   contain: strict;
 }
+/* The sidebar carries navigation text, so the scenery starts after it
+   (248px panel + 12px margin) instead of covering its footer links. */
+@media (min-width: 1024px) {
+  .haunt-scene {
+    left: 260px;
+  }
+}
 .haunt-web {
   position: absolute;
   top: 0;
@@ -353,16 +358,17 @@
   left: 13px;
   display: flex;
   align-items: flex-end;
-  opacity: 0.85;
+  /* Faint enough that the text underneath stays readable. */
+  opacity: 0.35;
   filter: drop-shadow(0 0 18px #ff74131c);
 }
 .haunt-pumpkin {
-  width: 79px;
+  width: 62px;
   transform: rotate(-8deg);
 }
 .haunt-pumpkin-small {
-  width: 48px;
-  margin-left: -13px;
+  width: 38px;
+  margin-left: -10px;
   transform: rotate(12deg);
 }
 .haunt-candle {
@@ -620,7 +626,7 @@ html[data-theme-effects="halloween"] .card:hover {
   border-top: 1px solid var(--border);
 }
 .bridge-match-code {
-  font-family: ui-monospace, monospace;
+  font-family: var(--font-mono);
   font-size: 17px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -787,7 +793,9 @@ html[data-applio-desktop="true"] nextjs-portal {
   --danger-text-hover: #ffffff;
   --font-sans: var(--font-syne), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-display: var(--font-sans);
-  --font-mono: var(--font-sans);
+  /* Code, logs and identifiers need a real monospace face; a display sans
+     makes JSON, stack traces and shell snippets hard to scan. */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
   --radius-card: 12px;
   --radius-input: 8px;
   --radius-button: 10px;
@@ -877,7 +885,7 @@ pre,
 code,
 kbd,
 samp {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
 }
 
 /* Shared legible sizing for settings, help, navigation and status captions. */
@@ -914,55 +922,6 @@ samp {
   font-weight: 600;
   line-height: 1.5;
   color: var(--text);
-}
-
-/* Use spacing and surface contrast to separate sections instead of divider rules. */
-.border-b {
-  border-bottom-width: 0 !important;
-}
-.border-t {
-  border-top-width: 0 !important;
-}
-.border-l {
-  border-left-width: 0 !important;
-}
-.border-r {
-  border-right-width: 0 !important;
-}
-.divide-y > * {
-  border-block-width: 0 !important;
-}
-.divide-x > * {
-  border-inline-width: 0 !important;
-}
-hr {
-  display: none;
-}
-
-/* Accessibility: Screen Reader Only utility */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border-width: 0;
-}
-
-/* Accessibility: Skip link focus visible */
-.focus\:not-sr-only:focus,
-.not-sr-only {
-  position: static;
-  width: auto;
-  height: auto;
-  padding: inherit;
-  margin: inherit;
-  overflow: visible;
-  clip: auto;
-  white-space: normal;
 }
 
 /* Accessibility: Respect Reduced Motion Preferences */

@@ -202,8 +202,11 @@ export default function ModelsPage() {
       const a = document.createElement("a");
       a.href = url;
       a.download = fileName;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      a.remove();
+      // Revoking in the same tick cancels the download in Firefox and Safari.
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) {
       setError(errMsg(e));
     }
@@ -356,11 +359,7 @@ export default function ModelsPage() {
               </Button>
 
               {selectedCount > 0 && (
-                <span
-                  className="flex items-center gap-2 pl-2 ml-1 border-l border-white/10"
-                  role="status"
-                  aria-live="polite"
-                >
+                <span className="flex items-center gap-2 pl-2 ml-1" role="status" aria-live="polite">
                   <span className="text-xs text-neutral-200 font-medium tabular-nums whitespace-nowrap">
                     {selectedCount} {t("selected")}
                   </span>

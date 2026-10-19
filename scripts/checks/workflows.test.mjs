@@ -106,8 +106,23 @@ test("the Halloween ambience plays the whole score instead of one repeated note"
   }
 });
 
-test("restart waits for a different API generation and tolerates reconnects", async () => {
-  let calls = 0;
+// The API answers validation failures with a structured body; the client must
+// flatten it into a readable message instead of "[object Object]".
+function apiClient(fetch) {
+  const source = fs.readFileSync(new URL("../../frontend/web/lib/api.ts", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
+  const exports = {};
+  new Function("exports", "require", "fetch", "setTimeout", "URL", outputText)(
+    exports,
+    () => ({}),
+    fetch,
+    setTimeout,
+    URL,
+  );
+  return exports;
+}
+
+test("restart waits for a different API generation and tolerates reconnects", async () => {  let calls = 0;
   await restart(async (url, options) => {
     calls++;
     if (calls === 1) {
@@ -126,6 +141,7 @@ test("restart waits for a different API generation and tolerates reconnects", as
 
 test("restart surfaces rejected requests and never reports the old generation as success", async () => {
   await assert.rejects(restart(async () => json({ error: "Restart denied" }, false))(), /Restart denied/);
+
   let time = 0;
   await assert.rejects(
     restart(
@@ -137,6 +153,33 @@ test("restart surfaces rejected requests and never reports the old generation as
     )(),
     /timed out/,
   );
+});
+
+test("API validation errors keep their per-field messages", async () => {
+  const body = {
+    error: "Invalid params",
+    details: {
+      formErrors: [],
+      fieldErrors: {
+        indexRate: ["Number must be less than or equal to 1"],
+        pitch: ["Expected number"],
+        pthPath: ["Required"],
+      },
+    },
+  };
+  const { apiSend, errMsg } = apiClient(async () => ({
+    ok: false,
+    status: 400,
+    json: async () => body,
+  }));
+  await assert.rejects(apiSend("/api/inference", "POST", {}), (error) => {
+    const message = errMsg(error);
+    assert.ok(!message.includes("[object Object]"), `message was not flattened: ${message}`);
+    assert.match(message, /indexRate: Number must be less than or equal to 1/);
+    assert.match(message, /pitch: Expected number/);
+    assert.match(message, /pthPath: Required/);
+    return true;
+  });
 });
 
 test("desktop quit is permitted and returns native invocation failures to Settings", async () => {

@@ -203,7 +203,9 @@ export default function BatchForm() {
       typeof (window as unknown as { applio?: { chooseFolder?: unknown } }).applio?.chooseFolder ===
         "function",
     );
-    const onFocus = () => loadAvailableModels(true);
+    // Alt-tabbing back refreshes the cached list; forcing a refetch here would
+    // re-download and re-parse every model on each focus change.
+    const onFocus = () => loadAvailableModels(false);
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [loadAvailableModels]);

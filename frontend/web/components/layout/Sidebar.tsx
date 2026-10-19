@@ -140,7 +140,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       </nav>
       {!remote && <HalloweenThemePrompt />}
       <div className="shrink-0 mt-2 px-3 flex flex-col">
-        <div className="flex items-center gap-4 border-t border-[var(--border)] pt-2">
+        <div className="flex items-center gap-4 pt-2">
           <a
             href={WEBSITE_URL}
             target="_blank"

@@ -183,6 +183,11 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
   const calibrationControllerRef = useRef<AbortController | null>(null);
   const calibrationMeterRef = useRef(new CalibrationMeter());
   const calibrationCountersRef = useRef({ droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 });
+  // Preset values waiting for the debounce window to close.
+  const pendingPresetRef = useRef<{
+    model: string;
+    values: Record<string, string | number | boolean>;
+  } | null>(null);
   const [inputLevel, setInputLevel] = useState<{ rms: number | null; at: number }>({ rms: null, at: 0 });
   const [msg, setMsg] = useState("");
   const [recOn, setRecOn] = useState(false);
@@ -1183,13 +1188,27 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
   useEffect(() => {
     if (!model || !settingsLoadedRef.current || !modelPresets.loaded) return;
     const values = realtimePreset(JSON.parse(settingsKey));
-    const timer = setTimeout(() => saveModelPreset("realtime", model, values), 500);
-    return () => {
-      clearTimeout(timer);
+    pendingPresetRef.current = { model, values };
+    const timer = setTimeout(() => {
+      pendingPresetRef.current = null;
       saveModelPreset("realtime", model, values);
-    };
+    }, 500);
+    // Only the timer is cleared here. Saving on every cleanup would defeat the
+    // debounce and write the preset file on each slider tick.
+    return () => clearTimeout(timer);
     // Snapshot includes every model parameter; global changes are deduplicated below.
   }, [model, settingsKey, modelPresets.loaded]);
+
+  // Switching model or unmounting must not lose the last pending preset.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the cleanup must run when the model changes
+  useEffect(() => {
+    return () => {
+      const pending = pendingPresetRef.current;
+      if (!pending) return;
+      pendingPresetRef.current = null;
+      saveModelPreset("realtime", pending.model, pending.values);
+    };
+  }, [model]);
 
   useEffect(() => {
     if (!settingsLoadedRef.current) return;

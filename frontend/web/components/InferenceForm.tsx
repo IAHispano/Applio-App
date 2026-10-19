@@ -107,7 +107,6 @@ export default function InferenceForm() {
   }, [speakers, sid, setSid]);
 
   // Load models, indexes and sample audios
-  // biome-ignore lint/correctness/useExhaustiveDependencies: initial model load uses latest state
   const loadAvailableModels = useCallback(
     (force = true) => {
       fetchModels(force)
@@ -115,15 +114,19 @@ export default function InferenceForm() {
           setModels(m.models);
           setIndexes(m.indexes);
           setSampleAudios(m.audios);
-          if (m.models.length > 0 && !pthPath) {
-            handleModelSelect(m.models[0], m.indexes);
-          }
           setLoadError("");
         })
         .catch((e) => setLoadError(errMsg(e)));
     },
-    [pthPath],
+    [setSampleAudios, setIndexes, setModels],
   );
+
+  // Preselect the first model when nothing is chosen yet. Kept out of
+  // loadAvailableModels so the fetch is not restarted on every model change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: select once per model list
+  useEffect(() => {
+    if (models.length > 0 && !pthPath) handleModelSelect(models[0], indexes);
+  }, [models, indexes, pthPath]);
 
   // Initial model fetch & refresh on window focus
   useEffect(() => {

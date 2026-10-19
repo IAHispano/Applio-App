@@ -26,7 +26,7 @@ import CustomSelect from "@/components/ui/CustomSelect";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
-import { apiGet, errMsg, submitJob } from "@/lib/api";
+import { apiGet, apiSend, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
@@ -393,11 +393,9 @@ export default function TrainPage() {
 
   async function stop() {
     try {
-      await fetch("/api/train/stop", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ jobId: jobId || undefined, modelName }),
-      });
+      // fetch() does not reject on 4xx/5xx, so a plain fetch would report
+      // success even when the API refused to stop the run.
+      await apiSend("/api/train/stop", "POST", { jobId: jobId || undefined, modelName });
       toast(t("Training stopped."));
     } catch (e) {
       setError(errMsg(e));

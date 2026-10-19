@@ -825,7 +825,13 @@ function areAudioDropzonePropsEqual(prev: AudioDropzoneProps, next: AudioDropzon
   if (prev.inputPath !== next.inputPath) return false;
   if (prev.disabled !== next.disabled) return false;
   if (prev.youtube !== next.youtube) return false;
-  if (prev.sampleAudios.length !== next.sampleAudios.length) return false;
+  // Compare the entries, not just the count: a refreshed list can swap one
+  // sample for another without changing its length.
+  if (
+    prev.sampleAudios.length !== next.sampleAudios.length ||
+    prev.sampleAudios.some((audio, index) => audio !== next.sampleAudios[index])
+  )
+    return false;
   if (prev.onFileSelect !== next.onFileSelect) return false;
   if (prev.onPathSelect !== next.onPathSelect) return false;
   if (prev.onRefreshAudios !== next.onRefreshAudios) return false;

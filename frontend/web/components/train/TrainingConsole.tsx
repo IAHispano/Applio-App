@@ -86,13 +86,16 @@ export default function TrainingConsole({
     if (s > 0) setElapsedSeconds(s);
   }, [job?.id]);
 
+  const jobStatus = job?.status;
   useEffect(() => {
-    if (!job || (job.status !== "running" && job.status !== "queued")) return;
+    if (jobStatus !== "running" && jobStatus !== "queued") return;
     const interval = setInterval(() => {
       setElapsedSeconds((s) => s + 1);
     }, 1000);
     return () => clearInterval(interval);
-  }, [job?.status, job]);
+    // Only the status matters: depending on `job` would restart the timer on
+    // every poll tick.
+  }, [jobStatus]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 

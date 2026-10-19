@@ -444,7 +444,7 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="mt-6 pt-5 border-t border-[var(--border)] grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
+        <div className="mt-6 pt-5 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
           <HeroStat
             href="/models"
             icon={<Database size={16} />}
@@ -603,7 +603,7 @@ export default function Home() {
                 {refreshing ? t("Loading models…") : t("Service unavailable")}
               </p>
             ) : recentModels.length ? (
-              <ul className="m-0 p-0 list-none divide-y divide-[var(--border)]">
+              <ul className="m-0 p-0 list-none">
                 {recentModels.map((model) => (
                   <li key={model.pthPath}>
                     <Link
@@ -658,7 +658,7 @@ export default function Home() {
               {refreshing ? t("Loading…") : t("Service unavailable")}
             </p>
           ) : recentJobs.length ? (
-            <ul className="m-0 p-0 list-none divide-y divide-[var(--border)]">
+            <ul className="m-0 p-0 list-none">
               {recentJobs.map((job) => (
                 <li key={job.id}>
                   <Link

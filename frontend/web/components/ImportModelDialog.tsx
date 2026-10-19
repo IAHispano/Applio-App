@@ -139,11 +139,14 @@ export default function ImportModelDialog({ isOpen, onClose, onImported }: Impor
     <Dialog
       isOpen={isOpen}
       onClose={running ? undefined : onClose}
+      aria-labelledby="import-model-title"
       className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm modal-backdrop"
     >
       <div className="modal-panel w-full max-w-lg max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-2xl shadow-2xl p-4 sm:p-6 space-y-4">
         <div className="flex items-center justify-between gap-3">
-          <h2 className="text-base font-medium">{t("Import model")}</h2>
+          <h2 id="import-model-title" className="text-base font-medium">
+            {t("Import model")}
+          </h2>
           <Button
             size="xs"
             variant="ghost"

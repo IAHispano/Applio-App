@@ -3,7 +3,7 @@
 import { AlertTriangle, ArrowRight, RefreshCw, Settings, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Alert, Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
 
