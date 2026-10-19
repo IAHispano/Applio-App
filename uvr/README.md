@@ -1,14 +1,18 @@
 # Applio UVR — self-contained local stem separation
 
-Distilled from the UVR / audio-separator / MSST ecosystem. No external package
-imports from those libraries; only standard scientific Python dependencies
-(see `requirements.txt`: torch, onnx stack, julius, rotary/beartype).
+Distilled from the UVR / audio-separator / MSST ecosystem. Layout is local —
+never importing those libraries — with only standard scientific Python
+dependencies (`requirements-uvr.txt`: torch, onnx stack, julius,
+rotary/beartype); model downloads reuse the pinned core helper
+`rvc.lib.tools.http_download`, which the app provides and the repository
+exposes via `backend/applio` on `PYTHONPATH`.
 
 ## Layout
 
 ```
 uvr/
-  separate.py      CLI entry (what the backend spawns per job).
+  separate.py      CLI entry (what the backend spawns per job); also hosts
+                   --list-models, --list-variants and --fetch-only.
   separator.py     Orchestrator: download, arch dispatch, stem naming.
   models.py        Catalog (VR/MDX/MDXC/Demucs/MSST-Roformer + custom_models.json).
   base.py          Shared mix prep, soundfile writing, downloads, devices.
@@ -31,11 +35,24 @@ uvr/
 
 ## Notes
 
-- Weights download on first use into `rvc/models/uvr/<model-key>/` and are
-  reused afterwards. The catalog (`--list-models`) never imports torch.
+- Weights download on first use into `rvc/models/uvr/<model-key>/`, relative
+  to the app data root (the repository root in development), and are reused
+  afterwards. The catalog (`--list-models`) never imports torch.
+- User models: entries in `rvc/models/uvr/custom_models.json` (same schema as
+  `models.py`; merged at import). A `null` URL marks a local-only file: place
+  the weights (and any yaml) in the model's folder yourself; separation runs
+  fully offline and raises a clear error if something is missing. The audio
+  separator UI imports both cases ("Import model": a direct link is turned
+  into a fetch job — see `--fetch-only` — while uploaded files land directly
+  in the model's folder); press "Reload models" to refresh the catalog.
 - MDX parameters resolve through the vendored hash tables, extended with
   entries for the current release files (verified from each ONNX graph).
-  Unknown files fail with a clear error instead of degrading silently.
+  Unknown files fail with a clear error instead of degrading silently. The
+  hash gate also means VR and MDX weights from outside the official catalogs
+  cannot be imported as customs; Roformer, MDX23C and Demucs are config-driven
+  (yaml) and work fine.
 - Roformer variants with their own architecture file (e.g. HyperACE v2)
-  are first-class: add the module under `roformer_lib/custom/` (see its README)
-  and reference it from a catalog entry.
+  are first-class: drop the module into `rvc/models/uvr/custom_architectures/`
+  (user data, survives updates — see the roformer_lib README) and reference it
+  from a catalog entry via `cls`. The import dialog lists the available
+  variant keys live (`--list-variants`).

@@ -38,8 +38,8 @@ fn stamp(path: &Path) -> Result<Option<Stamp>> {
         changed,
     }))
 }
-type Signature = (Option<Stamp>, Option<Stamp>);
-fn signature(path: &Path) -> Result<Signature> {
+type Signature = (Option<Stamp>, Option<Stamp>, Option<Stamp>);
+fn signature(path: &Path, extra: Option<&Path>) -> Result<Signature> {
     Ok((
         stamp(path)?,
         stamp(
@@ -48,6 +48,10 @@ fn signature(path: &Path) -> Result<Signature> {
                 .unwrap_or_else(|| Path::new("."))
                 .join("model_info.json"),
         )?,
+        match extra {
+            Some(extra) => stamp(extra)?,
+            None => None,
+        },
     ))
 }
 struct Entry {
@@ -77,7 +81,16 @@ impl MetadataCache {
         path: &Path,
         load: impl FnOnce() -> F,
     ) -> Result<(Value, bool)> {
-        let before = signature(path)?;
+        self.get_with_stamps(path, None, load).await
+    }
+    /// Like `get`, but a changed `extra` file also invalidates the cached value.
+    pub async fn get_with_stamps<F: Future<Output = Result<Value>>>(
+        &self,
+        path: &Path,
+        extra: Option<&Path>,
+        load: impl FnOnce() -> F,
+    ) -> Result<(Value, bool)> {
+        let before = signature(path, extra)?;
         if let Some(value) = self.hit(path, &before) {
             return Ok((value, true));
         }
@@ -93,14 +106,14 @@ impl MetadataCache {
             }
         };
         let _guard = gate.lock().await;
-        let before = signature(path)?;
+        let before = signature(path, extra)?;
         // Concurrent subscribers share one result, but report cached=false as
         // the original API does for subscribers to an in-flight request.
         if let Some(value) = self.hit(path, &before) {
             return Ok((value, false));
         }
         let value = load().await?;
-        if signature(path)? == before {
+        if signature(path, extra)? == before {
             let mut entries = self.entries.lock().unwrap();
             entries.retain(|entry| entry.path != path);
             entries.push_back(Entry {

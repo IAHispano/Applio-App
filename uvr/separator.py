@@ -106,6 +106,56 @@ def _default_arch_params(arch):
     return {}
 
 
+def ensure_model_files(model, models_dir=None, logger=None):
+    """Download or verify every catalog file of a model. Returns its models dir."""
+    models_dir = models_dir or os.path.join(
+        os.getcwd(), OUTPUT_MODELS_DIRNAME, model.key
+    )
+    os.makedirs(models_dir, exist_ok=True)
+    for filename, url in model.files:
+        model_path = os.path.join(models_dir, filename)
+        if url is None:
+            # Local-only catalog entry: weights must already be in place.
+            if not (os.path.isfile(model_path) and os.path.getsize(model_path) > 0):
+                raise ValueError(
+                    f"Local model file missing: {model_path}. "
+                    "Place the model file there (its catalog URL is null) and re-run."
+                )
+            if logger:
+                logger.debug(f"Local model file already present: {model_path}")
+            continue
+        download_file(url, model_path, logger=logger)
+    return models_dir
+
+
+def fetch_model(model_key, logger=None):
+    """Resolve a catalog entry, ensure its files (download if needed) and report
+    yaml-derived stems, patching them back into custom_models.json.
+
+    Used by ``uvr/separate.py --fetch-only``: the Rust import route starts a
+    job with this flag so link imports show download progress as jobs.
+    """
+    logger = logger or logging.getLogger("uvr")
+    model = catalog.resolve(model_key)
+    if model is None:
+        raise ValueError(
+            f"Unknown UVR model '{model_key}'. "
+            f"Available: {', '.join(sorted(catalog.BY_KEY))}"
+        )
+    models_dir = ensure_model_files(model, None, logger)
+    info = {"key": model.key, "files": [name for name, _ in model.files]}
+    if model.arch in ("roformer", "mdxc", "demucs"):
+        data = _model_data_for(model.arch, os.path.join(models_dir, model.files[0][0]))
+        training = data.get("training") or {}
+        stems = [str(stem) for stem in training.get("instruments") or []]
+        if stems:
+            info["stems"] = stems
+            info["target"] = data.get("primary_stem") or stems[0]
+            catalog.patch_custom_entry(model.key, stems, info["target"])
+    info["filename"] = info["files"][0]
+    return info
+
+
 def separate_stems(
     input_path,
     model_key,
@@ -125,11 +175,7 @@ def separate_stems(
             f"Unknown UVR model '{model_key}'. Available: {', '.join(sorted(catalog.BY_KEY))}"
         )
 
-    repo_root = os.getcwd()
-    models_dir = models_dir or os.path.join(repo_root, OUTPUT_MODELS_DIRNAME, model.key)
-    os.makedirs(models_dir, exist_ok=True)
-    for filename, url in model.files:
-        download_file(url, os.path.join(models_dir, filename), logger=logger)
+    models_dir = ensure_model_files(model, models_dir, logger)
 
     output_dir = os.path.abspath(output_dir) if output_dir else None
     torch_device = select_torch_device(use_gpu)
@@ -211,7 +257,7 @@ def separate_stems(
     for path in paths:
         # Archs return paths relative to output_dir; resolve to absolute.
         full = (
-            path if os.path.isabs(path) else os.path.join(output_dir or repo_root, path)
+            path if os.path.isabs(path) else os.path.join(output_dir or os.getcwd(), path)
         )
         base = os.path.basename(full)
         lowered_base = base.lower()

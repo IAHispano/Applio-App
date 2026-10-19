@@ -3849,18 +3849,28 @@ BY_ALIAS = {a: m for m in MODELS for a in m.aliases}
 
 
 def _load_custom_models():
-    """Merge user models from uvr/custom_models.json (same entry schema)."""
+    """Merge user models from <data>/rvc/models/uvr/custom_models.json.
+
+    The process runs with the app data root as its working directory (the
+    repository root in development), so user files survive app updates. Local
+    files whose weights already exist may set their URL to null — separation
+    then runs fully offline.
+    """
     import os as _os
 
-    path = _os.path.join(
-        _os.path.dirname(_os.path.abspath(__file__)), "custom_models.json"
-    )
+    from uvr import OUTPUT_MODELS_DIRNAME
+
+    path = _os.path.join(_os.getcwd(), OUTPUT_MODELS_DIRNAME, "custom_models.json")
     if not _os.path.isfile(path):
         return
     import json as _json
 
     with open(path, encoding="utf-8") as f:
-        data = _json.load(f)
+        text = f.read()
+    if not text.strip():
+        # Tolerate an empty file (created manually or truncated elsewhere).
+        return
+    data = _json.loads(text)
     for e in data if isinstance(data, list) else []:
         try:
             m = UvrModel(
@@ -3876,6 +3886,10 @@ def _load_custom_models():
             )
         except Exception:
             continue
+        if m.key in BY_KEY or not m.files:
+            # A hand-written duplicate key would duplicate catalog rows, and an
+            # entry without files can never resolve.
+            continue
         MODELS.append(m)
         BY_KEY[m.key] = m
         BY_FILENAME[m.files[0][0]] = m
@@ -3884,6 +3898,37 @@ def _load_custom_models():
 
 
 _load_custom_models()
+
+
+def patch_custom_entry(key, stems, target):
+    """Update the stems/target of a custom entry in custom_models.json with the
+    values its own yaml carries, then return True when the entry was patched.
+    """
+    import json as _json
+    import os as _os
+
+    from uvr import OUTPUT_MODELS_DIRNAME
+
+    path = _os.path.join(_os.getcwd(), OUTPUT_MODELS_DIRNAME, "custom_models.json")
+    try:
+        with open(path, encoding="utf-8") as f:
+            entries = _json.load(f)
+    except (OSError, ValueError):
+        return False
+    if not isinstance(entries, list):
+        return False
+    entry = next(
+        (e for e in entries if isinstance(e, dict) and e.get("key") == key), None
+    )
+    if entry is None:
+        return False
+    entry["stems"] = list(stems)
+    entry["target"] = target
+    tmp = f"{path}.tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        _json.dump(entries, f, indent=2, ensure_ascii=False)
+    _os.replace(tmp, path)
+    return True
 
 
 def resolve(name):

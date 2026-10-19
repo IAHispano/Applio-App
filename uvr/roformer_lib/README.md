@@ -21,14 +21,17 @@ external separation packages. `registry.py` maps a catalog `cls` value to
 
 ## Adding a model with a custom architecture
 
-1. Drop its architecture file(s) in `uvr/roformer/custom/` as a module,
-   e.g. `my_arch.py`, exposing:
+1. Drop its architecture file(s) in the data folder
+   `rvc/models/uvr/custom_architectures/` as a module, e.g. `my_arch.py`,
+   exposing:
    - `MODEL_CLASS`: the `nn.Module`. Its forward must take stereo waveforms
      `(batch, channels, samples)` and return stems.
    - `VARIANT_KEY = "myarch"` (optional; defaults to the file stem).
-   - Use absolute imports (`from uvr.roformer.impl.attend import ...`) or
-     relative imports inside a subpackage — never `models.*` paths (that is
-     what breaks third-party `bs_roformer.py` files elsewhere).
+   - Use absolute imports (`from uvr.roformer_lib.attend import ...`) — never
+     `models.*` paths (that is what breaks third-party `bs_roformer.py` files
+     elsewhere).
 2. Add a catalog entry (same schema as `uvr/models.py`) to
-   `uvr/custom_models.json` with `"cls": "myarch"` plus the checkpoint and
-   yaml URLs. No code changes needed; it appears in the UI on next load.
+   `rvc/models/uvr/custom_models.json` in the app data folder (the repository
+   root in development) with `"cls": "myarch"` plus the checkpoint and yaml
+   URLs (`null` for files you provide locally). No code changes needed; press
+   "Reload models" in the UI (or restart) and it appears.

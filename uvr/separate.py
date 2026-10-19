@@ -156,6 +156,18 @@ def main():
         action="store_true",
         help="Print the model catalog as JSON and exit",
     )
+    parser.add_argument(
+        "--list-variants",
+        action="store_true",
+        help="Print the available roformer variant keys as JSON and exit",
+    )
+    parser.add_argument(
+        "--fetch-only",
+        default=None,
+        metavar="KEY",
+        help="Ensure a catalog entry's files are present (download if needed), "
+        "print the resolved model as JSON and exit",
+    )
     args = parser.parse_args()
 
     if args.list_models:
@@ -163,6 +175,32 @@ def main():
         models = [m.to_dict(repo_root) for m in catalog.MODELS]
         models.sort(key=lambda m: not m.get("downloaded", False))
         print("APPLIO_JSON:" + json.dumps({"models": models}))
+        return
+
+    if args.list_variants:
+        from uvr.roformer_lib.registry import OFFICIAL_VARIANTS, available_variants
+
+        variants = available_variants()
+        print(
+            "APPLIO_JSON:"
+            + json.dumps(
+                {
+                    "variants": variants,
+                    "official": sorted(set(variants) & OFFICIAL_VARIANTS),
+                }
+            )
+        )
+        return
+
+    if args.fetch_only:
+        from uvr.separator import fetch_model
+
+        try:
+            info = fetch_model(args.fetch_only)
+        except ValueError as error:
+            print(f"UVR model import failed: {error}", file=sys.stderr)
+            raise SystemExit(1)
+        print("APPLIO_JSON:" + json.dumps(info))
         return
 
     if not args.input_path or not args.model:

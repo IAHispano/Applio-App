@@ -30,6 +30,8 @@ struct Uvr {
 pub fn router(engine: Arc<NativeEngine>) -> Router {
     Router::new()
         .route("/api/uvr/models", get(models))
+        .route("/api/uvr/variants", get(variants))
+        .route("/api/uvr/custom-models", post(custom_models))
         .route("/api/uvr/separate", post(separate))
         .layer(DefaultBodyLimit::disable())
         .with_state(Arc::new(Uvr {
@@ -78,7 +80,13 @@ fn with_download_status(data_root: &Path, catalog: Value) -> Value {
 async fn models(State(state): State<Arc<Uvr>>) -> Result<Json<Value>, Error> {
     let engine = &state.engine;
     let path = engine.runtime.code.join("uvr/models.py");
-    let (models,_)=state.catalog.get(&path,||async {
+    // User models live in data ("rvc/models/uvr/custom_models.json"); a change
+    // there must refresh the cached catalog without an app restart.
+    let custom = engine
+        .runtime
+        .data
+        .join("rvc/models/uvr/custom_models.json");
+    let (models,_)=state.catalog.get_with_stamps(&path,Some(&custom),||async {
         let spec=engine.runtime.python_command(["uvr/separate.py","--list-models"])?;
         let result=ManagedProcess::run(&spec,&engine.cancellation_token(),|_,_|{}).await?;
         result.ensure_success()?;
@@ -228,17 +236,282 @@ async fn separate(State(state): State<Arc<Uvr>>, request: Request) -> Accepted {
             .require_file(&string(&input.body, "inputPath"))?
     };
     let saved = json!({"inputPath":audio,"model":params["model"],"outputFormat":params["outputFormat"],"device":params["device"]});
+    // CPU separations stay outside the GPU lease so slow jobs never block realtime.
+    let resource = if params["device"] == "cpu" {
+        None
+    } else {
+        Some(Resource::Gpu)
+    };
     let job = engine
         .start_job(
             JobType::Other,
             saved,
-            Some(Resource::Gpu),
+            resource,
             move |engine, job, token| run_separation(engine, job, token, params, audio),
         )
         .await
         .map_err(Error::internal)?;
     input.retain();
     Ok(accepted(job))
+}
+
+const WEIGHT_EXTENSIONS: &[&str] = &["pth", "onnx", "ckpt", "th", "pt"];
+const CONFIG_EXTENSIONS: &[&str] = &["yaml", "yml"];
+
+fn model_rules() -> Vec<uploads::UploadRule> {
+    vec![
+        uploads::UploadRule {
+            name: "weightFile",
+            extensions: WEIGHT_EXTENSIONS,
+            max_bytes: 1024 * 1024 * 1024,
+            max_files: 1,
+        },
+        uploads::UploadRule {
+            name: "configFile",
+            extensions: CONFIG_EXTENSIONS,
+            max_bytes: 20 * 1024 * 1024,
+            max_files: 1,
+        },
+    ]
+}
+
+fn simple_filename(name: &str, slot: &str, allowed: &[&str]) -> Result<String> {
+    let base = Path::new(name)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or_default();
+    let valid = !base.is_empty()
+        && base.len() <= 128
+        && base
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '-' | '_' | '(' | ')'))
+        && base
+            .rsplit('.')
+            .next()
+            .is_some_and(|ext| allowed.contains(&ext.to_ascii_lowercase().as_str()));
+    if !valid {
+        bail!("{slot} needs a simple file name ending in one of: .{allowed:?}");
+    }
+    Ok(base.to_owned())
+}
+
+fn slug(name: &str) -> String {
+    let mut out = String::new();
+    let mut dash = false;
+    for c in name.chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c.to_ascii_lowercase());
+            dash = false;
+        } else if !out.is_empty() && !dash {
+            out.push('-');
+            dash = true;
+        }
+    }
+    out.trim_matches('-').chars().take(64).collect()
+}
+
+async fn upsert_custom_entry(data_root: &Path, entry: Value) -> Result<()> {
+    let path = data_root.join("rvc/models/uvr/custom_models.json");
+    let parent = path.parent().context("custom models path has no parent")?;
+    tokio::fs::create_dir_all(parent).await?;
+    let bytes = match tokio::fs::read(&path).await {
+        Ok(bytes) => bytes,
+        Err(_) => Vec::new(),
+    };
+    // An empty file (e.g. created manually or truncated elsewhere) starts fresh.
+    let mut entries: Vec<Value> = if bytes.iter().all(|byte| byte.is_ascii_whitespace()) {
+        Vec::new()
+    } else {
+        serde_json::from_slice(&bytes)
+            .map_err(|error| anyhow::anyhow!("custom_models.json is invalid: {error}"))?
+    };
+    if let Some(object) = entries.iter_mut().find(|e| e["key"] == entry["key"]) {
+        *object = entry;
+    } else {
+        entries.push(entry);
+    }
+    let tmp = path.with_extension("json.tmp");
+    tokio::fs::write(&tmp, serde_json::to_vec_pretty(&entries)?).await?;
+    tokio::fs::rename(&tmp, &path).await?;
+    Ok(())
+}
+
+async fn variants(State(state): State<Arc<Uvr>>) -> Result<Json<Value>, Error> {
+    let engine = &state.engine;
+    let spec = engine
+        .runtime
+        .python_command(["uvr/separate.py", "--list-variants"])?;
+    let result = ManagedProcess::run(&spec, &engine.cancellation_token(), |_, _| {}).await?;
+    result.ensure_success()?;
+    let data = json_result(&result.stdout)?;
+    Ok(Json(
+        json!({"variants": data["variants"], "official": data["official"]}),
+    ))
+}
+
+async fn custom_models(State(state): State<Arc<Uvr>>, request: Request) -> Accepted {
+    let engine = &state.engine;
+    let mut input = uploads::parse(request, &engine.runtime.uploads, &model_rules()).await?;
+    let body = &input.body;
+    let name = string(body, "name").trim().to_owned();
+    let architecture = string(body, "architecture");
+    let variant = string(body, "variant").trim().to_owned();
+    if name.is_empty() {
+        return Err(Error::input("A model name is required."));
+    }
+    // VR and MDX resolve arch parameters through vendored hash tables keyed by
+    // file digest, so custom weights for them are unsupported by design.
+    if !matches!(architecture.as_str(), "roformer" | "mdxc" | "demucs") {
+        return Err(Error::input(
+            "Custom weights are supported for roformer, mdxc and demucs models only.",
+        ));
+    }
+    if architecture == "roformer" {
+        if variant.is_empty() {
+            return Err(Error::input("A roformer variant is required."));
+        }
+        let spec = engine
+            .runtime
+            .python_command(["uvr/separate.py", "--list-variants"])?;
+        let result = ManagedProcess::run(&spec, &engine.cancellation_token(), |_, _| {}).await?;
+        result.ensure_success()?;
+        let known = json_result(&result.stdout)?;
+        if !known["variants"]
+            .as_array()
+            .is_some_and(|variants| variants.iter().any(|v| v == &variant))
+        {
+            return Err(Error::input(&format!(
+                "Unknown roformer variant '{variant}'."
+            )));
+        }
+    }
+    let weight = match input.files.get("weightFile") {
+        Some(file) => (
+            simple_filename(&file.original_name, "Model file", WEIGHT_EXTENSIONS)
+                .map_err(Error::from)?,
+            None,
+        ),
+        None => {
+            let link = string(body, "weightLink").trim().to_owned();
+            if link.is_empty() {
+                return Err(Error::input("A model file or link is required."));
+            }
+            (
+                simple_filename(
+                    &link.split(['?', '#']).next().unwrap_or_default(),
+                    "Model file",
+                    WEIGHT_EXTENSIONS,
+                )
+                .map_err(Error::from)?,
+                Some(link),
+            )
+        }
+    };
+    let config = match input.files.get("configFile") {
+        Some(file) => (
+            simple_filename(&file.original_name, "Config file", CONFIG_EXTENSIONS)
+                .map_err(Error::from)?,
+            None,
+        ),
+        None => {
+            let link = string(body, "configLink").trim().to_owned();
+            if link.is_empty() {
+                return Err(Error::input("A config file or link is required."));
+            }
+            (
+                simple_filename(
+                    &link.split(['?', '#']).next().unwrap_or_default(),
+                    "Config file",
+                    CONFIG_EXTENSIONS,
+                )
+                .map_err(Error::from)?,
+                Some(link),
+            )
+        }
+    };
+    if weight.0 == config.0 {
+        return Err(Error::input(
+            "The model file and the config file must have different names.",
+        ));
+    }
+    let key = slug(&name);
+    if key.is_empty() {
+        return Err(Error::input(
+            "A model name with letters or numbers is required.",
+        ));
+    }
+
+    let model_dir = engine.runtime.data.join("rvc/models/uvr").join(&key);
+    tokio::fs::create_dir_all(&model_dir)
+        .await
+        .map_err(|error| Error::internal(error))?;
+    if let Some(file) = input.files.get("weightFile") {
+        tokio::fs::copy(&file.path, model_dir.join(&weight.0))
+            .await
+            .map_err(|error| Error::internal(error))?;
+    }
+    if let Some(file) = input.files.get("configFile") {
+        tokio::fs::copy(&file.path, model_dir.join(&config.0))
+            .await
+            .map_err(|error| Error::internal(error))?;
+    }
+
+    let mut entry = json!({
+        "key": key,
+        "label": name,
+        "arch": architecture,
+        "files": [(weight.0, weight.1), (config.0, config.1)],
+        "stems": ["vocals", "instrumental"],
+        "target": "vocals",
+    });
+    if architecture == "roformer" {
+        if let Some(object) = entry.as_object_mut() {
+            object.insert("cls".into(), json!(variant));
+        }
+    }
+    upsert_custom_entry(&engine.runtime.data, entry)
+        .await
+        .map_err(Error::internal)?;
+
+    // Fetching only downloads files: never hold the GPU lease.
+    let job = engine
+        .start_job(
+            JobType::Other,
+            json!({"model": key}),
+            None,
+            move |engine, job, token| run_fetch(engine, job, token, key),
+        )
+        .await
+        .map_err(Error::internal)?;
+    input.retain();
+    Ok(accepted(job))
+}
+
+async fn run_fetch(
+    engine: Arc<NativeEngine>,
+    job: Job,
+    token: CancellationToken,
+    key: String,
+) -> Result<JobResult> {
+    engine.jobs.stage(&job.id, "Model import", None, None);
+    run_step(&engine, &job, &token, vec!["uvr/install.py".into()]).await?;
+    engine.jobs.log(&job.id, "UVR dependencies ready.");
+    engine
+        .jobs
+        .stage(&job.id, "Fetching model files…", None, None);
+    let stdout = run_step(
+        &engine,
+        &job,
+        &token,
+        vec!["uvr/separate.py".into(), "--fetch-only".into(), key.clone()],
+    )
+    .await?;
+    let data = json_result(&stdout)?;
+    engine.jobs.progress(&job.id, 100.0);
+    Ok(JobResult::new(
+        json!({"filename": data["filename"], "message": format!("Imported model '{key}'.")}),
+        None,
+    ))
 }
 
 async fn run_separation(
@@ -302,4 +575,141 @@ async fn run_separation(
         json!({"stems":result,"message":format!("Separated {} stems with {}.",result.len(),string(&params,"model"))}),
         None,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_args_maps_schema_defaults_for_every_arch() {
+        let params = normalize(&json!({"model":"UVR_MDXNET_Main.onnx"})).expect("valid");
+        let args = cli_args(
+            &params,
+            Path::new("/data/input.wav"),
+            Path::new("/data/outputs/uvr_1"),
+        );
+        assert_eq!(
+            args,
+            vec![
+                "uvr/separate.py",
+                "--input-path",
+                "/data/input.wav",
+                "--model",
+                "UVR_MDXNET_Main.onnx",
+                "--output-dir",
+                "/data/outputs/uvr_1",
+                "--output-format",
+                "wav",
+                "--single-stem",
+                "all",
+                "--vr-aggression",
+                "5",
+                "--vr-window",
+                "512",
+                "--vr-batch",
+                "1",
+                "--vr-post-threshold",
+                "0.2",
+                "--mdx-segment",
+                "256",
+                "--mdx-overlap",
+                "0.25",
+                "--mdx-batch",
+                "1",
+                "--mdx-hop",
+                "1024",
+                "--mdxc-segment",
+                "256",
+                "--mdxc-overlap",
+                "8",
+                "--mdxc-batch",
+                "1",
+                "--mdxc-pitch-shift",
+                "0",
+                "--demucs-segment",
+                "Default",
+                "--demucs-shifts",
+                "2",
+                "--demucs-overlap",
+                "0.25",
+                "--roformer-overlap",
+                "2",
+                "--roformer-batch",
+                "1",
+                "--device",
+                "auto",
+            ]
+        );
+    }
+
+    #[test]
+    fn cli_args_keeps_true_flags_only_and_demucs_no_split() {
+        let params = normalize(&json!({
+            "model": "m",
+            "vrTta": true,
+            "vrHighEnd": true,
+            "vrPostProcess": true,
+            "mdxDenoise": true,
+            "mdxcOverrideSegment": true,
+            "roformerDenoise": true,
+            "demucsSplit": false,
+        }))
+        .expect("valid");
+        let args = cli_args(&params, Path::new("/data/i.wav"), Path::new("/data/o"));
+        for flag in [
+            "--vr-tta",
+            "--vr-high-end",
+            "--vr-post-process",
+            "--mdx-denoise",
+            "--mdxc-override-segment",
+            "--roformer-denoise",
+            "--demucs-no-split",
+        ] {
+            assert!(args.contains(&flag.to_string()), "missing {flag}");
+        }
+        // False booleans stay absent: defaults come from the engine itself.
+        assert!(!args.contains(&"--demucs-split".to_string()));
+        assert!(!args.contains(&"--roformer-chunk".to_string()));
+    }
+
+    #[test]
+    fn slug_keeps_simple_names_only() {
+        assert_eq!(slug("HyperACE Karaoke v2"), "hyperace-karaoke-v2");
+        assert_eq!(slug("  My*Model!! "), "my-model");
+        assert_eq!(slug("модель"), "");
+        assert_eq!(slug("a").chars().count(), 1);
+        assert_eq!(slug(&"x".repeat(100)).len(), 64);
+    }
+
+    #[test]
+    fn simple_filename_checks_extension_and_charset() {
+        assert!(simple_filename("my model.pth", "x", WEIGHT_EXTENSIONS).is_err());
+        assert!(simple_filename("model.pth?token=1", "x", WEIGHT_EXTENSIONS).is_err());
+        assert!(simple_filename("evil.exe", "x", WEIGHT_EXTENSIONS).is_err());
+        assert!(simple_filename("", "x", WEIGHT_EXTENSIONS).is_err());
+        assert_eq!(
+            simple_filename("model.ckpt", "x", WEIGHT_EXTENSIONS).unwrap(),
+            "model.ckpt"
+        );
+        assert!(simple_filename("cfg.YML", "x", CONFIG_EXTENSIONS).is_ok());
+    }
+
+    #[tokio::test]
+    async fn upsert_bootstraps_after_the_file_gone_or_empty() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("rvc/models/uvr/custom_models.json");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "   \n").unwrap();
+        upsert_custom_entry(
+            dir.path(),
+            serde_json::json!({"key": "a", "label": "A", "arch": "roformer", "files": [], "stems": [], "target": ""}),
+        )
+        .await
+        .unwrap();
+        let entries: Vec<serde_json::Value> =
+            serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0]["key"], "a");
+    }
 }

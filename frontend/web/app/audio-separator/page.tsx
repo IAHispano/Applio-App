@@ -1,8 +1,9 @@
 "use client";
 
-import { Download, FileAudio, FlaskConical, Music4, RefreshCw, Split, Wand2 } from "lucide-react";
+import { Download, FileAudio, FlaskConical, Music4, Plus, RefreshCw, Split, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
+import ImportModelDialog from "@/components/ImportModelDialog";
 import { JobPanelContent } from "@/components/JobPanel";
 import PageHeader from "@/components/layout/PageHeader";
 import type { GpuDevice } from "@/components/train/GpuSelect";
@@ -104,6 +105,8 @@ export default function UvrPage() {
   const activity = useJob(jobId);
   const { job } = activity;
 
+  const [importOpen, setImportOpen] = useState(false);
+
   const loadModels = useCallback(async () => {
     setModelsLoading(true);
     try {
@@ -117,6 +120,17 @@ export default function UvrPage() {
       setModelsLoading(false);
     }
   }, [setModels, setModel]);
+
+  // After an import completes: refresh the catalog, select the new model and
+  // close the dialog (the dialog itself is already reset).
+  const handleImported = useCallback(
+    async (filename: string) => {
+      setImportOpen(false);
+      await loadModels();
+      if (filename) setModel(filename);
+    },
+    [loadModels, setModel],
+  );
 
   const refreshSampleAudios = useCallback(async () => {
     try {
@@ -239,7 +253,7 @@ export default function UvrPage() {
 
       <Alert variant="info">
         {t(
-          "First run downloads the selected model weights (50–300 MB) into assets/uvr-models. Afterwards separation works fully offline.",
+          "First run downloads the selected model weights (50–300 MB) into rvc/models/uvr. Afterwards separation works fully offline.",
         )}
       </Alert>
 
@@ -250,15 +264,20 @@ export default function UvrPage() {
           title={t("Source & Model")}
           description={t("Pick the song to split and the separation engine to use.")}
           action={
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={loadModels}
-              disabled={modelsLoading}
-              icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
-            >
-              {t("Reload models")}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button size="xs" variant="ghost" onClick={() => setImportOpen(true)} icon={<Plus size={12} />}>
+                {t("Import model")}
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                onClick={loadModels}
+                disabled={modelsLoading}
+                icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
+              >
+                {t("Reload models")}
+              </Button>
+            </div>
           }
         />
 
@@ -713,6 +732,12 @@ export default function UvrPage() {
           <JobPanelContent jobId={jobId} activity={activity} embedded />
         </Card>
       )}
+
+      <ImportModelDialog
+        isOpen={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={handleImported}
+      />
     </div>
   );
 }
