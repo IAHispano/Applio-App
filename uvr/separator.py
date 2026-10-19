@@ -113,7 +113,9 @@ def _default_arch_params(arch):
 
 def ensure_model_files(model, models_dir=None, logger=None):
     """Download or verify every catalog file of a model. Returns its models dir."""
-    models_dir = models_dir or os.path.join(os.getcwd(), OUTPUT_MODELS_DIRNAME, model.key)
+    models_dir = models_dir or os.path.join(
+        os.getcwd(), OUTPUT_MODELS_DIRNAME, model.key
+    )
     os.makedirs(models_dir, exist_ok=True)
     print("APPLIO_STAGE:Downloading models…", file=sys.stderr, flush=True)
     for filename, url in model.files:
@@ -134,6 +136,7 @@ def ensure_model_files(model, models_dir=None, logger=None):
         from tqdm import tqdm
 
         with tqdm(unit="B", unit_scale=True, desc=filename) as bar:
+
             def progress(received, total):
                 bar.total = total or None
                 bar.n = received

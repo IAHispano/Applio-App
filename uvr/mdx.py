@@ -51,14 +51,18 @@ class MdxSeparator(BaseSeparator):
                 self.onnx_stream = torch.cuda.Stream(device=self.torch_device)
                 execution_providers = [
                     (
-                        "CUDAExecutionProvider",
-                        {
-                            "device_id": self.onnx_stream.device.index,
-                            "user_compute_stream": str(self.onnx_stream.cuda_stream),
-                        },
+                        (
+                            "CUDAExecutionProvider",
+                            {
+                                "device_id": self.onnx_stream.device.index,
+                                "user_compute_stream": str(
+                                    self.onnx_stream.cuda_stream
+                                ),
+                            },
+                        )
+                        if provider == "CUDAExecutionProvider"
+                        else provider
                     )
-                    if provider == "CUDAExecutionProvider"
-                    else provider
                     for provider in execution_providers
                 ]
             session = ort.InferenceSession(
@@ -139,7 +143,9 @@ class MdxSeparator(BaseSeparator):
         self.onnx_stream.wait_stream(caller_stream)
         with torch.cuda.stream(self.onnx_stream):
             contiguous = spectrum.contiguous()
-            output = torch.empty(output_shape, dtype=spectrum.dtype, device=spectrum.device)
+            output = torch.empty(
+                output_shape, dtype=spectrum.dtype, device=spectrum.device
+            )
             binding = self.onnx_session.io_binding()
             binding.bind_input(
                 self.onnx_input.name,
@@ -202,7 +208,9 @@ class MdxSeparator(BaseSeparator):
         self.chunk_size = self.hop_length * (self.segment_size - 1)
         self.gen_size = self.chunk_size - 2 * self.trim
         if self.gen_size <= 0:
-            raise ValueError("MDX segment size and hop length must exceed the FFT window")
+            raise ValueError(
+                "MDX segment size and hop length must exceed the FFT window"
+            )
         self.stft = STFT(
             self.logger, self.n_fft, self.hop_length, self.dim_f, self.torch_device
         )
@@ -221,7 +229,9 @@ class MdxSeparator(BaseSeparator):
         starts = range(0, mixture.shape[-1], step)
         full_window = np.hanning(chunk_size).astype(np.float32) if overlap else None
 
-        with torch.inference_mode(), tqdm(total=len(starts), desc="Separating") as progress:
+        with torch.inference_mode(), tqdm(
+            total=len(starts), desc="Separating"
+        ) as progress:
             for offset in range(0, len(starts), batch_size):
                 locations = starts[offset : offset + batch_size]
                 actual_batch = self.fixed_batch_size or len(locations)
@@ -239,10 +249,14 @@ class MdxSeparator(BaseSeparator):
                     if overlap and length != chunk_size:
                         window = np.hanning(length).astype(np.float32)
                     if window is None:
-                        result[:, start : start + length] += predictions[index, :, :length]
+                        result[:, start : start + length] += predictions[
+                            index, :, :length
+                        ]
                         divider[start : start + length] += 1
                     else:
-                        result[:, start : start + length] += predictions[index, :, :length] * window
+                        result[:, start : start + length] += (
+                            predictions[index, :, :length] * window
+                        )
                         divider[start : start + length] += window
                 progress.update(len(locations))
 
