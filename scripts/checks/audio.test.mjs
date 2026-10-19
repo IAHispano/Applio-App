@@ -19,39 +19,75 @@ function load(
   return exports;
 }
 
-test("Halloween music loops continuously and releases audio when disabled", () => {
+test("Halloween music plays the score and releases audio when disabled", () => {
   const ref = { current: null };
   const effects = [];
   const calls = [];
   const listeners = new Map();
-  const source = { connect: () => gain, start: () => calls.push("start"), stop: () => calls.push("stop"), disconnect() {} };
-  const gain = { gain: {}, connect() {}, disconnect() {} };
   const media = [];
   const document = { hidden: false, querySelectorAll: () => media, addEventListener: (event, fn) => listeners.set(event, fn), removeEventListener: (event) => listeners.delete(event) };
+  const node = () => ({
+    type: "sine",
+    frequency: { value: 0 },
+    detune: { value: 0 },
+    gain: { value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {} },
+    threshold: { value: 0 },
+    ratio: { value: 0 },
+    Q: { value: 0 },
+    buffer: null,
+    connect() {
+      return this;
+    },
+    disconnect() {},
+    start(time) {
+      calls.push({ start: true, hz: Math.round(this.frequency.value), time });
+    },
+    stop() {
+      calls.push("stop");
+    },
+  });
   class Context {
+    constructor() {
+      this.currentTime = 0;
+      this.sampleRate = 48000;
+      this.destination = {};
+    }
     resume() { calls.push("resume"); return Promise.resolve(); }
     suspend() { calls.push("suspend"); return Promise.resolve(); }
     close() { calls.push("close"); return Promise.resolve(); }
-    createBuffer(channels, length, rate) { assert.equal(channels, 1); assert.equal(length / rate, 24); const samples = new Float32Array(length); return { getChannelData: () => samples }; }
-    createBufferSource() { return source; }
-    createGain() { return gain; }
+    createGain() { return node(); }
+    createOscillator() { return node(); }
+    createBufferSource() { return node(); }
+    createBiquadFilter() { return node(); }
+    createConvolver() { return node(); }
+    createDynamicsCompressor() { return node(); }
+    createBuffer(channels, length) { return { getChannelData: () => new Float32Array(length) }; }
   }
-  const { createHauntedLoop, useHauntedSound } = load("../../frontend/web/components/HalloweenEffects.tsx", () => ({ useRef: () => ref, useEffect: (fn) => effects.push(fn) }), { document, AudioContext: Context });
-  const samples = createHauntedLoop(new Context()).getChannelData(0);
-  assert.ok(samples.some((sample) => Math.abs(sample) > 0.01));
-  assert.ok(Math.abs(samples[0] - samples.at(-1)) < 0.002, "loop seam must not click");
-  assert.ok(samples.every((sample) => Number.isFinite(sample) && Math.abs(sample) < 0.25));
+  const { useHauntedSound } = load(
+    "../../frontend/web/components/HalloweenEffects.tsx",
+    (id) => {
+      if (id === "@/lib/haunted-score") {
+        return load("../../frontend/web/lib/haunted-score.ts");
+      }
+      if (id === "react") {
+        return { useRef: () => ref, useEffect: (fn) => effects.push(fn) };
+      }
+      return {};
+    },
+    { document, AudioContext: Context },
+  );
   const unlock = useHauntedSound(false, false);
   assert.equal(unlock(), true);
   effects.length = 0;
   useHauntedSound(true, false);
   const cleanup = effects[0]();
-  assert.equal(source.loop, true);
-  assert.ok(calls.includes("start"));
+  // The score is scheduled ahead of the clock, so the first notes are queued.
+  assert.ok(calls.some((call) => call.start), "expected the score to start playing");
+  assert.ok(calls.every((call) => typeof call === "string" || Number.isFinite(call.hz)));
   document.hidden = true; listeners.get("visibilitychange")(); assert.equal(calls.at(-1), "suspend");
   document.hidden = false; listeners.get("visibilitychange")(); assert.equal(calls.at(-1), "resume");
   media.push({ paused: false, ended: false, muted: false }); listeners.get("play")(); assert.equal(calls.at(-1), "suspend");
-  cleanup(); assert.ok(calls.includes("stop")); assert.equal(calls.at(-1), "close"); assert.equal(listeners.size, 0);
+  cleanup(); assert.ok(calls.includes("close")); assert.equal(listeners.size, 0);
 });
 
 test("microphone gain stays manual with Voice Focus on or off", () => {
