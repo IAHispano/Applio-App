@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "बोली बनाने पर प्रोसेसिंग के बाद ऑडियो मिलता है। रूपांतरण HTTP 202 लौटाता है: कार्य पूरा होने तक स्थिति जाँचें, फिर उसका ऑडियो डाउनलोड करें। विफल या रद्द कार्य सफल ऑडियो परिणाम नहीं हैं।",
   "Speech synthesis": "स्पीच सिंथेसिस",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "बोली के लिए Edge TTS और इंस्टॉल किया हुआ RVC मॉडल उपयोग होता है। फ़ॉर्मैट: MP3, WAV, FLAC। गति: 0.25–2.0।",
-  "Split Audio": "ऑडियो विभाजित करें",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "मेमोरी उपयोग को कम करने के लिए रूपांतरण से पहले लंबी रिकॉर्डिंग को छोटे खंडों में विभाजित करें।",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "गानों को वोकल्स, इंस्ट्रुमेंटल, ड्रम, बास और अधिक में विभाजित करें — स्थानीय रूप से, डाउनलोड किए गए कम्युनिटी मॉडल के साथ।",
   "Split the track into chunks to save VRAM.": "VRAM बचाने के लिए ट्रैक को चंक्स में विभाजित करें।",
   "Split vocals, instrumental and stems": "वोकल्स, इंस्ट्रुमेंटल और स्टेम विभाजित करें",

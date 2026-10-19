@@ -8,9 +8,9 @@
 //   - report UNTRANSLATED entries (value == English) as file:line.
 //
 // Usage (repo root):
-//   node scripts/i18n-sync.mjs                     # dry run: report only
-//   node scripts/i18n-sync.mjs --apply             # write changes
-//   node scripts/i18n-sync.mjs --apply --lang es   # only es_ES.json (substring match)
+//   node scripts/i18n/sync.mjs                     # dry run: report only
+//   node scripts/i18n/sync.mjs --apply             # write changes
+//   node scripts/i18n/sync.mjs --apply --lang es   # only es_ES.json (substring match)
 // Safety: aborts when the extractor reports unresolved REVIEW sites or when
 // en_US itself lacks extracted keys (update en_US first).
 import { execFileSync } from "node:child_process";
@@ -18,7 +18,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const LANG_DIR = path.join(root, "assets", "i18n", "languages");
 const EN_FILE = path.join(LANG_DIR, "en_US.json");
 
@@ -30,7 +30,7 @@ const langFilter = langIdx >= 0 ? args[langIdx + 1] || null : null;
 // 1. Extracted key inventory (single source of truth, shared with i18n-extract).
 let extractedOut;
 try {
-  extractedOut = execFileSync("node", [path.join(root, "scripts", "i18n-extract.mjs")], {
+  extractedOut = execFileSync(process.execPath, [path.join(root, "scripts", "i18n", "extract.mjs")], {
     encoding: "utf8",
     maxBuffer: 64 * 1024 * 1024,
   });

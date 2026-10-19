@@ -64,3 +64,6 @@ htmlcov/
 playwright-report/
 test-results/
 
+
+# Keep the CI regression checks discoverable by node --test.
+!/scripts/checks/*.test.mjs

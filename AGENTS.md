@@ -195,8 +195,7 @@ For application changes, use the relevant commands below:
 pnpm typecheck
 pnpm format:check
 pnpm --filter @applio/web build
-node --test scripts/check-realtime-audio.mjs scripts/check-settings-actions.mjs scripts/check-update-policy.mjs
-python scripts/check-realtime-service.py
+pnpm check
 node scripts/cargo.mjs test -p applio-api --lib
 ```
 

@@ -16,7 +16,11 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset, saveModelPreset } from "@/lib/model-presets";
 import { SETTING_HELP } from "@/lib/setting-help";
-import { CONVERSION_DEFAULTS, useConversionParameters } from "@/lib/useConversionParameters";
+import {
+  CONVERSION_DEFAULTS,
+  conversionOverrides,
+  useConversionParameters,
+} from "@/lib/useConversionParameters";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { useWorkspaceState } from "@/lib/workspace-state";
@@ -102,7 +106,6 @@ export default function BatchForm() {
     embedderModel,
     embedderModelCustom,
     exportFormat,
-    splitAudio,
     f0Autotune,
     f0AutotuneStrength,
     proposedPitch,
@@ -216,7 +219,8 @@ export default function BatchForm() {
     if (!conversion.loaded || conversion.error || migratedPresets.current) return;
     migratedPresets.current = true;
     for (const [model, values] of Object.entries(legacyOverrides)) {
-      if (!getModelPreset("conversion", model)) saveModelPreset("conversion", model, values);
+      if (!getModelPreset("conversion", model))
+        saveModelPreset("conversion", model, conversionOverrides(values));
     }
   }, [conversion.loaded, conversion.error, legacyOverrides]);
   useEffect(() => {
@@ -230,8 +234,7 @@ export default function BatchForm() {
 
   const indexFor = (model: string) => modelIndexes[model] ?? matchIndex(model, indexes);
 
-  const overridesFor = (model: string) =>
-    (getModelPreset("conversion", model) ?? {}) as Partial<ConversionParameterValues>;
+  const overridesFor = (model: string) => conversionOverrides(getModelPreset("conversion", model));
   const overrideCount = (model: string) => Object.keys(overridesFor(model)).length;
 
   const setModelOverride = <K extends keyof ConversionParameterValues>(
@@ -323,7 +326,6 @@ export default function BatchForm() {
         exportFormat,
         embedderModel,
         ...(embedderModel === "custom" && embedderModelCustom ? { embedderModelCustom } : {}),
-        splitAudio,
         f0Autotune,
         f0AutotuneStrength,
         proposedPitch,

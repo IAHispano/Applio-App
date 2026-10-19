@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
-import { releaseNotes } from "./release-notes.mjs";
+import { releaseNotes } from "../release-notes.mjs";
 
 function load(relative, imports = {}, globals = {}) {
   const source = fs.readFileSync(new URL(relative, import.meta.url), "utf8");
@@ -26,7 +26,7 @@ function load(relative, imports = {}, globals = {}) {
   return exports;
 }
 
-const policy = load("../frontend/web/lib/update-policy.ts");
+const policy = load("../../frontend/web/lib/update-policy.ts");
 const repository = "https://github.com/IAHispano/Applio-App";
 
 test("deferral persists for exactly the skipped release and a later release prompts again", () => {
@@ -35,9 +35,9 @@ test("deferral persists for exactly the skipped release and a later release prom
     getItem: (key) => values.get(key) || null,
     setItem: (key, value) => values.set(key, value),
   };
-  let app = load("../frontend/web/lib/update-policy.ts", {}, { localStorage });
+  let app = load("../../frontend/web/lib/update-policy.ts", {}, { localStorage });
   app.deferUpdate("v1.0.3");
-  app = load("../frontend/web/lib/update-policy.ts", {}, { localStorage });
+  app = load("../../frontend/web/lib/update-policy.ts", {}, { localStorage });
   assert.equal(app.updateIsDeferred("1.0.3"), true);
   assert.equal(app.updateIsDeferred("v1.0.4"), false);
   assert.equal(app.shouldPromptForUpdate("v1.0.3", "V1.0.3"), false);
@@ -95,7 +95,7 @@ test("automatic checks never download or install, including when many versions b
   };
   const jsx = (type, props) => ({ type, props });
   const component = load(
-    "../frontend/web/components/setup/AutoUpdateModal.tsx",
+    "../../frontend/web/components/setup/AutoUpdateModal.tsx",
     {
       "react/jsx-runtime": { jsx, jsxs: jsx },
       react: {
@@ -222,7 +222,7 @@ test("release generation includes every commit and ships the same notes in the s
       fs.writeFileSync(path.join(directory, `Applio-1.0.3-macOS-${arch}.zip`), "fixture");
     execFileSync(
       process.execPath,
-      [fileURLToPath(new URL("./collect-tauri-artifacts.mjs", import.meta.url)), "--manifest", directory],
+      [fileURLToPath(new URL("../collect-tauri-artifacts.mjs", import.meta.url)), "--manifest", directory],
       {
         env: {
           ...process.env,
@@ -249,15 +249,15 @@ test("AppImage media validation rejects a bundle missing WebKit's bad-plugin fac
     fs.mkdirSync(plugins, { recursive: true });
     for (const name of ["app", "autodetect", "pulseaudio", "playback", "typefindfunctions", "audioconvert", "audioresample", "audioparsers", "flac", "wavparse"])
       fs.writeFileSync(path.join(plugins, `libgst${name}.so`), "fixture");
-    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("./collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
+    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("../collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
       cwd: directory, encoding: "utf8", windowsHide: true, stdio: "pipe",
     }), (error) => /libgstdebugutilsbad\.so/.test(error.stderr));
     fs.writeFileSync(path.join(plugins, "libgstdebugutilsbad.so"), "fixture");
-    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("./collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
+    assert.throws(() => execFileSync(process.execPath, [fileURLToPath(new URL("../collect-tauri-artifacts.mjs", import.meta.url)), "--check-appimage-media"], {
       cwd: directory, encoding: "utf8", windowsHide: true, stdio: "pipe",
     }), (error) => /libgstsubenc\.so/.test(error.stderr));
     for (const file of ["validate.yml", "release.yml"]) {
-      const workflow = fs.readFileSync(new URL(`../.github/workflows/${file}`, import.meta.url), "utf8");
+      const workflow = fs.readFileSync(new URL(`../../.github/workflows/${file}`, import.meta.url), "utf8");
       assert.ok(workflow.includes("gstreamer1.0-plugins-bad"));
       assert.ok(workflow.includes("gstreamer1.0-tools"));
       assert.ok(workflow.includes("--check-appimage-media"));

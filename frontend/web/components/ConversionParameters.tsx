@@ -28,7 +28,6 @@ export interface ConversionParameterValues {
   embedderModel: string;
   embedderModelCustom: string;
   exportFormat: string;
-  splitAudio: boolean;
   f0Autotune: boolean;
   f0AutotuneStrength: number;
   proposedPitch: boolean;
@@ -82,7 +81,6 @@ export default function ConversionParameters({
     embedderModel,
     embedderModelCustom,
     exportFormat,
-    splitAudio,
     f0Autotune,
     f0AutotuneStrength,
     proposedPitch,
@@ -102,7 +100,6 @@ export default function ConversionParameters({
     embedderModel: setEmbedderModel,
     embedderModelCustom: setEmbedderModelCustom,
     exportFormat: setExportFormat,
-    splitAudio: setSplitAudio,
     f0Autotune: setF0Autotune,
     f0AutotuneStrength: setF0AutotuneStrength,
     proposedPitch: setProposedPitch,
@@ -290,14 +287,7 @@ export default function ConversionParameters({
           icon={<Activity size={15} />}
           description={t(SETTING_HELP.autotune)}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            <ToggleField
-              id={`${idPrefix}-split-audio`}
-              label={t("Split Audio")}
-              checked={splitAudio}
-              onChange={setSplitAudio}
-              description={t(SETTING_HELP.split)}
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <ToggleField
               id={`${idPrefix}-autotune`}
               label={t("Autotune")}

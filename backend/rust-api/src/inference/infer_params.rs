@@ -297,3 +297,37 @@ pub fn common_cli_args(params: &Value) -> Vec<String> {
     }
     arguments
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn retired_split_audio_is_ignored_without_shifting_other_conversion_options() {
+        let legacy = json!({
+            "pthPath": "voice.pth", "ttsVoice": "en-US-AnaNeural", "ttsText": "Hello",
+            "splitAudio": true, "f0Autotune": true,
+            "f0AutotuneStrength": 0.6, "proposedPitch": true,
+            "proposedPitchThreshold": 180, "sid": 3, "formantShifting": true,
+            "formantQfrency": 1.2, "formantTimbre": 1.4
+        });
+        for params in [
+            inference(&legacy),
+            tts(&legacy),
+            batch_base(&legacy),
+            overrides(&legacy),
+        ] {
+            let params = params.unwrap();
+            assert!(params.get("splitAudio").is_none());
+            assert_eq!(params["f0Autotune"], true);
+            assert_eq!(params["f0AutotuneStrength"], 0.6);
+            assert_eq!(params["proposedPitchThreshold"], 180);
+            assert_eq!(params["sid"], 3);
+            let args = common_cli_args(&params);
+            assert!(!args.iter().any(|arg| arg == "--split-audio"));
+            assert!(args.contains(&"--f0-autotune".into()));
+            assert!(args.contains(&"--formant-shifting".into()));
+        }
+        assert_eq!(overrides(&json!({"splitAudio": true})).unwrap(), json!({}));
+    }
+}

@@ -83,11 +83,6 @@
       ]
     },
     {
-      "name": "splitAudio",
-      "type": "boolean",
-      "default": false
-    },
-    {
       "name": "f0Autotune",
       "type": "boolean",
       "default": false
@@ -197,7 +192,6 @@
     "exportFormat",
     "embedderModel",
     "sid",
-    "splitAudio",
     "f0Autotune",
     "f0AutotuneStrength",
     "proposedPitch",

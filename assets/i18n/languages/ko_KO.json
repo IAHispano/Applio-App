@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "음성 생성은 처리 후 오디오를 반환합니다. 변환은 HTTP 202를 반환합니다. 작업이 완료될 때까지 확인한 다음 결과를 다운로드하세요. 실패하거나 취소된 작업은 성공한 오디오 결과가 아닙니다.",
   "Speech synthesis": "음성 합성",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "음성 생성에는 Edge TTS와 설치된 RVC 모델이 사용됩니다. 형식: MP3, WAV, FLAC. 속도: 0.25~2.0.",
-  "Split Audio": "오디오 분할",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "긴 녹음을 변환하기 전에 작은 섹션으로 분할하여 메모리 사용량을 줄이세요.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "다운로드한 커뮤니티 모델을 사용하여 로컬에서 곡을 보컬, 반주, 드럼, 베이스 등으로 분리하세요.",
   "Split the track into chunks to save VRAM.": "VRAM을 절약하기 위해 트랙을 청크로 분할합니다.",
   "Split vocals, instrumental and stems": "보컬, 반주 및 스템 분리",

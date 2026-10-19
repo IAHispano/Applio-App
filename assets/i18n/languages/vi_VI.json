@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "Tổng hợp giọng nói trả về âm thanh sau khi xử lý. Chuyển đổi trả về HTTP 202: kiểm tra tác vụ đến khi hoàn tất rồi tải nội dung xuống. Tác vụ thất bại hoặc bị hủy không phải kết quả âm thanh thành công.",
   "Speech synthesis": "Tổng hợp giọng nói",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "Tổng hợp giọng nói dùng Edge TTS và mô hình RVC đã cài. Định dạng: MP3, WAV, FLAC. Tốc độ: 0,25–2,0.",
-  "Split Audio": "Tách Âm thanh",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Chia các bản ghi dài thành các phần nhỏ hơn trước khi chuyển đổi để giảm mức sử dụng bộ nhớ.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Tách bài hát thành giọng hát, nhạc cụ, trống, bass và hơn thế nữa — cục bộ, với các mô hình cộng đồng đã tải xuống.",
   "Split the track into chunks to save VRAM.": "Chia nhỏ bản nhạc thành các đoạn để tiết kiệm VRAM.",
   "Split vocals, instrumental and stems": "Tách giọng hát, nhạc cụ và các stem",

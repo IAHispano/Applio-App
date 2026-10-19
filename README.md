@@ -20,8 +20,8 @@ pnpm install
 pnpm desktop:dev
 ```
 
-Use `pnpm dev` for the browser UI, `pnpm typecheck` to check types, and
-`pnpm format:check` to check formatting.
+Use `pnpm dev` for the browser UI, `pnpm check` for regression checks,
+`pnpm typecheck` to check types, and `pnpm format:check` to check formatting.
 
 Build installers with `pnpm build:win`, `pnpm build:mac`, or `pnpm build:linux`
 on the corresponding platform.

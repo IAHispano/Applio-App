@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "Синтез возвращает аудио после обработки. Конвертация возвращает HTTP 202: опрашивайте задание до завершения, затем скачайте результат. Ошибочные или отменённые задания не являются успешными аудиорезультатами.",
   "Speech synthesis": "Синтез речи",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "Для речи используются Edge TTS и установленная модель RVC. Форматы: MP3, WAV, FLAC. Скорость: 0.25–2.0.",
-  "Split Audio": "Разделить аудио",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Разделите длинные записи на более мелкие части перед преобразованием, чтобы уменьшить использование памяти.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Разделение песен на вокал, инструментал, ударные, бас и другое — локально, с помощью моделей сообщества.",
   "Split the track into chunks to save VRAM.": "Разделение трека на фрагменты для экономии VRAM.",
   "Split vocals, instrumental and stems": "Разделение вокала, инструментала и стемов",

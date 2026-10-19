@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "语音合成在处理完成后返回音频。转换返回 HTTP 202：轮询任务直至完成，然后下载内容。失败或取消的任务不代表成功生成了音频。",
   "Speech synthesis": "语音合成",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "语音合成使用 Edge TTS 和已安装的 RVC 模型。格式：MP3、WAV、FLAC。速度：0.25–2.0。",
-  "Split Audio": "分割音频",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "在转换之前将长录音分割成较小的部分以减少内存使用。",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "使用已下载的社区模型在本地将歌曲拆分为人声、伴奏、鼓点、贝斯等分轨。",
   "Split the track into chunks to save VRAM.": "将音轨分块以节省显存。",
   "Split vocals, instrumental and stems": "拆分人声、伴奏和各分轨",

@@ -74,7 +74,6 @@ export default function InferenceForm() {
     embedderModel,
     embedderModelCustom,
     exportFormat,
-    splitAudio,
     f0Autotune,
     f0AutotuneStrength,
     proposedPitch,
@@ -196,7 +195,6 @@ export default function InferenceForm() {
     embedderModel,
     embedderModelCustom: embedderModel === "custom" ? embedderModelCustom : "",
     exportFormat: "WAV",
-    splitAudio,
     f0Autotune,
     f0AutotuneStrength,
     proposedPitch,
@@ -279,7 +277,6 @@ export default function InferenceForm() {
       fd.append("embedderModelCustom", embedderModelCustom);
     }
     fd.append("exportFormat", exportFormat);
-    fd.append("splitAudio", String(splitAudio));
     fd.append("f0Autotune", String(f0Autotune));
     fd.append("f0AutotuneStrength", String(f0AutotuneStrength));
     fd.append("proposedPitch", String(proposedPitch));

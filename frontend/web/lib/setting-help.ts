@@ -18,7 +18,6 @@ export const SETTING_HELP = {
   customEmbedder: "Enter the folder containing your custom speech embedder's model and configuration files.",
   export: "Choose the saved audio format. WAV and FLAC are lossless; MP3, OGG and M4A use compression.",
   speaker: "Choose a voice within a multi-speaker checkpoint. This does not select a different model file.",
-  split: "Split long recordings into smaller sections before conversion to reduce memory use.",
   autotune: "Move detected pitches toward musical notes. Disable it to keep natural pitch variation.",
   autotuneStrength:
     "Control how strongly pitches move toward musical notes: 0 keeps them unchanged, 1 fully snaps them.",

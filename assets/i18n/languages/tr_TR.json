@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "Konuşma üretimi, işleme sonrasında sesi döndürür. Dönüştürme HTTP 202 döndürür: iş tamamlanana kadar sorgulayın, ardından içeriğini indirin. Başarısız veya iptal edilmiş işler başarılı ses sonuçları değildir.",
   "Speech synthesis": "Konuşma sentezi",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "Konuşma üretimi Edge TTS ve yüklü bir RVC modeli kullanır. Biçimler: MP3, WAV, FLAC. Hız: 0,25–2,0.",
-  "Split Audio": "Sesi Böl",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Bellek kullanımını azaltmak için uzun kayıtları dönüştürmeden önce daha küçük bölümlere ayırın.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Şarkıları vokaller, enstrümantal, davul, bas ve daha fazlasına ayırın — indirilen topluluk modelleriyle yerel olarak.",
   "Split the track into chunks to save VRAM.": "VRAM tasarrufu sağlamak için parçayı bölümlere ayırın.",
   "Split vocals, instrumental and stems": "Vokalleri, enstrümantali ve kanalları (stem) ayırın",

@@ -4,18 +4,18 @@
 // coverage rules. Dynamic sites it cannot prove land in REVIEW, never in keys.
 //
 // Usage (repo root):
-//   node scripts/i18n-extract.mjs                                   # print keys + REVIEW
-//   node scripts/i18n-extract.mjs --check <dict.json>               # report MISSING, exit 1 if any
-//   node scripts/i18n-extract.mjs --check <dict> --fix              # append missing (identity), keep file order
-//   node scripts/i18n-extract.mjs --check <dict> --prune            # delete unused (refuses if REVIEW pending)
-//   node scripts/i18n-extract.mjs --check <dict> --sort              # sort keys A-Z, keep EOL style
+//   node scripts/i18n/extract.mjs                                   # print keys + REVIEW
+//   node scripts/i18n/extract.mjs --check <dict.json>               # report MISSING, exit 1 if any
+//   node scripts/i18n/extract.mjs --check <dict> --fix              # append missing (identity), keep file order
+//   node scripts/i18n/extract.mjs --check <dict> --prune            # delete unused (refuses if REVIEW pending)
+//   node scripts/i18n/extract.mjs --check <dict> --sort              # sort keys A-Z, keep EOL style
 // Combine --fix/--prune/--sort freely; --prune runs before --sort.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import ts from "typescript";
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const WEB = path.join(root, "frontend", "web");
 const SCAN_DIRS = ["app", "components", "lib"].map((d) => path.join(WEB, d));
 SCAN_DIRS.push(path.join(root, "frontend", "desktop", "src"));

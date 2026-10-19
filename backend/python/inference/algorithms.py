@@ -115,20 +115,3 @@ def autotune_f0(f0, notes, strength):
         notes[right],
     )
     return (f0 + (nearest - f0) * strength).astype(f0.dtype, copy=False)
-
-
-def merge_audio(audio_segments_org, audio_segments_new, intervals, sr_orig, sr_new):
-    """Preserve the engine's append/gap semantics in a single allocation."""
-    if not audio_segments_new:
-        return np.empty(0, dtype=np.float32)
-    ratio = sr_new / sr_orig
-    cursor = 0
-    placements = []
-    for segment, (start, end) in zip(audio_segments_new, intervals, strict=True):
-        offset = max(cursor, int(start * ratio))
-        placements.append((offset, segment))
-        cursor = max(offset + len(segment), int(end * ratio))
-    merged = np.zeros(cursor, dtype=audio_segments_new[0].dtype)
-    for offset, segment in placements:
-        merged[offset : offset + len(segment)] = segment
-    return merged

@@ -5,7 +5,7 @@ import test from "node:test";
 import ts from "typescript";
 
 function restart(fetch, now = () => 0) {
-  const source = fs.readFileSync(new URL("../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
   const exports = {};
   new Function("exports", "fetch", "Date", "AbortSignal", "setTimeout", outputText)(
@@ -23,7 +23,7 @@ function restart(fetch, now = () => 0) {
 const json = (body, ok = true) => ({ ok, json: async () => body });
 
 test("existing Halloween theme files activate scenery and switching themes clears it", () => {
-  const source = fs.readFileSync(new URL("../frontend/web/lib/theme.tsx", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/lib/theme.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
   const root = { dataset: {}, style: { removeProperty() {}, setProperty() {} } };
   const document = { documentElement: root, body: { style: {} }, getElementById: () => null };
@@ -72,13 +72,13 @@ test("restart surfaces rejected requests and never reports the old generation as
 
 test("desktop quit is permitted and returns native invocation failures to Settings", async () => {
   const permissions = fs.readFileSync(
-    new URL("../frontend/desktop/src-tauri/permissions/native.toml", import.meta.url),
+    new URL("../../frontend/desktop/src-tauri/permissions/native.toml", import.meta.url),
     "utf8",
   );
   const allowed = JSON.parse(permissions.match(/commands\.allow = (\[[^\]]+\])/)[1]);
   assert.ok(allowed.includes("quit_app"));
   const source = fs.readFileSync(
-    new URL("../frontend/desktop/src-tauri/src/bridge.js", import.meta.url),
+    new URL("../../frontend/desktop/src-tauri/src/bridge.js", import.meta.url),
     "utf8",
   );
   let failure = false;
@@ -108,8 +108,8 @@ test("desktop quit is permitted and returns native invocation failures to Settin
 
 
 test("the workflow API catalog explicitly accounts for native routes and produces valid Python examples", () => {
-  const routes = new URL("../backend/rust-api/src/routes/", import.meta.url);
-  const catalog = JSON.parse(fs.readFileSync(new URL("../assets/api-endpoints.json", import.meta.url), "utf8"));
+  const routes = new URL("../../backend/rust-api/src/routes/", import.meta.url);
+  const catalog = JSON.parse(fs.readFileSync(new URL("../../assets/api-endpoints.json", import.meta.url), "utf8"));
   const documented = new Set(catalog.map((entry) => `${entry.method} ${entry.path}`));
   const actual = new Set();
   for (const filename of fs.readdirSync(routes).filter((name) => name.endsWith(".rs") && !name.startsWith("integration_"))) {
@@ -134,7 +134,7 @@ test("the workflow API catalog explicitly accounts for native routes and produce
   ]);
   for (const operation of nativeOnly) assert.ok(!documented.has(operation));
   assert.deepEqual([...new Set([...documented, ...nativeOnly])].sort(), [...actual].sort(), "new native routes need an explicit workflow capability or native-only decision");
-  const source = fs.readFileSync(new URL("../frontend/web/components/ApiReference.tsx", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/components/ApiReference.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
   const exports = {};
   new Function("exports", "require", outputText)(exports, () => ({}));
@@ -156,8 +156,8 @@ test("the workflow API catalog explicitly accounts for native routes and produce
 
 
 test("separator profiles submit schema-valid settings and preserve model, batch and export choices", async () => {
-  const source = fs.readFileSync(new URL("../frontend/web/app/audio-separator/page.tsx", import.meta.url), "utf8");
-  const schema = JSON.parse(fs.readFileSync(new URL("../backend/rust-api/src/routes/uvr-schema.json", import.meta.url), "utf8"));
+  const source = fs.readFileSync(new URL("../../frontend/web/app/audio-separator/page.tsx", import.meta.url), "utf8");
+  const schema = JSON.parse(fs.readFileSync(new URL("../../backend/rust-api/src/routes/uvr-schema.json", import.meta.url), "utf8"));
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
   const controls = {
     VR: ["vrWindow", "vrTta"],
@@ -221,7 +221,7 @@ test("separator profiles submit schema-valid settings and preserve model, batch 
 
 
 test("settings writes preserve order and recover after a rejected request", async () => {
-  const source = fs.readFileSync(new URL("../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
   const exports = {};
   new Function("exports", outputText)(exports);
@@ -246,7 +246,7 @@ test("settings writes preserve order and recover after a rejected request", asyn
 });
 
 test("Bridge management has a static host route and desktop notifications target it", () => {
-  const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+  const read = (path) => fs.readFileSync(new URL(`../../${path}`, import.meta.url), "utf8");
   assert.match(read("backend/rust-api/src/runtime/web_host.rs"), /"\/bridge-mode"/);
   assert.match(read("frontend/web/components/layout/nav.ts"), /to: "\/bridge-mode"/);
   assert.match(read("frontend/web/lib/bridge-mode.tsx"), /REMOTE_HOST_ROUTES = new Set\(\[[\s\S]*?"\/bridge-mode"/);
@@ -255,7 +255,7 @@ test("Bridge management has a static host route and desktop notifications target
   assert.match(read("frontend/desktop/src-tauri/src/runtime.rs"), /extra\("href", "\/bridge-mode"\)/);
   assert.match(read("frontend/desktop/src-tauri/src/main.rs"), /href == "\/bridge-mode"/);
   const key = "{name} is requesting access. Check code {code} in Bridge Mode.";
-  for (const file of fs.readdirSync(new URL("../assets/i18n/languages/", import.meta.url))) {
+  for (const file of fs.readdirSync(new URL("../../assets/i18n/languages/", import.meta.url))) {
     const dict = JSON.parse(read(`assets/i18n/languages/${file}`));
     for (const label of ["Preferences", "Appearance", "Audio engine", "Storage", "Updates", "Application", "Settings sections", "Approve this device in Bridge Mode on your host. Check that the code matches:", "Open the desktop app to share this computer with your other devices.", key]) {
       assert.ok(dict[label], `${file}: ${label}`);
@@ -265,7 +265,7 @@ test("Bridge management has a static host route and desktop notifications target
 });
 
 test("Bridge browser fallback avoids polling and desktop polling stops when its page unmounts", async () => {
-  const source = fs.readFileSync(new URL("../frontend/web/components/BridgeModeCard.tsx", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/components/BridgeModeCard.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
   for (const native of [false, true]) {
     const states = [], effects = [], cleared = [];
@@ -308,8 +308,8 @@ test("Bridge browser fallback avoids polling and desktop polling stops when its 
 
 
 test("Settings ignores superseded save responses and keeps an unsaved author draft", async () => {
-  const source = fs.readFileSync(new URL("../frontend/web/app/settings/page.tsx", import.meta.url), "utf8");
-  const actions = fs.readFileSync(new URL("../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
+  const source = fs.readFileSync(new URL("../../frontend/web/app/settings/page.tsx", import.meta.url), "utf8");
+  const actions = fs.readFileSync(new URL("../../frontend/web/lib/settings-actions.ts", import.meta.url), "utf8");
   const actionExports = {};
   new Function("exports", ts.transpileModule(actions, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText)(actionExports);
   const config = { model_index_filter: true, precision: "fp16", model_author: "Saved author", version: "1.0.3" };
@@ -411,5 +411,95 @@ assert stream.getvalue().splitlines() == [
     "APPLIO_STAGE:Separating…", "APPLIO_STAGE:Reconstructing audio…",
     "APPLIO_STAGE:Separating…",
 ]
+`], { encoding: "utf8", windowsHide: true });
+});
+
+
+test("conversion drafts and saved presets cannot reintroduce retired parameters", () => {
+  const source = fs.readFileSync(new URL("../../frontend/web/lib/useConversionParameters.ts", import.meta.url), "utf8");
+  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
+  const legacy = { splitAudio: true, pitch: 7, f0Autotune: true, f0AutotuneStrength: 0.6 };
+  const exports = {};
+  new Function("exports", "require", outputText)(exports, (name) => {
+    if (name === "react") return { useMemo: (fn) => fn(), useCallback: (fn) => fn, useRef: (value) => ({ current: value }) };
+    if (name === "@/lib/workspace-state") return { useWorkspaceState: () => [legacy, () => {}] };
+    if (name === "@/lib/model-presets") return {
+      modelPresetKey: (scope, model) => `${scope}:${model}`,
+      useModelPresets: () => ({ loaded: true, presets: { "conversion:voice.pth": legacy } }),
+    };
+    throw new Error(`Unexpected import: ${name}`);
+  });
+  assert.deepEqual(exports.conversionOverrides(legacy), { pitch: 7, f0Autotune: true, f0AutotuneStrength: 0.6 });
+  for (const model of ["", "voice.pth"]) {
+    const { values, setters } = exports.useConversionParameters(model);
+    assert.equal(values.pitch, 7);
+    assert.equal(values.f0Autotune, true);
+    assert.equal(values.f0AutotuneStrength, 0.6);
+    assert.ok(!("splitAudio" in values));
+    assert.ok(!("splitAudio" in setters));
+    assert.deepEqual(Object.keys(values), Object.keys(exports.CONVERSION_DEFAULTS));
+  }
+});
+
+test("Gradio callback ordering and the worker retain conversion parameters after removing split audio", () => {
+  execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
+import ast, inspect, os, time, types
+from pathlib import Path
+from unittest.mock import Mock
+
+root = Path("backend/applio")
+core = ast.parse((root / "core.py").read_text(encoding="utf-8"))
+functions = [node for node in core.body if isinstance(node, ast.FunctionDef) and node.name in {"_base_infer_kwargs", "run_infer_script", "run_batch_infer_script", "run_tts_script"}]
+namespace = {}
+exec(compile(ast.Module(body=functions, type_ignores=[]), "core.py", "exec"), namespace)
+control_names = {
+ "rms_mix_rate": "volume_envelope", "autotune": "f0_autotune", "autotune_strength": "f0_autotune_strength",
+ "audio": "input_path", "model_file": "pth_path", "index_file": "index_path",
+ "input_tts_path": "tts_file", "output_tts_path": "output_tts_path", "output_rvc_path": "output_rvc_path",
+}
+for relative, callbacks in [("tabs/inference/inference.py", {"enforce_terms": "run_infer_script", "enforce_terms_batch": "run_batch_infer_script"}), ("tabs/tts/tts.py", {"enforce_terms": "run_tts_script"})]:
+ tree = ast.parse((root / relative).read_text(encoding="utf-8"))
+ found = set()
+ for node in ast.walk(tree):
+  if not isinstance(node, ast.Call): continue
+  keywords = {keyword.arg: keyword.value for keyword in node.keywords}
+  callback = keywords.get("fn")
+  if not isinstance(callback, ast.Name) or callback.id not in callbacks or "inputs" not in keywords: continue
+  script = callbacks[callback.id]; found.add(script)
+  inputs = [item.id for item in keywords["inputs"].elts][1:]
+  values = list(range(len(inputs)))
+  signature = inspect.signature(namespace[script])
+  if script == "run_tts_script": bound = signature.bind(*values)
+  else: bound = signature.bind(*values[:-2], cleanup_mode=values[-2], cleanup_strength=values[-1])
+  for control, value in zip(inputs, values):
+   control = control.removesuffix("_batch")
+   expected = control_names.get(control, control)
+   assert bound.arguments[expected] == value, (script, control, bound.arguments)
+  assert "split_audio" not in signature.parameters
+ assert found == set(callbacks.values()), (relative, found)
+
+worker = ast.parse((root / "rvc/infer/worker.py").read_text(encoding="utf-8"))
+functions = [node for node in worker.body if isinstance(node, ast.FunctionDef) and node.name in {"map_params", "to_bool"}]
+exec(compile(ast.Module(body=functions, type_ignores=[]), "worker.py", "exec"), namespace)
+params = namespace["map_params"]({"splitAudio": True, "f0Autotune": True, "sid": 3}, "input.wav", "output.wav")
+assert "split_audio" not in params and params["f0_autotune"] is True and params["sid"] == 3
+
+infer = ast.parse((root / "rvc/infer/infer.py").read_text(encoding="utf-8"))
+converter = next(node for node in infer.body if isinstance(node, ast.ClassDef) and node.name == "VoiceConverter")
+convert = next(node for node in converter.body if isinstance(node, ast.FunctionDef) and node.name == "convert_audio")
+convert.decorator_list = []
+audio, output, embedder = object(), object(), object()
+pipeline, write = Mock(return_value=output), Mock()
+namespace.update(np=types.SimpleNamespace(abs=lambda _: types.SimpleNamespace(max=lambda: 0)), load_audio_infer=lambda *args, **kwargs: audio, sf=types.SimpleNamespace(write=write), os=os, time=time)
+exec(compile(ast.Module(body=[convert], type_ignores=[]), "infer.py", "exec"), namespace)
+vc = types.SimpleNamespace(get_vc=Mock(), hubert_model=embedder, last_embedder_model="contentvec", tgt_sr=44100, net_g=object(), use_f0=True, version="v2", vc=types.SimpleNamespace(pipeline=pipeline), convert_audio_format=Mock(return_value="out.wav"))
+namespace["convert_audio"](vc, "in.wav", "out.wav", "voice.pth", "voice.index", pitch=7, f0_autotune=True, f0_autotune_strength=0.6, sid=3)
+pipeline.assert_called_once()
+assert pipeline.call_args.kwargs["audio"] is audio
+assert pipeline.call_args.kwargs["pitch"] == 7
+assert pipeline.call_args.kwargs["f0_autotune"] is True
+assert pipeline.call_args.kwargs["f0_autotune_strength"] == 0.6
+assert pipeline.call_args.kwargs["sid"] == 3
+write.assert_called_once_with("out.wav", output, 44100, format="WAV")
 `], { encoding: "utf8", windowsHide: true });
 });

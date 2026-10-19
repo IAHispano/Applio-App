@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "La synthèse renvoie l’audio après traitement. La conversion renvoie HTTP 202 : consultez la tâche jusqu’à sa fin, puis téléchargez son contenu. Une tâche échouée ou annulée ne constitue pas un résultat audio réussi.",
   "Speech synthesis": "Synthèse vocale",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "La synthèse utilise Edge TTS et un modèle RVC installé. Formats : MP3, WAV, FLAC. Vitesse : 0,25–2,0.",
-  "Split Audio": "Diviser l'audio",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Divisez les enregistrements longs en sections plus petites avant la conversion pour réduire l'utilisation de la mémoire.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Séparez les chansons en voix, instrumental, batterie, basse et plus encore — localement, avec des modèles communautaires téléchargés.",
   "Split the track into chunks to save VRAM.": "Divisez la piste en morceaux pour économiser la VRAM.",
   "Split vocals, instrumental and stems": "Séparer voix, instrumental et pistes (stems)",

@@ -18,7 +18,6 @@ from rvc.infer import pipeline as engine
 from backend.python.inference.algorithms import (
     RetrievalIndexCache,
     autotune_f0,
-    merge_audio,
     retrieve_embeddings,
 )
 
@@ -237,12 +236,8 @@ class OptimizedPipeline(engine.Pipeline):
 
 def install():
     """Install before importing the worker or running the engine's CLI."""
-    from rvc.lib.tools import split_audio
-
     engine.Pipeline = OptimizedPipeline
-    split_audio.merge_audio = merge_audio
     # The app CLI can install after another command imported inference.
     infer = sys.modules.get("rvc.infer.infer")
     if infer is not None:
         infer.VC = OptimizedPipeline
-        infer.merge_audio = merge_audio

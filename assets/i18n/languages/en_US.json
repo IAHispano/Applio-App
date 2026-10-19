@@ -1408,8 +1408,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.",
   "Speech synthesis": "Speech synthesis",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.",
-  "Split Audio": "Split Audio",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Split long recordings into smaller sections before conversion to reduce memory use.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.",
   "Split the track into chunks to save VRAM.": "Split the track into chunks to save VRAM.",
   "Split vocals, instrumental and stems": "Split vocals, instrumental and stems",

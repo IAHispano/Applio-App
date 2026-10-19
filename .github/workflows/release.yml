@@ -162,11 +162,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check release regressions
-        run: node --test scripts/check-realtime-audio.mjs scripts/check-settings-actions.mjs scripts/check-update-policy.mjs
-
-      - name: Test lazy realtime initialization and model caches
-        run: python scripts/check-realtime-service.py
+      - name: Check application regressions
+        run: pnpm check
 
       - name: Check TypeScript
         run: pnpm -r typecheck

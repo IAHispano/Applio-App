@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "يعيد توليد الكلام الصوت بعد المعالجة. يعيد التحويل HTTP 202: استعلم عن المهمة حتى اكتمالها ثم نزّل محتواها. لا تُعد المهام الفاشلة أو الملغاة نتائج صوتية ناجحة.",
   "Speech synthesis": "توليد الكلام",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "يستخدم توليد الكلام Edge TTS ونموذج RVC مثبّتًا. التنسيقات: MP3 وWAV وFLAC. السرعة: 0.25–2.0.",
-  "Split Audio": "تقسيم الصوت",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "قم بتقسيم التسجيلات الطويلة إلى أقسام أصغر قبل التحويل لتقليل استخدام الذاكرة.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "تقسيم الأغاني إلى أصوات بشرية وموسيقى وطبول وباس والمزيد — محليًا، باستخدام نماذج المجتمع المحملة.",
   "Split the track into chunks to save VRAM.": "تقسيم المسار إلى أجزاء لتوفير ذاكرة VRAM.",
   "Split vocals, instrumental and stems": "فصل الأصوات البشرية والآلات الموسيقية والمسارات",

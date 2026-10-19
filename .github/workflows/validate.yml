@@ -43,8 +43,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Test lazy realtime initialization and model caches
-        run: python scripts/check-realtime-service.py
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt
@@ -57,12 +55,8 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
       - name: Check TypeScript
         run: pnpm -r typecheck
-      - name: Test realtime audio
-        run: node --test scripts/check-realtime-audio.mjs
-      - name: Test Settings actions
-        run: node --test scripts/check-settings-actions.mjs
-      - name: Test optional updates and release notes
-        run: node --test scripts/check-update-policy.mjs
+      - name: Test audio, workflows, updates and realtime service
+        run: pnpm check
       - name: Check Rust formatting
         run: node scripts/cargo.mjs fmt --all -- --check
       - name: Test native API
@@ -82,7 +76,7 @@ jobs:
         run: |
           image=$(find target/release/bundle/appimage -maxdepth 1 -name '*.AppImage' -print -quit)
           test -n "$image"
-          dbus-run-session -- xvfb-run -a python scripts/check-desktop-startup.py "$image" --appimage-extract-and-run
+          dbus-run-session -- xvfb-run -a python scripts/checks/desktop-startup.py "$image" --appimage-extract-and-run
       - name: Smoke-test macOS disk image
         if: runner.os == 'macOS'
         shell: bash
@@ -95,7 +89,7 @@ jobs:
           trap 'hdiutil detach "$mountpoint"' EXIT
           executable=$(find "$mountpoint/Applio.app/Contents/MacOS" -type f -perm +111 -print -quit)
           test -n "$executable"
-          python scripts/check-desktop-startup.py "$executable"
+          python scripts/checks/desktop-startup.py "$executable"
       - name: Upload installers for platform acceptance tests
         uses: actions/upload-artifact@v5
         with:

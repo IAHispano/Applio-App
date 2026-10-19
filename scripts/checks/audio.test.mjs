@@ -36,7 +36,7 @@ test("Halloween music loops continuously and releases audio when disabled", () =
     createBufferSource() { return source; }
     createGain() { return gain; }
   }
-  const { createHauntedLoop, useHauntedSound } = load("../frontend/web/components/HalloweenEffects.tsx", () => ({ useRef: () => ref, useEffect: (fn) => effects.push(fn) }), { document, AudioContext: Context });
+  const { createHauntedLoop, useHauntedSound } = load("../../frontend/web/components/HalloweenEffects.tsx", () => ({ useRef: () => ref, useEffect: (fn) => effects.push(fn) }), { document, AudioContext: Context });
   const samples = createHauntedLoop(new Context()).getChannelData(0);
   assert.ok(samples.some((sample) => Math.abs(sample) > 0.01));
   assert.ok(Math.abs(samples[0] - samples.at(-1)) < 0.002, "loop seam must not click");
@@ -55,7 +55,7 @@ test("Halloween music loops continuously and releases audio when disabled", () =
 });
 
 test("microphone gain stays manual with Voice Focus on or off", () => {
-  const { realtimeMicrophoneConstraints } = load("../frontend/web/lib/voice-focus.ts");
+  const { realtimeMicrophoneConstraints } = load("../../frontend/web/lib/voice-focus.ts");
   for (const variant of ["off", "c20", "c50", "c100"]) {
     const constraints = realtimeMicrophoneConstraints("microphone", variant);
     assert.equal(constraints.autoGainControl, false);
@@ -85,7 +85,7 @@ test("Voice Focus resumes the context before initializing and cleans up each var
       },
       destroyVoiceFocus: async () => calls.push("destroy"),
     };
-    const { connectVoiceFocus } = load("../frontend/web/lib/voice-focus.ts", () => ({
+    const { connectVoiceFocus } = load("../../frontend/web/lib/voice-focus.ts", () => ({
       default: Transformer,
     }));
     const cleanup = await connectVoiceFocus(
@@ -108,7 +108,7 @@ test("Voice Focus resumes the context before initializing and cleans up each var
 });
 
 test("capture worklet transmits samples while leaving its connected output silent", () => {
-  const { INPUT_WORKLET } = load("../frontend/web/lib/realtime-audio.ts");
+  const { INPUT_WORKLET } = load("../../frontend/web/lib/realtime-audio.ts");
   const messages = [];
   let Processor;
   class AudioWorkletProcessor {
@@ -177,7 +177,7 @@ test("waveform players defer native media offscreen and limit React updates with
     destroy: () => { destroyed++; listeners.clear(); },
   };
   const jsx = (type, props) => ({ type, props });
-  const { default: Player } = load("../frontend/web/components/AudioWavePlayerImpl.tsx", (id) => {
+  const { default: Player } = load("../../frontend/web/components/AudioWavePlayerImpl.tsx", (id) => {
     if (id === "react") return react;
     if (id === "react/jsx-runtime") return { jsx, jsxs: jsx };
     if (id === "wavesurfer.js") return { default: { create: () => { creates++; return player; } } };

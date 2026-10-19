@@ -19,7 +19,6 @@ export const CONVERSION_DEFAULTS: ConversionParameterValues = {
   embedderModel: "contentvec",
   embedderModelCustom: "",
   exportFormat: "WAV",
-  splitAudio: false,
   f0Autotune: false,
   f0AutotuneStrength: 1,
   proposedPitch: false,
@@ -31,6 +30,13 @@ export const CONVERSION_DEFAULTS: ConversionParameterValues = {
   cleanupStrength: 12,
 };
 
+/** Keep retired options from old presets and session drafts out of requests. */
+export function conversionOverrides(values: object | undefined): Partial<ConversionParameterValues> {
+  return Object.fromEntries(
+    Object.entries(values ?? {}).filter(([name]) => Object.hasOwn(CONVERSION_DEFAULTS, name)),
+  ) as Partial<ConversionParameterValues>;
+}
+
 export function useConversionParameters(model = "", workspace = "conversion") {
   const presets = useModelPresets();
   const [sessionValues, setValues] = useWorkspaceState<ConversionParameterValues>(
@@ -38,7 +44,10 @@ export function useConversionParameters(model = "", workspace = "conversion") {
     () => ({ ...CONVERSION_DEFAULTS }),
   );
   const saved = presets.presets[modelPresetKey("conversion", model)];
-  const values = { ...CONVERSION_DEFAULTS, ...(model ? saved : sessionValues) } as ConversionParameterValues;
+  const values = {
+    ...CONVERSION_DEFAULTS,
+    ...conversionOverrides(model ? saved : sessionValues),
+  } as ConversionParameterValues;
   const modelRef = useRef(model);
   modelRef.current = model;
   const setters = useMemo(

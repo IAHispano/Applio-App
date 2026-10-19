@@ -42,7 +42,7 @@ class RealtimeServiceTests(unittest.TestCase):
         }
         spec = importlib.util.spec_from_file_location(
             "realtime_service_check",
-            Path(__file__).resolve().parents[1] / "backend/python/realtime/service.py",
+            Path(__file__).resolve().parents[2] / "backend/python/realtime/service.py",
         )
         self.service = importlib.util.module_from_spec(spec)
         with patch.dict(sys.modules, modules), patch.dict(

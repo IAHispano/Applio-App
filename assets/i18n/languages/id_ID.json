@@ -1404,8 +1404,6 @@
   "Speech returns audio after processing. Conversion returns HTTP 202: poll the job until done, then download its content. Failed or cancelled jobs must not be treated as successful audio.": "Sintesis mengembalikan audio setelah pemrosesan. Konversi mengembalikan HTTP 202: periksa tugas hingga selesai, lalu unduh isinya. Tugas gagal atau dibatalkan bukan hasil audio yang berhasil.",
   "Speech synthesis": "Sintesis suara",
   "Speech uses Edge TTS and an installed RVC model. Formats: MP3, WAV, FLAC. Speed: 0.25–2.0.": "Sintesis menggunakan Edge TTS dan model RVC terpasang. Format: MP3, WAV, FLAC. Kecepatan: 0,25–2,0.",
-  "Split Audio": "Pisahkan Audio",
-  "Split long recordings into smaller sections before conversion to reduce memory use.": "Pisahkan rekaman panjang menjadi beberapa bagian yang lebih kecil sebelum konversi untuk mengurangi penggunaan memori.",
   "Split songs into vocals, instrumental, drums, bass and more — locally, with downloaded community models.": "Pisahkan lagu menjadi vokal, instrumen, drum, bass, dan lainnya — secara lokal, dengan model komunitas yang diunduh.",
   "Split the track into chunks to save VRAM.": "Pisahkan trek menjadi chunk untuk menghemat VRAM.",
   "Split vocals, instrumental and stems": "Pisahkan vokal, instrumen, dan stem",
