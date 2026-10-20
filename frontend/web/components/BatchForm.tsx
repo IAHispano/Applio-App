@@ -438,85 +438,86 @@ export default function BatchForm() {
               {t("Clear")}
             </Button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-[var(--border)]">
-            <div className="max-h-80 divide-y divide-[var(--border)] overflow-y-auto">
-              {filteredModels.map((model) => {
-                const checked = selectedModels.includes(model);
-                const paired = matchIndex(model, indexes);
-                const position = selectedModels.indexOf(model);
-                return (
-                  <div
-                    key={model}
-                    className={`transition-colors ${
-                      checked ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--surface)]"
-                    }`}
-                  >
-                    <label className="flex cursor-pointer items-center gap-2 px-3 py-2.5">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(e) =>
-                          setSelectedModels((current) =>
-                            e.target.checked ? [...current, model] : current.filter((item) => item !== model),
-                          )
-                        }
-                        className="shrink-0"
-                      />
-                      <span className="min-w-0 truncate text-xs font-medium text-[var(--text)]" title={model}>
-                        {modelLabel(model)}
-                      </span>
-                      <Badge variant="outline" size="sm" className="shrink-0">
-                        {model.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH"}
+          <div className="grid max-h-80 grid-cols-1 gap-3 overflow-y-auto pr-0.5 sm:grid-cols-2 2xl:grid-cols-3">
+            {filteredModels.map((model) => {
+              const checked = selectedModels.includes(model);
+              const paired = matchIndex(model, indexes);
+              const position = selectedModels.indexOf(model);
+              const toggle = () =>
+                setSelectedModels((current) =>
+                  checked ? current.filter((item) => item !== model) : [...current, model],
+                );
+              return (
+                // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the card toggles the selection; the checkbox inside is the keyboard control
+                <div
+                  key={model}
+                  onClick={toggle}
+                  className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                    checked
+                      ? "border-[var(--accent)]/30 bg-[var(--accent-soft)]"
+                      : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--focus-border)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={toggle}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={modelLabel(model)}
+                      className="shrink-0 cursor-pointer"
+                    />
+                    <span className="min-w-0 truncate text-sm font-semibold text-[var(--text)]" title={model}>
+                      {modelLabel(model)}
+                    </span>
+                    <Badge variant="outline" size="sm" className="shrink-0">
+                      {model.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH"}
+                    </Badge>
+                    {!checked && paired && (
+                      <Badge variant="success" size="sm" dot className="shrink-0">
+                        {t("Index paired")}
                       </Badge>
-                      {!checked && paired && (
-                        <Badge variant="success" size="sm" dot className="shrink-0">
-                          {t("Index paired")}
-                        </Badge>
-                      )}
-                    </label>
-                    {checked && (
-                      <div className="flex items-center gap-2 px-3 pb-2.5 pl-9">
-                        <label
-                          htmlFor={`batch-index-${position}`}
-                          className="text-[11px] text-[var(--muted)]"
-                        >
-                          {t("Index")}
-                        </label>
-                        <CustomSelect
-                          id={`batch-index-${position}`}
-                          aria-describedby={`batch-index-${position}-help`}
-                          value={indexFor(model)}
-                          onChange={(e) => {
-                            const v = e.target.value;
-                            setModelIndexes((prev) => ({ ...prev, [model]: v }));
-                          }}
-                          size="sm"
-                          className="w-full max-w-xs"
-                          options={[
-                            { value: "", label: t("None") },
-                            ...indexes.map((idx) => ({
-                              value: idx,
-                              label: fileBasename(idx).replace(/\.index$/i, ""),
-                              badge: "INDEX",
-                              description: idx,
-                            })),
-                          ]}
-                        />
-                        <div className="sr-only">
-                          <SettingHelp text={t(SETTING_HELP.index)} controlId={`batch-index-${position}`} />
-                        </div>
-                      </div>
                     )}
                   </div>
-                );
-              })}
-            </div>
-            {filteredModels.length === 0 && (
-              <p className="m-0 p-4 text-center text-xs text-[var(--muted)]">
-                {models.length === 0 ? t("No models found.") : t("No models match your search.")}
-              </p>
-            )}
+                  {checked && (
+                    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction
+                    <div className="mt-2.5 pl-6" onClick={(e) => e.stopPropagation()}>
+                      <label htmlFor={`batch-index-${position}`} className="sr-only">
+                        {t("Index File")}
+                      </label>
+                      <CustomSelect
+                        id={`batch-index-${position}`}
+                        aria-describedby={`batch-index-${position}-help`}
+                        value={indexFor(model)}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setModelIndexes((prev) => ({ ...prev, [model]: v }));
+                        }}
+                        size="sm"
+                        className="mt-1 w-full"
+                        options={[
+                          { value: "", label: t("None") },
+                          ...indexes.map((idx) => ({
+                            value: idx,
+                            label: fileBasename(idx).replace(/\.index$/i, ""),
+                            description: idx,
+                          })),
+                        ]}
+                      />
+                      <div className="sr-only">
+                        <SettingHelp text={t(SETTING_HELP.index)} controlId={`batch-index-${position}`} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          {filteredModels.length === 0 && (
+            <p className="m-0 rounded-xl border border-dashed border-[var(--border)] p-4 text-center text-xs text-[var(--muted)]">
+              {models.length === 0 ? t("No models found.") : t("No models match your search.")}
+            </p>
+          )}
           {selectedModels.length > 0 && selectedFileCount > 0 && (
             <p className="m-0 text-xs text-[var(--muted)]" role="status">
               {t("Conversions: {n}", { n: selectedModels.length * selectedFileCount })}
