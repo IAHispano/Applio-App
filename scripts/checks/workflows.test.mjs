@@ -110,7 +110,11 @@ test("the Halloween ambience plays the whole score instead of one repeated note"
 // flatten it into a readable message instead of "[object Object]".
 function apiClient(fetch) {
   const source = fs.readFileSync(new URL("../../frontend/web/lib/api.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } });
+  // A modern target keeps `for (const key of map.keys())` intact; the ES5
+  // downlevel rewrites it to array indexing, which never iterates a Map.
+  const { outputText } = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  });
   const exports = {};
   new Function("exports", "require", "fetch", "setTimeout", "URL", outputText)(
     exports,
@@ -180,6 +184,50 @@ test("API validation errors keep their per-field messages", async () => {
     assert.match(message, /pthPath: Required/);
     return true;
   });
+});
+
+test("the training schema advertises only the sample rates the route accepts", () => {
+  const schema = JSON.parse(
+    fs.readFileSync(
+      new URL("../../backend/rust-api/src/training/training-schema.json", import.meta.url),
+      "utf8",
+    ),
+  );
+  const route = fs.readFileSync(
+    new URL("../../backend/rust-api/src/routes/training_routes.rs", import.meta.url),
+    "utf8",
+  );
+  // The route rejects anything outside these lists for training and pipelines.
+  const training = [...route.matchAll(/&\["(\d+)", "(\d+)", "(\d+)"\]\[\.\.\]/g)].map((m) =>
+    m.slice(1).map(Number),
+  );
+  assert.ok(training.length > 0, "the route must list the accepted sample rates");
+  for (const list of training) {
+    assert.deepEqual(list, [32000, 40000, 48000]);
+  }
+  assert.match(route, /&\["24000", "32000"\]\[\.\.\]/);
+  const pipeline = schema.pipeline.find((param) => param.name === "sampleRate");
+  assert.deepEqual(pipeline.values, training[0].map(String));
+  // Extracting features keeps the source rate, so it may still be 44100.
+  const extract = schema.extract.find((param) => param.name === "sampleRate");
+  assert.ok(extract.values.includes("44100"));
+});
+
+test("importing a custom UVR model drops the cached variant list", async () => {
+  const calls = [];
+  const { apiGet, apiSend } = apiClient(async (url) => {
+    calls.push(url);
+    return { ok: true, status: 200, json: async () => ({ variants: ["roformer"] }) };
+  });
+  await apiGet("/api/uvr/variants");
+  await apiGet("/api/uvr/variants");
+  assert.equal(calls.length, 1, "the second read must come from the cache");
+  // "/api/uvr/custom-models" also contains "/models": the write has to clear
+  // the UVR cache, not the voice-model one.
+  await apiSend("/api/uvr/custom-models", "POST", {});
+  await apiGet("/api/uvr/variants");
+  assert.equal(calls.length, 3, "the variant list must be fetched again after the import");
+  assert.ok(!calls.includes("/api/models"), "the voice model list must not be refetched");
 });
 
 test("desktop quit is permitted and returns native invocation failures to Settings", async () => {

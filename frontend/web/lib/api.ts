@@ -108,8 +108,13 @@ export function clearApiCache(pathPrefix?: string) {
 }
 
 function invalidateFor(path: string) {
-  if (path.includes("/models") && !["/api/models/preload", "/api/models/inspect"].includes(path))
+  // "/api/uvr/custom-models" also contains "/models", so the UVR paths are
+  // matched first and kept out of the voice-model branch.
+  if (path.includes("/api/uvr")) {
+    clearApiCache("/api/uvr");
+  } else if (path.includes("/models") && !["/api/models/preload", "/api/models/inspect"].includes(path)) {
     clearApiCache("/api/models");
+  }
   if (path.includes("/train")) clearApiCache("/api/train");
   if (path.includes("/settings")) clearApiCache("/api/settings");
   if (path.includes("/plugins")) clearApiCache("/api/plugins");
