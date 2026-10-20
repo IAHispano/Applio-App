@@ -1528,7 +1528,6 @@
   "Submitting…": "제출 중…",
   "Sunset": "노을",
   "Support us": "후원하기",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "WAV, MP3 및 FLAC 지원 (최대 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "리버브 테일을 약화시키는 대신 유지하십시오. 정상적인 잔향을 위해서는 0으로 두십시오.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (Applio 기본값)",
@@ -1814,7 +1813,6 @@
   "models detected": "개 모델 감지됨",
   "my-fusion": "my-fusion",
   "none": "없음",
-  "only": "전용",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95는 측정된 응답의 95%가 이보다 빨랐음을 뜻합니다. 왕복 시간은 엔진 연결 시간을 나타내며 체감되는 전체 지연은 아닙니다. 짧은 시험은 향후 부하에서의 안정성을 보장하지 않습니다.",
   "passed": "통과",
   "post": "사후",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "{stem}만",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "패스 횟수가 가장 적고 겹침도 최소: 가장 빠르지만 스템이 조금 섞입니다.",
   "Middle ground between speed and quality. Good for most songs.": "속도와 품질의 중간 지점. 대부분의 노래에 적합합니다.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "최대 겹침과 추가 패스: 분리는 더 깨끗해지지만 눈에 띄게 느려집니다."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "최대 겹침과 추가 패스: 분리는 더 깨끗해지지만 눈에 띄게 느려집니다.",
+  "Max {size}": "최대 {size}"
 }

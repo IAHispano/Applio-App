@@ -1528,7 +1528,6 @@
   "Submitting…": "सबमिट किया जा रहा है…",
   "Sunset": "सूर्यास्त",
   "Support us": "हमें समर्थन दें",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "WAV, MP3 और FLAC का समर्थन करता है (अधिकतम 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "रीवरब टेल को सड़ने देने के बजाय उसे बनाए रखें। सामान्य प्रतिध्वनि के लिए 0 पर छोड़ दें।",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (Applio का डिफ़ॉल्ट)",
@@ -1814,7 +1813,6 @@
   "models detected": "मॉडल पहचाने गए",
   "my-fusion": "my-fusion",
   "none": "कोई नहीं",
-  "only": "केवल",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 का अर्थ है कि 95% मापे गए उत्तर इससे तेज़ थे। राउंड ट्रिप इंजन कनेक्शन को मापता है, अनुभव की जाने वाली पूरी देरी को नहीं। छोटी जाँच भविष्य के भार में स्थिरता की गारंटी नहीं देती।",
   "passed": "उत्तीर्ण",
   "post": "पश्चात",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "केवल {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "सबसे कम पास और सबसे कम ओवरलैप: सबसे तेज़, पर स्टेम्स के बीच थोड़ा मिश्रण रहता है।",
   "Middle ground between speed and quality. Good for most songs.": "गति और गुणवत्ता के बीच का संतुलन। ज़्यादातर गानों के लिए अच्छा।",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "सर्वाधिक ओवरलैप और अतिरिक्त पास: साफ़ अलगाव, पर स्पष्ट रूप से धीमा।"
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "सर्वाधिक ओवरलैप और अतिरिक्त पास: साफ़ अलगाव, पर स्पष्ट रूप से धीमा।",
+  "Max {size}": "अधिकतम {size}"
 }

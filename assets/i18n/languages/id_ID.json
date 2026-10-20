@@ -1528,7 +1528,6 @@
   "Submitting…": "Mengirimkan…",
   "Sunset": "Matahari Terbenam",
   "Support us": "Dukung kami",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "Mendukung WAV, MP3, dan FLAC (maks 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Pertahankan ekor reverb daripada membiarkannya membusuk. Biarkan pada 0 untuk gaung normal.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (bawaan Applio)",
@@ -1814,7 +1813,6 @@
   "models detected": "model terdeteksi",
   "my-fusion": "my-fusion",
   "none": "tidak ada",
-  "only": "hanya",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 berarti 95% balasan yang diukur lebih cepat. Waktu bolak-balik mencakup koneksi mesin, bukan keseluruhan latensi yang dirasakan. Uji singkat tidak menjamin stabilitas dengan beban mendatang.",
   "passed": "lulus",
   "post": "pasca",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "Hanya {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Passage paling sedikit dan overlap terendah: paling cepat, dengan sedikit tumpang tindih antar stem.",
   "Middle ground between speed and quality. Good for most songs.": "Kompromi antara kecepatan dan kualitas. Bagus untuk sebagian besar lagu.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Overlap tertinggi dan ekstra pass: pemisahan lebih bersih, tetapi jauh lebih lambat."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Overlap tertinggi dan ekstra pass: pemisahan lebih bersih, tetapi jauh lebih lambat.",
+  "Max {size}": "Maks. {size}"
 }

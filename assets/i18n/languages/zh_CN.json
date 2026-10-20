@@ -1528,7 +1528,6 @@
   "Submitting…": "正在提交…",
   "Sunset": "落日",
   "Support us": "支持我们",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "支持 WAV、MP3 和 FLAC (最大 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "维持混响尾音而不是让它衰减。 Leave at 0 for normal reverberation.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne（Applio 默认字体）",
@@ -1814,7 +1813,6 @@
   "models detected": "个检测到的模型",
   "my-fusion": "my-fusion",
   "none": "无",
-  "only": "仅",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95表示95%的测量响应比该值更快。往返时间涵盖引擎连接，而非感受到的总延迟。短时测试无法保证未来负载下的稳定性。",
   "passed": "已通过",
   "post": "后处理",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "仅 {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "处理次数最少、重叠最低：速度最快，但各音轨之间会略有串音。",
   "Middle ground between speed and quality. Good for most songs.": "速度与质量之间的折中，适合大多数歌曲。",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大重叠加额外处理：分离更干净，但明显更慢。"
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大重叠加额外处理：分离更干净，但明显更慢。",
+  "Max {size}": "最大 {size}"
 }

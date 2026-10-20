@@ -1528,7 +1528,6 @@
   "Submitting…": "Отправка…",
   "Sunset": "Закат",
   "Support us": "Поддержать нас",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "Поддерживаются WAV, MP3 и FLAC (макс. 200 МБ)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Поддерживайте хвост реверберации, не позволяя ему затухать. Оставьте значение 0 для нормальной реверберации.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (шрифт Applio по умолчанию)",
@@ -1814,7 +1813,6 @@
   "models detected": "моделей обнаружено",
   "my-fusion": "my-fusion",
   "none": "нет",
-  "only": "только",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 означает, что 95% измеренных ответов были быстрее. Время туда и обратно учитывает соединение с движком, а не полную воспринимаемую задержку. Короткий тест не гарантирует стабильность при будущей нагрузке.",
   "passed": "пройдено",
   "post": "после",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "Только {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Минимум проходов и минимальное перекрытие: быстрее всего, но с небольшим смешением между дорожками.",
   "Middle ground between speed and quality. Good for most songs.": "Золотая середина между скоростью и качеством. Подходит для большинства треков.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Максимальное перекрытие и дополнительные проходы: чище разделение, но заметно медленнее."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Максимальное перекрытие и дополнительные проходы: чище разделение, но заметно медленнее.",
+  "Max {size}": "Макс. {size}"
 }

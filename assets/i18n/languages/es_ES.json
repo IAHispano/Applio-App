@@ -1528,7 +1528,6 @@
   "Submitting…": "Enviando…",
   "Sunset": "Atardecer",
   "Support us": "Apóyanos",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "Admite WAV, MP3 y FLAC (máx. 200 MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Mantenga la cola de reverberación en lugar de dejar que decaiga. Déjelo en 0 para una reverberación normal.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (predeterminada de Applio)",
@@ -1814,7 +1813,6 @@
   "models detected": "modelos detectados",
   "my-fusion": "mi-fusion",
   "none": "ninguno",
-  "only": "solo",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 indica que el 95% de las respuestas medidas fueron más rápidas. La ida y vuelta mide la conexión del motor, no la latencia total percibida. Una prueba breve no garantiza estabilidad con cargas futuras.",
   "passed": "aprobado",
   "post": "post",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "Solo {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Menos pasadas y el solapamiento más bajo: lo más rápido, con algo de mezcla entre pistas.",
   "Middle ground between speed and quality. Good for most songs.": "Equilibrio entre velocidad y calidad. Bien para la mayoría de las canciones.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Máximo solapamiento y pasadas extra: separación más limpia, pero bastante más lento."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Máximo solapamiento y pasadas extra: separación más limpia, pero bastante más lento.",
+  "Max {size}": "Máx. {size}"
 }

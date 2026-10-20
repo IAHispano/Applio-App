@@ -1507,7 +1507,6 @@
   "Submitting…": "Submitting…",
   "Sunset": "Sunset",
   "Support us": "Support us",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "Supports WAV, MP3, and FLAC (max 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.",
   "Syne": "Syne",
   "Synthesize speech and convert voice": "Synthesize speech and convert voice",
@@ -1785,7 +1784,6 @@
   "models detected": "models detected",
   "my-fusion": "my-fusion",
   "none": "none",
-  "only": "only",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.",
   "passed": "passed",
   "post": "post",
@@ -1821,5 +1819,6 @@
   "Only {stem}": "Only {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Fewest passes and the lowest overlap: quickest, with some bleed between stems.",
   "Middle ground between speed and quality. Good for most songs.": "Middle ground between speed and quality. Good for most songs.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Highest overlap and extra passes: cleaner separation, but noticeably slower."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Highest overlap and extra passes: cleaner separation, but noticeably slower.",
+  "Max {size}": "Max {size}"
 }

@@ -1528,7 +1528,6 @@
   "Submitting…": "جارٍ الإرسال…",
   "Sunset": "غروب الشمس",
   "Support us": "ادعمنا",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "يدعم WAV وMP3 وFLAC (بحد أقصى 200 ميجابايت)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "حافظ على ذيل الصدى بدلاً من تركه يتحلل. اترك عند 0 للتردد الطبيعي.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (خط Applio الافتراضي)",
@@ -1814,7 +1813,6 @@
   "models detected": "نماذج تم اكتشافها",
   "my-fusion": "my-fusion",
   "none": "لا شيء",
-  "only": "فقط",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "تعني p95 أن 95% من الردود المقاسة كانت أسرع. زمن الذهاب والإياب يغطي اتصال المحرك وليس التأخير الكلي المدرك. لا يضمن الاختبار القصير الاستقرار تحت أحمال مستقبلية.",
   "passed": "نجح",
   "post": "بعدي",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "{stem} فقط",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "أقل عدد من المراحل وأقل تداخل: الأسرع، مع قدر من التداخل بين المسارات.",
   "Middle ground between speed and quality. Good for most songs.": "توازن بين السرعة والجودة. مناسب لمعظم الأغاني.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "أقصى تداخل وخطوات إضافية: فصل أنظف، لكن أبطأ بشكل ملحوظ."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "أقصى تداخل وخطوات إضافية: فصل أنظف، لكن أبطأ بشكل ملحوظ.",
+  "Max {size}": "بحد أقصى {size}"
 }

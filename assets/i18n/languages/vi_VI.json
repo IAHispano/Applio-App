@@ -1528,7 +1528,6 @@
   "Submitting…": "Đang gửi…",
   "Sunset": "Hoàng hôn",
   "Support us": "Ủng hộ chúng tôi",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "Hỗ trợ WAV, MP3 và FLAC (tối đa 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Duy trì phần đuôi hồi âm thay vì để nó suy giảm. Để ở mức 0 cho âm vang bình thường.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (mặc định của Applio)",
@@ -1814,7 +1813,6 @@
   "models detected": "mô hình được phát hiện",
   "my-fusion": "my-fusion",
   "none": "không",
-  "only": "chỉ",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95 nghĩa là 95% phản hồi đo được nhanh hơn giá trị này. Thời gian khứ hồi bao gồm kết nối động cơ, không phải tổng độ trễ cảm nhận. Thử nghiệm ngắn không đảm bảo ổn định khi tải thay đổi trong tương lai.",
   "passed": "đã đạt",
   "post": "sau",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "Chỉ {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Ít lượt xử lý ít nhất và độ chồng lấn thấp nhất: nhanh nhất, nhưng các stem hơi lẫn vào nhau.",
   "Middle ground between speed and quality. Good for most songs.": "Cân bằng giữa tốc độ và chất lượng. Hợp với hầu hết các bài hát.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Độ chồng lấn cao nhất và thêm lượt xử lý: tách sạch hơn, nhưng chậm hơn đáng kể."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Độ chồng lấn cao nhất và thêm lượt xử lý: tách sạch hơn, nhưng chậm hơn đáng kể.",
+  "Max {size}": "Tối đa {size}"
 }

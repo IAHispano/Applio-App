@@ -1528,7 +1528,6 @@
   "Submitting…": "送信中…",
   "Sunset": "サンセット",
   "Support us": "支援する",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "WAV、MP3、FLAC に対応 (最大200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "リバーブテールを減衰させるのではなく持続させます。通常の残響の場合は 0 のままにします。",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne（Applioの既定）",
@@ -1814,7 +1813,6 @@
   "models detected": "個のモデルを検出",
   "my-fusion": "my-fusion",
   "none": "なし",
-  "only": "のみ",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95は、測定した応答の95%がそれより速かったことを意味します。往復時間はエンジンとの接続時間で、体感する総遅延ではありません。短いテストでは将来の負荷に対する安定性を保証できません。",
   "passed": "合格",
   "post": "事後",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "{stem} のみ",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "パス回数が最も少なく、重叠も最小：最速ですが、少しステムが混ざります。",
   "Middle ground between speed and quality. Good for most songs.": "速度と品質のバランス。ほとんどの曲に適しています。",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大の重叠と追加パス：分離はよりきれいになりますが、明確に遅くなります。"
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大の重叠と追加パス：分離はよりきれいになりますが、明確に遅くなります。",
+  "Max {size}": "最大 {size}"
 }

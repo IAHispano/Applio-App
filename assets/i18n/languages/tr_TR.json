@@ -1528,7 +1528,6 @@
   "Submitting…": "Gönderiliyor…",
   "Sunset": "Gün Batımı",
   "Support us": "Bizi destekleyin",
-  "Supports WAV, MP3, and FLAC (max 200MB)": "WAV, MP3 ve FLAC desteklenir (maksimum 200MB)",
   "Sustain the reverb tail instead of letting it decay. Leave at 0 for normal reverberation.": "Çürümesine izin vermek yerine yankı kuyruğunu sürdürün. Normal yankılanma için 0'da bırakın.",
   "Syne": "Syne",
   "Syne (Applio default)": "Syne (Applio varsayılanı)",
@@ -1814,7 +1813,6 @@
   "models detected": "model algılandı",
   "my-fusion": "my-fusion",
   "none": "yok",
-  "only": "yalnızca",
   "p95 means 95% of measured replies were faster. Round trip covers the engine connection, not total perceived latency. A short test cannot guarantee stability under future load.": "p95, ölçülen yanıtların %95’inin daha hızlı olduğu anlamına gelir. Gidiş dönüş süresi motor bağlantısını kapsar, algılanan toplam gecikmeyi değil. Kısa test gelecekteki yüklerde kararlılığı garanti etmez.",
   "passed": "başarılı",
   "post": "sonra",
@@ -1850,5 +1848,6 @@
   "Only {stem}": "Yalnızca {stem}",
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "En az geçiş ve en düşük örtüşme: en hızlısı, ancak stemler arasında bir miktar karışma olur.",
   "Middle ground between speed and quality. Good for most songs.": "Hız ve kalite arasında bir orta yol. Çoğu şarkı için uygundur.",
-  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "En yüksek örtüşme ve fazladan geçiş: daha temiz ayrım, ama belirgin şekilde daha yavaş."
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "En yüksek örtüşme ve fazladan geçiş: daha temiz ayrım, ama belirgin şekilde daha yavaş.",
+  "Max {size}": "En fazla {size}"
 }
