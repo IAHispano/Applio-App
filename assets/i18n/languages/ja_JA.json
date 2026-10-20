@@ -1846,5 +1846,9 @@
   "{label} numeric value": "{label} の数値",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} がアクセスを要求しています。ブリッジモードでコード {code} を確認してください。",
   "{n} files selected": "{n}個のファイルを選択",
-  "…or pick from assets/audios": "…または assets/audios から選択"
+  "…or pick from assets/audios": "…または assets/audios から選択",
+  "Only {stem}": "{stem} のみ",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "パス回数が最も少なく、重叠も最小：最速ですが、少しステムが混ざります。",
+  "Middle ground between speed and quality. Good for most songs.": "速度と品質のバランス。ほとんどの曲に適しています。",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大の重叠と追加パス：分離はよりきれいになりますが、明確に遅くなります。"
 }

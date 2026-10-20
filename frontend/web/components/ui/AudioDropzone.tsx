@@ -566,17 +566,6 @@ function AudioDropzoneInner({
                 <p className="text-xs text-neutral-400 m-0 mt-1 max-w-sm">
                   {t("Supports WAV, MP3, and FLAC (max 200MB)")}
                 </p>
-
-                <div className="flex items-center gap-1.5 mt-4 flex-wrap justify-center">
-                  {["WAV", "MP3", "FLAC"].map((fmt) => (
-                    <span
-                      key={fmt}
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 border border-white/5"
-                    >
-                      {fmt}
-                    </span>
-                  ))}
-                </div>
               </button>
             </div>
           )}

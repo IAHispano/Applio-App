@@ -1846,5 +1846,9 @@
   "{label} numeric value": "{label} sayısal değeri",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} erişim istiyor. Köprü modunda {code} kodunu kontrol edin.",
   "{n} files selected": "{n} dosya seçildi",
-  "…or pick from assets/audios": "…veya assets/audios dizininden seçin"
+  "…or pick from assets/audios": "…veya assets/audios dizininden seçin",
+  "Only {stem}": "Yalnızca {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "En az geçiş ve en düşük örtüşme: en hızlısı, ancak stemler arasında bir miktar karışma olur.",
+  "Middle ground between speed and quality. Good for most songs.": "Hız ve kalite arasında bir orta yol. Çoğu şarkı için uygundur.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "En yüksek örtüşme ve fazladan geçiş: daha temiz ayrım, ama belirgin şekilde daha yavaş."
 }

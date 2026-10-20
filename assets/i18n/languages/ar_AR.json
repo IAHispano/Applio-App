@@ -1846,5 +1846,9 @@
   "{label} numeric value": "القيمة الرقمية لـ {label}",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "يطلب {name} الوصول. تحقق من الرمز {code} في وضع الجسر.",
   "{n} files selected": "تم تحديد {n} ملفات",
-  "…or pick from assets/audios": "…أو اختر من assets/audios"
+  "…or pick from assets/audios": "…أو اختر من assets/audios",
+  "Only {stem}": "{stem} فقط",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "أقل عدد من المراحل وأقل تداخل: الأسرع، مع قدر من التداخل بين المسارات.",
+  "Middle ground between speed and quality. Good for most songs.": "توازن بين السرعة والجودة. مناسب لمعظم الأغاني.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "أقصى تداخل وخطوات إضافية: فصل أنظف، لكن أبطأ بشكل ملحوظ."
 }

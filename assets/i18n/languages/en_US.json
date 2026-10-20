@@ -1817,5 +1817,9 @@
   "{label} numeric value": "{label} numeric value",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} is requesting access. Check code {code} in Bridge Mode.",
   "{n} files selected": "{n} files selected",
-  "…or pick from assets/audios": "…or pick from assets/audios"
+  "…or pick from assets/audios": "…or pick from assets/audios",
+  "Only {stem}": "Only {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Fewest passes and the lowest overlap: quickest, with some bleed between stems.",
+  "Middle ground between speed and quality. Good for most songs.": "Middle ground between speed and quality. Good for most songs.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Highest overlap and extra passes: cleaner separation, but noticeably slower."
 }

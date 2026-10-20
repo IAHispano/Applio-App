@@ -1846,5 +1846,9 @@
   "{label} numeric value": "Giá trị số {label}",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} đang yêu cầu quyền truy cập. Kiểm tra mã {code} trong chế độ cầu nối.",
   "{n} files selected": "Đã chọn {n} tệp",
-  "…or pick from assets/audios": "…hoặc chọn từ assets/audios"
+  "…or pick from assets/audios": "…hoặc chọn từ assets/audios",
+  "Only {stem}": "Chỉ {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Ít lượt xử lý ít nhất và độ chồng lấn thấp nhất: nhanh nhất, nhưng các stem hơi lẫn vào nhau.",
+  "Middle ground between speed and quality. Good for most songs.": "Cân bằng giữa tốc độ và chất lượng. Hợp với hầu hết các bài hát.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Độ chồng lấn cao nhất và thêm lượt xử lý: tách sạch hơn, nhưng chậm hơn đáng kể."
 }

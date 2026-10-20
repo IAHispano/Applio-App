@@ -1846,5 +1846,9 @@
   "{label} numeric value": "{label} संख्यात्मक मान",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} एक्सेस का अनुरोध कर रहा है। ब्रिज मोड में कोड {code} जाँचें।",
   "{n} files selected": "{n} फ़ाइलें चुनी गईं",
-  "…or pick from assets/audios": "…या assets/audios से चुनें"
+  "…or pick from assets/audios": "…या assets/audios से चुनें",
+  "Only {stem}": "केवल {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "सबसे कम पास और सबसे कम ओवरलैप: सबसे तेज़, पर स्टेम्स के बीच थोड़ा मिश्रण रहता है।",
+  "Middle ground between speed and quality. Good for most songs.": "गति और गुणवत्ता के बीच का संतुलन। ज़्यादातर गानों के लिए अच्छा।",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "सर्वाधिक ओवरलैप और अतिरिक्त पास: साफ़ अलगाव, पर स्पष्ट रूप से धीमा।"
 }

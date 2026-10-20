@@ -1846,5 +1846,9 @@
   "{label} numeric value": "nilai numerik {label}",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} meminta akses. Periksa kode {code} di mode jembatan.",
   "{n} files selected": "{n} berkas dipilih",
-  "…or pick from assets/audios": "…atau pilih dari assets/audios"
+  "…or pick from assets/audios": "…atau pilih dari assets/audios",
+  "Only {stem}": "Hanya {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Passage paling sedikit dan overlap terendah: paling cepat, dengan sedikit tumpang tindih antar stem.",
+  "Middle ground between speed and quality. Good for most songs.": "Kompromi antara kecepatan dan kualitas. Bagus untuk sebagian besar lagu.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Overlap tertinggi dan ekstra pass: pemisahan lebih bersih, tetapi jauh lebih lambat."
 }

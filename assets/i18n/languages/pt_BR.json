@@ -1846,5 +1846,9 @@
   "{label} numeric value": "Valor numérico de {label}",
   "{name} is requesting access. Check code {code} in Bridge Mode.": "{name} está solicitando acesso. Confira o código {code} no modo ponte.",
   "{n} files selected": "{n} arquivos selecionados",
-  "…or pick from assets/audios": "…ou escolha em assets/audios"
+  "…or pick from assets/audios": "…ou escolha em assets/audios",
+  "Only {stem}": "Apenas {stem}",
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Menos passadas e a menor sobreposição: o mais rápido, com um pouco de mistura entre os stems.",
+  "Middle ground between speed and quality. Good for most songs.": "Equilíbrio entre velocidade e qualidade. Bom para a maioria das músicas.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Sobreposição máxima e passadas extras: separação mais limpa, mas bem mais lento."
 }
