@@ -280,10 +280,11 @@ pub fn msvc_at(installation: &Path, pf86: &Path) -> Option<Msvc> {
         return None;
     }
     let mut includes = vec![tools.join("include")];
-    if let Some(sdk) = newest(&pf86.join("Windows Kits/10/Include")) {
-        includes.extend(["ucrt", "shared", "um"].map(|sub| sdk.join(sub)));
+    let sdk = newest(&pf86.join("Windows Kits/10/Include"))?;
+    includes.extend(["ucrt", "shared", "um"].map(|sub| sdk.join(sub)));
+    if includes.iter().any(|path| !path.is_dir()) {
+        return None;
     }
-    includes.retain(|p| p.is_dir());
     Some(Msvc { bin, includes })
 }
 /// Merge into one child command. Never mutate the Rust process environment.
@@ -559,4 +560,34 @@ pub fn find_hip() -> Option<PathBuf> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(r"C:\Program Files"));
     newest(&pf.join("AMD/ROCm"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn miopen_toolchain_requires_compiler_and_windows_sdk_headers() {
+        let root = tempfile::tempdir().unwrap();
+        let installation = root.path().join("BuildTools");
+        let tools = installation.join("VC/Tools/MSVC/14.44.35207");
+        let bin = tools.join("bin/Hostx64/x64");
+        std::fs::create_dir_all(&bin).unwrap();
+        std::fs::create_dir_all(tools.join("include")).unwrap();
+        std::fs::write(bin.join("cl.exe"), "").unwrap();
+        assert!(msvc_at(&installation, root.path()).is_none());
+
+        let sdk = root.path().join("Windows Kits/10/Include/10.0.26100.0");
+        for sub in ["ucrt", "shared"] {
+            std::fs::create_dir_all(sdk.join(sub)).unwrap();
+        }
+        assert!(msvc_at(&installation, root.path()).is_none());
+        std::fs::create_dir_all(sdk.join("um")).unwrap();
+        let msvc = msvc_at(&installation, root.path()).unwrap();
+        assert_eq!(msvc.bin, bin);
+        assert_eq!(msvc.includes.len(), 4);
+
+        std::fs::remove_file(bin.join("cl.exe")).unwrap();
+        assert!(msvc_at(&installation, root.path()).is_none());
+    }
 }

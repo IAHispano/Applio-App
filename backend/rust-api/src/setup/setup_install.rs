@@ -372,6 +372,127 @@ async fn vcredist(engine: &NativeEngine, id: &str, token: &CancellationToken) ->
     }
     Ok(())
 }
+async fn msvc_tools(engine: &NativeEngine, id: &str, token: &CancellationToken) -> Result<()> {
+    let pf86 = engine.runtime.env("ProgramFiles(x86)").map(PathBuf::from);
+    if gpu_runtime::find_msvc_in(pf86.as_deref()).is_some() {
+        return Ok(());
+    }
+    engine.jobs.log(
+        id,
+        "Visual Studio C++ Build Tools: Microsoft.VisualStudio.Workload.VCTools (MIOpen)",
+    );
+    // WinGet handles the Windows elevation prompt for a normal desktop session.
+    // Its presence or exit status alone does not establish that VC++ was added.
+    let winget = command(
+        engine,
+        "winget",
+        [
+            "install",
+            "--exact",
+            "--id",
+            "Microsoft.VisualStudio.2022.BuildTools",
+            "--source",
+            "winget",
+            "--accept-package-agreements",
+            "--accept-source-agreements",
+            "--override",
+            "--passive --wait --norestart --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended",
+        ],
+    )?;
+    if let Err(error) = run(engine, id, &winget, token, 7200).await {
+        if token.is_cancelled() {
+            return Err(error);
+        }
+        engine.jobs.log(id, &format!("winget MSVC note: {error}"));
+    }
+    if token.is_cancelled() {
+        bail!("Stopped by user");
+    }
+    engine.runtime.toolchain.invalidate();
+    if gpu_runtime::find_msvc_in(pf86.as_deref()).is_some() {
+        return Ok(());
+    }
+    let installer = engine.runtime.data.join(".applio-setup/vs_buildtools.exe");
+    download(
+        engine,
+        id,
+        "https://aka.ms/vs/17/release/vs_buildtools.exe",
+        &installer,
+        token,
+    )
+    .await?;
+    // The bootstrapper must wait for its installer; otherwise the supervised
+    // process can exit before the compiler and recommended Windows SDK exist.
+    let mut spec = command(
+        engine,
+        installer,
+        [
+            "--passive",
+            "--wait",
+            "--norestart",
+            "--add",
+            "Microsoft.VisualStudio.Workload.VCTools",
+            "--includeRecommended",
+        ],
+    )?;
+    // WinGet skips an existing Build Tools product even if VC++ is absent.
+    // Modify that instance instead of attempting a second install of the SKU.
+    let locator = pf86
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(r"C:\Program Files (x86)"))
+        .join("Microsoft Visual Studio/Installer/vswhere.exe");
+    if locator.is_file() {
+        let query = command(
+            engine,
+            locator,
+            [
+                "-latest",
+                "-products",
+                "Microsoft.VisualStudio.Product.BuildTools",
+                "-version",
+                "[17.0,18.0)",
+                "-property",
+                "installationPath",
+                "-utf8",
+            ],
+        )?;
+        let output = setup_routes::run_check(&query, token, 15).await?;
+        if output.success {
+            let installation = PathBuf::from(output.stdout.trim());
+            if installation.is_absolute() && installation.is_dir() {
+                spec.args.splice(
+                    0..0,
+                    [
+                        "modify".into(),
+                        "--installPath".into(),
+                        installation.into_os_string(),
+                    ],
+                );
+            }
+        }
+    }
+    let output = tokio::time::timeout(
+        Duration::from_secs(7200),
+        ManagedProcess::run(&spec, token, |_, line| engine.jobs.log(id, line)),
+    )
+    .await??;
+    engine.runtime.toolchain.invalidate();
+    engine
+        .jobs
+        .log(id, &format!("MSVC installer: exit {:?}", output.code));
+    // Visual Studio reports a successful installation requiring reboot as 3010.
+    // Still verify the tools rather than treating an installer exit as readiness.
+    if output.code != Some(3010) {
+        output.ensure_success()?;
+    }
+    if token.is_cancelled() {
+        bail!("Stopped by user");
+    }
+    if gpu_runtime::find_msvc_in(pf86.as_deref()).is_none() {
+        bail!("Install Desktop development with C++ for MIOpen runtime compilation");
+    }
+    Ok(())
+}
 fn clear_legacy(engine: &NativeEngine, venv: &Path, id: &str) -> Result<()> {
     let root = std::fs::canonicalize(&engine.runtime.data)?;
     let legacy = engine.runtime.data.join("zluda");
@@ -665,6 +786,9 @@ pub(crate) async fn install(
     engine
         .jobs
         .log(id, &format!("Torch installation policy: {policy:?}"));
+    if cfg!(windows) && policy.amd {
+        msvc_tools(engine, id, token).await?;
+    }
     let inspect="import importlib.metadata as m,json; print('APPLIO_JSON:'+json.dumps([(d.metadata.get('Name') or '').lower() for d in m.distributions() if (d.metadata.get('Name') or '').lower() in ('onnxruntime','onnxruntime-gpu','swift-f0') or (d.metadata.get('Name') or '').lower().startswith('amd-')]))";
     let output = setup_routes::run_check(
         &python.command(&engine.runtime, ["-c", inspect])?,
