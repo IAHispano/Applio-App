@@ -477,7 +477,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             role="log"
             aria-live="polite"
             aria-label={t("Live console output")}
-            className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-sans select-text scrollbar-thin"
+            className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-mono select-text scrollbar-thin"
           >
             {displayLogs.length ? (
               displayLogs.map((entry, idx) =>

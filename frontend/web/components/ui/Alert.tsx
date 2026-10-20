@@ -138,7 +138,7 @@ function AlertInner({
             </summary>
             <div className="mt-1.5">
               {typeof effectiveDetails === "string" ? (
-                <pre className="p-2.5 rounded-lg bg-black/60 border border-white/10 font-sans text-[11px] leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap break-all select-text text-neutral-300">
+                <pre className="p-2.5 rounded-lg bg-black/60 border border-white/10 font-mono text-[11px] leading-relaxed max-h-52 overflow-y-auto whitespace-pre-wrap break-all select-text text-neutral-300">
                   {effectiveDetails}
                 </pre>
               ) : (

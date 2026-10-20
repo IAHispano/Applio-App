@@ -66,7 +66,27 @@ export interface Job {
 
 interface ApiErrorBody {
   error?: string;
-  details?: string;
+  details?: unknown;
+}
+
+// The API answers validation failures with a structured body
+// ({ formErrors, fieldErrors }); flatten it so the message is readable
+// instead of "[object Object]".
+function formatDetails(details: unknown): string {
+  if (typeof details === "string") return details;
+  if (!details || typeof details !== "object") return "";
+  const body = details as { formErrors?: unknown; fieldErrors?: unknown };
+  const parts: string[] = [];
+  if (Array.isArray(body.formErrors)) {
+    for (const message of body.formErrors) parts.push(String(message));
+  }
+  if (body.fieldErrors && typeof body.fieldErrors === "object") {
+    for (const [field, errors] of Object.entries(body.fieldErrors as Record<string, unknown>)) {
+      const list = Array.isArray(errors) ? errors.map(String) : [String(errors)];
+      parts.push(`${field}: ${list.join(", ")}`);
+    }
+  }
+  return parts.join("; ");
 }
 
 interface CacheEntry {
@@ -88,8 +108,13 @@ export function clearApiCache(pathPrefix?: string) {
 }
 
 function invalidateFor(path: string) {
-  if (path.includes("/models") && !["/api/models/preload", "/api/models/inspect"].includes(path))
+  // "/api/uvr/custom-models" also contains "/models", so the UVR paths are
+  // matched first and kept out of the voice-model branch.
+  if (path.includes("/api/uvr")) {
+    clearApiCache("/api/uvr");
+  } else if (path.includes("/models") && !["/api/models/preload", "/api/models/inspect"].includes(path)) {
     clearApiCache("/api/models");
+  }
   if (path.includes("/train")) clearApiCache("/api/train");
   if (path.includes("/settings")) clearApiCache("/api/settings");
   if (path.includes("/plugins")) clearApiCache("/api/plugins");
@@ -105,8 +130,9 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   if (!response.ok) {
     const errorMsg = body.error || `${init.method || "GET"} ${path} failed (${response.status})`;
     const err = new Error(errorMsg);
-    if (body.details) {
-      (err as unknown as { details: string }).details = body.details;
+    const details = formatDetails(body.details);
+    if (details) {
+      (err as Error & { details?: string }).details = details;
     }
     throw err;
   }

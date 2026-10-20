@@ -124,6 +124,13 @@ export default function Toaster() {
     new Map<string, { handle?: ReturnType<typeof setTimeout>; remaining: number; deadline: number }>(),
   );
   const paused = useRef(new Set<string>());
+  // The translate helper changes identity on every language switch. Reading it
+  // through a ref keeps the listener effect stable, so a language change does
+  // not clear the pending auto-dismiss timers and strand the visible toasts.
+  const tRef = useRef(t);
+  useEffect(() => {
+    tRef.current = t;
+  });
   const dismiss = useCallback((id: string) => {
     clearTimeout(timers.current.get(id)?.handle);
     timers.current.delete(id);
@@ -186,7 +193,7 @@ export default function Toaster() {
         href,
         anchor.getAttribute("title") || anchor.getAttribute("aria-label"),
       );
-      if (href) notifyDownload(fileName, href, t);
+      if (href) notifyDownload(fileName, href, tRef.current);
     };
     const onOpenDownload = (event: Event) => {
       setDownloadPreview((event as CustomEvent<{ blob: Blob; filename: string }>).detail);
@@ -201,7 +208,7 @@ export default function Toaster() {
       for (const timer of timerMap.values()) clearTimeout(timer.handle);
       timerMap.clear();
     };
-  }, [dismiss, t]);
+  }, [dismiss]);
   const action = (item: Toast, value: ToastAction) => {
     const className =
       "inline-flex rounded text-xs font-medium underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";

@@ -105,7 +105,7 @@ export default function RealtimeCalibration({
               </thead>
               <tbody>
                 {results.map((result) => (
-                  <tr key={result.chunkMs} className="border-t border-[var(--border)]">
+                  <tr key={result.chunkMs}>
                     <td className="p-2">{result.chunkMs} ms</td>
                     <td className="p-2">{result.processingP95.toFixed(1)} ms</td>
                     <td className="p-2">{result.roundTripP95.toFixed(1)} ms</td>

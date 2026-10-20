@@ -11,6 +11,7 @@ import { useJob } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import Alert from "./Alert";
 import Button from "./Button";
+import SourceTabs, { type SourceTab } from "./SourceTabs";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;
@@ -139,6 +140,13 @@ function AudioDropzoneInner({
     if (!showSourcePicker) void refreshSampleAudios();
     setShowSourcePicker(!showSourcePicker);
   };
+
+  const sourceTabs: SourceTab<DropzoneTab>[] = [
+    { id: "upload", label: t("Upload file"), icon: <UploadCloud size={14} /> },
+    { id: "samples", label: t("Sample Library"), icon: <Music size={14} /> },
+    { id: "mic", label: t("Microphone"), icon: <Mic size={14} /> },
+    ...(youtube ? [{ id: "youtube" as const, label: t("YouTube"), icon: <SquarePlay size={14} /> }] : []),
+  ];
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
@@ -395,87 +403,13 @@ function AudioDropzoneInner({
           {/* Quick source selector when toggled */}
           {showSourcePicker && (
             <div className="p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200">
-              <div
-                role="tablist"
-                aria-label={t("Audio source selection")}
-                className="flex flex-wrap items-center gap-1.5 max-w-full"
-              >
-                <button
-                  type="button"
-                  role="tab"
-                  id="picker-tab-upload"
-                  aria-selected={tab === "upload"}
-                  aria-controls="picker-panel-upload"
-                  onClick={() => selectTab("upload")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                    tab === "upload"
-                      ? "bg-white/10 text-white font-medium"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <UploadCloud size={14} />
-                    <span>{t("Upload file")}</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  role="tab"
-                  id="picker-tab-samples"
-                  aria-selected={tab === "samples"}
-                  aria-controls="picker-panel-samples"
-                  onClick={() => selectTab("samples")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                    tab === "samples"
-                      ? "bg-white/10 text-white font-medium"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Music size={14} />
-                    <span>{t("Sample Library")}</span>
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  role="tab"
-                  id="picker-tab-mic"
-                  aria-selected={tab === "mic"}
-                  aria-controls="picker-panel-mic"
-                  onClick={() => selectTab("mic")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                    tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <Mic size={14} />
-                    <span>{t("Microphone")}</span>
-                  </span>
-                </button>
-
-                {youtube && (
-                  <button
-                    type="button"
-                    role="tab"
-                    id="picker-tab-youtube"
-                    aria-selected={tab === "youtube"}
-                    aria-controls="picker-panel-youtube"
-                    onClick={() => selectTab("youtube")}
-                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                      tab === "youtube"
-                        ? "bg-white/10 text-white font-medium"
-                        : "text-neutral-400 hover:text-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <SquarePlay size={14} />
-                      <span>{t("YouTube")}</span>
-                    </span>
-                  </button>
-                )}
-              </div>
+              <SourceTabs
+                tabs={sourceTabs}
+                active={tab}
+                onSelect={selectTab}
+                idPrefix="picker"
+                label={t("Audio source selection")}
+              />
 
               {tab === "upload" && (
                 <div id="picker-panel-upload" role="tabpanel" aria-labelledby="picker-tab-upload">
@@ -594,87 +528,16 @@ function AudioDropzoneInner({
         <div className="space-y-3">
           {/* Tab Switcher: Upload / Samples / Mic */}
           <div className="flex items-center justify-between gap-2 max-w-full">
-            <div
-              role="tablist"
-              aria-label={t("Audio source selection")}
-              className="flex flex-wrap items-center gap-1.5 max-w-full min-w-0"
-            >
-              <button
-                type="button"
-                role="tab"
-                id="empty-tab-upload"
-                aria-selected={tab === "upload"}
-                aria-controls="empty-panel-upload"
-                onClick={() => selectTab("upload")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                  tab === "upload"
-                    ? "bg-white/10 text-white font-medium"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <UploadCloud size={14} />
-                  <span>{t("Upload / Drag & Drop")}</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                id="empty-tab-samples"
-                aria-selected={tab === "samples"}
-                aria-controls="empty-panel-samples"
-                onClick={() => selectTab("samples")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                  tab === "samples"
-                    ? "bg-white/10 text-white font-medium"
-                    : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Music size={14} />
-                  <span>{t("Sample Library")}</span>
-                </span>
-              </button>
-
-              <button
-                type="button"
-                role="tab"
-                id="empty-tab-mic"
-                aria-selected={tab === "mic"}
-                aria-controls="empty-panel-mic"
-                onClick={() => selectTab("mic")}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                  tab === "mic" ? "bg-white/10 text-white font-medium" : "text-neutral-400 hover:text-white"
-                }`}
-              >
-                <span className="flex items-center gap-1.5">
-                  <Mic size={14} />
-                  <span>{t("Microphone")}</span>
-                </span>
-              </button>
-
-              {youtube && (
-                <button
-                  type="button"
-                  role="tab"
-                  id="empty-tab-youtube"
-                  aria-selected={tab === "youtube"}
-                  aria-controls="empty-panel-youtube"
-                  onClick={() => selectTab("youtube")}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all cursor-pointer shrink-0 ${
-                    tab === "youtube"
-                      ? "bg-white/10 text-white font-medium"
-                      : "text-neutral-400 hover:text-white"
-                  }`}
-                >
-                  <span className="flex items-center gap-1.5">
-                    <SquarePlay size={14} />
-                    <span>{t("YouTube")}</span>
-                  </span>
-                </button>
+            <SourceTabs
+              tabs={sourceTabs.map((item) =>
+                item.id === "upload" ? { ...item, label: t("Upload / Drag & Drop") } : item,
               )}
-            </div>
+              active={tab}
+              onSelect={selectTab}
+              idPrefix="empty"
+              label={t("Audio source selection")}
+              className="min-w-0"
+            />
           </div>
 
           {tab === "upload" && (
@@ -701,10 +564,10 @@ function AudioDropzoneInner({
                   {isDragging ? t("Drop audio file here") : t("Click to browse or drag and drop audio")}
                 </p>
                 <p className="text-xs text-neutral-400 m-0 mt-1 max-w-sm">
-                  {t("Supports WAV, MP3, and FLAC (max 200MB)")}
+                  {t("Max {size}", { size: "200 MB" })}
                 </p>
 
-                <div className="flex items-center gap-1.5 mt-4 flex-wrap justify-center">
+                <div className="flex items-center gap-1.5 mt-3 flex-wrap justify-center">
                   {["WAV", "MP3", "FLAC"].map((fmt) => (
                     <span
                       key={fmt}
@@ -825,7 +688,13 @@ function areAudioDropzonePropsEqual(prev: AudioDropzoneProps, next: AudioDropzon
   if (prev.inputPath !== next.inputPath) return false;
   if (prev.disabled !== next.disabled) return false;
   if (prev.youtube !== next.youtube) return false;
-  if (prev.sampleAudios.length !== next.sampleAudios.length) return false;
+  // Compare the entries, not just the count: a refreshed list can swap one
+  // sample for another without changing its length.
+  if (
+    prev.sampleAudios.length !== next.sampleAudios.length ||
+    prev.sampleAudios.some((audio, index) => audio !== next.sampleAudios[index])
+  )
+    return false;
   if (prev.onFileSelect !== next.onFileSelect) return false;
   if (prev.onPathSelect !== next.onPathSelect) return false;
   if (prev.onRefreshAudios !== next.onRefreshAudios) return false;

@@ -67,10 +67,12 @@
       "sans-serif"
     ],
     "mono": [
-      "google:Syne",
-      "ui-sans-serif",
-      "system-ui",
-      "sans-serif"
+      "ui-monospace",
+      "SFMono-Regular",
+      "Menlo",
+      "Consolas",
+      "Liberation Mono",
+      "monospace"
     ]
   },
   "titlebar": {

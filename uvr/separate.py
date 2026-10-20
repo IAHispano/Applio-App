@@ -51,7 +51,7 @@ def main():
         "--single-stem", default="all", help="Write only this stem, or 'all'"
     )
     parser.add_argument(
-        "--vr-aggression", type=int, default=None, help="VR extraction intensity 1-20"
+        "--vr-aggression", type=int, default=None, help="VR extraction intensity 1-100"
     )
     parser.add_argument("--vr-window", type=int, default=None, help="VR window size")
     parser.add_argument("--vr-batch", type=int, default=None, help="VR batch size")

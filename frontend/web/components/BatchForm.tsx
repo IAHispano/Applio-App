@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Layers, StopCircle, Wand2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, Layers, Search, StopCircle, Wand2, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BatchResults, { type BatchResult } from "@/components/BatchResults";
@@ -30,6 +30,11 @@ type ConversionParameterSetters = {
 };
 
 const BATCH_CONFIG_KEY = "applio:batch-config";
+
+/** Display name of a model path, without the folder or the file extension. */
+function modelLabel(path: string): string {
+  return fileBasename(path).replace(/\.(pth|onnx)$/i, "");
+}
 
 function loadBatchConfig(): {
   indexes: Record<string, string>;
@@ -188,13 +193,12 @@ export default function BatchForm() {
         .then((m) => {
           setModels(m.models);
           setIndexes(m.indexes);
-          if (m.models[0]) {
-            setSelectedModels((prev) => (prev.length ? prev : [m.models[0]]));
-          }
+          // No model is picked for the user: the batch starts empty and the
+          // conversion stays disabled until someone chooses.
         })
         .catch(() => {});
     },
-    [setSelectedModels, setModels, setIndexes],
+    [setModels, setIndexes],
   );
 
   useEffect(() => {
@@ -203,7 +207,9 @@ export default function BatchForm() {
       typeof (window as unknown as { applio?: { chooseFolder?: unknown } }).applio?.chooseFolder ===
         "function",
     );
-    const onFocus = () => loadAvailableModels(true);
+    // Alt-tabbing back refreshes the cached list; forcing a refetch here would
+    // re-download and re-parse every model on each focus change.
+    const onFocus = () => loadAvailableModels(false);
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [loadAvailableModels]);
@@ -378,87 +384,128 @@ export default function BatchForm() {
             ) : undefined
           }
         />
-        <fieldset className="space-y-2 m-0 p-0 border-0 min-w-0">
-          <div className="flex items-center justify-between gap-2">
-            <legend className="text-xs font-medium text-neutral-300 p-0">{t("Voice models")}</legend>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="ghost-link"
-                onClick={() =>
-                  setSelectedModels((current) => Array.from(new Set([...current, ...filteredModels])))
-                }
-                disabled={!models.length}
-              >
-                {t(modelQuery.trim() ? "Select matches" : "Select all")}
-              </button>
-              <button
-                type="button"
-                className="ghost-link"
-                onClick={() => setSelectedModels([])}
-                disabled={!selectedModels.length}
-              >
-                {t("Clear")}
-              </button>
+        <fieldset className="m-0 p-0 border-0 min-w-0 space-y-2">
+          <legend className="flex items-center gap-2 p-0 text-xs font-medium text-neutral-300">
+            {t("Voice models")}
+            <Badge variant={selectedModels.length ? "info" : "neutral"} size="sm">
+              {selectedModels.length}
+            </Badge>
+          </legend>
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[11rem] max-w-lg flex-1">
+              <Search
+                size={14}
+                aria-hidden="true"
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"
+              />
+              <input
+                id="batch-model-search"
+                type="text"
+                value={modelQuery}
+                onChange={(e) => setModelQuery(e.target.value)}
+                placeholder={t("Search models\u2026")}
+                aria-label={t("Search models\u2026")}
+                className="w-full text-xs !pl-9 !pr-10"
+              />
+              {modelQuery && (
+                <button
+                  type="button"
+                  onClick={() => setModelQuery("")}
+                  aria-label={t("Clear")}
+                  title={t("Clear")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--heading)]"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              )}
             </div>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() =>
+                setSelectedModels((current) => Array.from(new Set([...current, ...filteredModels])))
+              }
+              disabled={!filteredModels.length}
+            >
+              {t(modelQuery.trim() ? "Select matches" : "Select all")}
+            </Button>
+            <Button
+              size="xs"
+              variant="ghost"
+              onClick={() => setSelectedModels([])}
+              disabled={!selectedModels.length}
+            >
+              {t("Clear")}
+            </Button>
           </div>
-          <input
-            id="batch-model-search"
-            type="text"
-            value={modelQuery}
-            onChange={(e) => setModelQuery(e.target.value)}
-            placeholder={t("Search models…")}
-            className="w-full text-xs"
-            aria-label={t("Search models…")}
-          />
-          <div className="max-h-80 overflow-y-auto space-y-2 p-1">
+          <div className="grid max-h-80 grid-cols-1 gap-3 overflow-y-auto pr-0.5 sm:grid-cols-2 2xl:grid-cols-3">
             {filteredModels.map((model) => {
               const checked = selectedModels.includes(model);
+              const paired = matchIndex(model, indexes);
+              const position = selectedModels.indexOf(model);
+              const toggle = () =>
+                setSelectedModels((current) =>
+                  checked ? current.filter((item) => item !== model) : [...current, model],
+                );
               return (
-                <div key={model} className="rounded-xl border border-white/5 bg-black/20 px-2 py-1.5">
-                  <label className="flex items-center gap-3 text-xs cursor-pointer">
+                // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: the card toggles the selection; the checkbox inside is the keyboard control
+                <div
+                  key={model}
+                  onClick={toggle}
+                  className={`cursor-pointer rounded-xl border p-3 transition-all ${
+                    checked
+                      ? "border-[var(--accent)]/30 bg-[var(--accent-soft)]"
+                      : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--focus-border)]"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={checked}
-                      onChange={(e) =>
-                        setSelectedModels((current) =>
-                          e.target.checked ? [...current, model] : current.filter((item) => item !== model),
-                        )
-                      }
+                      onChange={toggle}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={modelLabel(model)}
+                      className="shrink-0 cursor-pointer"
                     />
-                    <span className="truncate flex-1" title={model}>
-                      {fileBasename(model).replace(/\.(pth|onnx)$/i, "")}
+                    <span className="min-w-0 truncate text-sm font-semibold text-[var(--text)]" title={model}>
+                      {modelLabel(model)}
                     </span>
-                    <Badge variant="neutral" size="sm">
+                    <Badge variant="outline" size="sm" className="shrink-0">
                       {model.toLowerCase().endsWith(".onnx") ? "ONNX" : "PTH"}
                     </Badge>
-                  </label>
+                    {!checked && paired && (
+                      <Badge variant="success" size="sm" dot className="shrink-0">
+                        {t("Index paired")}
+                      </Badge>
+                    )}
+                  </div>
                   {checked && (
-                    <div className="mt-1.5 pl-6">
-                      <label htmlFor={`batch-index-${model}`} className="sr-only">
+                    // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction
+                    <div className="mt-2.5 pl-6" onClick={(e) => e.stopPropagation()}>
+                      <label htmlFor={`batch-index-${position}`} className="sr-only">
                         {t("Index File")}
                       </label>
                       <CustomSelect
-                        id={`batch-index-${model}`}
-                        aria-describedby={`batch-index-${model}-help`}
+                        id={`batch-index-${position}`}
+                        aria-describedby={`batch-index-${position}-help`}
                         value={indexFor(model)}
                         onChange={(e) => {
                           const v = e.target.value;
                           setModelIndexes((prev) => ({ ...prev, [model]: v }));
                         }}
-                        className="w-full"
+                        size="sm"
+                        className="mt-1 w-full"
                         options={[
                           { value: "", label: t("None") },
                           ...indexes.map((idx) => ({
                             value: idx,
                             label: fileBasename(idx).replace(/\.index$/i, ""),
-                            badge: "INDEX",
                             description: idx,
                           })),
                         ]}
                       />
                       <div className="sr-only">
-                        <SettingHelp text={t(SETTING_HELP.index)} controlId={`batch-index-${model}`} />
+                        <SettingHelp text={t(SETTING_HELP.index)} controlId={`batch-index-${position}`} />
                       </div>
                     </div>
                   )}
@@ -467,11 +514,16 @@ export default function BatchForm() {
             })}
           </div>
           {filteredModels.length === 0 && (
-            <p className="text-xs text-neutral-400 m-0">
+            <p className="m-0 rounded-xl border border-dashed border-[var(--border)] p-4 text-center text-xs text-[var(--muted)]">
               {models.length === 0 ? t("No models found.") : t("No models match your search.")}
             </p>
           )}
-          <p className="text-xs text-neutral-400 m-0">
+          {selectedModels.length > 0 && selectedFileCount > 0 && (
+            <p className="m-0 text-xs text-[var(--muted)]" role="status">
+              {t("Conversions: {n}", { n: selectedModels.length * selectedFileCount })}
+            </p>
+          )}
+          <p className="m-0 text-[11px] leading-relaxed text-[var(--muted)]">
             {t(
               "Each model uses its matching index unless you pick another, and writes to its own output folder.",
             )}
@@ -587,11 +639,6 @@ export default function BatchForm() {
             </div>
           )}
         </div>
-        {selectedModels.length > 0 && (
-          <p className="text-xs text-neutral-300 m-0 mt-3" role="status">
-            {t("Conversions: {n}", { n: selectedModels.length * selectedFileCount })}
-          </p>
-        )}
       </Card>
 
       <ConversionParameters

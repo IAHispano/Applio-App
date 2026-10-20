@@ -492,7 +492,7 @@ export default function DatasetReview({
               </Button>
             </div>
           )}
-          <div className="border-t border-[var(--border)] pt-4 space-y-3">
+          <div className="pt-4 space-y-3">
             <h3 className="text-sm font-semibold m-0">{t("Prepare training copy")}</h3>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <ToggleField

@@ -1,12 +1,12 @@
 "use client";
 
-import { ArrowRight, Copy, Download, RefreshCw, Search } from "lucide-react";
+import { ArrowRight, Copy, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JobDetails from "@/components/JobDetails";
 import { JobBadge, JobCancelButton, JobProgress } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
-import { Alert, Badge, Button, Card, CustomSelect, StatTile } from "@/components/ui";
+import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
@@ -20,9 +20,9 @@ export default function JobsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [query, setQuery] = useWorkspaceState("page:jobs:query", "");
-  const [state, setState] = useWorkspaceState("page:jobs:state", "all");
-  const [type, setType] = useWorkspaceState("page:jobs:type", "all");
+  const [query] = useWorkspaceState("page:jobs:query", "");
+  const [state] = useWorkspaceState("page:jobs:state", "all");
+  const [type] = useWorkspaceState("page:jobs:type", "all");
   const fetching = useRef(false);
   const mounted = useRef(false);
   const hasActiveJobs = useRef(false);
@@ -80,7 +80,6 @@ export default function JobsPage() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refresh]);
-  const labels = useMemo(() => [...new Set(jobs.map((job) => job.label || job.type))].sort(), [jobs]);
   const filtered = useMemo(
     () =>
       jobs.filter(

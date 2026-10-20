@@ -26,6 +26,7 @@ export {
 } from "@/components/ui/PitchMethodSelect";
 export { default as SegmentedControl } from "@/components/ui/SegmentedControl";
 export { default as SliderField } from "@/components/ui/SliderField";
+export { default as SourceTabs, type SourceTab } from "@/components/ui/SourceTabs";
 export { default as StatTile, type StatTileProps } from "@/components/ui/StatTile";
 export { default as ToggleField, type ToggleFieldProps } from "@/components/ui/ToggleField";
 export { default as VoiceModelField, type VoiceModelFieldProps } from "@/components/ui/VoiceModelField";

@@ -171,6 +171,14 @@ export default function ModelDropdown({
     itemRefs.current.get(highlighted)?.scrollIntoView({ block: "nearest" });
   }, [open, highlighted]);
 
+  // The global listeners below stay registered while the menu is open. Reading
+  // the volatile list and handlers through a ref keeps hovering an option or
+  // typing in the search box from re-registering them on every change.
+  const handlersRef = useRef({ filteredModels, highlighted, moveHighlight, chooseModel });
+  useEffect(() => {
+    handlersRef.current = { filteredModels, highlighted, moveHighlight, chooseModel };
+  });
+
   useEffect(() => {
     if (!open) {
       setMenuPos(null);
@@ -208,24 +216,25 @@ export default function ModelDropdown({
       if (e.target !== searchInputRef.current && e.target !== triggerRef.current) return;
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        moveHighlight(1);
+        handlersRef.current.moveHighlight(1);
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        moveHighlight(-1);
+        handlersRef.current.moveHighlight(-1);
         return;
       }
       if (e.key === "Home") {
         if (e.target === searchInputRef.current) return;
         e.preventDefault();
-        setHighlighted(filteredModels.length > 0 ? 0 : -1);
+        setHighlighted(handlersRef.current.filteredModels.length > 0 ? 0 : -1);
         return;
       }
       if (e.key === "End") {
         if (e.target === searchInputRef.current) return;
         e.preventDefault();
-        setHighlighted(filteredModels.length > 0 ? filteredModels.length - 1 : -1);
+        const list = handlersRef.current.filteredModels;
+        setHighlighted(list.length > 0 ? list.length - 1 : -1);
         return;
       }
       if (e.key === "Enter") {
@@ -233,7 +242,8 @@ export default function ModelDropdown({
         const tag = (e.target as HTMLElement | null)?.tagName;
         if (tag === "BUTTON" || tag === "A") return;
         e.preventDefault();
-        chooseModel(filteredModels[highlighted] ?? filteredModels[0]);
+        const { filteredModels: list, highlighted: index } = handlersRef.current;
+        handlersRef.current.chooseModel(list[index] ?? list[0]);
       }
     }
     function handleReposition() {
@@ -250,7 +260,7 @@ export default function ModelDropdown({
       window.removeEventListener("resize", handleReposition);
       document.removeEventListener("scroll", handleReposition, true);
     };
-  }, [open, updatePosition, moveHighlight, chooseModel, filteredModels, highlighted]);
+  }, [open, updatePosition]);
 
   const currentDisplayName = selectedModel ? modelDisplayName(selectedModel) : t("Select a voice model…");
 

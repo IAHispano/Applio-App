@@ -76,6 +76,13 @@ const PROFILES = {
   ],
 } as const;
 const PROFILE_LABELS = ["Fast", "Balanced", "Detailed"] as const;
+// What each profile costs and buys, per the separation guide: a higher overlap
+// and extra passes clean the separation up but take much longer.
+const PROFILE_DESCRIPTIONS = [
+  "Fewest passes and the lowest overlap: quickest, with some bleed between stems.",
+  "Middle ground between speed and quality. Good for most songs.",
+  "Highest overlap and extra passes: cleaner separation, but noticeably slower.",
+] as const;
 
 const DEFAULT_MODEL = "UVR-MDX-NET-Voc_FT.onnx";
 
@@ -249,18 +256,31 @@ export default function UvrPage() {
         values.every((value, index) => value === currentProfileSettings[index]),
       )
     : -1;
-  const profileSummary =
+  // The values the active profile sets, shown as chips under the profile picker.
+  const profileSummary: { label: string; value: string }[] =
     arch === "VR"
-      ? `${t("VR Window Size")}: ${vrWindow} · ${t("Test-Time Augmentation")}: ${t(vrTta ? "Yes" : "No")}`
+      ? [
+          { label: t("VR Window Size"), value: String(vrWindow) },
+          { label: t("Test-Time Augmentation"), value: t(vrTta ? "Yes" : "No") },
+        ]
       : arch === "MDX"
-        ? `${t("MDX Overlap")}: ${mdxOverlap} · ${t("Denoise Output")}: ${t(mdxDenoise ? "Yes" : "No")}`
+        ? [
+            { label: t("MDX Overlap"), value: String(mdxOverlap) },
+            { label: t("Denoise Output"), value: t(mdxDenoise ? "Yes" : "No") },
+          ]
         : arch === "MDXC"
-          ? `${t("MDXC Overlap")}: ${mdxcOverlap}`
+          ? [{ label: t("MDXC Overlap"), value: String(mdxcOverlap) }]
           : arch === "DEMUCS"
-            ? `${t("Demucs Overlap")}: ${demucsOverlap} · ${t("Demucs Shifts")}: ${demucsShifts}`
+            ? [
+                { label: t("Demucs Overlap"), value: String(demucsOverlap) },
+                { label: t("Demucs Shifts"), value: String(demucsShifts) },
+              ]
             : arch === "ROFORMER"
-              ? `${t("Roformer Overlap")}: ${roformerOverlap} · ${t("Denoise Output")}: ${t(roformerDenoise ? "Yes" : "No")}`
-              : "";
+              ? [
+                  { label: t("Roformer Overlap"), value: String(roformerOverlap) },
+                  { label: t("Denoise Output"), value: t(roformerDenoise ? "Yes" : "No") },
+                ]
+              : [];
 
   function applyProfile(value: string) {
     if (!profileArchitecture || !["0", "1", "2"].includes(value)) return;
@@ -432,7 +452,7 @@ export default function UvrPage() {
               onRefreshAudios={refreshSampleAudios}
               youtube
             />
-            <div className="space-y-4 border-t border-[var(--border)] pt-5">
+            <div className="space-y-4 pt-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5 sm:col-span-2">
                   <label htmlFor="uvr-model">{t("Separation model")}</label>
@@ -446,8 +466,10 @@ export default function UvrPage() {
                     options={models.map((m) => ({
                       value: m.filename,
                       label: m.name,
-                      description: `${m.type} · ${(m.stems ?? []).map((stem) => t(stem)).join(" / ")}${m.downloaded ? ` · ${t("Downloaded")}` : ""}`,
-                      badge: m.downloaded ? `${t("Downloaded")} · ${m.type}` : m.type,
+                      description: (m.stems ?? []).map((stem) => t(stem)).join(" / "),
+                      // The badge carries the status; the name already says the
+                      // architecture and the description lists the stems.
+                      badge: m.downloaded ? t("Downloaded") : m.type,
                     }))}
                   />
                 </div>
@@ -470,23 +492,11 @@ export default function UvrPage() {
                     className="w-full"
                     options={[
                       { value: "all", label: t("All stems") },
-                      ...modelStems.map((s) => ({ value: s, label: `${t(s)} · ${t("only")}` })),
+                      ...modelStems.map((s) => ({ value: s, label: t("Only {stem}", { stem: t(s) }) })),
                     ]}
                   />
                 </div>
               </div>
-
-              {selectedModel && (
-                <div className="flex items-center gap-2 flex-wrap">
-                  {selectedModel.downloaded && <Badge variant="success">{t("Downloaded")}</Badge>}
-                  <Badge variant="neutral">{selectedModel.type}</Badge>
-                  {(selectedModel.stems ?? []).slice(0, 6).map((s) => (
-                    <Badge key={s} variant={s === selectedModel.target_stem ? "success" : "outline"}>
-                      {t(s)}
-                    </Badge>
-                  ))}
-                </div>
-              )}
 
               {selectedModel && !selectedModel.downloaded && (
                 <p className="field-help m-0">
@@ -521,16 +531,26 @@ export default function UvrPage() {
                     onValueChange={applyProfile}
                     className="w-full"
                     options={[
-                      ...PROFILE_LABELS.map((label, index) => ({ value: String(index), label: t(label) })),
+                      ...PROFILE_LABELS.map((label, index) => ({
+                        value: String(index),
+                        label: t(label),
+                        description: t(PROFILE_DESCRIPTIONS[index]),
+                      })),
                       ...(profileIndex === -1 ? [{ value: "-1", label: t("Custom…") }] : []),
                     ]}
-                    description={t(
-                      "Profiles adjust windowing, overlap and extra passes. Results depend on the recording and model.",
-                    )}
+                    description={
+                      // The values the profile applies, in place of a second
+                      // paragraph under the control.
+                      profileSummary.length
+                        ? profileSummary.map((item, index) => (
+                            <span key={item.label}>
+                              {index > 0 && " · "}
+                              {item.label} <span className="text-[var(--text)]">{item.value}</span>
+                            </span>
+                          ))
+                        : undefined
+                    }
                   />
-                  <p className="text-xs text-[var(--muted)] m-0" aria-live="polite">
-                    {profileSummary}
-                  </p>
                 </div>
               )}
               <div className="min-w-0 space-y-1.5">
@@ -853,7 +873,7 @@ export default function UvrPage() {
                   )}
               </div>
             </Disclosure>
-            <div className="space-y-3 border-t border-[var(--border)] pt-4">
+            <div className="space-y-3 pt-4">
               {error && (
                 <Alert variant="error" onDismiss={() => setError("")}>
                   {error}
