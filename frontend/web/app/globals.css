@@ -250,10 +250,10 @@
   contain: strict;
 }
 /* The sidebar carries navigation text, so the scenery starts after it
-   (248px panel + 12px margin) instead of covering its footer links. */
+   instead of covering its footer links. */
 @media (min-width: 1024px) {
   .haunt-scene {
-    left: 260px;
+    left: calc(var(--sidebar-w) + var(--sidebar-gap));
   }
 }
 .haunt-web {
@@ -801,6 +801,9 @@ html[data-applio-desktop="true"] nextjs-portal {
   --radius-button: 10px;
   --radius-pill: 999px;
   --space-section: 16px;
+  /* Sidebar geometry, shared with components/layout/Sidebar.tsx. */
+  --sidebar-w: 248px;
+  --sidebar-gap: 12px;
   --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.02), 0 4px 16px rgba(0, 0, 0, 0.08);
   --shadow-button: 0 1px 2px rgba(0, 0, 0, 0.25);
 }
