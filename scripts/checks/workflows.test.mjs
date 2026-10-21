@@ -671,6 +671,10 @@ timing=ctc_durations(emission,[1,2,2],16)
 assert timing.tolist()==[8,4,4]
 assert alignment_text('Hello, WORLD!')=='hello world'
 assert error_rate('Hello, world!', 'hello there world')==(1,2)
+assert error_rate('El niño volvió aquí.', 'el nino volvió aqui')==(2,4)
+assert error_rate('Été, déjà!', 'E\u0301te\u0301 de\u0301ja\u0300')==(0,2)
+assert error_rate('Привет мир', 'привет друг')==(1,2)
+assert error_rate('مرحبا بالعالم', 'مرحبا')==(1,2)
 duration_model=DurationFrontend(256,hidden=32,layers=1)
 aligned=[{"text":"hello", "features":torch.randn(24,256), "f0":torch.full((24,),200.), "durations":[4,4,4,4,8,0]}]
 aligned_args=batch(aligned,torch.zeros(256),torch.ones(256),1)
