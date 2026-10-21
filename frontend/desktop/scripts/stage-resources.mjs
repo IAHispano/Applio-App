@@ -43,7 +43,7 @@ copy("backend/applio/LICENSE");
 copy("backend/applio/assets/config_template.json");
 copy("backend/applio/rvc", false, (file) => !file.startsWith("backend/applio/rvc/models/"));
 copy("uvr", false, (file) => !/\.(pth|pt|ckpt|onnx)$/.test(file));
-copy("backend/python");
+copy("backend/python", false);
 copy("plugins", true);
 copy(
   "assets",

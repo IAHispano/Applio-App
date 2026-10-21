@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Menos pasadas y el solapamiento más bajo: lo más rápido, con algo de mezcla entre pistas.",
   "Middle ground between speed and quality. Good for most songs.": "Equilibrio entre velocidad y calidad. Bien para la mayoría de las canciones.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Máximo solapamiento y pasadas extra: separación más limpia, pero bastante más lento.",
-  "Max {size}": "Máx. {size}"
+  "Max {size}": "Máx. {size}",
+  "TTS engine": "Motor de texto a voz",
+  "Online speech synthesis. Your text is sent to {provider}.": "Síntesis de voz en línea. Tu texto se envía a {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Se ejecuta localmente. Descarga Piper y la voz seleccionada la primera vez; después funciona sin conexión.",
+  "Voice license": "Licencia de la voz",
+  "RVC TTS": "Síntesis de voz RVC",
+  "Text frontend": "Modelo de texto",
+  "Select a text frontend.": "Selecciona un modelo de texto.",
+  "Train text frontend": "Entrenar modelo de texto",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Sintetiza localmente con tu modelo RVC y un modelo de texto entrenado.",
+  "Training steps": "Pasos de entrenamiento",
+  "Enable TTS after voice training": "Activar TTS después de entrenar la voz",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS reutiliza tus grabaciones y necesita transcripciones coincidentes. Usa clips de 0,25–12 segundos con un archivo .txt UTF-8 junto a cada grabación.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Activa TTS para una voz RVC existente. Usa clips de 0,25–12 segundos con una transcripción .txt UTF-8 junto a cada archivo de audio. Los modelos de alineación se descargan al usarlos por primera vez.",
+  "Speech language": "Idioma del habla"
 }

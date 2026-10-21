@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Le moins de passes et le plus faible recouvrement : le plus rapide, avec un peu de mélange entre les stems.",
   "Middle ground between speed and quality. Good for most songs.": "Un juste milieu entre vitesse et qualité. Convient à la plupart des morceaux.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Recouvrement maximal et passes supplémentaires : séparation plus propre, mais nettement plus lent.",
-  "Max {size}": "Max {size}"
+  "Max {size}": "Max {size}",
+  "TTS engine": "Moteur de synthèse vocale",
+  "Online speech synthesis. Your text is sent to {provider}.": "Synthèse vocale en ligne. Votre texte est envoyé à {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Fonctionne localement. Télécharge Piper et la voix choisie à la première utilisation ; la synthèse fonctionne ensuite hors ligne.",
+  "Voice license": "Licence de la voix",
+  "RVC TTS": "Synthèse vocale RVC",
+  "Text frontend": "Modèle de texte",
+  "Select a text frontend.": "Sélectionnez un modèle de texte.",
+  "Train text frontend": "Entraîner un modèle de texte",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Synthétise localement avec votre modèle RVC et un modèle de texte entraîné.",
+  "Training steps": "Étapes d’entraînement",
+  "Enable TTS after voice training": "Activer la synthèse vocale après l’entraînement de la voix",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "La synthèse vocale réutilise vos enregistrements et nécessite des transcriptions correspondantes. Utilisez des extraits de 0,25 à 12 secondes avec un fichier .txt UTF-8 à côté de chaque enregistrement.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Activez la synthèse vocale pour une voix RVC existante. Utilisez des extraits de 0,25 à 12 secondes avec une transcription .txt UTF-8 à côté de chaque fichier audio. Les modèles d’alignement sont téléchargés à la première utilisation.",
+  "Speech language": "Langue de la parole"
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, Type, Upload, Wand2 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
@@ -43,10 +44,23 @@ interface Voice {
   friendlyName: string;
   gender: string;
   locale: string;
+  licenseUrl?: string;
 }
 
 export default function TtsForm() {
-  const [voices, setVoices] = useWorkspaceState<Voice[]>("TtsForm:components:voices", []);
+  const [provider, setProvider] = useWorkspaceState("TtsForm:components:provider", "edge");
+  const direct = provider === "rvc";
+  const [frontend, setFrontend] = useWorkspaceState("TtsForm:frontend", "");
+  const [frontends, setFrontends] = useState<string[]>([]);
+  const [voiceCatalogs, setVoiceCatalogs] = useWorkspaceState<Record<string, Voice[]>>(
+    "TtsForm:components:voiceCatalogs",
+    {},
+  );
+  const [providerVoices, setProviderVoices] = useWorkspaceState<Record<string, string>>(
+    "TtsForm:components:providerVoices",
+    {},
+  );
+  const voices = voiceCatalogs[provider] ?? [];
   const [models, setModels] = useWorkspaceState<string[]>(
     "TtsForm:components:models",
     () => cachedModels()?.models ?? [],
@@ -59,8 +73,26 @@ export default function TtsForm() {
     "write",
   );
   const [voice, setVoice] = useWorkspaceState("TtsForm:components:voice", "");
+  const selectedVoice = provider === "edge" ? voice : (providerVoices[provider] ?? "");
+  const setSelectedVoice = useCallback(
+    (value: string) => {
+      if (provider === "edge") setVoice(value);
+      else setProviderVoices((current) => ({ ...current, [provider]: value }));
+    },
+    [provider, setVoice, setProviderVoices],
+  );
   const [rate, setRate] = useWorkspaceState("TtsForm:components:rate", 0);
   const [pthPath, setPthPath] = useWorkspaceState("TtsForm:components:pthPath", "");
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (query.get("provider") === "rvc") {
+      setProvider("rvc");
+      const path = query.get("frontend");
+      if (path) setFrontend(path);
+      const voice = query.get("pth");
+      if (voice) setPthPath(voice);
+    }
+  }, [setProvider, setFrontend, setPthPath]);
   const [indexes, setIndexes] = useWorkspaceState<string[]>(
     "TtsForm:components:indexes",
     () => cachedModels()?.indexes ?? [],
@@ -87,7 +119,7 @@ export default function TtsForm() {
       setPthPath(selected);
       setIndexPath(matchIndex(selected, idxList));
       setSid(0);
-      if (selected) {
+      if (selected && !direct) {
         primedRef.current = selected;
         void apiSend("/api/models/preload", "POST", {
           pthPath: selected,
@@ -102,14 +134,14 @@ export default function TtsForm() {
         }).catch(() => {});
       }
     },
-    [setSid, setPthPath, setIndexPath],
+    [direct, setSid, setPthPath, setIndexPath],
   );
 
   // Warm a model restored from presets, so the first conversion does not sit
   // on model loading.
   // biome-ignore lint/correctness/useExhaustiveDependencies: prime once per selected model
   useEffect(() => {
-    if (!conversion.loaded || !pthPath || primedRef.current === pthPath) return;
+    if (direct || !conversion.loaded || !pthPath || primedRef.current === pthPath) return;
     primedRef.current = pthPath;
     void apiSend("/api/models/preload", "POST", {
       pthPath,
@@ -122,7 +154,7 @@ export default function TtsForm() {
         exportFormat: "WAV",
       },
     }).catch(() => {});
-  }, [conversion.loaded, pthPath]);
+  }, [direct, conversion.loaded, pthPath]);
 
   function handleUnloadModel() {
     setPthPath("");
@@ -136,7 +168,8 @@ export default function TtsForm() {
         .then((m) => {
           setModels(m.models);
           setIndexes(m.indexes);
-          if (m.models.length > 0 && !pthPath) handleModelSelect(m.models[0], m.indexes);
+          if (m.models.length > 0 && !pthPath && !new URLSearchParams(window.location.search).get("pth"))
+            handleModelSelect(m.models[0], m.indexes);
         })
         .catch(() => {});
     },
@@ -145,14 +178,51 @@ export default function TtsForm() {
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: initial model fetch
   useEffect(() => {
-    apiGet<{ voices: Voice[] }>("/api/tts/voices")
-      .then((v) => {
-        setVoices(v.voices);
-        if (v.voices[0]) setVoice((current) => current || v.voices[0].shortName);
-      })
-      .catch((e) => setError(errMsg(e)));
     loadModels(false);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    if (provider === "rvc") {
+      apiGet<{ frontends: string[] }>("/api/tts/frontends")
+        .then(({ frontends }) => {
+          if (!active) return;
+          setFrontends(frontends);
+          setFrontend((current) => current || frontends[0] || "");
+        })
+        .catch((error) => {
+          if (active) setError(errMsg(error));
+        });
+      return () => {
+        active = false;
+      };
+    }
+    apiGet<{ voices: Voice[] }>(`/api/tts/voices?provider=${provider}`)
+      .then(({ voices: entries }) => {
+        if (!active) return;
+        setVoiceCatalogs((current) => ({ ...current, [provider]: entries }));
+        if (provider === "edge") {
+          setVoice((current) =>
+            entries.some((entry) => entry.shortName === current) ? current : (entries[0]?.shortName ?? ""),
+          );
+        } else {
+          setProviderVoices((current) => ({
+            ...current,
+            [provider]: entries.some((entry) => entry.shortName === current[provider])
+              ? current[provider]
+              : provider === "gtts" && entries.some((entry) => entry.shortName === "en")
+                ? "en"
+                : (entries[0]?.shortName ?? ""),
+          }));
+        }
+      })
+      .catch((e) => {
+        if (active) setError(errMsg(e));
+      });
+    return () => {
+      active = false;
+    };
+  }, [provider, setError, setProviderVoices, setVoice, setVoiceCatalogs, setFrontend]);
 
   useEffect(() => {
     const unsubscribe = onModelsChanged((models) => {
@@ -181,14 +251,20 @@ export default function TtsForm() {
     setBusy(true);
     try {
       const fd = new FormData();
+      fd.append("ttsProvider", provider);
+      fd.append("ttsFrontend", frontend);
       fd.append("ttsText", text);
       if (file) fd.append("txt_file", file);
-      fd.append("ttsVoice", voice);
+      fd.append("ttsVoice", selectedVoice);
       fd.append("ttsRate", String(rate));
       fd.append("pthPath", pthPath);
-      fd.append("indexPath", indexPath);
-      for (const [key, value] of Object.entries(conversion.values)) {
-        fd.append(key, String(value));
+      fd.append("indexPath", direct ? "" : indexPath);
+      if (direct) {
+        fd.append("exportFormat", "WAV");
+      } else {
+        for (const [key, value] of Object.entries(conversion.values)) {
+          fd.append(key, String(value));
+        }
       }
       fd.append("sid", String(sid));
       const { jobId: id } = await postForm<{ jobId: string }>("/api/tts", fd);
@@ -207,9 +283,17 @@ export default function TtsForm() {
         ? t("Loading model settings…")
         : !pthPath
           ? t("Select a voice model.")
-          : !text.trim() && !file
-            ? t("Enter text or upload a .txt file.")
-            : "";
+          : direct
+            ? !frontend.trim()
+              ? t("Select a text frontend.")
+              : !text.trim() && !file
+                ? t("Enter text or upload a .txt file.")
+                : ""
+            : !voices.some((entry) => entry.shortName === selectedVoice)
+              ? t("Select…")
+              : !text.trim() && !file
+                ? t("Enter text or upload a .txt file.")
+                : "";
 
   return (
     <div className="space-y-4">
@@ -226,15 +310,49 @@ export default function TtsForm() {
             icon={<FileText size={18} className="text-white" />}
             title={t("Speech Synthesis Source")}
             step={1}
-            description={t("Enter text or upload a text file to synthesize speech before voice conversion.")}
+            description={
+              direct
+                ? t("Synthesizes locally with your RVC model and a trained text frontend.")
+                : t("Enter text or upload a text file to synthesize speech before voice conversion.")
+            }
             action={
               <Badge variant="neutral" size="sm">
-                {voices.length} {t("voices available")}
+                {direct ? (
+                  t("RVC TTS")
+                ) : (
+                  <>
+                    {voices.length} {t("voices available")}
+                  </>
+                )}
               </Badge>
             }
           />
 
           <div className="space-y-3">
+            <FormField label={t("TTS engine")} htmlFor="tts-provider-select">
+              <CustomSelect
+                id="tts-provider-select"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                options={[
+                  { value: "edge", label: "Edge TTS" },
+                  { value: "gtts", label: "gTTS" },
+                  { value: "piper", label: "Piper" },
+                  { value: "rvc", label: t("RVC TTS") },
+                ]}
+                description={
+                  direct
+                    ? t("Synthesizes locally with your RVC model and a trained text frontend.")
+                    : provider === "piper"
+                      ? t(
+                          "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.",
+                        )
+                      : t("Online speech synthesis. Your text is sent to {provider}.", {
+                          provider: provider === "edge" ? "Microsoft" : "Google",
+                        })
+                }
+              />
+            </FormField>
             <SegmentedControl
               value={textSource}
               onChange={(v) => {
@@ -275,20 +393,50 @@ export default function TtsForm() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
-                <CustomSelect
-                  id="tts-voice-select"
-                  value={voice}
-                  onChange={(e) => setVoice(e.target.value)}
-                  className="w-full mt-1"
-                  searchable
-                  description={t(SETTING_HELP.ttsVoice)}
-                  options={voices.map((v) => ({
-                    value: v.shortName,
-                    label: `${v.friendlyName} (${v.gender})`,
-                  }))}
-                />
-              </FormField>
+              {direct ? (
+                <FormField label={t("Text frontend")} htmlFor="tts-frontend">
+                  <input
+                    id="tts-frontend"
+                    value={frontend}
+                    onChange={(event) => setFrontend(event.target.value)}
+                    list="tts-frontend-models"
+                    required
+                  />
+                  <datalist id="tts-frontend-models">
+                    {frontends.map((path) => (
+                      <option key={path} value={path} />
+                    ))}
+                  </datalist>
+                  <Link className="field-help underline" href="/train?mode=text">
+                    {t("Train text frontend")}
+                  </Link>
+                </FormField>
+              ) : (
+                <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
+                  <CustomSelect
+                    id="tts-voice-select"
+                    value={selectedVoice}
+                    onChange={(e) => setSelectedVoice(e.target.value)}
+                    className="w-full mt-1"
+                    searchable
+                    description={t(SETTING_HELP.ttsVoice)}
+                    options={voices.map((v) => ({
+                      value: v.shortName,
+                      label: v.gender ? `${v.friendlyName} (${v.gender})` : v.friendlyName,
+                    }))}
+                  />
+                  {voices.find((entry) => entry.shortName === selectedVoice)?.licenseUrl && (
+                    <a
+                      className="field-help underline"
+                      href={voices.find((entry) => entry.shortName === selectedVoice)?.licenseUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {t("Voice license")}
+                    </a>
+                  )}
+                </FormField>
+              )}
 
               <div>
                 <SliderField
@@ -308,11 +456,12 @@ export default function TtsForm() {
         </Card>
 
         <VoiceModelCard
+          hideIndex={direct}
           step={2}
           models={models}
           selectedModel={pthPath}
           indexes={indexes}
-          indexPath={indexPath}
+          indexPath={direct ? "" : indexPath}
           indexSelectId="tts-index-file"
           onSelect={(selected) => handleModelSelect(selected, indexes)}
           onUnload={handleUnloadModel}
@@ -324,15 +473,17 @@ export default function TtsForm() {
           onSpeakerChange={setSid}
         />
 
-        <ConversionParameters
-          step={3}
-          idPrefix="tts"
-          cleanupStage="output"
-          simplified
-          values={conversion.values}
-          setters={conversion.setters}
-          onReset={conversion.reset}
-        />
+        {!direct && (
+          <ConversionParameters
+            step={3}
+            idPrefix="tts"
+            cleanupStage="output"
+            simplified
+            values={conversion.values}
+            setters={conversion.setters}
+            onReset={conversion.reset}
+          />
+        )}
 
         {/* Card 4: Action & Output Card */}
         <Card as="section" className="space-y-4">

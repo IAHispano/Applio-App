@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Wenigste Durchläufe und geringste Überlappung: am schnellsten, mit etwas Übersprechen zwischen den Stems.",
   "Middle ground between speed and quality. Good for most songs.": "Kompromiss zwischen Geschwindigkeit und Qualität. Für die meisten Songs gut.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Höchste Überlappung und zusätzliche Durchläufe: sauberere Trennung, aber deutlich langsamer.",
-  "Max {size}": "Max. {size}"
+  "Max {size}": "Max. {size}",
+  "TTS engine": "TTS-Engine",
+  "Online speech synthesis. Your text is sent to {provider}.": "Online-Sprachausgabe. Dein Text wird an {provider} gesendet.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Läuft lokal. Piper und die gewählte Stimme werden bei der ersten Nutzung heruntergeladen; danach funktioniert die Sprachausgabe offline.",
+  "Voice license": "Stimmlizenz",
+  "RVC TTS": "RVC-Sprachsynthese",
+  "Text frontend": "Textmodell",
+  "Select a text frontend.": "Wähle ein Textmodell aus.",
+  "Train text frontend": "Textmodell trainieren",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Erzeugt Sprache lokal mit deinem RVC-Modell und einem trainierten Textmodell.",
+  "Training steps": "Trainingsschritte",
+  "Enable TTS after voice training": "TTS nach dem Stimmtraining aktivieren",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS verwendet deine Aufnahmen und benötigt passende Transkripte. Verwende Clips von 0,25–12 Sekunden mit einer UTF-8-.txt-Datei neben jeder Aufnahme.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Aktiviere TTS für eine vorhandene RVC-Stimme. Verwende Clips von 0,25–12 Sekunden mit einem passenden UTF-8-.txt-Transkript neben jeder Audiodatei. Die Ausrichtungsmodelle werden bei der ersten Verwendung heruntergeladen.",
+  "Speech language": "Sprache der Sprachaufnahmen"
 }

@@ -465,6 +465,7 @@ if sys.version_info[:2] not in ((3, 11), (3, 12)):
     raise RuntimeError('Python 3.11 or 3.12 is required')
 # Existing installations must repair their dependencies after the TTS upgrade.
 from edge_tts.drm import generate_sec_ms_gec_v2
+from gtts import gTTS
 import torch, uvicorn, librosa
 version = getattr(torch, '__version__', '')
 legacy = broken = False

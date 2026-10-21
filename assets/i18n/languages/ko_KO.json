@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "패스 횟수가 가장 적고 겹침도 최소: 가장 빠르지만 스템이 조금 섞입니다.",
   "Middle ground between speed and quality. Good for most songs.": "속도와 품질의 중간 지점. 대부분의 노래에 적합합니다.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "최대 겹침과 추가 패스: 분리는 더 깨끗해지지만 눈에 띄게 느려집니다.",
-  "Max {size}": "최대 {size}"
+  "Max {size}": "최대 {size}",
+  "TTS engine": "음성 합성 엔진",
+  "Online speech synthesis. Your text is sent to {provider}.": "온라인 음성 합성입니다. 텍스트가 {provider}(으)로 전송됩니다.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "로컬에서 실행됩니다. 처음 사용할 때 Piper와 선택한 음성을 다운로드하며, 이후에는 오프라인으로 음성을 합성합니다.",
+  "Voice license": "음성 라이선스",
+  "RVC TTS": "RVC 음성 합성",
+  "Text frontend": "텍스트 모델",
+  "Select a text frontend.": "텍스트 모델을 선택하세요.",
+  "Train text frontend": "텍스트 모델 학습",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "RVC 모델과 학습된 텍스트 모델을 사용하여 로컬에서 음성을 합성합니다.",
+  "Training steps": "학습 단계 수",
+  "Enable TTS after voice training": "음성 학습 후 TTS 활성화",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS는 녹음을 재사용하며 일치하는 전사문이 필요합니다. 각 녹음 옆에 UTF-8 .txt 파일을 두고 0.25~12초 길이의 클립을 사용하세요.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "기존 RVC 음성에 TTS를 활성화합니다. 0.25~12초 길이의 클립을 사용하고 각 오디오 파일 옆에 일치하는 UTF-8 .txt 전사문을 두세요. 정렬 모델은 처음 사용할 때 다운로드됩니다.",
+  "Speech language": "음성 언어"
 }

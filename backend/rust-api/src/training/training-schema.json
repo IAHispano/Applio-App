@@ -251,6 +251,43 @@
         "KMeans",
         "Skip"
       ]
+    },
+    {
+      "name": "enableTts",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "ttsDatasetPath",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "ttsSteps",
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 100000,
+      "default": 10000
+    },
+    {
+      "name": "ttsLanguage",
+      "type": "enum",
+      "values": [
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "nl",
+        "pl",
+        "ru",
+        "tr",
+        "hi",
+        "ar"
+      ],
+      "default": "en"
     }
   ],
   "index": [
@@ -477,6 +514,142 @@
         "KMeans",
         "Skip"
       ]
+    },
+    {
+      "name": "enableTts",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "ttsDatasetPath",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "ttsSteps",
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 100000,
+      "default": 10000
+    },
+    {
+      "name": "ttsLanguage",
+      "type": "enum",
+      "values": [
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "nl",
+        "pl",
+        "ru",
+        "tr",
+        "hi",
+        "ar"
+      ],
+      "default": "en"
+    }
+  ],
+  "textRvc": [
+    {
+      "name": "manifest",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "datasetRoot",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "speaker",
+      "type": "string",
+      "default": "p225",
+      "pattern": "^p\\d{3}$"
+    },
+    {
+      "name": "output",
+      "type": "string",
+      "min": 1
+    },
+    {
+      "name": "initializeFrom",
+      "type": "string",
+      "optional": true
+    },
+    {
+      "name": "resetTokenizer",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "phoneticLoss",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "steps",
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 100000
+    },
+    {
+      "name": "batchSize",
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 32
+    },
+    {
+      "name": "hidden",
+      "type": "number",
+      "integer": true,
+      "min": 16,
+      "max": 512
+    },
+    {
+      "name": "layers",
+      "type": "number",
+      "integer": true,
+      "min": 1,
+      "max": 8
+    },
+    {
+      "name": "device",
+      "type": "enum",
+      "values": [
+        "cpu",
+        "cuda",
+        "mps"
+      ]
+    },
+    {
+      "name": "pthPath",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "language",
+      "type": "enum",
+      "values": [
+        "en",
+        "es",
+        "fr",
+        "de",
+        "it",
+        "pt",
+        "nl",
+        "pl",
+        "ru",
+        "tr",
+        "hi",
+        "ar"
+      ],
+      "default": "en"
     }
   ]
 }

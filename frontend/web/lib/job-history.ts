@@ -33,6 +33,8 @@ export function fieldLabel(key: string): string {
     f0UpKey: "Pitch shift",
     ttsText: "Text",
     ttsVoice: "Voice",
+    ttsProvider: "TTS engine",
+    ttsFrontend: "Text frontend",
     sampleRate: "Sample rate",
     indexRate: "Index rate",
     setup: "Setup",

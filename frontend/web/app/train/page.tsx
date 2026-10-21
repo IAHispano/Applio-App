@@ -14,11 +14,13 @@ import {
   StopCircle,
   Zap,
 } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { JobProgress, JobStage } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
 import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
+import TextFrontendTraining, { TextFrontendLanguage } from "@/components/train/TextFrontendTraining";
 import TrainingConsole from "@/components/train/TrainingConsole";
 import TrainingUpload from "@/components/train/TrainingUpload";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure, Modal, ToggleField } from "@/components/ui";
@@ -38,6 +40,10 @@ type StepModal = null | "preprocess" | "extract" | "train" | "index";
 
 export default function TrainPage() {
   const { t } = useI18n();
+  const [workspace, setWorkspace] = useWorkspaceState<"voice" | "text">("page:train:workspace", "voice");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "text") setWorkspace("text");
+  }, [setWorkspace]);
   const [trainMode, setTrainMode] = useWorkspaceState<TrainMode>("page:train:trainMode", "auto");
   const [activeModal, setActiveModal] = useState<StepModal>(null);
 
@@ -50,6 +56,10 @@ export default function TrainPage() {
   const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:train:gpuDevices", []);
 
   const [datasetPath, setDatasetPath] = useWorkspaceState("page:train:datasetPath", "");
+  const [enableTts, setEnableTts] = useWorkspaceState("page:train:enableTts", false);
+  const [ttsDatasetPath, setTtsDatasetPath] = useWorkspaceState("page:train:ttsDatasetPath", "");
+  const [ttsSteps, setTtsSteps] = useWorkspaceState("page:train:ttsSteps", 10000);
+  const [ttsLanguage, setTtsLanguage] = useWorkspaceState("page:train:ttsLanguage", "en");
   const [sampleRate, setSampleRate] = useWorkspaceState("page:train:sampleRate", "40000");
   const [cpuCores, setCpuCores] = useWorkspaceState("page:train:cpuCores", "");
   const [hostCores, setHostCores] = useWorkspaceState("page:train:hostCores", 16);
@@ -309,6 +319,10 @@ export default function TrainPage() {
         checkpointing,
         gpu: gpuCount,
         indexAlgorithm: indexAlgo,
+        enableTts,
+        ttsDatasetPath: ttsDatasetPath.trim() || cleanDataset,
+        ttsSteps,
+        ttsLanguage,
       });
       setJobId(id);
     } catch (e) {
@@ -379,6 +393,10 @@ export default function TrainPage() {
         cleanup,
         cacheDataInGpu: cacheGpu,
         checkpointing,
+        enableTts,
+        ttsDatasetPath: ttsDatasetPath.trim() || cleanDatasetPath(),
+        ttsSteps,
+        ttsLanguage,
       },
       "train",
     );
@@ -409,6 +427,9 @@ export default function TrainPage() {
     { n: 2, label: t("Extract"), stage: "Extracting features…" },
     { n: 3, label: t("Train"), stage: "Training model…" },
     { n: 4, label: t("Index"), stage: "Generating index…" },
+    ...(automaticJob?.params?.enableTts
+      ? [{ n: 5, label: t("Train text frontend"), stage: "Training" }]
+      : []),
   ];
   const currentPhase =
     automaticJob?.stage === "Checking output…"
@@ -462,12 +483,33 @@ export default function TrainPage() {
     },
   ];
 
+  const workspacePicker = (
+    <SegmentedControl
+      value={workspace}
+      onChange={setWorkspace}
+      ariaLabel={t("Training")}
+      options={[
+        { value: "voice", label: t("Voice Model") },
+        { value: "text", label: t("RVC TTS") },
+      ]}
+    />
+  );
+  if (workspace === "text")
+    return (
+      <div className="w-full max-w-[1920px] mx-auto page-stack">
+        <PageHeader title={t("Training")} />
+        {workspacePicker}
+        <TextFrontendTraining />
+      </div>
+    );
+
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Training")}
         description={t("First set up your project below, then choose Automatic or Manual training.")}
       />
+      {workspacePicker}
 
       {/* Shared top section: Model & Compute Hardware */}
       <Card>
@@ -545,6 +587,58 @@ export default function TrainPage() {
         onUploadBusyChange={onUploadBusyChange}
         onDatasetUploaded={onDatasetUploaded}
       />
+      <Card>
+        <ToggleField
+          label={t("Enable TTS after voice training")}
+          checked={enableTts}
+          onChange={setEnableTts}
+          disabled={activeTraining || busy}
+          description={t(
+            "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.",
+          )}
+        />
+        {enableTts && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            <TextFrontendLanguage
+              id="train-tts-language"
+              value={ttsLanguage}
+              onChange={setTtsLanguage}
+              disabled={activeTraining || busy}
+            />
+            <div>
+              <label htmlFor="train-tts-dataset">{t("Dataset Path")}</label>
+              <input
+                id="train-tts-dataset"
+                value={ttsDatasetPath}
+                onChange={(event) => setTtsDatasetPath(event.target.value)}
+                placeholder={datasetPath}
+                disabled={activeTraining || busy}
+              />
+            </div>
+            <div>
+              <label htmlFor="train-tts-steps">{t("Training steps")}</label>
+              <input
+                id="train-tts-steps"
+                type="number"
+                min={1}
+                max={100000}
+                step={1}
+                value={ttsSteps}
+                onChange={(event) => setTtsSteps(Number(event.target.value))}
+                disabled={activeTraining || busy}
+              />
+            </div>
+          </div>
+        )}
+        {trainingJob?.status === "done" && typeof trainingJob.result?.frontend === "string" && (
+          <Link
+            className="underline"
+            href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
+          >
+            {t("Text to Speech")}
+          </Link>
+        )}
+      </Card>
       <Card>
         <CardHeader
           step={2}

@@ -49,11 +49,249 @@ pub fn router(engine: Arc<NativeEngine>) -> Router {
         .route("/api/train/index", post(index))
         .route("/api/train/pipeline", post(pipeline))
         .route("/api/train/stop", post(stop))
+        .route("/api/train/text-rvc", post(text_rvc))
+        .route("/api/tts/frontends", get(text_frontends))
         .layer(DefaultBodyLimit::disable())
         .with_state(Arc::new(Training {
             engine,
             gpu: tokio::sync::Mutex::new(None),
         }))
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct TextRvcTraining {
+    #[serde(default)]
+    manifest: String,
+    #[serde(default)]
+    dataset_root: String,
+    #[serde(default)]
+    pth_path: String,
+    #[serde(default = "text_rvc_language")]
+    language: String,
+    #[serde(default = "text_rvc_speaker")]
+    speaker: String,
+    output: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    initialize_from: Option<String>,
+    #[serde(default)]
+    reset_tokenizer: bool,
+    #[serde(default)]
+    phonetic_loss: bool,
+    steps: u32,
+    batch_size: u32,
+    hidden: u32,
+    layers: u32,
+    device: String,
+}
+fn text_rvc_speaker() -> String {
+    "p225".into()
+}
+fn text_rvc_language() -> String {
+    "en".into()
+}
+impl TextRvcTraining {
+    fn validate(&self) -> Result<()> {
+        params::normalize("textRvc", &serde_json::to_value(self)?)?;
+        if !(1..=100_000).contains(&self.steps)
+            || !(1..=32).contains(&self.batch_size)
+            || !(16..=512).contains(&self.hidden)
+            || self.hidden % 4 != 0
+            || !(1..=8).contains(&self.layers)
+            || !matches!(self.device.as_str(), "cpu" | "cuda" | "mps")
+            || (self.manifest.trim().is_empty() == self.dataset_root.trim().is_empty())
+            || !Regex::new(r"^p\d{3}$").unwrap().is_match(&self.speaker)
+            || self.output.trim().is_empty()
+            || self.reset_tokenizer && self.initialize_from.is_none()
+        {
+            bail!("Invalid text-to-RVC training parameters");
+        }
+        Ok(())
+    }
+}
+async fn text_rvc(
+    State(state): State<Arc<Training>>,
+    Json(request): Json<TextRvcTraining>,
+) -> Accepted {
+    request.validate()?;
+    let runtime = &state.engine.runtime;
+    let prepared = !request.manifest.is_empty();
+    let source = runtime.resolve_user_path(if prepared {
+        &request.manifest
+    } else {
+        &request.dataset_root
+    })?;
+    let requested_output = Path::new(&request.output);
+    let output = if requested_output.is_absolute() {
+        let parent = requested_output
+            .parent()
+            .context("Output directory needs a parent")?;
+        let name = requested_output
+            .file_name()
+            .context("Output directory needs a name")?;
+        let parent = runtime.resolve_user_path(&path_string(parent))?;
+        if !parent.is_dir() {
+            return Err(Error::input("Output parent must be a directory"));
+        }
+        parent.join(name)
+    } else {
+        runtime.resolve_user_path(&request.output)?
+    };
+    if (prepared && !source.is_file()) || (!prepared && !source.is_dir()) || output.exists() {
+        return Err(Error::input(
+            "Provide a speech dataset or prepared manifest and a new training output directory",
+        ));
+    }
+    let mut args = vec![
+        "-m".to_owned(),
+        "backend.python.text_rvc".into(),
+        "--device".into(),
+        request.device.clone(),
+        if prepared {
+            "train".into()
+        } else {
+            "fit".into()
+        },
+        if prepared {
+            "--manifest".into()
+        } else {
+            "--vctk-root".into()
+        },
+        path_string(&source),
+        "--output".into(),
+        path_string(&output),
+    ];
+    let resolved_manifest = path_string(&source);
+    if !prepared {
+        args.extend([
+            "--speaker".into(),
+            request.speaker.clone(),
+            "--language".into(),
+            request.language.clone(),
+            "--embedder".into(),
+            path_string(&runtime.data.join("rvc/models/embedders/contentvec")),
+            "--rmvpe".into(),
+            path_string(&runtime.data.join("rvc/models/predictors/rmvpe.pt")),
+            "--recognizer".into(),
+            path_string(&runtime.data.join("rvc/models/aligners/phonemes")),
+        ]);
+        if !request.pth_path.is_empty() {
+            args.extend([
+                "--rvc".into(),
+                path_string(&runtime.require_file(&request.pth_path)?),
+            ]);
+        }
+    }
+    for (flag, value) in [
+        ("--steps", request.steps),
+        ("--batch-size", request.batch_size),
+        ("--hidden", request.hidden),
+        ("--layers", request.layers),
+    ] {
+        args.extend([flag.into(), value.to_string()]);
+    }
+    if let Some(source) = &request.initialize_from {
+        let source = runtime.resolve_user_path(source)?;
+        if !source.is_file() {
+            return Err(Error::input("Initialization checkpoint not found"));
+        }
+        args.extend(["--initialize-from".into(), path_string(&source)]);
+    }
+    if request.reset_tokenizer {
+        args.push("--reset-tokenizer".into());
+    }
+    if request.phonetic_loss {
+        args.push("--phonetic-loss".into());
+    }
+    // Training unloads the resident worker even on CPU, so admission must remain
+    // exclusive with inference and realtime just like ordinary RVC training.
+    let resource = Some(Resource::Gpu);
+    let saved = json!({"step":"text-rvc", "modelName":output.file_name().map(|name|name.to_string_lossy()), "training":request});
+    let job = state
+        .engine
+        .start_job(
+            JobType::Train,
+            saved,
+            resource,
+            move |engine, job, token| async move {
+                let mut spec = engine.runtime.python_command(args)?;
+                if resource.is_some() {
+                    spec.env
+                        .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
+                }
+                let result = ManagedProcess::run(&spec, &token, |_, line| {
+                    engine.jobs.log(&job.id, line);
+                    if let Ok(value) = serde_json::from_str::<Value>(line) {
+                        if let Some(step) = value["step"].as_u64() {
+                            engine.jobs.stage(&job.id, "Training", None, None);
+                            engine.jobs.progress(
+                                &job.id,
+                                (step as f64 / request.steps as f64 * 100.0).min(99.0),
+                            );
+                        }
+                    }
+                })
+                .await?;
+                result.ensure_success()?;
+                let best = output.join(if prepared {
+                    "best.pt"
+                } else {
+                    "training/best.pt"
+                });
+                if !ready_file(&best) {
+                    bail!("Training exited without a frontend checkpoint");
+                }
+                if prepared {
+                    let spec = engine.runtime.python_command([
+                        "-m".to_owned(),
+                        "backend.python.text_rvc".into(),
+                        "calibrate".into(),
+                        "--frontend".into(),
+                        path_string(&best),
+                        "--manifest".into(),
+                        resolved_manifest.clone(),
+                        "--output".into(),
+                        path_string(&output.join("frontend.pt")),
+                    ])?;
+                    ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+                        .await?
+                        .ensure_success()?;
+                }
+                let frontend = output.join("frontend.pt");
+                if !ready_file(&frontend) {
+                    bail!("Training did not export a calibrated frontend");
+                }
+                let frontend = if frontend.starts_with(&engine.runtime.logs) {
+                    engine.runtime.model_relative(&frontend)
+                } else {
+                    path_string(&frontend)
+                };
+                Ok(JobResult::new(
+                    json!({"frontend":frontend,"pthPath":request.pth_path}),
+                    None,
+                ))
+            },
+        )
+        .await
+        .map_err(Error::internal)?;
+    Ok(accepted(job))
+}
+async fn text_frontends(State(state): State<Arc<Training>>) -> Result<Json<Value>, Error> {
+    let runtime = state.engine.runtime.clone();
+    tokio::task::spawn_blocking(move || -> Result<Json<Value>> {
+        let mut found = Vec::new();
+        walk(&runtime.logs.join("tts"), &["pt"], false, &mut found)?;
+        let mut frontends: Vec<_> = found
+            .into_iter()
+            .filter(|path| path.file_name().is_some_and(|name| name == "frontend.pt"))
+            .map(|path| runtime.model_relative(&path))
+            .collect();
+        frontends.sort();
+        Ok(Json(json!({"frontends":frontends})))
+    })
+    .await
+    .map_err(Error::internal)?
+    .map_err(Error::internal)
 }
 fn walk(
     root: &Path,
@@ -496,6 +734,23 @@ async fn start(state: Arc<Training>, request: Request, kind: &'static str) -> Ac
     })?;
     let saved = params::normalize(kind, &input.body)?;
     let mut selected = saved.clone();
+    if saved["enableTts"] == true {
+        let source = if string(&saved, "ttsDatasetPath").is_empty() {
+            string(&saved, "datasetPath")
+        } else {
+            string(&saved, "ttsDatasetPath")
+        };
+        let source = engine.runtime.resolve_user_path(&source)?;
+        if !source.is_dir() {
+            return Err(Error::input(
+                "Provide the transcribed speech dataset for TTS",
+            ));
+        }
+        selected["ttsDatasetPath"] = json!(source);
+        if kind == "pipeline" && saved["embedderModel"] != "contentvec" {
+            return Err(Error::input("TTS requires the ContentVec embedder"));
+        }
+    }
     let name = string(&saved, "modelName");
     model_directory(engine, &name)?;
     if kind == "preprocess" || kind == "pipeline" {
@@ -725,6 +980,21 @@ async fn run(
     let name = string(&p, "modelName");
     let directory = model_directory(&engine, &name)?;
     let pipeline = kind == "pipeline";
+    if p["enableTts"] == true && (kind == "train" || pipeline) {
+        engine.jobs.stage(&job.id, "Preparing…", None, None);
+        let spec = engine.runtime.python_command([
+            "-m".to_owned(),
+            "backend.python.text_rvc".into(),
+            "validate-data".into(),
+            "--dataset".into(),
+            string(&p, "ttsDatasetPath"),
+            "--language".into(),
+            string(&p, "ttsLanguage"),
+        ])?;
+        ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+            .await?
+            .ensure_success()?;
+    }
     let pretrains = if kind == "train" || pipeline {
         pretrained(&engine, &job, &token, &p).await?
     } else {
@@ -836,11 +1106,64 @@ async fn run(
     if token.is_cancelled() {
         bail!("Stopped by user");
     }
+    let mut result = json!({"message":message});
+    if p["enableTts"] == true && (kind == "train" || pipeline) {
+        let voice = engine
+            .runtime
+            .require_file(output.as_deref().context("RVC model was not exported")?)?;
+        let target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
+        engine.jobs.stage(&job.id, "Training", None, None);
+        let mut spec = engine.runtime.python_command(vec![
+            "-m".into(),
+            "backend.python.text_rvc".into(),
+            "--device".into(),
+            if string(&p, "gpu") == "-" {
+                "cpu".into()
+            } else {
+                "auto".into()
+            },
+            "fit".into(),
+            "--vctk-root".into(),
+            string(&p, "ttsDatasetPath"),
+            "--language".into(),
+            string(&p, "ttsLanguage"),
+            "--rvc".into(),
+            path_string(&voice),
+            "--output".into(),
+            path_string(&target),
+            "--embedder".into(),
+            path_string(&engine.runtime.data.join("rvc/models/embedders/contentvec")),
+            "--rmvpe".into(),
+            path_string(&engine.runtime.data.join("rvc/models/predictors/rmvpe.pt")),
+            "--recognizer".into(),
+            path_string(&engine.runtime.data.join("rvc/models/aligners/phonemes")),
+            "--steps".into(),
+            p["ttsSteps"].to_string(),
+            "--batch-size".into(),
+            "4".into(),
+            "--hidden".into(),
+            "256".into(),
+            "--layers".into(),
+            "4".into(),
+            "--phonetic-loss".into(),
+        ])?;
+        spec.env
+            .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
+        ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+            .await?
+            .ensure_success()?;
+        let frontend = target.join("frontend.pt");
+        if !ready_file(&frontend) {
+            bail!("TTS training did not export a text frontend");
+        }
+        result["frontend"] = json!(engine.runtime.model_relative(&frontend));
+        result["pthPath"] = json!(output);
+    }
     engine.jobs.stage(&job.id, "Checking output…", None, None);
     if pipeline {
         engine.jobs.log(&job.id, ">>> [4/4] Verifying artifacts...");
     }
-    Ok(JobResult::new(json!({"message":message}), output))
+    Ok(JobResult::new(result, output))
 }
 async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Json<Value>, Error> {
     let input = uploads::parse(request, &state.engine.runtime.uploads, &[]).await?;
@@ -878,4 +1201,49 @@ async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Js
     } else {
         json!({"ok":true,"killed":stopped})
     }))
+}
+
+#[cfg(test)]
+mod text_rvc_tests {
+    use super::*;
+
+    #[test]
+    fn text_frontend_training_is_bounded_and_host_only() {
+        let valid = json!({"manifest":"prepared/phonemes.json","output":"new-run","steps":1000,"batchSize":8,"hidden":128,"layers":2,"device":"cuda"});
+        serde_json::from_value::<TextRvcTraining>(valid.clone())
+            .unwrap()
+            .validate()
+            .unwrap();
+        for (key, value) in [
+            ("steps", json!(0)),
+            ("batchSize", json!(33)),
+            ("hidden", json!(127)),
+            ("layers", json!(9)),
+            ("device", json!("cuda; arbitrary command")),
+            ("resetTokenizer", json!(true)),
+        ] {
+            let mut invalid = valid.clone();
+            invalid[key] = value;
+            assert!(serde_json::from_value::<TextRvcTraining>(invalid)
+                .unwrap()
+                .validate()
+                .is_err());
+        }
+        let mut unknown = valid;
+        unknown["command"] = json!("arbitrary command");
+        assert!(serde_json::from_value::<TextRvcTraining>(unknown).is_err());
+        assert!(!crate::bridge_policy::api_allowed(
+            "POST",
+            "/api/train/text-rvc"
+        ));
+        for kind in ["train", "pipeline"] {
+            let input = json!({"modelName":"voice", "datasetPath":"speech", "enableTts":true, "ttsSteps":2000});
+            let normalized = params::normalize(kind, &input).unwrap();
+            assert_eq!(normalized["enableTts"], true);
+            assert_eq!(normalized["ttsSteps"], 2000);
+            let mut invalid = input;
+            invalid["ttsSteps"] = json!(0);
+            assert!(params::normalize(kind, &invalid).is_err());
+        }
+    }
 }

@@ -63,7 +63,41 @@ pub fn inference(input: &Value) -> Result<Value, ValidationErrors> {
     normalize(input, false, false, true)
 }
 pub fn tts(input: &Value) -> Result<Value, ValidationErrors> {
-    normalize(input, true, false, true)
+    let params = normalize(input, true, false, true)?;
+    let field = if params["ttsProvider"] == "rvc" {
+        "ttsFrontend"
+    } else {
+        "ttsVoice"
+    };
+    if params[field]
+        .as_str()
+        .is_none_or(|value| value.trim().is_empty())
+    {
+        let mut errors = ValidationErrors::default();
+        errors
+            .field_errors
+            .insert(field.into(), vec!["Expected a nonempty string".into()]);
+        return Err(errors);
+    }
+    if params["ttsProvider"] == "rvc" {
+        let mut errors = ValidationErrors::default();
+        if params["exportFormat"] != "WAV" {
+            errors.field_errors.insert(
+                "exportFormat".into(),
+                vec!["Direct RVC speech supports WAV output".into()],
+            );
+        }
+        if params["indexPath"] != "" {
+            errors.field_errors.insert(
+                "indexPath".into(),
+                vec!["Direct RVC speech does not use an audio feature index".into()],
+            );
+        }
+        if !errors.field_errors.is_empty() {
+            return Err(errors);
+        }
+    }
+    Ok(params)
 }
 pub fn batch_base(input: &Value) -> Result<Value, ValidationErrors> {
     normalize(input, false, false, false)
@@ -301,6 +335,43 @@ pub fn common_cli_args(params: &Value) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tts_providers_keep_edge_as_the_legacy_default() {
+        let mut input = json!({"pthPath":"voice.pth", "ttsVoice":"en-US-AnaNeural"});
+        assert_eq!(tts(&input).unwrap()["ttsProvider"], "edge");
+        for provider in ["edge", "gtts", "piper"] {
+            input["ttsProvider"] = json!(provider);
+            assert_eq!(tts(&input).unwrap()["ttsProvider"], provider);
+        }
+        input["ttsProvider"] = json!("unknown");
+        assert!(tts(&input)
+            .unwrap_err()
+            .field_errors
+            .contains_key("ttsProvider"));
+    }
+
+    #[test]
+    fn direct_speech_requires_a_frontend_and_rejects_unsupported_outputs() {
+        let mut input = json!({"pthPath":"voice.pth","ttsProvider":"rvc","ttsText":"Hello"});
+        assert!(tts(&input)
+            .unwrap_err()
+            .field_errors
+            .contains_key("ttsFrontend"));
+        input["ttsFrontend"] = json!("logs/tts/voice/frontend.pt");
+        assert_eq!(tts(&input).unwrap()["ttsVoice"], "");
+        input["exportFormat"] = json!("MP3");
+        assert!(tts(&input)
+            .unwrap_err()
+            .field_errors
+            .contains_key("exportFormat"));
+        input["exportFormat"] = json!("WAV");
+        input["indexPath"] = json!("voice.index");
+        assert!(tts(&input)
+            .unwrap_err()
+            .field_errors
+            .contains_key("indexPath"));
+    }
 
     #[test]
     fn retired_split_audio_is_ignored_without_shifting_other_conversion_options() {

@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Meno passaggi e la sovrapposizione più bassa: il più veloce, con un po' di miscelazione tra gli stem.",
   "Middle ground between speed and quality. Good for most songs.": "Via di mezzo tra velocità e qualità. Adatto alla maggior parte dei brani.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Sovrapposizione massima e passaggi extra: separazione più pulita, ma decisamente più lenta.",
-  "Max {size}": "Max {size}"
+  "Max {size}": "Max {size}",
+  "TTS engine": "Motore di sintesi vocale",
+  "Online speech synthesis. Your text is sent to {provider}.": "Sintesi vocale online. Il testo viene inviato a {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Funziona localmente. Scarica Piper e la voce scelta al primo utilizzo; in seguito la sintesi funziona offline.",
+  "Voice license": "Licenza della voce",
+  "RVC TTS": "Sintesi vocale RVC",
+  "Text frontend": "Modello di testo",
+  "Select a text frontend.": "Seleziona un modello di testo.",
+  "Train text frontend": "Addestra modello di testo",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Sintetizza localmente con il tuo modello RVC e un modello di testo addestrato.",
+  "Training steps": "Passi di addestramento",
+  "Enable TTS after voice training": "Abilita TTS dopo l’addestramento della voce",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS riutilizza le registrazioni e richiede trascrizioni corrispondenti. Usa clip di 0,25–12 secondi con un file .txt UTF-8 accanto a ogni registrazione.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Abilita TTS per una voce RVC esistente. Usa clip di 0,25–12 secondi con una trascrizione .txt UTF-8 accanto a ogni file audio. I modelli di allineamento vengono scaricati al primo utilizzo.",
+  "Speech language": "Lingua del parlato"
 }

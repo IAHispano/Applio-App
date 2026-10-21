@@ -163,6 +163,12 @@
   ],
   "tts": [
     {
+      "name": "ttsProvider",
+      "type": "enum",
+      "default": "edge",
+      "values": ["edge", "gtts", "piper", "rvc"]
+    },
+    {
       "name": "ttsText",
       "type": "string",
       "default": ""
@@ -170,7 +176,12 @@
     {
       "name": "ttsVoice",
       "type": "string",
-      "min": 1
+      "default": ""
+    },
+    {
+      "name": "ttsFrontend",
+      "type": "string",
+      "default": ""
     },
     {
       "name": "ttsRate",

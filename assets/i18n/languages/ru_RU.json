@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Минимум проходов и минимальное перекрытие: быстрее всего, но с небольшим смешением между дорожками.",
   "Middle ground between speed and quality. Good for most songs.": "Золотая середина между скоростью и качеством. Подходит для большинства треков.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Максимальное перекрытие и дополнительные проходы: чище разделение, но заметно медленнее.",
-  "Max {size}": "Макс. {size}"
+  "Max {size}": "Макс. {size}",
+  "TTS engine": "Движок синтеза речи",
+  "Online speech synthesis. Your text is sent to {provider}.": "Онлайн-синтез речи. Ваш текст отправляется в {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Работает локально. При первом использовании загружает Piper и выбранный голос; затем синтез работает без интернета.",
+  "Voice license": "Лицензия голоса",
+  "RVC TTS": "Синтез речи RVC",
+  "Text frontend": "Текстовая модель",
+  "Select a text frontend.": "Выберите текстовую модель.",
+  "Train text frontend": "Обучить текстовую модель",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Синтезирует речь локально с помощью вашей модели RVC и обученной текстовой модели.",
+  "Training steps": "Шаги обучения",
+  "Enable TTS after voice training": "Включить TTS после обучения голоса",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS использует ваши записи и требует соответствующих расшифровок. Используйте отрывки длиной 0,25–12 секунд с файлом .txt в UTF-8 рядом с каждой записью.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Включите TTS для существующего голоса RVC. Используйте отрывки длиной 0,25–12 секунд с расшифровкой .txt в UTF-8 рядом с каждым аудиофайлом. Модели выравнивания загружаются при первом использовании.",
+  "Speech language": "Язык речи"
 }

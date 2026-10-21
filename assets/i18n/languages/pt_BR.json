@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Menos passadas e a menor sobreposição: o mais rápido, com um pouco de mistura entre os stems.",
   "Middle ground between speed and quality. Good for most songs.": "Equilíbrio entre velocidade e qualidade. Bom para a maioria das músicas.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Sobreposição máxima e passadas extras: separação mais limpa, mas bem mais lento.",
-  "Max {size}": "Máx. {size}"
+  "Max {size}": "Máx. {size}",
+  "TTS engine": "Motor de síntese de voz",
+  "Online speech synthesis. Your text is sent to {provider}.": "Síntese de voz online. Seu texto é enviado ao {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Executa localmente. Baixa o Piper e a voz selecionada no primeiro uso; depois, a síntese funciona offline.",
+  "Voice license": "Licença da voz",
+  "RVC TTS": "Síntese de voz RVC",
+  "Text frontend": "Modelo de texto",
+  "Select a text frontend.": "Selecione um modelo de texto.",
+  "Train text frontend": "Treinar modelo de texto",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Sintetiza localmente com seu modelo RVC e um modelo de texto treinado.",
+  "Training steps": "Etapas de treinamento",
+  "Enable TTS after voice training": "Ativar TTS após o treinamento da voz",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "O TTS reutiliza suas gravações e precisa de transcrições correspondentes. Use clipes de 0,25–12 segundos com um arquivo .txt UTF-8 ao lado de cada gravação.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Ative o TTS para uma voz RVC existente. Use clipes de 0,25–12 segundos com uma transcrição .txt UTF-8 ao lado de cada áudio. Os modelos de alinhamento são baixados no primeiro uso.",
+  "Speech language": "Idioma da fala"
 }

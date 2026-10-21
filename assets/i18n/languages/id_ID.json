@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Passage paling sedikit dan overlap terendah: paling cepat, dengan sedikit tumpang tindih antar stem.",
   "Middle ground between speed and quality. Good for most songs.": "Kompromi antara kecepatan dan kualitas. Bagus untuk sebagian besar lagu.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Overlap tertinggi dan ekstra pass: pemisahan lebih bersih, tetapi jauh lebih lambat.",
-  "Max {size}": "Maks. {size}"
+  "Max {size}": "Maks. {size}",
+  "TTS engine": "Mesin teks ke suara",
+  "Online speech synthesis. Your text is sent to {provider}.": "Sintesis suara daring. Teks Anda dikirim ke {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Berjalan secara lokal. Mengunduh Piper dan suara pilihan saat pertama digunakan; selanjutnya sintesis bekerja luring.",
+  "Voice license": "Lisensi suara",
+  "RVC TTS": "Sintesis ucapan RVC",
+  "Text frontend": "Model teks",
+  "Select a text frontend.": "Pilih model teks.",
+  "Train text frontend": "Latih model teks",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Menyintesis secara lokal dengan model RVC Anda dan model teks terlatih.",
+  "Training steps": "Langkah pelatihan",
+  "Enable TTS after voice training": "Aktifkan TTS setelah pelatihan suara",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS menggunakan kembali rekaman Anda dan memerlukan transkrip yang sesuai. Gunakan klip 0,25–12 detik dengan berkas .txt UTF-8 di samping setiap rekaman.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Aktifkan TTS untuk suara RVC yang sudah ada. Gunakan klip 0,25–12 detik dengan transkrip .txt UTF-8 yang sesuai di samping setiap berkas audio. Model penyelarasan diunduh saat pertama digunakan.",
+  "Speech language": "Bahasa ucapan"
 }

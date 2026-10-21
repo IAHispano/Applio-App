@@ -54,6 +54,7 @@ export default function VoiceModelCard({
   className = "",
   step,
   onMetadata,
+  hideIndex = false,
 }: VoiceModelCardProps) {
   const { t } = useI18n();
   const [library, setLibrary] = useState<ModelDetail[]>([]);
@@ -149,6 +150,7 @@ export default function VoiceModelCard({
 
       {/* Shared voice model picker (dropdown + linked index) */}
       <VoiceModelField
+        hideIndex={hideIndex}
         models={models}
         selectedModel={pthPath}
         indexes={indexes}

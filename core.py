@@ -515,7 +515,7 @@ command_overrides = {
     "tts": {
         "tts_file": {"default": "", "required": False},
         "tts_text": {"default": "", "required": False},
-        "tts_voice": {"default": "en-US-AnaNeural", "required": False},
+        "tts_voice": {"default": "", "required": False},
         "output_rvc_path": {"default": "", "required": False},
         "pth_path": {"default": "", "required": False},
         "index_path": {"default": "", "required": False},

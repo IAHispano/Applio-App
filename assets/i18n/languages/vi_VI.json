@@ -1849,5 +1849,19 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Ít lượt xử lý ít nhất và độ chồng lấn thấp nhất: nhanh nhất, nhưng các stem hơi lẫn vào nhau.",
   "Middle ground between speed and quality. Good for most songs.": "Cân bằng giữa tốc độ và chất lượng. Hợp với hầu hết các bài hát.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Độ chồng lấn cao nhất và thêm lượt xử lý: tách sạch hơn, nhưng chậm hơn đáng kể.",
-  "Max {size}": "Tối đa {size}"
+  "Max {size}": "Tối đa {size}",
+  "TTS engine": "Công cụ chuyển văn bản thành giọng nói",
+  "Online speech synthesis. Your text is sent to {provider}.": "Tổng hợp giọng nói trực tuyến. Văn bản của bạn được gửi đến {provider}.",
+  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Chạy cục bộ. Tải Piper và giọng đã chọn trong lần dùng đầu tiên; sau đó tổng hợp giọng nói hoạt động ngoại tuyến.",
+  "Voice license": "Giấy phép giọng nói",
+  "RVC TTS": "Tổng hợp giọng nói RVC",
+  "Text frontend": "Mô hình văn bản",
+  "Select a text frontend.": "Chọn mô hình văn bản.",
+  "Train text frontend": "Huấn luyện mô hình văn bản",
+  "Synthesizes locally with your RVC model and a trained text frontend.": "Tổng hợp cục bộ bằng mô hình RVC của bạn và mô hình văn bản đã huấn luyện.",
+  "Training steps": "Bước huấn luyện",
+  "Enable TTS after voice training": "Bật TTS sau khi huấn luyện giọng nói",
+  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS sử dụng lại bản ghi và cần bản chép lời tương ứng. Dùng đoạn dài 0,25–12 giây với tệp .txt UTF-8 bên cạnh mỗi bản ghi.",
+  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Bật TTS cho giọng RVC hiện có. Dùng đoạn dài 0,25–12 giây với bản chép lời .txt UTF-8 tương ứng bên cạnh mỗi tệp âm thanh. Mô hình căn chỉnh được tải xuống khi dùng lần đầu.",
+  "Speech language": "Ngôn ngữ lời nói"
 }
