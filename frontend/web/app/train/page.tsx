@@ -434,7 +434,7 @@ export default function TrainPage() {
     { n: 3, label: t("Train"), stage: "Training model…" },
     { n: 4, label: t("Index"), stage: "Generating index…" },
     ...(automaticJob?.params?.enableTts
-      ? [{ n: 5, label: t("Enable TTS for a voice"), stage: "Training" }]
+      ? [{ n: 5, label: t("Enable TTS for a voice"), stage: "Applio TTS" }]
       : []),
   ];
   const currentPhase =

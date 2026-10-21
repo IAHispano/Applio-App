@@ -220,16 +220,7 @@ async fn text_rvc(
                         .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
                 }
                 let result = ManagedProcess::run(&spec, &token, |_, line| {
-                    engine.jobs.log(&job.id, line);
-                    if let Ok(value) = serde_json::from_str::<Value>(line) {
-                        if let Some(step) = value["step"].as_u64() {
-                            engine.jobs.stage(&job.id, "Training", None, None);
-                            engine.jobs.progress(
-                                &job.id,
-                                (step as f64 / request.steps as f64 * 100.0).min(99.0),
-                            );
-                        }
-                    }
+                    text_training_log(&engine, &job.id, line, request.steps.into(), "Training");
                 })
                 .await?;
                 result.ensure_success()?;
@@ -821,6 +812,24 @@ async fn start(state: Arc<Training>, request: Request, kind: &'static str) -> Ac
         .map_err(Error::internal)?;
     Ok(accepted(job))
 }
+fn text_training_progress(line: &str, total: u64) -> Option<(u64, f64)> {
+    let value = serde_json::from_str::<Value>(line).ok()?;
+    let step = value["step"].as_u64()?;
+    if total == 0 {
+        return None;
+    }
+    Some((
+        step.min(total),
+        (step as f64 / total as f64 * 100.0).min(99.0),
+    ))
+}
+fn text_training_log(engine: &NativeEngine, id: &str, line: &str, total: u64, stage: &str) {
+    engine.jobs.log(id, line);
+    if let Some((step, percent)) = text_training_progress(line, total) {
+        engine.jobs.stage(id, stage, Some(step), Some(total));
+        engine.jobs.progress(id, percent);
+    }
+}
 fn progress(engine: &NativeEngine, id: &str, line: &str, total: u64) {
     static EPOCH: OnceLock<Regex> = OnceLock::new();
     static BATCH: OnceLock<Regex> = OnceLock::new();
@@ -1121,7 +1130,9 @@ async fn run(
             .runtime
             .require_file(output.as_deref().context("RVC model was not exported")?)?;
         let target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
-        engine.jobs.stage(&job.id, "Training", None, None);
+        engine.jobs.stage(&job.id, "Applio TTS", None, None);
+        // The new phase has its own step count; RVC completion is not TTS completion.
+        engine.jobs.progress(&job.id, 0.0);
         let mut args = vec![
             "-m".into(),
             "backend.python.text_rvc".into(),
@@ -1163,9 +1174,17 @@ async fn run(
         let mut spec = engine.runtime.python_command(args)?;
         spec.env
             .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
-        ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
-            .await?
-            .ensure_success()?;
+        ManagedProcess::run(&spec, &token, |_, line| {
+            text_training_log(
+                &engine,
+                &job.id,
+                line,
+                p["ttsSteps"].as_u64().unwrap(),
+                "Applio TTS",
+            )
+        })
+        .await?
+        .ensure_success()?;
         let frontend = target.join("frontend.pt");
         if !ready_file(&frontend) {
             bail!("TTS training did not export a text frontend");
@@ -1220,6 +1239,25 @@ async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Js
 #[cfg(test)]
 mod text_rvc_tests {
     use super::*;
+
+    #[test]
+    fn tts_steps_report_their_own_progress_before_export_completes() {
+        assert_eq!(
+            text_training_progress(r#"{"step":100}"#, 4000),
+            Some((100, 2.5))
+        );
+        assert_eq!(
+            text_training_progress(r#"{"step":4000}"#, 4000),
+            Some((4000, 99.0))
+        );
+        assert_eq!(
+            text_training_progress(r#"{"step":5000}"#, 4000),
+            Some((4000, 99.0))
+        );
+        assert!(text_training_progress("Aligned recording", 4000).is_none());
+        assert!(text_training_progress(r#"{"step":-1}"#, 4000).is_none());
+        assert!(text_training_progress(r#"{"step":1}"#, 0).is_none());
+    }
 
     #[test]
     fn text_frontend_training_is_bounded_and_host_only() {
