@@ -252,6 +252,14 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
     let mut input = uploads::parse(request, &engine.runtime.uploads, &uploads::text_rule()).await?;
     ready(&engine).await?;
     let mut params = infer_params::tts(&input.body)?;
+    if let Some(file) = input.file("txt_file") {
+        let bytes = tokio::fs::read(file).await.map_err(anyhow::Error::from)?;
+        if let Some(text) = normalize_tts_text(&bytes)? {
+            tokio::fs::write(file, text)
+                .await
+                .map_err(anyhow::Error::from)?;
+        }
+    }
     let tts_file = input.file("txt_file").map(path_string).unwrap_or_default();
     if string(&params, "ttsText").is_empty() && tts_file.is_empty() {
         return Err(Error::input("Provide 'ttsText' or upload a 'txt_file'."));
@@ -270,6 +278,7 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
         let response = engine.worker.request(json!({"command":"tts", "id":job.id, "params":params, "ttsText":params["ttsText"], "ttsFile":tts_file, "ttsVoice":params["ttsVoice"], "ttsRate":params["ttsRate"], "outputTtsPath":intermediate, "outputRvcPath":wav}), &token, |line| log(&engine, &job.id, line, &mut stdout)).await;
         let response = match response {
             Ok(response) => response,
+            Err(error) if error.is::<crate::worker::WorkerTaskError>() => return Err(error),
             Err(error) => {
                 if token.is_cancelled() { bail!("Stopped by user"); }
                 engine.jobs.log(&job.id, &format!("Worker notice: {error}; falling back to standalone CLI runner..."));
@@ -288,6 +297,32 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
     }).await.map_err(Error::internal)?;
     input.retain();
     Ok(accepted(job))
+}
+
+fn normalize_tts_text(bytes: &[u8]) -> Result<Option<String>> {
+    // Both pinned synthesis runners read UTF-8. Normalize BOM-marked uploads
+    // once so the worker and its CLI fallback receive the same text on every OS.
+    let (content, little_endian) = match bytes {
+        [0xff, 0xfe, content @ ..] => (content, true),
+        [0xfe, 0xff, content @ ..] => (content, false),
+        [0xef, 0xbb, 0xbf, content @ ..] => {
+            return Ok(Some(String::from_utf8(content.to_vec())?));
+        }
+        _ => return Ok(None),
+    };
+    anyhow::ensure!(content.len() % 2 == 0, "Speech conversion failed.");
+    let units = content
+        .chunks_exact(2)
+        .map(|pair| {
+            let pair = [pair[0], pair[1]];
+            if little_endian {
+                u16::from_le_bytes(pair)
+            } else {
+                u16::from_be_bytes(pair)
+            }
+        })
+        .collect::<Vec<_>>();
+    Ok(Some(String::from_utf16(&units)?))
 }
 
 async fn analyze(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {
@@ -418,6 +453,28 @@ fn raw_audio_file(path: &Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tts_uploads_normalize_unicode_boms_for_both_runners() {
+        let text = "Bonjour, 日本語 et 🎵";
+        assert_eq!(normalize_tts_text(text.as_bytes()).unwrap(), None);
+        for (bom, little_endian) in [([0xff, 0xfe], true), ([0xfe, 0xff], false)] {
+            let mut bytes = bom.to_vec();
+            for unit in text.encode_utf16() {
+                bytes.extend(if little_endian {
+                    unit.to_le_bytes()
+                } else {
+                    unit.to_be_bytes()
+                });
+            }
+            assert_eq!(normalize_tts_text(&bytes).unwrap().as_deref(), Some(text));
+        }
+        let mut bytes = vec![0xef, 0xbb, 0xbf];
+        bytes.extend(text.as_bytes());
+        assert_eq!(normalize_tts_text(&bytes).unwrap().as_deref(), Some(text));
+        assert!(normalize_tts_text(&[0xff, 0xfe, 0x41]).is_err());
+        assert!(normalize_tts_text(&[0xff, 0xfe, 0x00, 0xd8]).is_err());
+    }
 
     #[test]
     fn raw_audio_does_not_serve_host_documents() {

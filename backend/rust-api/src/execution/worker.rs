@@ -170,7 +170,7 @@ impl InferenceWorker {
                 if message["id"].as_str().is_some_and(|message_id| message_id != id) { continue; }
                 match message["type"].as_str() {
                     Some("log") => { if let Some(log) = message["message"].as_str() { on_log(log); } },
-                    Some("error") => bail!("{}", worker_error(&message)),
+                    Some("error") => return Err(WorkerTaskError(worker_error(&message)).into()),
                     Some(kind) if kind == expected => return Ok(message),
                     _ => {}
                 }
@@ -234,6 +234,17 @@ impl std::fmt::Display for WorkerTransportError {
     }
 }
 impl std::error::Error for WorkerTransportError {}
+
+/// The worker ran the task and reported its failure. Retrying through the CLI
+/// repeats the same operation, including requests rejected by the TTS provider.
+#[derive(Debug)]
+pub(crate) struct WorkerTaskError(String);
+impl std::fmt::Display for WorkerTaskError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+impl std::error::Error for WorkerTaskError {}
 
 fn parse_event(event: ProcessEvent, on_log: &mut impl FnMut(&str)) -> Result<Option<Value>> {
     match event {

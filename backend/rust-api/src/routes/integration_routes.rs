@@ -738,6 +738,9 @@ for line in sys.stdin:
     request = json.loads(line)
     if request.get('ttsText') == 'cancel-this-request':
         time.sleep(30)
+    if request.get('ttsText') == 'throttled-speech':
+        print(json.dumps({'_applio_ipc':True,'type':'error','id':request['id'],'error':'429 Too Many Requests','traceback':'provider handshake traceback'}), flush=True)
+        continue
     if request.get('command') == 'model_blender':
         assert request['ratio'] == 0.25
         assert Path(request['pth1']).is_file() and Path(request['pth2']).is_file()
@@ -962,6 +965,31 @@ print('Model downloaded successfully.')
             .await
             .unwrap()
         }
+        let response = app.clone().oneshot(request(
+            "POST", "/v1/applio/tts", Some(&first),
+            json!({"pthPath":"logs/test.pth", "ttsText":"throttled-speech", "ttsVoice":"en-US-AriaNeural"}),
+        )).await.unwrap();
+        assert_eq!(response.status(), StatusCode::ACCEPTED);
+        let throttled_id = payload(response).await["jobId"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let throttled = completed(&engine, &throttled_id).await;
+        assert_eq!(throttled.status, JobStatus::Error);
+        assert!(throttled
+            .error
+            .as_deref()
+            .unwrap()
+            .contains("429 Too Many Requests"));
+        assert!(throttled
+            .error_details
+            .as_deref()
+            .unwrap()
+            .contains("provider handshake traceback"));
+        assert!(!throttled
+            .logs
+            .iter()
+            .any(|line| line.contains("falling back")));
         for path in [
             "/v1/capabilities",
             "/v1/applio/models",

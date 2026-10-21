@@ -283,13 +283,11 @@ export default function TtsForm() {
                   className="w-full mt-1"
                   searchable
                   description={t(SETTING_HELP.ttsVoice)}
-                >
-                  {voices.slice(0, 400).map((v) => (
-                    <option key={v.shortName} value={v.shortName}>
-                      {v.friendlyName} ({v.gender})
-                    </option>
-                  ))}
-                </CustomSelect>
+                  options={voices.map((v) => ({
+                    value: v.shortName,
+                    label: `${v.friendlyName} (${v.gender})`,
+                  }))}
+                />
               </FormField>
 
               <div>

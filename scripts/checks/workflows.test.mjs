@@ -601,6 +601,29 @@ test("conversion drafts and saved presets cannot reintroduce retired parameters"
   }
 });
 
+test("engine readiness rejects the obsolete TTS dependency before loading ML packages", () => {
+  execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
+import re, sys, types
+from pathlib import Path
+from unittest.mock import patch
+
+source = Path("backend/rust-api/src/execution/engine.rs").read_text(encoding="utf-8")
+probe = re.search(r'const ENGINE_PROBE: &str = r#"(.*?)"#;', source, re.S).group(1)
+torch = types.SimpleNamespace(__version__="2.11.0", cuda=types.SimpleNamespace(is_available=lambda: False))
+drm = types.ModuleType("edge_tts.drm")
+modules = {"edge_tts": types.ModuleType("edge_tts"), "edge_tts.drm": drm, "torch": torch, "uvicorn": types.ModuleType("uvicorn"), "librosa": types.ModuleType("librosa")}
+with patch.dict(sys.modules, modules):
+    try:
+        exec(probe, {})
+    except ImportError as error:
+        assert "generate_sec_ms_gec_v2" in str(error)
+    else:
+        raise AssertionError("Obsolete TTS package passed readiness")
+    drm.generate_sec_ms_gec_v2 = lambda: "v2-token"
+    exec(probe, {})
+`], { encoding: "utf8", windowsHide: true });
+});
+
 test("Gradio callback ordering and the worker retain conversion parameters after removing split audio", () => {
   execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
 import ast, inspect, os, time, types
