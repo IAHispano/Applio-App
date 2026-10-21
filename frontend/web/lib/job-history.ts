@@ -34,7 +34,7 @@ export function fieldLabel(key: string): string {
     ttsText: "Text",
     ttsVoice: "Voice",
     ttsProvider: "TTS engine",
-    ttsFrontend: "Text frontend",
+    ttsFrontend: "TTS model",
     sampleRate: "Sample rate",
     indexRate: "Index rate",
     setup: "Setup",

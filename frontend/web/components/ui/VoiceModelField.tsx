@@ -27,6 +27,7 @@ export interface VoiceModelFieldProps {
   /** Use compact model and index pickers. */
   compact?: boolean;
   hideIndex?: boolean;
+  description?: React.ReactNode;
   /** Model selection handlers (ModelDropdown passthrough) */
   onSelect: (modelPath: string) => void;
   onUnload: () => void;
@@ -52,6 +53,7 @@ export default function VoiceModelField({
   indexLabel,
   compact = false,
   hideIndex = false,
+  description,
   onSelect,
   onUnload,
   onRefresh,
@@ -98,7 +100,7 @@ export default function VoiceModelField({
             />
           )}
           <div className={compact ? "sr-only" : undefined}>
-            <SettingHelp text={t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
+            <SettingHelp text={description ?? t(SETTING_HELP.voiceModel)} controlId={dropdownId} />
           </div>
         </div>
         {!hideIndex && (selectedModel || compact) && (

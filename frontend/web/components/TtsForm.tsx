@@ -265,7 +265,7 @@ export default function TtsForm() {
           ? t("Select a voice model.")
           : direct
             ? !frontend.trim()
-              ? t("Select a text frontend.")
+              ? t("Select a TTS model.")
               : !text.trim() && !file
                 ? t("Enter text or upload a .txt file.")
                 : ""
@@ -292,7 +292,7 @@ export default function TtsForm() {
             step={1}
             description={
               direct
-                ? t("Synthesizes locally with your RVC model and a trained text frontend.")
+                ? t("Generate speech locally using your voice model and trained TTS model.")
                 : t("Enter text or upload a text file to synthesize speech before voice conversion.")
             }
             action={
@@ -320,7 +320,7 @@ export default function TtsForm() {
                 ]}
                 description={
                   direct
-                    ? t("Synthesizes locally with your RVC model and a trained text frontend.")
+                    ? t("Generate speech locally using your voice model and trained TTS model.")
                     : t("Online speech synthesis. Your text is sent to {provider}.", {
                         provider: "Microsoft",
                       })
@@ -368,9 +368,10 @@ export default function TtsForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               {direct ? (
-                <FormField label={t("Text frontend")} htmlFor="tts-frontend">
+                <FormField label={t("TTS model")} htmlFor="tts-frontend">
                   <input
                     id="tts-frontend"
+                    type="text"
                     value={frontend}
                     onChange={(event) => setFrontend(event.target.value)}
                     list="tts-frontend-models"
@@ -382,7 +383,7 @@ export default function TtsForm() {
                     ))}
                   </datalist>
                   <Link className="field-help underline" href="/train?mode=text">
-                    {t("Train text frontend")}
+                    {t("Enable TTS for a voice")}
                   </Link>
                 </FormField>
               ) : (
@@ -421,6 +422,8 @@ export default function TtsForm() {
 
         <VoiceModelCard
           hideIndex={direct}
+          showPresetStatus={!direct}
+          description={direct ? t("Select a voice model.") : undefined}
           step={2}
           models={models}
           selectedModel={pthPath}
@@ -459,7 +462,7 @@ export default function TtsForm() {
                 aria-describedby={disabledReason ? "tts-convert-help" : undefined}
                 icon={<Wand2 size={16} />}
               >
-                {busy ? t("Submitting…") : t("Convert Speech")}
+                {busy ? t("Submitting…") : t("Generate Speech")}
               </Button>
 
               {job && (job.status === "running" || job.status === "queued") && (

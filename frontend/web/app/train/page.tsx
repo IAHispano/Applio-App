@@ -434,7 +434,7 @@ export default function TrainPage() {
     { n: 3, label: t("Train"), stage: "Training model…" },
     { n: 4, label: t("Index"), stage: "Generating index…" },
     ...(automaticJob?.params?.enableTts
-      ? [{ n: 5, label: t("Train text frontend"), stage: "Training" }]
+      ? [{ n: 5, label: t("Enable TTS for a voice"), stage: "Training" }]
       : []),
   ];
   const currentPhase =
@@ -621,6 +621,7 @@ export default function TrainPage() {
               <label htmlFor="train-tts-dataset">{t("Dataset Path")}</label>
               <input
                 id="train-tts-dataset"
+                type="text"
                 value={ttsDatasetPath}
                 onChange={(event) => setTtsDatasetPath(event.target.value)}
                 placeholder={datasetPath}

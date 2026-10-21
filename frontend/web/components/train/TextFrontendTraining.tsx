@@ -43,6 +43,7 @@ export function TextFrontendInitialization({
     <FormField label={t("Pretrained")} htmlFor={id}>
       <input
         id={id}
+        type="text"
         list={`${id}-options`}
         value={value}
         placeholder={t("None")}
@@ -162,7 +163,7 @@ export default function TextFrontendTraining() {
   return (
     <Card as="section" className="space-y-4">
       <CardHeader
-        title={t("Train text frontend")}
+        title={t("Enable TTS for a voice")}
         description={t(
           "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.",
         )}
@@ -177,6 +178,7 @@ export default function TextFrontendTraining() {
           <FormField label={t("Model Name")} htmlFor="text-train-name">
             <input
               id="text-train-name"
+              type="text"
               value={name}
               onChange={(event) => setName(event.target.value)}
               required
@@ -188,6 +190,7 @@ export default function TextFrontendTraining() {
           <FormField label={t("Dataset Path")} htmlFor="text-train-dataset">
             <input
               id="text-train-dataset"
+              type="text"
               value={dataset}
               onChange={(event) => setDataset(event.target.value)}
               required

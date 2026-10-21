@@ -35,6 +35,7 @@ interface VoiceModelCardProps extends Omit<VoiceModelFieldProps, "compact" | "la
   className?: string;
   step?: number;
   onMetadata?: (metadata: ModelMetadata) => void;
+  showPresetStatus?: boolean;
 }
 
 export default function VoiceModelCard({
@@ -55,6 +56,8 @@ export default function VoiceModelCard({
   step,
   onMetadata,
   hideIndex = false,
+  description,
+  showPresetStatus = true,
 }: VoiceModelCardProps) {
   const { t } = useI18n();
   const [library, setLibrary] = useState<ModelDetail[]>([]);
@@ -151,6 +154,7 @@ export default function VoiceModelCard({
       {/* Shared voice model picker (dropdown + linked index) */}
       <VoiceModelField
         hideIndex={hideIndex}
+        description={description}
         models={models}
         selectedModel={pthPath}
         indexes={indexes}
@@ -163,7 +167,7 @@ export default function VoiceModelCard({
         onOpen={onOpen}
         onIndexChange={setIndexPath}
       />
-      <ModelPresetStatus />
+      {showPresetStatus && <ModelPresetStatus />}
       {/* Enriched Model Metadata with deep inspection extraction */}
       {pthPath && (
         <div className="space-y-2">
