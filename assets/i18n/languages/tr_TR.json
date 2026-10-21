@@ -1852,9 +1852,6 @@
   "Max {size}": "En fazla {size}",
   "TTS engine": "Metinden konuşmaya motoru",
   "Online speech synthesis. Your text is sent to {provider}.": "Çevrimiçi konuşma sentezi. Metniniz {provider} hizmetine gönderilir.",
-  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Yerel olarak çalışır. İlk kullanımda Piper ve seçilen ses indirilir; daha sonra konuşma sentezi çevrimdışı çalışır.",
-  "Voice license": "Ses lisansı",
-  "RVC TTS": "RVC konuşma sentezi",
   "Text frontend": "Metin modeli",
   "Select a text frontend.": "Bir metin modeli seçin.",
   "Train text frontend": "Metin modeli eğit",
@@ -1863,5 +1860,6 @@
   "Enable TTS after voice training": "Ses eğitiminden sonra TTS’yi etkinleştir",
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS kayıtlarınızı yeniden kullanır ve eşleşen dökümler gerektirir. Her kaydın yanında UTF-8 .txt dosyası bulunan 0,25–12 saniyelik klipler kullanın.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Mevcut bir RVC sesi için TTS’yi etkinleştirin. Her ses dosyasının yanında eşleşen UTF-8 .txt dökümü bulunan 0,25–12 saniyelik klipler kullanın. Hizalama modelleri ilk kullanımda indirilir.",
-  "Speech language": "Konuşma dili"
+  "Speech language": "Konuşma dili",
+  "Applio TTS": "Applio TTS"
 }

@@ -1823,9 +1823,6 @@
   "Max {size}": "Max {size}",
   "TTS engine": "TTS engine",
   "Online speech synthesis. Your text is sent to {provider}.": "Online speech synthesis. Your text is sent to {provider}.",
-  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.",
-  "Voice license": "Voice license",
-  "RVC TTS": "RVC TTS",
   "Text frontend": "Text frontend",
   "Select a text frontend.": "Select a text frontend.",
   "Train text frontend": "Train text frontend",
@@ -1834,5 +1831,6 @@
   "Enable TTS after voice training": "Enable TTS after voice training",
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.",
-  "Speech language": "Speech language"
+  "Speech language": "Speech language",
+  "Applio TTS": "Applio TTS"
 }

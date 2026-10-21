@@ -166,7 +166,7 @@
       "name": "ttsProvider",
       "type": "enum",
       "default": "edge",
-      "values": ["edge", "gtts", "piper", "rvc"]
+      "values": ["edge", "rvc"]
     },
     {
       "name": "ttsText",

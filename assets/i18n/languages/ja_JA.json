@@ -1852,9 +1852,6 @@
   "Max {size}": "最大 {size}",
   "TTS engine": "音声合成エンジン",
   "Online speech synthesis. Your text is sent to {provider}.": "オンライン音声合成です。テキストは{provider}に送信されます。",
-  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "ローカルで動作します。初回使用時にPiperと選択した音声をダウンロードし、その後はオフラインで音声合成できます。",
-  "Voice license": "音声のライセンス",
-  "RVC TTS": "RVC音声合成",
   "Text frontend": "テキストモデル",
   "Select a text frontend.": "テキストモデルを選択してください。",
   "Train text frontend": "テキストモデルを学習",
@@ -1863,5 +1860,6 @@
   "Enable TTS after voice training": "音声学習後にTTSを有効にする",
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTSは録音を再利用し、対応する書き起こしが必要です。0.25〜12秒のクリップを使い、各録音と同じ場所にUTF-8の.txtファイルを置いてください。",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "既存のRVC音声でTTSを有効にします。0.25〜12秒のクリップを使い、各音声ファイルと同じ場所に対応するUTF-8の.txt書き起こしを置いてください。アライメントモデルは初回利用時にダウンロードされます。",
-  "Speech language": "音声の言語"
+  "Speech language": "音声の言語",
+  "Applio TTS": "Applio TTS"
 }

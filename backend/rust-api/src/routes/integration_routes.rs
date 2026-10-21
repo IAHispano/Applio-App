@@ -711,10 +711,6 @@ mod tests {
                 "backend/applio/rvc/lib/tools/tts_voices.json",
                 r#"[{"ShortName":"en-US-AriaNeural"}]"#,
             ),
-            (
-                "backend/applio/rvc/lib/tools/tts_providers.json",
-                r#"{"gtts":[{"shortName":"es","friendlyName":"Spanish","locale":"es","gender":""}],"piper":[{"shortName":"en_US-lessac-medium","friendlyName":"Lessac","locale":"en_US","gender":""}]}"#,
-            ),
         ] {
             let path = root.path().join(name);
             std::fs::create_dir_all(path.parent().unwrap()).unwrap();
@@ -745,9 +741,6 @@ for line in sys.stdin:
     if request.get('ttsText') == 'throttled-speech':
         print(json.dumps({'_applio_ipc':True,'type':'error','id':request['id'],'error':'429 Too Many Requests','traceback':'provider handshake traceback'}), flush=True)
         continue
-    if request.get('ttsText') == 'provider-speech':
-        provider = request['params']['ttsProvider']
-        assert request['ttsVoice'] == {'gtts':'es', 'piper':'en_US-lessac-medium'}[provider]
     if request.get('command') == 'model_blender':
         assert request['ratio'] == 0.25
         assert Path(request['pth1']).is_file() and Path(request['pth2']).is_file()
@@ -1008,17 +1001,9 @@ print('Model downloaded successfully.')
                 ))
                 .await
                 .unwrap();
-            assert_eq!(response.status(), StatusCode::OK);
-            assert_eq!(payload(response).await["voices"][0]["shortName"], voice);
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
             let response = app.clone().oneshot(request("POST", "/v1/applio/tts", Some(&first), json!({"pthPath":"logs/test.pth", "ttsText":"provider-speech", "ttsProvider":provider, "ttsVoice":voice}))).await.unwrap();
-            assert_eq!(response.status(), StatusCode::ACCEPTED);
-            let id = payload(response).await["jobId"]
-                .as_str()
-                .unwrap()
-                .to_owned();
-            let job = completed(&engine, &id).await;
-            assert_eq!(job.status, JobStatus::Done, "{:?}", job.error);
-            assert_eq!(job.params.as_ref().unwrap()["ttsProvider"], provider);
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
         }
         for path in [
             "/v1/capabilities",

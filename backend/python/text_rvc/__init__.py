@@ -1,1 +1,1 @@
-"""Trainable text frontends for frozen RVC decoders."""
+"""Desktop CLI adapter for the pinned Applio TTS engine."""

@@ -1852,9 +1852,6 @@
   "Max {size}": "Máx. {size}",
   "TTS engine": "Motor de texto a voz",
   "Online speech synthesis. Your text is sent to {provider}.": "Síntesis de voz en línea. Tu texto se envía a {provider}.",
-  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "Se ejecuta localmente. Descarga Piper y la voz seleccionada la primera vez; después funciona sin conexión.",
-  "Voice license": "Licencia de la voz",
-  "RVC TTS": "Síntesis de voz RVC",
   "Text frontend": "Modelo de texto",
   "Select a text frontend.": "Selecciona un modelo de texto.",
   "Train text frontend": "Entrenar modelo de texto",
@@ -1863,5 +1860,6 @@
   "Enable TTS after voice training": "Activar TTS después de entrenar la voz",
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS reutiliza tus grabaciones y necesita transcripciones coincidentes. Usa clips de 0,25–12 segundos con un archivo .txt UTF-8 junto a cada grabación.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Activa TTS para una voz RVC existente. Usa clips de 0,25–12 segundos con una transcripción .txt UTF-8 junto a cada archivo de audio. Los modelos de alineación se descargan al usarlos por primera vez.",
-  "Speech language": "Idioma del habla"
+  "Speech language": "Idioma del habla",
+  "Applio TTS": "Applio TTS"
 }

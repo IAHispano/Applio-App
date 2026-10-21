@@ -1852,9 +1852,6 @@
   "Max {size}": "最大 {size}",
   "TTS engine": "语音合成引擎",
   "Online speech synthesis. Your text is sent to {provider}.": "在线语音合成。你的文本将发送至 {provider}。",
-  "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.": "在本地运行。首次使用时下载 Piper 和所选声音，此后可离线合成语音。",
-  "Voice license": "声音许可证",
-  "RVC TTS": "RVC语音合成",
   "Text frontend": "文本模型",
   "Select a text frontend.": "请选择文本模型。",
   "Train text frontend": "训练文本模型",
@@ -1863,5 +1860,6 @@
   "Enable TTS after voice training": "语音训练后启用 TTS",
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS 会复用你的录音，需要对应的转写。请使用 0.25–12 秒的片段，并在每个录音旁放置 UTF-8 编码的 .txt 文件。",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "为现有 RVC 声音启用 TTS。请使用 0.25–12 秒的片段，并在每个音频文件旁放置对应的 UTF-8 .txt 转写文件。对齐模型将在首次使用时下载。",
-  "Speech language": "语音语言"
+  "Speech language": "语音语言",
+  "Applio TTS": "Applio TTS"
 }

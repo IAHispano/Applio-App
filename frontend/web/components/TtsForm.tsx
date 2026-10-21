@@ -48,16 +48,13 @@ interface Voice {
 }
 
 export default function TtsForm() {
-  const [provider, setProvider] = useWorkspaceState("TtsForm:components:provider", "edge");
+  const [savedProvider, setProvider] = useWorkspaceState("TtsForm:components:provider", "edge");
+  const provider = savedProvider === "rvc" ? "rvc" : "edge";
   const direct = provider === "rvc";
   const [frontend, setFrontend] = useWorkspaceState("TtsForm:frontend", "");
   const [frontends, setFrontends] = useState<string[]>([]);
   const [voiceCatalogs, setVoiceCatalogs] = useWorkspaceState<Record<string, Voice[]>>(
     "TtsForm:components:voiceCatalogs",
-    {},
-  );
-  const [providerVoices, setProviderVoices] = useWorkspaceState<Record<string, string>>(
-    "TtsForm:components:providerVoices",
     {},
   );
   const voices = voiceCatalogs[provider] ?? [];
@@ -73,14 +70,8 @@ export default function TtsForm() {
     "write",
   );
   const [voice, setVoice] = useWorkspaceState("TtsForm:components:voice", "");
-  const selectedVoice = provider === "edge" ? voice : (providerVoices[provider] ?? "");
-  const setSelectedVoice = useCallback(
-    (value: string) => {
-      if (provider === "edge") setVoice(value);
-      else setProviderVoices((current) => ({ ...current, [provider]: value }));
-    },
-    [provider, setVoice, setProviderVoices],
-  );
+  const selectedVoice = voice;
+  const setSelectedVoice = setVoice;
   const [rate, setRate] = useWorkspaceState("TtsForm:components:rate", 0);
   const [pthPath, setPthPath] = useWorkspaceState("TtsForm:components:pthPath", "");
   useEffect(() => {
@@ -201,20 +192,9 @@ export default function TtsForm() {
       .then(({ voices: entries }) => {
         if (!active) return;
         setVoiceCatalogs((current) => ({ ...current, [provider]: entries }));
-        if (provider === "edge") {
-          setVoice((current) =>
-            entries.some((entry) => entry.shortName === current) ? current : (entries[0]?.shortName ?? ""),
-          );
-        } else {
-          setProviderVoices((current) => ({
-            ...current,
-            [provider]: entries.some((entry) => entry.shortName === current[provider])
-              ? current[provider]
-              : provider === "gtts" && entries.some((entry) => entry.shortName === "en")
-                ? "en"
-                : (entries[0]?.shortName ?? ""),
-          }));
-        }
+        setVoice((current) =>
+          entries.some((entry) => entry.shortName === current) ? current : (entries[0]?.shortName ?? ""),
+        );
       })
       .catch((e) => {
         if (active) setError(errMsg(e));
@@ -222,7 +202,7 @@ export default function TtsForm() {
     return () => {
       active = false;
     };
-  }, [provider, setError, setProviderVoices, setVoice, setVoiceCatalogs, setFrontend]);
+  }, [provider, setError, setVoice, setVoiceCatalogs, setFrontend]);
 
   useEffect(() => {
     const unsubscribe = onModelsChanged((models) => {
@@ -318,7 +298,7 @@ export default function TtsForm() {
             action={
               <Badge variant="neutral" size="sm">
                 {direct ? (
-                  t("RVC TTS")
+                  t("Applio TTS")
                 ) : (
                   <>
                     {voices.length} {t("voices available")}
@@ -336,20 +316,14 @@ export default function TtsForm() {
                 onChange={(e) => setProvider(e.target.value)}
                 options={[
                   { value: "edge", label: "Edge TTS" },
-                  { value: "gtts", label: "gTTS" },
-                  { value: "piper", label: "Piper" },
-                  { value: "rvc", label: t("RVC TTS") },
+                  { value: "rvc", label: t("Applio TTS") },
                 ]}
                 description={
                   direct
                     ? t("Synthesizes locally with your RVC model and a trained text frontend.")
-                    : provider === "piper"
-                      ? t(
-                          "Runs locally. Downloads Piper and the selected voice on first use; later synthesis works offline.",
-                        )
-                      : t("Online speech synthesis. Your text is sent to {provider}.", {
-                          provider: provider === "edge" ? "Microsoft" : "Google",
-                        })
+                    : t("Online speech synthesis. Your text is sent to {provider}.", {
+                        provider: "Microsoft",
+                      })
                 }
               />
             </FormField>
@@ -425,16 +399,6 @@ export default function TtsForm() {
                       label: v.gender ? `${v.friendlyName} (${v.gender})` : v.friendlyName,
                     }))}
                   />
-                  {voices.find((entry) => entry.shortName === selectedVoice)?.licenseUrl && (
-                    <a
-                      className="field-help underline"
-                      href={voices.find((entry) => entry.shortName === selectedVoice)?.licenseUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {t("Voice license")}
-                    </a>
-                  )}
                 </FormField>
               )}
 

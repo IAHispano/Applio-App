@@ -490,7 +490,7 @@ export default function TrainPage() {
       ariaLabel={t("Training")}
       options={[
         { value: "voice", label: t("Voice Model") },
-        { value: "text", label: t("RVC TTS") },
+        { value: "text", label: t("Applio TTS") },
       ]}
     />
   );

@@ -340,7 +340,7 @@ mod tests {
     fn tts_providers_keep_edge_as_the_legacy_default() {
         let mut input = json!({"pthPath":"voice.pth", "ttsVoice":"en-US-AnaNeural"});
         assert_eq!(tts(&input).unwrap()["ttsProvider"], "edge");
-        for provider in ["edge", "gtts", "piper"] {
+        for provider in ["edge"] {
             input["ttsProvider"] = json!(provider);
             assert_eq!(tts(&input).unwrap()["ttsProvider"], provider);
         }

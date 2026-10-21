@@ -78,23 +78,10 @@ pub(crate) async fn voices(
 ) -> ApiResult {
     let provider = query.get("provider").map(String::as_str).unwrap_or("edge");
     if provider != "edge" {
-        if !["gtts", "piper"].contains(&provider) {
+        if provider != "rvc" {
             return Err(failure(StatusCode::BAD_REQUEST, "Invalid params"));
         }
-        let raw = read_json(
-            state
-                .config
-                .code_root
-                .join("backend/applio/rvc/lib/tools/tts_providers.json"),
-        )
-        .await?;
-        let voices: Vec<Value> = raw[provider]
-            .as_array()
-            .ok_or_else(|| failure(StatusCode::INTERNAL_SERVER_ERROR, "Invalid voice catalog"))?
-            .iter()
-            .map(|v| json!({"shortName":v["shortName"], "friendlyName":v["friendlyName"], "locale":v["locale"], "gender":v["gender"], "licenseUrl":v.get("licenseUrl")}))
-            .collect();
-        return Ok(Json(json!({"voices": voices})));
+        return Ok(Json(json!({"voices": []})));
     }
     let raw = read_json(
         state

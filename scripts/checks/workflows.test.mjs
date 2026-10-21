@@ -638,13 +638,13 @@ import sys, tempfile
 from pathlib import Path
 import torch
 sys.path.insert(0,str(Path("backend/applio").resolve()))
-from backend.python.text_rvc.model import TextFrontend, DurationFrontend, batch, loss, denormalize
-from backend.python.text_rvc.alignment import alignment_text, ctc_durations
-from backend.python.text_rvc.assessment import error_rate
+from rvc.lib.tools.text_rvc.model import TextFrontend, DurationFrontend, batch, loss, denormalize
+from rvc.lib.tools.text_rvc.alignment import alignment_text, ctc_durations
+from rvc.lib.tools.text_rvc.assessment import error_rate
 from unittest.mock import patch
 import types
-from backend.python.text_rvc.__main__ import decode_rvc
-from backend.python.text_rvc.data import digest
+from rvc.lib.tools.text_rvc.__main__ import decode_rvc
+from rvc.lib.tools.text_rvc.data import digest
 from rvc.lib.algorithm.synthesizers import Synthesizer
 
 torch.set_num_threads(2)
@@ -688,13 +688,13 @@ assert len(duration_model.generate(aligned_args[0]))==20
 try: duration_model.generate(aligned_args[0],max_frames=4)
 except ValueError: pass
 else: raise AssertionError("Duration limit ignored")
-from backend.python.text_rvc.model import fit_phonetic_head
+from rvc.lib.tools.text_rvc.model import fit_phonetic_head
 fit_phonetic_head(duration_model,aligned,torch.zeros(256),torch.ones(256),steps=2)
 duration_model.zero_grad(set_to_none=True)
 total,metrics=loss(duration_model,*aligned_args);total.backward()
 assert metrics['phonetic_loss']>0 and duration_model.output_projection.weight.grad.abs().sum()>0
 assert all(parameter.grad is None and not parameter.requires_grad for parameter in duration_model.phonetic_head.parameters())
-import backend.python.text_rvc.alignment as alignment
+import rvc.lib.tools.text_rvc.alignment as alignment
 class Phonemizer:
     def phonemize(self, voice, text):
         self.voice=voice
@@ -708,7 +708,7 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
         spanish=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary,language='es')
         assert spanish.tokenize('hola')==[5,6,511] and alignment._phonemizer.voice=='es'
         with tempfile.TemporaryDirectory() as directory:
-            from backend.python.text_rvc.__main__ import _load
+            from rvc.lib.tools.text_rvc.__main__ import _load
             checkpoint=Path(directory)/'spanish.pt'
             torch.save({'format':'applio-text-rvc-frontend-v1','config':spanish.config,'weights':spanish.state_dict()},checkpoint)
             restored,_=_load(checkpoint)
@@ -741,7 +741,8 @@ test("text-to-RVC VCTK preparation keeps microphones and validation utterances s
 import io, json, sys, tempfile
 from pathlib import Path
 from unittest.mock import patch
-from backend.python.text_rvc import data
+sys.path.insert(0, str(Path("backend/applio").resolve()))
+from rvc.lib.tools.text_rvc import data
 
 assert "torch" not in sys.modules
 chunks=list(data.text_chunks('Hello world. ' + 'another word '*60, max_bytes=60))
@@ -752,7 +753,7 @@ else: raise AssertionError('Unbounded words accepted')
 assert data.normalize_text("  Ｈｅｌｌｏ\n world! ") == "hello world!"
 assert data.tokenize("a") == [98,257]
 assert data.normalize_text('I İ', 'tr') == 'ı i'
-from backend.python.text_rvc.alignment import LANGUAGES
+from rvc.lib.tools.text_rvc.alignment import LANGUAGES
 schema=json.loads(Path('backend/rust-api/src/training/training-schema.json').read_text())
 for section,field in [('train','ttsLanguage'),('pipeline','ttsLanguage'),('textRvc','language')]:
     assert next(item['values'] for item in schema[section] if item['name']==field)==list(LANGUAGES)
@@ -814,10 +815,9 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
   const state = {
     "TtsForm:components:provider": "gtts",
-    "TtsForm:components:providerVoices": { gtts: "es", piper: "en_US-lessac-medium" },
+    "TtsForm:components:voice": "en-US-AnaNeural",
     "TtsForm:components:voiceCatalogs": {
-      gtts: [{ shortName: "es", friendlyName: "Spanish", gender: "" }],
-      piper: [{ shortName: "en_US-lessac-medium", friendlyName: "Lessac", gender: "" }],
+      edge: [{ shortName: "en-US-AnaNeural", friendlyName: "Ana", gender: "Female" }],
     },
     "TtsForm:components:text": "Hola",
     "TtsForm:components:pthPath": "logs/voice.pth",
@@ -850,9 +850,10 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
       if (match) return match;
     }
   };
-  for (const [provider, voice] of [["gtts", "es"], ["piper", "en_US-lessac-medium"], ["gtts", "es"]]) {
+  for (const [provider, voice] of [["edge", "en-US-AnaNeural"]]) {
     const before = exports.default();
-    find(before, (node) => node.props?.id === "tts-provider-select").props.onChange({ target: { value: provider } });
+    assert.deepEqual(find(before, (node) => node.props?.id === "tts-provider-select").props.options.map((option) => option.value), ["edge", "rvc"]);
+    assert.equal(find(before, (node) => node.props?.id === "tts-provider-select").props.value, "edge");
     const tree = exports.default();
     const selection = find(tree, (node) => node.props?.id === "tts-voice-select");
     assert.equal(selection.props.value, voice);
@@ -875,89 +876,44 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
   assert.equal(submitted.at(-1).pitch, undefined, "Hidden conversion parameters were applied to direct synthesis");
 });
 
-test("TTS providers dispatch lazily, preserve rate, and reuse verified Piper assets offline", () => {
+test("TTS exposes only Edge and Applio while retaining the internal phonemizer", () => {
   execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
-import ast, asyncio, hashlib, os, sys, tempfile, types
+import ast, asyncio, os, sys, tempfile, types
 from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock, patch
-
-sys.path.insert(0, str(Path("backend/applio").resolve()))
+sys.path.insert(0,str(Path("backend/applio").resolve()))
 from rvc.lib.tools import tts_providers as tts
-assert not any(name in sys.modules for name in ("torch", "onnxruntime", "scipy"))
-assert tts._speed(-100) == 0.5 and tts._speed(0) == 1 and tts._speed(100) == 2
-assert all(tts._speed(rate) < tts._speed(rate+1) for rate in range(-100,100))
-for provider in tts.PROVIDERS:
-    assert len(tts.voices(provider)) > 0
-    assert len({v["shortName"] for v in tts.voices(provider)}) == len(tts.voices(provider))
-for voice in tts.catalog()["piper"]:
-    assert voice["licenseUrl"].startswith("https://huggingface.co/")
-    assert all(len(asset["sha256"]) == 64 for asset in voice["files"])
-tree = ast.parse(Path("backend/applio/tabs/tts/tts.py").read_text(encoding="utf-8"))
-helpers = [node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name in {"provider_info", "voice_license", "change_provider"}]
-namespace = {"gr":types.SimpleNamespace(update=lambda **kwargs: kwargs), "i18n":lambda key:key, "provider_voices":tts.voices}
-exec(compile(ast.Module(body=helpers, type_ignores=[]), "tts.py", "exec"), namespace)
-assert namespace["change_provider"]("gtts")[0]["value"] == "en"
-piper_controls = namespace["change_provider"]("piper")
-assert piper_controls[0]["value"] == "en_US-lessac-medium" and piper_controls[2]["visible"]
-assert "{provider}" not in namespace["provider_info"]("edge")
-
-async def save(path):
-    pass
-edge = types.SimpleNamespace(Communicate=Mock(return_value=types.SimpleNamespace(save=save)))
+assert not any(name in sys.modules for name in ("torch","onnxruntime","scipy"))
+assert tts.PROVIDERS==("edge",) and tts.voices("edge") and tts.voices("rvc")==[]
+for provider in ("gtts","piper","unknown"):
+    try: tts.voices(provider)
+    except ValueError: pass
+    else: raise AssertionError("Retired provider accepted")
+tree=ast.parse(Path("backend/applio/tabs/tts/tts.py").read_text(encoding="utf-8"))
+helpers=[node for node in tree.body if isinstance(node,ast.FunctionDef) and node.name in {"provider_info","change_provider"}]
+namespace={"gr":types.SimpleNamespace(update=lambda **kwargs:kwargs),"i18n":lambda key:key,"provider_voices":tts.voices}
+exec(compile(ast.Module(body=helpers,type_ignores=[]),"tts.py","exec"),namespace)
+direct=namespace["change_provider"]("rvc")
+assert not direct[0]["visible"] and direct[2]["visible"] and direct[3]["value"]=="" and not direct[4]["visible"]
+assert direct[5]["value"]=="WAV" and not direct[5]["interactive"]
+assert namespace["change_provider"]("edge")[0]["visible"]
+async def save(path): pass
+edge=types.SimpleNamespace(Communicate=Mock(return_value=types.SimpleNamespace(save=save)))
 with tempfile.TemporaryDirectory() as directory:
-    output = Path(directory) / "speech.wav"
-    with patch.dict(sys.modules, {"edge_tts": edge}), patch.object(tts, "_google") as google, patch.object(tts, "_piper") as piper:
-        asyncio.run(tts.synthesize("Hello", "en-US-AnaNeural", -25, output))
-        assert edge.Communicate.call_args.kwargs["rate"] == "-25%"
-        asyncio.run(tts.synthesize("Hola", "es", 50, output, "gtts"))
-        google.assert_called_once_with("Hola", "es", 50, output)
-        asyncio.run(tts.synthesize("Hello", "en_US-lessac-medium", 0, output, "piper"))
-        piper.assert_called_once_with("Hello", "en_US-lessac-medium", 0, output)
-        for provider, voice in [("unknown", "en"), ("piper", "../../secret"), ("gtts", "en-US-AnaNeural")]:
-            try:
-                asyncio.run(tts.synthesize("Hello", voice, 0, output, provider))
-            except ValueError:
-                pass
-            else:
-                raise AssertionError((provider, voice))
-
-    google = Mock(return_value=types.SimpleNamespace(save=lambda path: Path(path).write_bytes(b"mp3")))
-    with patch.dict(sys.modules, {"gtts": types.SimpleNamespace(gTTS=google)}), patch.object(tts, "_run") as run:
-        tts._google("Hola", "es", -100, output)
-        assert google.call_args.kwargs["timeout"] == (15, 60)
-        assert "atempo=0.5" in run.call_args.args[0]
-
-    content = b"verified-model"
-    asset = {"name":"voice.onnx", "path":"en/voice.onnx", "sha256":hashlib.sha256(content).hexdigest()}
-    data = {"piperRevision":"pinned-revision", "piper":[{"shortName":"voice", "files":[asset]}]}
-    installed = {}
-    def version(name):
-        if name not in installed:
-            raise tts.metadata.PackageNotFoundError(name)
-        return installed[name]
-    calls = []
-    def run(args, **kwargs):
-        calls.append((args, kwargs))
-        if "install" in args:
-            assert "--no-deps" in args
-            installed.update({"piper-tts":"1.8.0", "pathvalidate":"3.3.1"})
-    def download(url, destination, **kwargs):
-        assert "pinned-revision" in url and kwargs["sha256"] == asset["sha256"]
-        Path(destination).write_bytes(content)
-    modules = {
-        "rvc.lib.tools.audio_cleanup": types.SimpleNamespace(_asset_lock=lambda root: nullcontext()),
-        "rvc.lib.tools.http_download": types.SimpleNamespace(download_http=Mock(side_effect=download)),
-        "rvc.lib.user_config": types.SimpleNamespace(config_path=lambda: Path(directory)/"config.json"),
-    }
-    with patch.dict(os.environ, {"APPLIO_TTS_CACHE":directory}), patch.dict(sys.modules, modules), patch.object(tts, "catalog", return_value=data), patch.object(tts.metadata, "version", side_effect=version), patch.object(tts, "_run", side_effect=run):
-        tts._piper("Hello", "voice", 100, output)
-        assert calls[-1][1]["input"] == "Hello"
-        assert "0.5" in calls[-1][0] and "--cuda" not in calls[-1][0]
-        modules["rvc.lib.tools.http_download"].download_http.side_effect = AssertionError("Offline synthesis attempted a download")
-        tts._piper("Hello again", "voice", 0, output)
-        assert len([args for args, _ in calls if "install" in args]) == 1
-`], { encoding: "utf8", windowsHide: true });
+    with patch.dict(sys.modules,{"edge_tts":edge}):
+        asyncio.run(tts.synthesize("Hello","en-US-AnaNeural",-25,Path(directory)/"out.wav"))
+        assert edge.Communicate.call_args.kwargs["rate"]=="-25%"
+        for provider in ("gtts","piper","rvc"):
+            try: asyncio.run(tts.synthesize("Hello","voice",0,Path(directory)/"out.wav",provider))
+            except ValueError: pass
+            else: raise AssertionError("Wrong synthesis dispatcher")
+    modules={"rvc.lib.tools.audio_cleanup":types.SimpleNamespace(_asset_lock=lambda root:nullcontext())}
+    with patch.dict(os.environ,{"APPLIO_TTS_CACHE":directory}),patch.dict(sys.modules,modules),patch.object(tts.metadata,"version",return_value="missing"),patch.object(tts,"_run") as run:
+        tts.ensure_piper_runtime()
+        assert "--no-deps" in run.call_args.args[0]
+        assert "piper-tts==1.8.0" in run.call_args.args[0]
+`], {encoding:"utf8",windowsHide:true});
 });
 
 test("Gradio callback ordering and the worker retain conversion parameters after removing split audio", () => {
