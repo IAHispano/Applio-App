@@ -690,6 +690,16 @@ except ValueError: pass
 else: raise AssertionError("Duration limit ignored")
 from rvc.lib.tools.text_rvc.model import fit_phonetic_head
 fit_phonetic_head(duration_model,aligned,torch.zeros(256),torch.ones(256),steps=2)
+consumed=[]
+def many_examples():
+    for index in range(1025):
+        assert index<1024, 'Phonetic fitting consumed an unbounded corpus'
+        consumed.append(index)
+        frames=256 if index==0 else 4
+        yield dict(text='hello',features=torch.zeros(frames,256),tokens=[98,257],durations=[frames,0])
+with patch.object(torch,'cat',wraps=torch.cat) as pools:
+    fit_phonetic_head(duration_model,many_examples(),torch.zeros(256),torch.ones(256),steps=0)
+    assert len(consumed)==1024 and max(len(item) for item in pools.call_args_list[0].args[0])==128
 duration_model.zero_grad(set_to_none=True)
 total,metrics=loss(duration_model,*aligned_args);total.backward()
 assert metrics['phonetic_loss']>0 and duration_model.output_projection.weight.grad.abs().sum()>0
@@ -778,6 +788,20 @@ with tempfile.TemporaryDirectory() as directory:
     before=digest(voice)
     audio,sr=decode_rvc(acoustic,voice)
     assert len(audio)==3840 and sr==24000 and digest(voice)==before
+    import argparse, soundfile as sf
+    import rvc.lib.tools.text_rvc.__main__ as text_engine
+    args=argparse.Namespace(frontend=voice,rvc=voice,sid=0,device='cpu',rate=0,max_frames=3000,
+                            text='First sentence. Second sentence.',output=Path(directory)/'long.wav')
+    with patch.object(text_engine,'_load',return_value=(phone_model,{})), patch.object(text_engine,'predict',return_value=acoustic), patch.object(text_engine,'load_rvc',wraps=text_engine.load_rvc) as loads:
+        text_engine.synthesize(args)
+        assert loads.call_count==1, 'Long-text synthesis reloaded the voice for each sentence'
+    assert sf.info(args.output).frames==9600
+    present=set(Path(directory).iterdir())
+    with patch.object(text_engine,'_load',side_effect=ValueError('Invalid frontend')):
+        try: text_engine.synthesize(args)
+        except ValueError: pass
+        else: raise AssertionError('Invalid frontend was accepted')
+    assert set(Path(directory).iterdir())==present, 'Failed frontend loading left temporary audio'
     for sid,dimensions in [(1,768),(0,256)]:
         acoustic["features"]=torch.randn(16,dimensions)
         try: decode_rvc(acoustic,voice,sid)
