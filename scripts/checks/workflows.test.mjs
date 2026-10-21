@@ -717,6 +717,8 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
     with patch.object(alignment,'_phonemizer',Phonemizer()):
         vocabulary={'a':4,'i':5,'aɪ':6}
         assert alignment.phoneme_labels('hello',vocabulary)==[4,5], 'Phones merged across word boundaries'
+        with patch.object(alignment._phonemizer,'phonemize',return_value=[list('a-i')]):
+            assert alignment.phoneme_labels('des accents',vocabulary,'fr')==[4,5], 'French word-joining marker became a phoneme'
         with patch.object(alignment._phonemizer,'phonemize',return_value=[list('a'),list('ɪ')]):
             assert alignment.phoneme_labels('One. Two.',{'a':4,'ɪ':5,'aɪ':6})==[4,5], 'Phones merged across sentence boundaries'
         phone_model=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary)
