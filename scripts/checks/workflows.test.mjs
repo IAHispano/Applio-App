@@ -1003,6 +1003,12 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
 });
 
 test("TTS exposes only Edge and Applio while retaining the internal phonemizer", () => {
+  const catalog = JSON.parse(fs.readFileSync("assets/api-endpoints.json", "utf8"));
+  const schema = JSON.parse(fs.readFileSync("backend/rust-api/src/inference/inference-schema.json", "utf8"));
+  assert.deepEqual(
+    catalog.find((entry) => entry.path === "/v1/applio/tts/voices").query.provider.enum,
+    schema.tts.find((field) => field.name === "ttsProvider").values,
+  );
   execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
 import ast, asyncio, os, sys, tempfile, types
 from contextlib import nullcontext

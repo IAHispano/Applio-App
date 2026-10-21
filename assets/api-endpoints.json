@@ -1183,8 +1183,7 @@
         "type": "string",
         "enum": [
           "edge",
-          "gtts",
-          "piper"
+          "rvc"
         ],
         "default": "edge"
       }
