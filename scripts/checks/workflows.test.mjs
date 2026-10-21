@@ -707,6 +707,9 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
             assert alignment.phoneme_labels('One. Two.',{'a':4,'ɪ':5,'aɪ':6})==[4,5], 'Phones merged across sentence boundaries'
         phone_model=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary)
         assert phone_model.tokenize('hello')==[5,6,511]
+        american=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary,language='en-us')
+        assert american.tokenize('glass')==[5,6,511] and alignment._phonemizer.voice=='en-us'
+        assert american.config['language']=='en-us' and phone_model.language=='en'
         from rvc.lib.tools.text_rvc.model import transfer_frontend
         remapped=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary={'a':9,'i':4,'o':5},language='fr')
         assert transfer_frontend(remapped,phone_model)==2

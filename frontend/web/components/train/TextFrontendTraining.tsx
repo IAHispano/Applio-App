@@ -10,7 +10,7 @@ import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 import type { GpuDevice } from "./GpuSelect";
 
-const speechLanguages = ["en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "tr", "hi", "ar"];
+const speechLanguages = ["en", "en-us", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "tr", "hi", "ar"];
 
 export function TextFrontendInitialization({
   id,

@@ -275,6 +275,7 @@
       "type": "enum",
       "values": [
         "en",
+          "en-us",
         "es",
         "fr",
         "de",
@@ -543,6 +544,7 @@
       "type": "enum",
       "values": [
         "en",
+          "en-us",
         "es",
         "fr",
         "de",
@@ -647,6 +649,7 @@
       "type": "enum",
       "values": [
         "en",
+          "en-us",
         "es",
         "fr",
         "de",
