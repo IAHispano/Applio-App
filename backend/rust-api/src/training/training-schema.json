@@ -288,6 +288,11 @@
         "ar"
       ],
       "default": "en"
+    },
+    {
+      "name": "ttsInitializeFrom",
+      "type": "string",
+      "default": ""
     }
   ],
   "index": [
@@ -551,6 +556,11 @@
         "ar"
       ],
       "default": "en"
+    },
+    {
+      "name": "ttsInitializeFrom",
+      "type": "string",
+      "default": ""
     }
   ],
   "textRvc": [

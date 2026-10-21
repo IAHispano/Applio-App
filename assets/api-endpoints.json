@@ -1373,6 +1373,10 @@
       "ttsLanguage": {
         "type": "string",
         "default": "en"
+      },
+      "ttsInitializeFrom": {
+        "type": "string",
+        "default": ""
       }
     },
     "required": []
@@ -1448,6 +1452,10 @@
       "ttsLanguage": {
         "type": "string",
         "default": "en"
+      },
+      "ttsInitializeFrom": {
+        "type": "string",
+        "default": ""
       }
     },
     "required": []

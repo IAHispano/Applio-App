@@ -747,6 +747,10 @@ async fn start(state: Arc<Training>, request: Request, kind: &'static str) -> Ac
             ));
         }
         selected["ttsDatasetPath"] = json!(source);
+        let initial = string(&saved, "ttsInitializeFrom");
+        if !initial.is_empty() {
+            selected["ttsInitializeFrom"] = json!(engine.runtime.require_file(&initial)?);
+        }
         if kind == "pipeline" && saved["embedderModel"] != "contentvec" {
             return Err(Error::input("TTS requires the ContentVec embedder"));
         }
@@ -982,7 +986,7 @@ async fn run(
     let pipeline = kind == "pipeline";
     if p["enableTts"] == true && (kind == "train" || pipeline) {
         engine.jobs.stage(&job.id, "Preparing…", None, None);
-        let spec = engine.runtime.python_command([
+        let mut args = vec![
             "-m".to_owned(),
             "backend.python.text_rvc".into(),
             "validate-data".into(),
@@ -990,7 +994,12 @@ async fn run(
             string(&p, "ttsDatasetPath"),
             "--language".into(),
             string(&p, "ttsLanguage"),
-        ])?;
+        ];
+        let initial = string(&p, "ttsInitializeFrom");
+        if !initial.is_empty() {
+            args.extend(["--initialize-from".into(), initial]);
+        }
+        let spec = engine.runtime.python_command(args)?;
         ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
             .await?
             .ensure_success()?;
@@ -1113,7 +1122,7 @@ async fn run(
             .require_file(output.as_deref().context("RVC model was not exported")?)?;
         let target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
         engine.jobs.stage(&job.id, "Training", None, None);
-        let mut spec = engine.runtime.python_command(vec![
+        let mut args = vec![
             "-m".into(),
             "backend.python.text_rvc".into(),
             "--device".into(),
@@ -1146,7 +1155,12 @@ async fn run(
             "--layers".into(),
             "4".into(),
             "--phonetic-loss".into(),
-        ])?;
+        ];
+        let initial = string(&p, "ttsInitializeFrom");
+        if !initial.is_empty() {
+            args.extend(["--initialize-from".into(), initial]);
+        }
+        let mut spec = engine.runtime.python_command(args)?;
         spec.env
             .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
         ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
@@ -1237,10 +1251,11 @@ mod text_rvc_tests {
             "/api/train/text-rvc"
         ));
         for kind in ["train", "pipeline"] {
-            let input = json!({"modelName":"voice", "datasetPath":"speech", "enableTts":true, "ttsSteps":2000});
+            let input = json!({"modelName":"voice", "datasetPath":"speech", "enableTts":true, "ttsSteps":2000, "ttsInitializeFrom":"logs/tts/base/frontend.pt"});
             let normalized = params::normalize(kind, &input).unwrap();
             assert_eq!(normalized["enableTts"], true);
             assert_eq!(normalized["ttsSteps"], 2000);
+            assert_eq!(normalized["ttsInitializeFrom"], "logs/tts/base/frontend.pt");
             let mut invalid = input;
             invalid["ttsSteps"] = json!(0);
             assert!(params::normalize(kind, &invalid).is_err());

@@ -12,6 +12,53 @@ import type { GpuDevice } from "./GpuSelect";
 
 const speechLanguages = ["en", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "tr", "hi", "ar"];
 
+export function TextFrontendInitialization({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+}) {
+  const { t } = useI18n();
+  const [frontends, setFrontends] = useState<string[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    apiGet<{ frontends: string[] }>("/api/tts/frontends")
+      .then(({ frontends }) => {
+        if (active) setFrontends(frontends);
+      })
+      .catch((error) => {
+        if (active) setError(errMsg(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+  return (
+    <FormField label={t("Pretrained")} htmlFor={id}>
+      <input
+        id={id}
+        list={`${id}-options`}
+        value={value}
+        placeholder={t("None")}
+        onChange={(event) => onChange(event.target.value)}
+        disabled={disabled}
+      />
+      <datalist id={`${id}-options`}>
+        {frontends.map((path) => (
+          <option key={path} value={path} />
+        ))}
+      </datalist>
+      {error && <Alert variant="error">{error}</Alert>}
+    </FormField>
+  );
+}
+
 export function TextFrontendLanguage({
   id,
   value,
@@ -156,15 +203,12 @@ export default function TextFrontendTraining() {
               disabled={busy}
             />
           </FormField>
-          <FormField label={t("Text frontend")} htmlFor="text-train-initial">
-            <input
-              id="text-train-initial"
-              value={initial}
-              onChange={(event) => setInitial(event.target.value)}
-              placeholder={t("None")}
-              disabled={busy}
-            />
-          </FormField>
+          <TextFrontendInitialization
+            id="text-train-initial"
+            value={initial}
+            onChange={setInitial}
+            disabled={busy}
+          />
           <FormField label={t("Training steps")} htmlFor="text-train-steps">
             <input
               id="text-train-steps"

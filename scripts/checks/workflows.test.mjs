@@ -703,10 +703,22 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
     with patch.object(alignment,'_phonemizer',Phonemizer()):
         vocabulary={'a':4,'i':5,'aɪ':6}
         assert alignment.phoneme_labels('hello',vocabulary)==[4,5], 'Phones merged across word boundaries'
+        with patch.object(alignment._phonemizer,'phonemize',return_value=[list('a'),list('ɪ')]):
+            assert alignment.phoneme_labels('One. Two.',{'a':4,'ɪ':5,'aɪ':6})==[4,5], 'Phones merged across sentence boundaries'
         phone_model=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary)
         assert phone_model.tokenize('hello')==[5,6,511]
+        from rvc.lib.tools.text_rvc.model import transfer_frontend
+        remapped=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary={'a':9,'i':4,'o':5},language='fr')
+        assert transfer_frontend(remapped,phone_model)==2
+        assert torch.equal(remapped.embedding.weight[10],phone_model.embedding.weight[5])
+        assert torch.equal(remapped.embedding.weight[5],phone_model.embedding.weight[6])
+        assert remapped.language=='fr'
         spanish=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary,language='es')
         assert spanish.tokenize('hola')==[5,6,511] and alignment._phonemizer.voice=='es'
+        with torch.no_grad():
+            spanish.duration[-1].weight.zero_()
+            spanish.duration[-1].bias.fill_(-1)
+        assert len(spanish.generate(torch.tensor([[5,6,511]])))==2, 'Inference silently dropped pronounced phonemes'
         with tempfile.TemporaryDirectory() as directory:
             from rvc.lib.tools.text_rvc.__main__ import _load
             checkpoint=Path(directory)/'spanish.pt'
@@ -714,6 +726,41 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
             restored,_=_load(checkpoint)
             assert restored.language=='es' and restored.tokenize('hola')==[5,6,511]
             assert alignment._phonemizer.voice=='es'
+            import argparse,json
+            from rvc.lib.tools.text_rvc.__main__ import train,validate_initial_frontend
+            root=Path(directory)
+            space={'feature_dim':256,'frame_hz':100}
+            source={'format':'applio-text-rvc-frontend-v1','config':spanish.config,'weights':spanish.state_dict(),
+                    'mean':torch.zeros(256),'scale':torch.ones(256),'feature_space':space,
+                    'train_ids':['historic'],'validation_ids':[]}
+            torch.save(source,checkpoint)
+            validate_initial_frontend(checkpoint,32,1,256)
+            try: validate_initial_frontend(checkpoint,128,1,256)
+            except ValueError as error: assert 'hidden size' in str(error)
+            else: raise AssertionError('Incompatible warm start passed training preflight')
+            rows=[]
+            for i in range(4):
+                path=root/f'{i}.pt'
+                torch.save({'features':torch.randn(16,256),'f0':torch.full((16,),200.)},path)
+                rows.append({'id':f'p225_{i:03}','text':f'phrase {i}','split':'train' if i<3 else 'validation',
+                             'frames':16,'features':path.name,'audio_sha256':str(i)*64,
+                             'tokens':[5,6,511],'durations':[8,8,0]})
+            manifest=root/'manifest.json'
+            manifest.write_text(json.dumps({'format':'applio-text-rvc-data-v1','feature_space':space,'records':rows,
+                                           'alignment':{'phoneme_vocabulary':vocabulary,'language':'es'},'corpus':'fixture','speaker':'fixture'}))
+            args=argparse.Namespace(manifest=str(manifest),output=str(root/'trained'),seed=7,hidden=32,layers=1,
+                initialize_from=str(checkpoint),reset_tokenizer=False,phonetic_loss=False,device='cpu',
+                learning_rate=0.,steps=1,batch_size=2,validate_every=1)
+            train(args)
+            _,saved=_load(root/'trained/best.pt')
+            assert saved['step']==0, 'Fine-tuning discarded a better initial checkpoint'
+            assert 'historic' in saved['seen_ids'] and len(saved['seen_audio_sha256'])==3
+            source['seen_audio_sha256']=[rows[-1]['audio_sha256']]
+            torch.save(source,checkpoint)
+            args.output=str(root/'rejected')
+            try: train(args)
+            except ValueError as error: assert 'validation recordings' in str(error)
+            else: raise AssertionError('Warm-start validation audio leaked through renamed records')
         phonetic_examples=[dict(text='hello',tokens=[5,6,511],durations=[8,8,0],features=torch.randn(16,256),f0=torch.full((16,),200.))]
         total,_=loss(phone_model,*batch(phonetic_examples,torch.zeros(256),torch.ones(256),1))
         total.backward();assert torch.isfinite(total)
@@ -753,6 +800,8 @@ else: raise AssertionError('Unbounded words accepted')
 assert data.normalize_text("  Ｈｅｌｌｏ\n world! ") == "hello world!"
 assert data.tokenize("a") == [98,257]
 assert data.normalize_text('I İ', 'tr') == 'ı i'
+assert data.normalize_text('Please do *not* say **asterisk**.')=='please do not say asterisk.'
+assert data.normalize_text('2*3 and a lone *')=='2*3 and a lone *'
 from rvc.lib.tools.text_rvc.alignment import LANGUAGES
 schema=json.loads(Path('backend/rust-api/src/training/training-schema.json').read_text())
 for section,field in [('train','ttsLanguage'),('pipeline','ttsLanguage'),('textRvc','language')]:
@@ -808,6 +857,41 @@ with tempfile.TemporaryDirectory() as directory, patch.object(data,"urlopen",sid
     provenance=json.loads((root/"source.json").read_text())
     assert provenance["revision"]=="a"*40 and "src" not in json.dumps(provenance)
 `], { encoding: "utf8", windowsHide: true });
+});
+
+test("automatic and manual voice training retain the TTS warm-start selection", async () => {
+  const source=fs.readFileSync(new URL("../../frontend/web/app/train/page.tsx",import.meta.url),"utf8");
+  const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+  const state={"page:train:modelName":"voice","page:train:datasetPath":"recordings","page:train:enableTts":true,
+    "page:train:ttsInitializeFrom":"logs/tts/base/frontend.pt","page:train:ttsLanguage":"fr"};
+  const exports={};const requests=[];
+  new Function("exports","require",outputText)(exports,(name)=>{
+    if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+    if(name==="react")return {useEffect(){},useCallback:(fn)=>fn,useRef:(current)=>({current}),useState:(value)=>[value===null?"train":typeof value==="function"?value():value,()=>{}]};
+    if(name==="@/lib/workspace-state")return {useWorkspaceState:(key,initial)=>{
+      if(!(key in state))state[key]=typeof initial==="function"?initial():initial;
+      return [state[key],()=>{}];
+    }};
+    if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
+    if(name==="@/lib/useJob")return {usePersistentJobId:()=>[null,()=>{}],useJob:()=>({job:null,isActive:false})};
+    if(name==="@/lib/api")return {submitJob:async(path,body)=>{requests.push({path,body});return {jobId:"job"};}};
+    if(name==="@/lib/setting-help")return {SETTING_HELP:{}};
+    return new Proxy({},{get:(_,key)=>key});
+  });
+  const find=(node,label)=>{
+    if(!node||typeof node!=="object")return;
+    if(typeof node.props?.onClick==="function"&&node.props.children===label)return node;
+    for(const child of [node.props?.children].flat(Infinity)){const found=find(child,label);if(found)return found;}
+  };
+  for(const [label,path] of [["Start Automatic Training","/api/train/pipeline"],["Start Training","/api/train/train"]]){
+    const action=find(exports.default(),label);
+    assert.ok(action,`Missing ${label} action`);
+    await action.props.onClick();
+    assert.equal(requests.at(-1).path,path);
+    assert.equal(requests.at(-1).body.enableTts,true);
+    assert.equal(requests.at(-1).body.ttsInitializeFrom,"logs/tts/base/frontend.pt");
+    assert.equal(requests.at(-1).body.ttsLanguage,"fr");
+  }
 });
 
 test("TTS selection preserves each provider's voice and submits the synthesis contract", async () => {

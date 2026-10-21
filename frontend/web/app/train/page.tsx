@@ -20,7 +20,10 @@ import { JobProgress, JobStage } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
 import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
-import TextFrontendTraining, { TextFrontendLanguage } from "@/components/train/TextFrontendTraining";
+import TextFrontendTraining, {
+  TextFrontendInitialization,
+  TextFrontendLanguage,
+} from "@/components/train/TextFrontendTraining";
 import TrainingConsole from "@/components/train/TrainingConsole";
 import TrainingUpload from "@/components/train/TrainingUpload";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure, Modal, ToggleField } from "@/components/ui";
@@ -60,6 +63,7 @@ export default function TrainPage() {
   const [ttsDatasetPath, setTtsDatasetPath] = useWorkspaceState("page:train:ttsDatasetPath", "");
   const [ttsSteps, setTtsSteps] = useWorkspaceState("page:train:ttsSteps", 10000);
   const [ttsLanguage, setTtsLanguage] = useWorkspaceState("page:train:ttsLanguage", "en");
+  const [ttsInitializeFrom, setTtsInitializeFrom] = useWorkspaceState("page:train:ttsInitializeFrom", "");
   const [sampleRate, setSampleRate] = useWorkspaceState("page:train:sampleRate", "40000");
   const [cpuCores, setCpuCores] = useWorkspaceState("page:train:cpuCores", "");
   const [hostCores, setHostCores] = useWorkspaceState("page:train:hostCores", 16);
@@ -323,6 +327,7 @@ export default function TrainPage() {
         ttsDatasetPath: ttsDatasetPath.trim() || cleanDataset,
         ttsSteps,
         ttsLanguage,
+        ttsInitializeFrom,
       });
       setJobId(id);
     } catch (e) {
@@ -397,6 +402,7 @@ export default function TrainPage() {
         ttsDatasetPath: ttsDatasetPath.trim() || cleanDatasetPath(),
         ttsSteps,
         ttsLanguage,
+        ttsInitializeFrom,
       },
       "train",
     );
@@ -599,6 +605,12 @@ export default function TrainPage() {
         />
         {enableTts && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            <TextFrontendInitialization
+              id="train-tts-initial"
+              value={ttsInitializeFrom}
+              onChange={setTtsInitializeFrom}
+              disabled={activeTraining || busy}
+            />
             <TextFrontendLanguage
               id="train-tts-language"
               value={ttsLanguage}
