@@ -287,6 +287,10 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
                     engine.worker.stop().await?;
                     engine.jobs.stage(&job.id, "Generating speech…", None, None);
                     let wav = output(&engine, "tts_rvc_output", "wav");
+                    // The job owns partial audio even when terminating Python skips its finally block.
+                    let work = tempfile::Builder::new()
+                        .prefix(".tts-")
+                        .tempdir_in(wav.parent().context("Speech conversion failed.")?)?;
                     let text = if tts_file.is_empty() {
                         string(&params, "ttsText")
                     } else {
@@ -316,6 +320,8 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
                         params["ttsRate"].to_string(),
                         "--output".into(),
                         path_string(&wav),
+                        "--temporary-directory".into(),
+                        path_string(work.path()),
                     ])?;
                     spec.env
                         .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());

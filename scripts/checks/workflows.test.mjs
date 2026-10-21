@@ -802,6 +802,21 @@ with tempfile.TemporaryDirectory() as directory:
         except ValueError: pass
         else: raise AssertionError('Invalid frontend was accepted')
     assert set(Path(directory).iterdir())==present, 'Failed frontend loading left temporary audio'
+    with tempfile.TemporaryDirectory(dir=directory) as work:
+        args.temporary_directory=work
+        args.output=Path(directory)/'interrupted.wav'
+        predictions=[]
+        def interrupted_prediction(*unused,**options):
+            if predictions:
+                assert len(list(Path(work).glob('*.wav')))==1, 'Partial audio escaped the job-owned directory'
+                raise ValueError('Interrupted synthesis')
+            predictions.append(True)
+            return acoustic
+        with patch.object(text_engine,'_load',return_value=(phone_model,{})), patch.object(text_engine,'predict',side_effect=interrupted_prediction):
+            try: text_engine.synthesize(args)
+            except ValueError: pass
+            else: raise AssertionError('Interrupted synthesis succeeded')
+        assert not args.output.exists() and not list(Path(work).iterdir())
     for sid,dimensions in [(1,768),(0,256)]:
         acoustic["features"]=torch.randn(16,dimensions)
         try: decode_rvc(acoustic,voice,sid)
