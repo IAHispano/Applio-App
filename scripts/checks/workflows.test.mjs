@@ -916,6 +916,12 @@ chunks=list(data.text_chunks('Hello world. ' + 'another word '*60, max_bytes=60)
 assert chunks[0]=='Hello world.' and all(len(chunk.encode('utf-8'))<=60 for chunk in chunks)
 assert data.boundary_pause('Finished.”')>data.boundary_pause('continuing,')>data.boundary_pause('length limit')
 assert data.boundary_pause('Finished.',2)==data.boundary_pause('Finished.')/2
+for text in ['Dr. Smith is ready.', 'J. R. Smith is ready.', 'La Dra. García está aquí.', 'Prof. Müller ist hier.', 'The U.S. team is ready.']:
+    assert list(data.text_chunks(text))==[text],text
+assert list(data.text_chunks('Dr. Smith is ready. Next sentence!'))==['Dr. Smith is ready.', 'Next sentence!']
+assert data.boundary_pause('Please ask Dr.')==data.boundary_pause('length limit')
+for text in ['مرحبا؟', 'नमस्ते।', 'Finished!”']:
+    assert data.boundary_pause(text)==data.boundary_pause('Finished.')
 try: list(data.text_chunks('a'*121))
 except ValueError: pass
 else: raise AssertionError('Unbounded words accepted')
