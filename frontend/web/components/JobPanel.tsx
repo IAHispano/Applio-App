@@ -77,6 +77,8 @@ export function JobPanelContent({
 
   const resultMsg = typeof job.result?.message === "string" ? job.result.message : null;
   const resultInfo = typeof job.result?.info === "string" ? job.result.info : null;
+  const frontend = typeof job.result?.frontend === "string" ? job.result.frontend : "";
+  const voice = typeof job.result?.pthPath === "string" ? job.result.pthPath : job.outputFile;
 
   const content = (
     <>
@@ -102,6 +104,16 @@ export function JobPanelContent({
       <JobProgress status={job.status} progress={job.progress} job={job} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
+
+      {showOutput && job.status === "done" && frontend && (
+        <Button
+          href={`/tts?provider=rvc&frontend=${encodeURIComponent(frontend)}${voice ? `&pth=${encodeURIComponent(voice)}` : ""}`}
+          variant="ghost"
+          size="sm"
+        >
+          {t("Text to Speech")}
+        </Button>
+      )}
 
       {resultInfo && (
         <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
