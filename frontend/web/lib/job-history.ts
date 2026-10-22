@@ -36,7 +36,7 @@ export function fieldLabel(key: string): string {
     ttsProvider: "TTS engine",
     ttsFrontend: "TTS model",
     frontend: "TTS model",
-    enableTts: "Enable TTS after voice training",
+    enableTts: "Prepare and train TTS",
     ttsDatasetPath: "Dataset Path",
     ttsInitializeFrom: "Pretrained",
     ttsLanguage: "Speech language",

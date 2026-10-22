@@ -22,6 +22,41 @@ function restart(fetch, now = () => 0) {
 
 const json = (body, ok = true) => ({ ok, json: async () => body });
 
+test("stopped jobs keep diagnostics without being presented as operation failures", () => {
+  const history={};
+  const compile=(path,exports,require)=>{
+    const source=fs.readFileSync(new URL(path,import.meta.url),'utf8');
+    const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+    new Function('exports','require',outputText)(exports,require);
+  };
+  compile('../../frontend/web/lib/job-history.ts',history,()=>({}));
+  const require=(name)=>{
+    if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+    if(name==='@/lib/i18n')return {useI18n:()=>({t:(key)=>key})};
+    if(name==='@/lib/job-history')return history;
+    if(name==='@/lib/useJob')return {cleanJobLogs:(lines)=>lines};
+    return new Proxy({},{get:(_,key)=>key});
+  };
+  const status={};
+  compile('../../frontend/web/components/JobStatus.tsx',status,require);
+  for(const [message,variant,title] of [
+    ['Stopped by user','info','Stopped'],
+    ['Interrupted by app shutdown','warning','Interrupted'],
+    ['CUDA out of memory','error','Operation Failed'],
+  ]){
+    const alert=status.JobError({message,logs:['retained diagnostic']});
+    assert.equal(alert.props.variant,variant);
+    assert.equal(alert.props.title,title);
+    assert.equal(alert.props.details,'retained diagnostic');
+  }
+  const details={};
+  compile('../../frontend/web/components/JobDetails.tsx',details,require);
+  const text=(node)=>typeof node==='string'?node:node&&typeof node==='object'?[node.props?.children].flat(Infinity).map(text).join(' '):'';
+  const stopped=text(details.default({job:{id:'job',status:'error',error:'Stopped by user',errorDetails:'diagnostics'}}));
+  assert.ok(stopped.includes('Activity Details'));
+  assert.ok(!stopped.includes('Failure details'));
+});
+
 test("existing Halloween theme files activate scenery and switching themes clears it", () => {
   const source = fs.readFileSync(new URL("../../frontend/web/lib/theme.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });

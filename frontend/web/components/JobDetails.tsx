@@ -2,7 +2,7 @@
 
 import type { Job } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { fieldLabel, fieldValue } from "@/lib/job-history";
+import { fieldLabel, fieldValue, historyState } from "@/lib/job-history";
 
 export default function JobDetails({ job }: { job: Job }) {
   const { t } = useI18n();
@@ -50,7 +50,9 @@ export default function JobDetails({ job }: { job: Job }) {
       )}
       {job.errorDetails && (
         <section>
-          <h3 className="text-sm font-medium mt-0 mb-2">{t("Failure details")}</h3>
+          <h3 className="text-sm font-medium mt-0 mb-2">
+            {t(historyState(job) === "error" ? "Failure details" : "Activity Details")}
+          </h3>
           <pre className="m-0 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs p-3 rounded-lg bg-black/30">
             {job.errorDetails}
           </pre>
