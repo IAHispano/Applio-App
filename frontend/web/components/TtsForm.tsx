@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
 import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
+import { TtsModelDownload, TtsModelImport } from "@/components/TtsModelFiles";
 import {
   Alert,
   Badge,
@@ -382,6 +383,14 @@ export default function TtsForm() {
                       <option key={path} value={path} />
                     ))}
                   </datalist>
+                  <TtsModelImport
+                    disabled={busy}
+                    onImport={(path) => {
+                      setFrontend(path);
+                      setFrontends((current) => [...new Set([...current, path])]);
+                    }}
+                  />
+                  {frontend && <TtsModelDownload frontend={frontend} />}
                   <Link className="field-help underline" href="/train?mode=text">
                     {t("Enable TTS for a voice")}
                   </Link>

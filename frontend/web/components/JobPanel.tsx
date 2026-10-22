@@ -4,6 +4,7 @@ import { ChevronDown, Download } from "lucide-react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobBadge, JobCancelButton, JobError, JobProgress } from "@/components/JobStatus";
 import SetupLogLine from "@/components/setup/SetupLogLine";
+import { TtsModelDownload } from "@/components/TtsModelFiles";
 import { Alert, Button, Card } from "@/components/ui";
 import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -105,6 +106,7 @@ export function JobPanelContent({
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
 
+      {showOutput && job.status === "done" && frontend && <TtsModelDownload frontend={frontend} />}
       {showOutput && job.status === "done" && frontend && (
         <Button
           href={`/tts?provider=rvc&frontend=${encodeURIComponent(frontend)}${voice ? `&pth=${encodeURIComponent(voice)}` : ""}`}

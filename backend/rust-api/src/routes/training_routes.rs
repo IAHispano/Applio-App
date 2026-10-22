@@ -50,7 +50,10 @@ pub fn router(engine: Arc<NativeEngine>) -> Router {
         .route("/api/train/pipeline", post(pipeline))
         .route("/api/train/stop", post(stop))
         .route("/api/train/text-rvc", post(text_rvc))
-        .route("/api/tts/frontends", get(text_frontends))
+        .route(
+            "/api/tts/frontends",
+            get(text_frontends).post(import_text_frontend),
+        )
         .layer(DefaultBodyLimit::disable())
         .with_state(Arc::new(Training {
             engine,
@@ -284,6 +287,43 @@ async fn text_frontends(State(state): State<Arc<Training>>) -> Result<Json<Value
     .map_err(Error::internal)?
     .map_err(Error::internal)
 }
+async fn import_text_frontend(
+    State(state): State<Arc<Training>>,
+    request: Request,
+) -> Result<Json<Value>, Error> {
+    let input = uploads::parse(
+        request,
+        &state.engine.runtime.uploads,
+        &[UploadRule {
+            name: "file",
+            extensions: &["pt"],
+            max_bytes: 256 * 1024 * 1024,
+            max_files: 1,
+        }],
+    )
+    .await?;
+    let file = input.files.get("file").context("Upload failed.")?;
+    let name = clean_name(&file.original_name)?;
+    let stem = Path::new(&name)
+        .file_stem()
+        .unwrap_or_default()
+        .to_string_lossy();
+    // Every import has its own directory; importing a similarly named model cannot overwrite it.
+    let folder = format!(
+        "{}-{}",
+        stem.chars().take(60).collect::<String>(),
+        Uuid::new_v4()
+    );
+    let directory = safe_directory(&state.engine.runtime.logs.join("tts"), &folder).await?;
+    let target = directory.join("frontend.pt");
+    if let Err(error) = publish(&file.path, &target).await {
+        let _ = tokio::fs::remove_dir(&directory).await;
+        return Err(Error::internal(error));
+    }
+    Ok(Json(
+        json!({"ok":true,"frontend":state.engine.runtime.model_relative(&target)}),
+    ))
+}
 fn walk(
     root: &Path,
     extensions: &[&str],
@@ -479,10 +519,12 @@ async fn export_file(
         .and_then(|extension| extension.to_str())
         .unwrap_or_default()
         .to_lowercase();
-    if !["pth", "index"].contains(&extension.as_str()) {
+    if !["pth", "index"].contains(&extension.as_str())
+        && !(extension == "pt" && path.file_name().is_some_and(|name| name == "frontend.pt"))
+    {
         return Err(Error(
             StatusCode::FORBIDDEN,
-            json!({"error":"Only .pth/.index."}),
+            json!({"error":"Invalid params"}),
         ));
     }
     if !path.is_file() {
@@ -1239,6 +1281,116 @@ async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Js
 #[cfg(test)]
 mod text_rvc_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn tts_model_import_and_export_preserve_storage_and_bridge_boundaries() {
+        use axum::body::{to_bytes, Body};
+        let root = tempfile::tempdir().unwrap();
+        let assets = root.path().join("assets");
+        std::fs::create_dir_all(&assets).unwrap();
+        std::fs::write(assets.join("config_template.json"), "{}").unwrap();
+        let backend_config = root.path().join("backend/applio/rvc/configs/config.py");
+        std::fs::create_dir_all(backend_config.parent().unwrap()).unwrap();
+        std::fs::write(backend_config, "").unwrap();
+        let config = crate::ApiConfig {
+            code_root: root.path().into(),
+            data_root: root.path().join("data"),
+            config_dir: root.path().join("config"),
+        };
+        let runtime =
+            crate::engine_runtime::EngineRuntime::with_python(&config, Some("python".into()))
+                .unwrap();
+        let engine = NativeEngine::open(
+            runtime.clone(),
+            Arc::new(crate::engine::RuntimeReadiness::new(runtime, false)),
+        )
+        .unwrap();
+        let app = router(engine.clone());
+        let multipart = |name: &str| {
+            format!("--tts-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: application/octet-stream\r\n\r\ncheckpoint-bytes\r\n--tts-boundary--\r\n")
+        };
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/tts/frontends")
+                    .header(
+                        header::CONTENT_TYPE,
+                        "multipart/form-data; boundary=tts-boundary",
+                    )
+                    .body(Body::from(multipart("voice.pt")))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        let imported: Value =
+            serde_json::from_slice(&to_bytes(response.into_body(), 1024).await.unwrap()).unwrap();
+        let frontend = imported["frontend"].as_str().unwrap();
+        assert!(frontend.starts_with("logs/tts/") && frontend.ends_with("/frontend.pt"));
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(format!("/api/train/export-file?file={frontend}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(response.status().is_success());
+        assert!(response.headers().contains_key(header::CONTENT_DISPOSITION));
+        assert_eq!(
+            &to_bytes(response.into_body(), 1024).await.unwrap()[..],
+            b"checkpoint-bytes"
+        );
+        std::fs::write(
+            engine.runtime.logs.join("best.pt"),
+            b"private training state",
+        )
+        .unwrap();
+        let outside = engine.runtime.data.join("assets/frontend.pt");
+        std::fs::create_dir_all(outside.parent().unwrap()).unwrap();
+        std::fs::write(outside, b"outside model storage").unwrap();
+        for file in ["logs/best.pt", "assets/frontend.pt"] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(format!("/api/train/export-file?file={file}"))
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        }
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/api/tts/frontends")
+                    .header(
+                        header::CONTENT_TYPE,
+                        "multipart/form-data; boundary=tts-boundary",
+                    )
+                    .body(Body::from(multipart("voice.pth")))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(!response.status().is_success());
+        assert!(!crate::bridge_policy::api_allowed(
+            "POST",
+            "/api/tts/frontends"
+        ));
+        assert!(!crate::bridge_policy::api_allowed(
+            "GET",
+            "/api/train/export-file"
+        ));
+        engine.shutdown().await.unwrap();
+    }
 
     #[test]
     fn tts_steps_report_their_own_progress_before_export_completes() {

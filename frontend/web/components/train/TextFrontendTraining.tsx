@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { JobBadge, JobError, JobProgress, JobStage } from "@/components/JobStatus";
+import { TtsModelDownload, TtsModelImport } from "@/components/TtsModelFiles";
 import { Alert, Button, Card, CardHeader, CustomSelect, FormField } from "@/components/ui";
 import { apiGet, errMsg, fetchModels, stopJob, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -55,6 +56,13 @@ export function TextFrontendInitialization({
           <option key={path} value={path} />
         ))}
       </datalist>
+      <TtsModelImport
+        disabled={disabled}
+        onImport={(path) => {
+          onChange(path);
+          setFrontends((current) => [...new Set([...current, path])]);
+        }}
+      />
       {error && <Alert variant="error">{error}</Alert>}
     </FormField>
   );
@@ -277,6 +285,7 @@ export default function TextFrontendTraining() {
               <JobStage job={job} />
             </>
           )}
+          {job?.status === "done" && <TtsModelDownload frontend={String(job.result?.frontend || "")} />}
           {job?.status === "done" && (
             <Link
               href={`/tts?provider=rvc&frontend=${encodeURIComponent(String(job.result?.frontend || ""))}&pth=${encodeURIComponent(String(job.result?.pthPath || voice))}`}

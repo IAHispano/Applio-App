@@ -293,6 +293,7 @@ test("the workflow API catalog explicitly accounts for native routes and produce
     "GET /v1/applio/uvr/variants",
     "POST /v1/applio/uvr/custom-models",
     "POST /v1/applio/train/text-rvc",
+    "POST /v1/applio/tts/frontends",
   ]);
   for (const operation of nativeOnly) assert.ok(!documented.has(operation));
   assert.deepEqual([...new Set([...documented, ...nativeOnly])].sort(), [...actual].sort(), "new native routes need an explicit workflow capability or native-only decision");
