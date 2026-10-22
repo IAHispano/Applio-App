@@ -742,6 +742,22 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
         american=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=vocabulary,language='en-us')
         assert american.tokenize('glass')==[5,6,511] and alignment._phonemizer.voice=='en-us'
         assert american.config['language']=='en-us' and phone_model.language=='en'
+        augmented=alignment.prosody_vocabulary(vocabulary)
+        with patch.object(alignment._phonemizer,'phonemize',return_value=[list('ˈa i.')]):
+            annotated,timing=alignment.annotate_durations('Hello world.',vocabulary,[3,7])
+            assert sum(timing)==10 and [value for value in timing if value]==[3,7]
+            assert annotated[0]==augmented['<stress>'] and augmented['<word>'] in annotated
+            assert annotated[-1]==augmented['<sentence>']
+            contextual=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary=augmented)
+            context_tokens=torch.tensor([contextual.tokenize('Hello world.')])
+            assert contextual.acoustic_mask(context_tokens).sum()==2
+            with torch.no_grad():
+                contextual.duration[-1].weight.zero_();contextual.duration[-1].bias.fill_(1.6)
+            assert len(contextual.generate(context_tokens))==8, 'Context-only annotations acquired acoustic frames'
+        with patch.object(alignment._phonemizer,'phonemize',return_value=[list('jˈu')]):
+            compound={'ju':4,'j':5,'u':6}
+            annotated,timing=alignment.annotate_durations('you',compound,[10])
+            assert annotated[-1]==4 and timing==[0,10], 'Stress split a compound acoustic phoneme'
         from rvc.lib.tools.text_rvc.model import transfer_frontend
         remapped=DurationFrontend(256,hidden=32,layers=1,phoneme_vocabulary={'a':9,'i':4,'o':5},language='fr')
         assert transfer_frontend(remapped,phone_model)==2

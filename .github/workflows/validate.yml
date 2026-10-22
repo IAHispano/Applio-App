@@ -86,7 +86,18 @@ jobs:
           mountpoint="$RUNNER_TEMP/applio-dmg"
           mkdir -p "$mountpoint"
           hdiutil attach "$image" -readonly -nobrowse -mountpoint "$mountpoint"
-          trap 'hdiutil detach "$mountpoint"' EXIT
+          detach_image() {
+            result=$?
+            # WebKit helpers can briefly retain the image after the app exits.
+            for attempt in 1 2 3 4 5; do
+              if hdiutil detach "$mountpoint"; then
+                return "$result"
+              fi
+              sleep 1
+            done
+            return 1
+          }
+          trap detach_image EXIT
           executable=$(find "$mountpoint/Applio.app/Contents/MacOS" -type f -perm +111 -print -quit)
           test -n "$executable"
           python scripts/checks/desktop-startup.py "$executable"
