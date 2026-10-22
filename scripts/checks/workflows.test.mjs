@@ -677,6 +677,21 @@ assert error_rate('Été, déjà!', 'E\u0301te\u0301 de\u0301ja\u0300')==(0,2)
 assert error_rate('Привет мир', 'привет друг')==(1,2)
 assert error_rate('مرحبا بالعالم', 'مرحبا')==(1,2)
 duration_model=DurationFrontend(256,hidden=32,layers=1)
+from rvc.lib.tools.text_rvc.model import prosody_loss
+reference=torch.zeros(1,24,258)
+steady=reference.clone().requires_grad_()
+spoken=torch.ones(1,24,dtype=torch.bool)
+phones=torch.tensor([[1,2,3,257,0]])
+timing=torch.tensor([[8,8,8,0,0]])
+log_timing=timing.float().log1p().requires_grad_()
+contour,rhythm=prosody_loss(steady,reference,spoken,log_timing,phones,timing)
+assert contour==0 and rhythm.abs()<1e-10
+shaking=reference.clone(); shaking[:,::2,-2]=1; shaking.requires_grad_()
+contour,rhythm=prosody_loss(shaking,reference,spoken,log_timing+.4,phones,timing)
+assert contour>0 and rhythm>0
+(contour+rhythm).backward()
+assert shaking.grad.abs().sum()>0 and log_timing.grad.abs().sum()>0
+assert prosody_loss(shaking,reference,torch.zeros_like(spoken),log_timing,phones,timing)[0]==0
 aligned=[{"text":"hello", "features":torch.randn(24,256), "f0":torch.full((24,),200.), "durations":[4,4,4,4,8,0]}]
 aligned_args=batch(aligned,torch.zeros(256),torch.ones(256),1)
 total,_=loss(duration_model,*aligned_args); total.backward()
@@ -802,7 +817,8 @@ with tempfile.TemporaryDirectory() as directory:
     with patch.object(text_engine,'_load',return_value=(phone_model,{})), patch.object(text_engine,'predict',return_value=acoustic), patch.object(text_engine,'load_rvc',wraps=text_engine.load_rvc) as loads:
         text_engine.synthesize(args)
         assert loads.call_count==1, 'Long-text synthesis reloaded the voice for each sentence'
-    assert sf.info(args.output).frames==9600
+    assert sf.info(args.output).frames==2*3840+round(.22*24000)
+    assert not sf.read(args.output)[0][3840:3840+round(.22*24000)].any()
     present=set(Path(directory).iterdir())
     with patch.object(text_engine,'_load',side_effect=ValueError('Invalid frontend')):
         try: text_engine.synthesize(args)
@@ -843,6 +859,8 @@ from rvc.lib.tools.text_rvc import data
 assert "torch" not in sys.modules
 chunks=list(data.text_chunks('Hello world. ' + 'another word '*60, max_bytes=60))
 assert chunks[0]=='Hello world.' and all(len(chunk.encode('utf-8'))<=60 for chunk in chunks)
+assert data.boundary_pause('Finished.”')>data.boundary_pause('continuing,')>data.boundary_pause('length limit')
+assert data.boundary_pause('Finished.',2)==data.boundary_pause('Finished.')/2
 try: list(data.text_chunks('a'*121))
 except ValueError: pass
 else: raise AssertionError('Unbounded words accepted')
