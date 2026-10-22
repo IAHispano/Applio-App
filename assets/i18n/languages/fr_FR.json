@@ -1861,5 +1861,6 @@
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "La synthèse vocale réutilise vos enregistrements et nécessite des transcriptions correspondantes. Utilisez des extraits de 0,25 à 12 secondes avec un fichier .txt UTF-8 à côté de chaque enregistrement.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Activez la synthèse vocale pour une voix RVC existante. Utilisez des extraits de 0,25 à 12 secondes avec une transcription .txt UTF-8 à côté de chaque fichier audio. Les modèles d’alignement sont téléchargés à la première utilisation.",
   "Speech language": "Langue de la parole",
-  "Applio TTS": "Applio TTS"
+  "Applio TTS": "Applio TTS",
+  "Aligning transcripts…": "Alignement des transcriptions…"
 }

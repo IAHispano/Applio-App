@@ -1861,5 +1861,6 @@
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "يعيد تحويل النص إلى كلام استخدام تسجيلاتك ويحتاج إلى نصوص مطابقة. استخدم مقاطع مدتها 0.25–12 ثانية مع ملف .txt بترميز UTF-8 بجانب كل تسجيل.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "فعّل تحويل النص إلى كلام لصوت RVC موجود. استخدم مقاطع مدتها 0.25–12 ثانية مع نص مطابق بصيغة .txt بترميز UTF-8 بجانب كل ملف صوتي. تُنزّل نماذج المحاذاة عند أول استخدام.",
   "Speech language": "لغة الكلام",
-  "Applio TTS": "Applio TTS"
+  "Applio TTS": "Applio TTS",
+  "Aligning transcripts…": "محاذاة النصوص…"
 }

@@ -1861,5 +1861,6 @@
   "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS는 녹음을 재사용하며 일치하는 전사문이 필요합니다. 각 녹음 옆에 UTF-8 .txt 파일을 두고 0.25~12초 길이의 클립을 사용하세요.",
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "기존 RVC 음성에 TTS를 활성화합니다. 0.25~12초 길이의 클립을 사용하고 각 오디오 파일 옆에 일치하는 UTF-8 .txt 전사문을 두세요. 정렬 모델은 처음 사용할 때 다운로드됩니다.",
   "Speech language": "음성 언어",
-  "Applio TTS": "Applio TTS"
+  "Applio TTS": "Applio TTS",
+  "Aligning transcripts…": "전사문 정렬 중…"
 }

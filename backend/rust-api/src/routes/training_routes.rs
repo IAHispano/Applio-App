@@ -217,6 +217,12 @@ async fn text_rvc(
             saved,
             resource,
             move |engine, job, token| async move {
+                engine.jobs.stage(
+                    &job.id,
+                    if prepared { "Training" } else { "Preparing…" },
+                    None,
+                    None,
+                );
                 let mut spec = engine.runtime.python_command(args)?;
                 if resource.is_some() {
                     spec.env
@@ -870,6 +876,18 @@ fn text_training_log(engine: &NativeEngine, id: &str, line: &str, total: u64, st
     if let Some((step, percent)) = text_training_progress(line, total) {
         engine.jobs.stage(id, stage, Some(step), Some(total));
         engine.jobs.progress(id, percent);
+    } else if let Some(stage) = text_preparation_stage(line) {
+        engine.jobs.stage(id, stage, None, None);
+    }
+}
+fn text_preparation_stage(line: &str) -> Option<&'static str> {
+    let line = line.trim();
+    if line.starts_with("Prepared ") {
+        Some("Extracting features…")
+    } else if line.starts_with("Aligned ") {
+        Some("Aligning transcripts…")
+    } else {
+        None
     }
 }
 fn progress(engine: &NativeEngine, id: &str, line: &str, total: u64) {
@@ -1394,6 +1412,15 @@ mod text_rvc_tests {
 
     #[test]
     fn tts_steps_report_their_own_progress_before_export_completes() {
+        assert_eq!(
+            text_preparation_stage("Prepared clip: 200 frames"),
+            Some("Extracting features…")
+        );
+        assert_eq!(
+            text_preparation_stage("Aligned clip: 20 tokens"),
+            Some("Aligning transcripts…")
+        );
+        assert_eq!(text_preparation_stage("Loading model"), None);
         assert_eq!(
             text_training_progress(r#"{"step":100}"#, 4000),
             Some((100, 2.5))
