@@ -541,7 +541,9 @@ export default function TtsForm() {
           <AudioWavePlayer
             src={outputUrl(job.outputFile)}
             resultLabel={t("Synthesized Speech Output")}
-            title={fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}
+            title={fileBasename(
+              typeof job.params?.pthPath === "string" ? job.params.pthPath : job.outputFile,
+            ).replace(/\.(pth|onnx)$/i, "")}
             filename={fileBasename(job.outputFile)}
           />
         )}
