@@ -44,6 +44,7 @@ type StepModal = null | "preprocess" | "extract" | "train" | "index";
 export default function TrainPage() {
   const { t } = useI18n();
   const [workspace, setWorkspace] = useWorkspaceState<"voice" | "text">("page:train:workspace", "voice");
+  const [requestedTtsVoice, setRequestedTtsVoice] = useState("");
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("mode") === "text") setWorkspace("text");
   }, [setWorkspace]);
@@ -505,7 +506,7 @@ export default function TrainPage() {
       <div className="w-full max-w-[1920px] mx-auto page-stack">
         <PageHeader title={t("Training")} />
         {workspacePicker}
-        <TextFrontendTraining />
+        <TextFrontendTraining requestedVoice={requestedTtsVoice} />
       </div>
     );
 
@@ -595,7 +596,7 @@ export default function TrainPage() {
       />
       <Card>
         <ToggleField
-          label={t("Enable TTS after voice training")}
+          label={t("Prepare and train TTS")}
           checked={enableTts}
           onChange={setEnableTts}
           disabled={activeTraining || busy}
@@ -603,6 +604,9 @@ export default function TrainPage() {
             "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.",
           )}
         />
+        <p className="mt-2 text-xs text-neutral-400">
+          {t("Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.")}
+        </p>
         {enableTts && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             <p className="sm:col-span-3 text-xs text-neutral-400">
@@ -656,6 +660,20 @@ export default function TrainPage() {
             {t("Text to Speech")}
           </Link>
         )}
+        {trainingJob?.status === "done" &&
+          !trainingJob.result?.frontend &&
+          trainingJob.outputFile?.toLowerCase().endsWith(".pth") && (
+            <Link
+              className="underline"
+              href={`/train?mode=text&pth=${encodeURIComponent(trainingJob.outputFile)}`}
+              onClick={() => {
+                setRequestedTtsVoice(trainingJob.outputFile || "");
+                setWorkspace("text");
+              }}
+            >
+              {t("Enable TTS for a voice")}
+            </Link>
+          )}
       </Card>
       <Card>
         <CardHeader

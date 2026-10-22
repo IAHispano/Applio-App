@@ -1863,5 +1863,7 @@
   "Speech language": "Konuşma dili",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Transkriptler hizalanıyor…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Ses GPU ile eğitilirken transkriptler CPU üzerinde paralel olarak hizalanır. Ardından TTS eğitimi başlar."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Ses GPU ile eğitilirken transkriptler CPU üzerinde paralel olarak hizalanır. Ardından TTS eğitimi başlar.",
+  "Prepare and train TTS": "TTS hazırlığı ve eğitimi",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "İsteğe bağlıdır. TTS daha sonra eklenebilir; kayıtların hazırlanması ve hizalanması o zaman ek süre gerektirir."
 }

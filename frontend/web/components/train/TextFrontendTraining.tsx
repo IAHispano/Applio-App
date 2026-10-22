@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { JobBadge, JobError, JobProgress, JobStage } from "@/components/JobStatus";
 import { TtsModelDownload, TtsModelImport } from "@/components/TtsModelFiles";
 import { Alert, Button, Card, CardHeader, CustomSelect, FormField } from "@/components/ui";
@@ -97,7 +97,7 @@ export function TextFrontendLanguage({
   );
 }
 
-export default function TextFrontendTraining() {
+export default function TextFrontendTraining({ requestedVoice = "" }: { requestedVoice?: string }) {
   const { t } = useI18n();
   const [name, setName] = useWorkspaceState("train:text:name", "my-text-voice");
   const [dataset, setDataset] = useWorkspaceState("train:text:dataset", "");
@@ -113,6 +113,15 @@ export default function TextFrontendTraining() {
   const { job, isActive, error, setError } = useJob(jobId);
   const [submitting, setSubmitting] = useState(false);
   const busy = isActive || submitting;
+  const appliedVoice = useRef("");
+
+  useEffect(() => {
+    const path = requestedVoice || new URLSearchParams(window.location.search).get("pth");
+    if (!busy && path?.toLowerCase().endsWith(".pth") && appliedVoice.current !== path) {
+      appliedVoice.current = path;
+      setVoice(path);
+    }
+  }, [busy, requestedVoice, setVoice]);
 
   useEffect(() => {
     let active = true;

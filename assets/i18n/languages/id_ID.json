@@ -1863,5 +1863,7 @@
   "Speech language": "Bahasa ucapan",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Menyelaraskan transkrip…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Saat suara dilatih dengan GPU, transkrip diselaraskan secara paralel di CPU. Pelatihan TTS dimulai setelahnya."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Saat suara dilatih dengan GPU, transkrip diselaraskan secara paralel di CPU. Pelatihan TTS dimulai setelahnya.",
+  "Prepare and train TTS": "Siapkan dan latih TTS",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Opsional. Anda dapat menambahkan TTS nanti; persiapan dan penyelarasan rekaman saat itu akan memerlukan waktu tambahan."
 }

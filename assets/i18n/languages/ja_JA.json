@@ -1863,5 +1863,7 @@
   "Speech language": "音声の言語",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "文字起こしを音声に合わせています…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPUで音声モデルを学習している間に、CPUで文字起こしと音声を並行して対応付けます。その後、TTSの学習が始まります。"
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPUで音声モデルを学習している間に、CPUで文字起こしと音声を並行して対応付けます。その後、TTSの学習が始まります。",
+  "Prepare and train TTS": "TTSの準備と学習を行う",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "任意です。TTSは後から追加できますが、その際に録音の準備とアラインメントに追加の時間がかかります。"
 }

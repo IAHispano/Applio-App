@@ -1863,5 +1863,7 @@
   "Speech language": "Ngôn ngữ lời nói",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Đang căn chỉnh bản chép lời…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Khi mô hình giọng nói được huấn luyện trên GPU, bản chép lời được căn chỉnh song song trên CPU. Sau đó, quá trình huấn luyện TTS bắt đầu."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Khi mô hình giọng nói được huấn luyện trên GPU, bản chép lời được căn chỉnh song song trên CPU. Sau đó, quá trình huấn luyện TTS bắt đầu.",
+  "Prepare and train TTS": "Chuẩn bị và huấn luyện TTS",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Không bắt buộc. Bạn có thể thêm TTS sau; khi đó việc chuẩn bị và căn chỉnh bản ghi sẽ mất thêm thời gian."
 }

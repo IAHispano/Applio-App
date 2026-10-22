@@ -1863,5 +1863,7 @@
   "Speech language": "لغة الكلام",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "محاذاة النصوص…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "عند تدريب الصوت على وحدة الرسومات، تُحاذى النصوص على المعالج بالتوازي. يبدأ تدريب تحويل النص إلى كلام بعد ذلك."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "عند تدريب الصوت على وحدة الرسومات، تُحاذى النصوص على المعالج بالتوازي. يبدأ تدريب تحويل النص إلى كلام بعد ذلك.",
+  "Prepare and train TTS": "تجهيز وتدريب تحويل النص إلى كلام",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "اختياري. يمكنك إضافة تحويل النص إلى كلام لاحقًا؛ سيستغرق تجهيز التسجيلات ومحاذاتها وقتًا إضافيًا حينها."
 }

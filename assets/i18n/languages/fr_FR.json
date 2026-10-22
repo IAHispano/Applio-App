@@ -1863,5 +1863,7 @@
   "Speech language": "Langue de la parole",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Alignement des transcriptions…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Pendant l’entraînement de la voix sur GPU, les transcriptions sont alignées en parallèle sur le processeur. L’entraînement TTS commence ensuite."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Pendant l’entraînement de la voix sur GPU, les transcriptions sont alignées en parallèle sur le processeur. L’entraînement TTS commence ensuite.",
+  "Prepare and train TTS": "Préparer et entraîner la synthèse vocale",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Facultatif. Vous pouvez ajouter la synthèse vocale plus tard ; la préparation et l’alignement des enregistrements prendront alors plus de temps."
 }

@@ -1005,14 +1005,39 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
     if(typeof node.props?.onClick==="function"&&node.props.children===label)return node;
     for(const child of [node.props?.children].flat(Infinity)){const found=find(child,label);if(found)return found;}
   };
+  for(const enabled of [true,false]) {
+  state["page:train:enableTts"]=enabled;
   for(const [label,path] of [["Start Automatic Training","/api/train/pipeline"],["Start Training","/api/train/train"]]){
     const action=find(exports.default(),label);
     assert.ok(action,`Missing ${label} action`);
     await action.props.onClick();
     assert.equal(requests.at(-1).path,path);
-    assert.equal(requests.at(-1).body.enableTts,true);
+    assert.equal(requests.at(-1).body.enableTts,enabled);
     assert.equal(requests.at(-1).body.ttsInitializeFrom,"logs/tts/base/frontend.pt");
     assert.equal(requests.at(-1).body.ttsLanguage,"fr");
+  }
+  }
+});
+
+test("adding TTS to an existing voice preselects it without replacing other training drafts", () => {
+  const source=fs.readFileSync(new URL("../../frontend/web/components/train/TextFrontendTraining.tsx",import.meta.url),"utf8");
+  const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+  for(const active of [false,true]) {
+    const state={"train:text:voice":"logs/previous.pth","train:text:dataset":"my-recordings","train:text:initial":"logs/tts/base/frontend.pt"};
+    const exports={}; const effects=[];
+    new Function("exports","require",outputText)(exports,(name)=>{
+      if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+      if(name==="react")return {useEffect:(fn)=>effects.push(fn),useRef:(current)=>({current}),useState:(value)=>[value,()=>{}]};
+      if(name==="@/lib/workspace-state")return {useWorkspaceState:(key,initial)=>[state[key]??initial,(value)=>{state[key]=value;} ]};
+      if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
+      if(name==="@/lib/useJob")return {usePersistentJobId:()=>[null,()=>{}],useJob:()=>({job:null,isActive:active,setError(){}})};
+      return new Proxy({},{get:(_,key)=>key});
+    });
+    exports.default({requestedVoice:"logs/new voice/new.pth"});
+    effects[0]();
+    assert.equal(state["train:text:voice"],active?"logs/previous.pth":"logs/new voice/new.pth");
+    assert.equal(state["train:text:dataset"],"my-recordings");
+    assert.equal(state["train:text:initial"],"logs/tts/base/frontend.pt");
   }
 });
 

@@ -1863,5 +1863,7 @@
   "Speech language": "वाणी की भाषा",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "प्रतिलेखों का संरेखण…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPU पर आवाज़ का प्रशिक्षण चलते समय, प्रतिलेख CPU पर समानांतर रूप से संरेखित होते हैं। इसके बाद TTS प्रशिक्षण शुरू होता है।"
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPU पर आवाज़ का प्रशिक्षण चलते समय, प्रतिलेख CPU पर समानांतर रूप से संरेखित होते हैं। इसके बाद TTS प्रशिक्षण शुरू होता है।",
+  "Prepare and train TTS": "TTS तैयार करें और प्रशिक्षित करें",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "वैकल्पिक। आप TTS बाद में जोड़ सकते हैं; तब रिकॉर्डिंग तैयार करने और संरेखित करने में अतिरिक्त समय लगेगा।"
 }

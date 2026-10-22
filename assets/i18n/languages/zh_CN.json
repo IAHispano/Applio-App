@@ -1863,5 +1863,7 @@
   "Speech language": "语音语言",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "正在对齐转录文本…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "使用 GPU 训练语音模型时，转录文本会同时在 CPU 上进行对齐。之后开始训练 TTS。"
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "使用 GPU 训练语音模型时，转录文本会同时在 CPU 上进行对齐。之后开始训练 TTS。",
+  "Prepare and train TTS": "准备并训练 TTS",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "可选。您可以稍后添加 TTS，但届时准备和对齐录音需要额外时间。"
 }

@@ -474,11 +474,18 @@ export default function ModelsPage() {
                     {/* Actions Footer (clicks here don't toggle selection) */}
                     {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction */}
                     <div
-                      className="flex items-center justify-between gap-2 mt-2"
+                      className="flex items-center justify-between flex-wrap gap-2 mt-2"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
                         {t("Use")}
+                      </Button>
+                      <Button
+                        size="xs"
+                        variant="ghost"
+                        href={`/train?mode=text&pth=${encodeURIComponent(m.pthPath)}`}
+                      >
+                        {t("Enable TTS for a voice")}
                       </Button>
 
                       <div className="flex items-center gap-1">

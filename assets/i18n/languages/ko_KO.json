@@ -1863,5 +1863,7 @@
   "Speech language": "음성 언어",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "전사문 정렬 중…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPU에서 음성 모델을 학습하는 동안 CPU에서 전사문을 병렬로 정렬합니다. 이후 TTS 학습이 시작됩니다."
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPU에서 음성 모델을 학습하는 동안 CPU에서 전사문을 병렬로 정렬합니다. 이후 TTS 학습이 시작됩니다.",
+  "Prepare and train TTS": "TTS 준비 및 학습",
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "선택 사항입니다. 나중에 TTS를 추가할 수 있지만, 그때 녹음을 준비하고 정렬하는 데 시간이 더 걸립니다."
 }

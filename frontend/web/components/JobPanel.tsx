@@ -7,6 +7,7 @@ import SetupLogLine from "@/components/setup/SetupLogLine";
 import { TtsModelDownload } from "@/components/TtsModelFiles";
 import { Alert, Button, Card } from "@/components/ui";
 import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
+import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { useJob } from "@/lib/useJob";
@@ -35,6 +36,7 @@ export function JobPanelContent({
   activity,
 }: JobPanelProps & { activity: ReturnType<typeof useJob> }) {
   const { t } = useI18n();
+  const { remote } = useRemoteBridge();
   const { job, error, setError, cleanedLogs } = activity;
 
   if (!jobId) return null;
@@ -107,6 +109,15 @@ export function JobPanelContent({
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
 
       {showOutput && job.status === "done" && frontend && <TtsModelDownload frontend={frontend} />}
+      {showOutput &&
+        !remote &&
+        job.status === "done" &&
+        !frontend &&
+        voice?.toLowerCase().endsWith(".pth") && (
+          <Button href={`/train?mode=text&pth=${encodeURIComponent(voice)}`} variant="ghost" size="sm">
+            {t("Enable TTS for a voice")}
+          </Button>
+        )}
       {showOutput && job.status === "done" && frontend && (
         <Button
           href={`/tts?provider=rvc&frontend=${encodeURIComponent(frontend)}${voice ? `&pth=${encodeURIComponent(voice)}` : ""}`}
