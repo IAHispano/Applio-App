@@ -20,12 +20,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { JobError, JobStage } from "@/components/JobStatus";
+import { JobBadge, JobError, JobStage } from "@/components/JobStatus";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
-import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import { Alert, Button, Card, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { historyState, historyStateLabels } from "@/lib/job-history";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs, useJob } from "@/lib/useJob";
 
@@ -281,27 +282,7 @@ export default function TrainingConsole({
               <h3 className="text-base font-bold text-white m-0 truncate">
                 {modelName ? `${t("Training:")} ${modelName}` : t("Training Project")}
               </h3>
-              <Badge
-                variant={
-                  job?.status === "done"
-                    ? "success"
-                    : job?.status === "running"
-                      ? "info"
-                      : job?.status === "error"
-                        ? "danger"
-                        : "neutral"
-                }
-                dot
-                size="sm"
-              >
-                {job?.status === "done"
-                  ? t("Completed")
-                  : job?.status === "running"
-                    ? t("In Progress")
-                    : job?.status === "error"
-                      ? t("Failed")
-                      : t("Queued")}
-              </Badge>
+              <JobBadge status={job?.status || "queued"} error={job?.error} />
             </div>
             <div className="flex items-center gap-3 text-xs text-neutral-400 mt-0.5">
               <span className="flex items-center gap-1">
@@ -414,7 +395,7 @@ export default function TrainingConsole({
                   job && job.status !== "done" && job.status !== "error" ? (
                     <JobStage job={job} />
                   ) : job?.status === "error" ? (
-                    t("Failed")
+                    t(historyStateLabels[historyState(job)])
                   ) : (
                     t("Training Completed Successfully")
                   )

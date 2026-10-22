@@ -30,11 +30,16 @@ test("stopped jobs keep diagnostics without being presented as operation failure
     new Function('exports','require',outputText)(exports,require);
   };
   compile('../../frontend/web/lib/job-history.ts',history,()=>({}));
+  const stoppedJob={id:'job',status:'error',error:'Stopped by user',errorDetails:'diagnostics',logs:[],params:{}};
   const require=(name)=>{
     if(name==='react/jsx-runtime')return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
     if(name==='@/lib/i18n')return {useI18n:()=>({t:(key)=>key})};
     if(name==='@/lib/job-history')return history;
-    if(name==='@/lib/useJob')return {cleanJobLogs:(lines)=>lines};
+    if(name==='@/lib/useJob')return {cleanJobLogs:(lines)=>lines,useJob:()=>({job:stoppedJob,setError(){}})};
+    if(name==='react')return {useEffect(){},useMemo:(fn)=>fn(),useRef:(current)=>({current}),useState:(value)=>[typeof value==='function'?value():value,()=>{}]};
+    if(name==='next/navigation')return {useRouter:()=>({push(){}})};
+    if(name==='@/components/train/consoleEvents')return {parseConsoleEvents:()=>[],splitLogFragments:(lines)=>lines};
+    if(name==='@/components/JobStatus')return status;
     return new Proxy({},{get:(_,key)=>key});
   };
   const status={};
@@ -55,6 +60,18 @@ test("stopped jobs keep diagnostics without being presented as operation failure
   const stopped=text(details.default({job:{id:'job',status:'error',error:'Stopped by user',errorDetails:'diagnostics'}}));
   assert.ok(stopped.includes('Activity Details'));
   assert.ok(!stopped.includes('Failure details'));
+  const consoleModule={};
+  compile('../../frontend/web/components/train/TrainingConsole.tsx',consoleModule,require);
+  const consoleTree=consoleModule.default({jobId:'job',modelName:'voice'});
+  const findBadge=(node)=>{
+    if(!node||typeof node!=='object')return;
+    if(node.type===status.JobBadge)return node;
+    return [node.props?.children].flat(Infinity).map(findBadge).find(Boolean);
+  };
+  const badge=findBadge(consoleTree);
+  assert.ok(badge,'Training console did not use the shared job status');
+  assert.equal(status.JobBadge(badge.props).props.children,'Stopped');
+  assert.ok(!text(consoleTree).includes('Failed'));
 });
 
 test("existing Halloween theme files activate scenery and switching themes clears it", () => {
@@ -1036,6 +1053,9 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
   const state={"page:train:modelName":"voice","page:train:datasetPath":"recordings","page:train:enableTts":true,
     "page:train:ttsInitializeFrom":"logs/tts/base/frontend.pt","page:train:ttsLanguage":"fr"};
   const exports={};const requests=[];
+  let renderJob=null;
+  const history={};
+  new Function('exports',ts.transpileModule(fs.readFileSync(new URL('../../frontend/web/lib/job-history.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(history);
   new Function("exports","require",outputText)(exports,(name)=>{
     if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
     if(name==="react")return {useEffect(){},useCallback:(fn)=>fn,useRef:(current)=>({current}),useState:(value)=>[value===null?"train":typeof value==="function"?value():value,()=>{}]};
@@ -1044,7 +1064,8 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
       return [state[key],()=>{}];
     }};
     if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
-    if(name==="@/lib/useJob")return {usePersistentJobId:()=>[null,()=>{}],useJob:()=>({job:null,isActive:false})};
+    if(name==="@/lib/useJob")return {usePersistentJobId:()=>[renderJob?.id??null,()=>{}],useJob:()=>({job:renderJob,isActive:false})};
+    if(name==='@/lib/job-history')return history;
     if(name==="@/lib/api")return {submitJob:async(path,body)=>{requests.push({path,body});return {jobId:"job"};}};
     if(name==="@/lib/setting-help")return {SETTING_HELP:{}};
     return new Proxy({},{get:(_,key)=>key});
@@ -1065,6 +1086,13 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
     assert.equal(requests.at(-1).body.ttsInitializeFrom,"logs/tts/base/frontend.pt");
     assert.equal(requests.at(-1).body.ttsLanguage,"fr");
   }
+  }
+  const text=(node)=>typeof node==='string'?node:node&&typeof node==='object'?[node.props?.children].flat(Infinity).map(text).join(' '):'';
+  for(const [error,label] of [['Stopped by user','Stopped'],['CUDA out of memory','Failed']]) {
+    renderJob={id:'job',status:'error',error,stage:'Training model…',logs:[],params:{pipeline:true,modelName:'voice',datasetPath:'recordings'}};
+    const rendered=text(exports.default());
+    assert.ok(rendered.includes(label));
+    if(label==='Stopped')assert.ok(!rendered.includes('Failed'));
   }
 });
 

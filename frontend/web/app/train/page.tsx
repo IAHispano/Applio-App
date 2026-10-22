@@ -33,6 +33,7 @@ import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { historyState, historyStateLabels } from "@/lib/job-history";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
@@ -114,6 +115,7 @@ export default function TrainPage() {
         trainingJob.params.datasetPath === cleanDatasetPath()))
       ? trainingJob
       : null;
+  const automaticState = automaticJob ? historyState(automaticJob) : null;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
@@ -735,13 +737,13 @@ export default function TrainPage() {
                   index === 3 && (automaticJob?.params?.indexAlgorithm ?? indexAlgo) === "Skip";
                 const done = !skipIndex && (automaticJob?.status === "done" || currentPhase > index);
                 const running = !skipIndex && automaticJob?.status === "running" && currentPhase === index;
-                const failed = !skipIndex && automaticJob?.status === "error" && currentPhase === index;
+                const halted = !skipIndex && automaticJob?.status === "error" && currentPhase === index;
                 const status = skipIndex
                   ? "Skipped"
                   : done
                     ? "Completed"
-                    : failed
-                      ? "Failed"
+                    : halted
+                      ? historyStateLabels[automaticState || "error"]
                       : running
                         ? "In Progress"
                         : "Pending";
@@ -758,7 +760,15 @@ export default function TrainPage() {
                       <span className="text-sm font-medium text-[var(--heading)]">{phase.label}</span>
                     </div>
                     <Badge
-                      variant={done ? "success" : failed ? "danger" : running ? "info" : "neutral"}
+                      variant={
+                        done
+                          ? "success"
+                          : halted && automaticState === "error"
+                            ? "danger"
+                            : running
+                              ? "info"
+                              : "neutral"
+                      }
                       size="sm"
                     >
                       {t(status)}
@@ -901,7 +911,11 @@ export default function TrainPage() {
                 <JobProgress status={automaticJob.status} progress={automaticJob.progress} />
               </div>
             )}
-            {automaticJob?.status === "error" && <Alert variant="error">{automaticJob.error}</Alert>}
+            {automaticJob?.status === "error" && (
+              <Alert variant={automaticState === "error" ? "error" : "info"}>
+                {t(automaticJob.error || "Operation failed.")}
+              </Alert>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <Button
                 loading={busy}
