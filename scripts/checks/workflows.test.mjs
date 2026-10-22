@@ -641,7 +641,7 @@ import torch
 sys.path.insert(0,str(Path("backend/applio").resolve()))
 from rvc.lib.tools.text_rvc.model import TextFrontend, DurationFrontend, batch, loss, denormalize
 from rvc.lib.tools.text_rvc.alignment import alignment_text, ctc_durations
-from rvc.lib.tools.text_rvc.assessment import error_rate
+from rvc.lib.tools.text_rvc.assessment import error_rate, decode_seeded
 from unittest.mock import patch
 import types
 from rvc.lib.tools.text_rvc.__main__ import decode_rvc
@@ -650,6 +650,14 @@ from rvc.lib.algorithm.synthesizers import Synthesizer
 
 torch.set_num_threads(2)
 torch.manual_seed(7)
+with patch('rvc.lib.tools.text_rvc.__main__.decode_rvc', side_effect=lambda acoustic,checkpoint,sid: (torch.rand(acoustic['frames']),40000)):
+    decode_seeded({'frames':11},'voice.pth',0)
+    before=torch.random.get_rng_state()
+    reference_a,_=decode_seeded({'frames':20},'voice.pth',0)
+    assert torch.equal(before,torch.random.get_rng_state()),'Assessment changed the caller RNG'
+    decode_seeded({'frames':137},'voice.pth',0)
+    reference_b,_=decode_seeded({'frames':20},'voice.pth',0)
+    assert torch.equal(reference_a,reference_b),'Reference audio depends on candidate duration'
 model=TextFrontend(256,hidden=32,layers=1)
 examples=[{"text":"Hello", "features":torch.randn(21,256), "f0":torch.full((21,),200.)}, {"text":"Test", "features":torch.randn(13,256), "f0":torch.zeros(13)}]
 args=batch(examples,torch.zeros(256),torch.ones(256),4)
