@@ -443,7 +443,9 @@ export default function TrainPage() {
   const currentPhase =
     automaticJob?.stage === "Checking output…"
       ? pipelinePhases.length
-      : pipelinePhases.findIndex((phase) => phase.stage === automaticJob?.stage);
+      : ["Preparing speech synthesis…", "Aligning transcripts…"].includes(automaticJob?.stage || "")
+        ? 2
+        : pipelinePhases.findIndex((phase) => phase.stage === automaticJob?.stage);
   const automaticDisabledReason =
     busy || activeTraining
       ? t("Pipeline Running…")

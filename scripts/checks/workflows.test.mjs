@@ -934,6 +934,8 @@ with tempfile.TemporaryDirectory() as directory:
         audio=root/f'{i}.wav';audio.write_bytes(bytes([i])*16)
         recordings.append(dict(id=f'p225_{i:03}',text=f'phrase {i}',audio=str(audio),audio_sha256=digest(audio),
                                split='train' if i<3 else 'validation',frames=4))
+    skipped=root/'skipped.wav';skipped.write_bytes(b'skipped audio')
+    recordings.append(dict(id='p225_004',text='skipped clip',audio=str(skipped),audio_sha256=digest(skipped)))
     args=argparse.Namespace(output=str(root/'tts'),vctk_root=str(root),speaker='p225',language='en',rvc='',
         embedder=str(embedder),rmvpe=str(pitch),recognizer=str(root/'recognizer'),initialize_from=None,
         hidden=32,layers=1,device='cpu',prepare_only=True,aligned_manifest=None)
@@ -941,7 +943,7 @@ with tempfile.TemporaryDirectory() as directory:
     def prepared_audio(*unused,**options):
         prepared.mkdir(parents=True)
         (prepared/'manifest.json').write_text(json.dumps(dict(format='applio-text-rvc-data-v1',
-            feature_space={'version':'v2'},records=recordings,alignment={'language':'en'})))
+            feature_space={'version':'v2'},records=recordings[:4],source_recordings=recordings,alignment={'language':'en'})))
     with patch.object(speech_data,'validate_speech',return_value=recordings), patch.object(speech_data,'prepare',side_effect=prepared_audio) as preparation, patch.object(alignment,'align') as aligner, patch('huggingface_hub.snapshot_download') as download, patch.object(text_engine,'validate_initial_frontend'), patch.object(text_engine,'train') as trainer, patch.object(text_engine,'calibrate') as calibration:
         text_engine.fit(args)
         assert preparation.call_count==1 and not aligner.called and not trainer.called and not calibration.called
@@ -950,6 +952,22 @@ with tempfile.TemporaryDirectory() as directory:
         text_engine.fit(args)
         assert preparation.call_count==1 and download.call_count==1 and not aligner.called
         assert trainer.call_args.args[0].manifest==str(aligned) and calibration.call_count==1
+        extra=root/'extra.wav';extra.write_bytes(b'new audio')
+        recordings.append(dict(id='p225_005',text='new clip',audio=str(extra)))
+        try: text_engine.fit(args)
+        except ValueError as error: assert 'changed after preparation' in str(error)
+        else: raise AssertionError('Combined training ignored an added recording')
+        recordings.pop()
+        skipped_record=recordings.pop()
+        try: text_engine.fit(args)
+        except ValueError as error: assert 'changed after preparation' in str(error)
+        else: raise AssertionError('Combined training ignored a removed source recording')
+        recordings.append(skipped_record)
+        skipped.write_bytes(b'edited skipped audio')
+        try: text_engine.fit(args)
+        except ValueError as error: assert 'changed after preparation' in str(error)
+        else: raise AssertionError('Combined training ignored an edited skipped recording')
+        skipped.write_bytes(b'skipped audio')
         transcript=recordings[0]['text'];recordings[0]['text']='edited transcript'
         try: text_engine.fit(args)
         except ValueError as error: assert 'changed after preparation' in str(error)
@@ -1093,6 +1111,19 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
     const rendered=text(exports.default());
     assert.ok(rendered.includes(label));
     if(label==='Stopped')assert.ok(!rendered.includes('Failed'));
+  }
+  const steps=(node)=>{
+    if(!node||typeof node!=='object')return;
+    if(node.type==='ol'&&node.props['aria-label']==='Automatic Training')return node.props.children;
+    return [node.props?.children].flat(Infinity).map(steps).find(Boolean);
+  };
+  for(const stage of ['Preparing speech synthesis…','Aligning transcripts…']) {
+    renderJob={id:'job',status:'running',stage,logs:[],params:{pipeline:true,enableTts:true,modelName:'voice',datasetPath:'recordings'}};
+    const phases=steps(exports.default()).map(text);
+    assert.ok(phases[0].includes('Completed'));
+    assert.ok(phases[1].includes('Completed'));
+    assert.ok(phases[2].includes('In Progress'));
+    assert.ok(phases[3].includes('Pending'));
   }
 });
 
