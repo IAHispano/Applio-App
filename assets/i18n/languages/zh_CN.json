@@ -1863,7 +1863,9 @@
   "Speech language": "语音语言",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "正在对齐转录文本…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "使用 GPU 训练语音模型时，转录文本会同时在 CPU 上进行对齐。之后开始训练 TTS。",
   "Prepare and train TTS": "准备并训练 TTS",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "可选。您可以稍后添加 TTS，但届时准备和对齐录音需要额外时间。"
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "可选。您可以稍后添加 TTS，但届时准备和对齐录音需要额外时间。",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS 使用所选语言的预训练模型。准备和适配共用一个时间限额，等于声音模型的训练时长。声音模型在 GPU 上训练时，这些任务在 CPU 上并行运行；否则在声音训练后运行。时间用尽时保留当前最佳模型。",
+  "Maximum TTS steps": "TTS 最大步数",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "正在使用预训练 TTS 模型；时间限额内未保存更好的适配模型。"
 }

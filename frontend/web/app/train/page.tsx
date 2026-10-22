@@ -63,7 +63,7 @@ export default function TrainPage() {
   const [datasetPath, setDatasetPath] = useWorkspaceState("page:train:datasetPath", "");
   const [enableTts, setEnableTts] = useWorkspaceState("page:train:enableTts", false);
   const [ttsDatasetPath, setTtsDatasetPath] = useWorkspaceState("page:train:ttsDatasetPath", "");
-  const [ttsSteps, setTtsSteps] = useWorkspaceState("page:train:ttsSteps", 10000);
+  const [ttsSteps, setTtsSteps] = useWorkspaceState("page:train:ttsSteps", 1000);
   const [ttsLanguage, setTtsLanguage] = useWorkspaceState("page:train:ttsLanguage", "en");
   const [ttsInitializeFrom, setTtsInitializeFrom] = useWorkspaceState("page:train:ttsInitializeFrom", "");
   const [sampleRate, setSampleRate] = useWorkspaceState("page:train:sampleRate", "40000");
@@ -285,6 +285,10 @@ export default function TrainPage() {
 
   async function runPipeline() {
     if (busy || activeTraining || uploadsInProgress > 0) return;
+    if (enableTts && !ttsInitializeFrom.trim()) {
+      toast(t("Select a TTS model."), "error");
+      return;
+    }
     if (!modelName.trim()) {
       toast(t("Please enter a model name."), "error");
       return;
@@ -381,6 +385,10 @@ export default function TrainPage() {
 
   async function runTrainStep() {
     if (!needModel()) return;
+    if (enableTts && !ttsInitializeFrom.trim()) {
+      toast(t("Select a TTS model."), "error");
+      return;
+    }
     const ok = await run(
       "/api/train/train",
       {
@@ -615,7 +623,7 @@ export default function TrainPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
             <p className="sm:col-span-3 text-xs text-neutral-400">
               {t(
-                "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.",
+                "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.",
               )}
             </p>
             <TextFrontendInitialization
@@ -623,6 +631,7 @@ export default function TrainPage() {
               value={ttsInitializeFrom}
               onChange={setTtsInitializeFrom}
               disabled={activeTraining || busy}
+              required
             />
             <TextFrontendLanguage
               id="train-tts-language"
@@ -642,7 +651,7 @@ export default function TrainPage() {
               />
             </div>
             <div>
-              <label htmlFor="train-tts-steps">{t("Training steps")}</label>
+              <label htmlFor="train-tts-steps">{t("Maximum TTS steps")}</label>
               <input
                 id="train-tts-steps"
                 type="number"
@@ -657,12 +666,21 @@ export default function TrainPage() {
           </div>
         )}
         {trainingJob?.status === "done" && typeof trainingJob.result?.frontend === "string" && (
-          <Link
-            className="underline"
-            href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
-          >
-            {t("Text to Speech")}
-          </Link>
+          <>
+            {trainingJob.result.ttsAdapted === false && (
+              <p className="mt-2 text-xs text-neutral-400">
+                {t(
+                  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.",
+                )}
+              </p>
+            )}
+            <Link
+              className="underline"
+              href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
+            >
+              {t("Text to Speech")}
+            </Link>
+          </>
         )}
         {trainingJob?.status === "done" &&
           !trainingJob.result?.frontend &&

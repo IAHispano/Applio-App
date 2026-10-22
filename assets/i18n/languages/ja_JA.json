@@ -1863,7 +1863,9 @@
   "Speech language": "音声の言語",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "文字起こしを音声に合わせています…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPUで音声モデルを学習している間に、CPUで文字起こしと音声を並行して対応付けます。その後、TTSの学習が始まります。",
   "Prepare and train TTS": "TTSの準備と学習を行う",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "任意です。TTSは後から追加できますが、その際に録音の準備とアラインメントに追加の時間がかかります。"
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "任意です。TTSは後から追加できますが、その際に録音の準備とアラインメントに追加の時間がかかります。",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTSは選択した言語の事前学習済みモデルを使用します。準備と適応学習を合わせた制限時間は、音声モデルの学習時間と同じです。GPUで音声モデルを学習する場合はCPU上で並列実行し、それ以外は学習後に実行します。時間切れになると、その時点で最良のモデルを保持します。",
+  "Maximum TTS steps": "TTSの最大ステップ数",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "事前学習済みTTSモデルを使用しています。制限時間内に改善された適応モデルは保存されませんでした。"
 }

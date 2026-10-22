@@ -21,7 +21,10 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     path::{Component, Path, PathBuf},
-    sync::{Arc, OnceLock},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, OnceLock,
+    },
     time::Duration,
 };
 use tokio_util::sync::CancellationToken;
@@ -774,6 +777,9 @@ async fn start(state: Arc<Training>, request: Request, kind: &'static str) -> Ac
     let saved = params::normalize(kind, &input.body)?;
     let mut selected = saved.clone();
     if saved["enableTts"] == true {
+        if string(&saved, "ttsInitializeFrom").is_empty() {
+            return Err(Error::input("Select a TTS model."));
+        }
         let source = if string(&saved, "ttsDatasetPath").is_empty() {
             string(&saved, "datasetPath")
         } else {
@@ -1054,7 +1060,7 @@ async fn run(
     let directory = model_directory(&engine, &name)?;
     let pipeline = kind == "pipeline";
     let tts_target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
-    let overlap_alignment =
+    let overlap_tts =
         p["enableTts"] == true && (kind == "train" || pipeline) && string(&p, "gpu") != "-";
     if p["enableTts"] == true && (kind == "train" || pipeline) {
         engine.jobs.stage(&job.id, "Preparing…", None, None);
@@ -1069,7 +1075,11 @@ async fn run(
         ];
         let initial = string(&p, "ttsInitializeFrom");
         if !initial.is_empty() {
-            args.extend(["--initialize-from".into(), initial]);
+            args.extend([
+                "--initialize-from".into(),
+                initial,
+                "--require-initial-language".into(),
+            ]);
         }
         let spec = engine.runtime.python_command(args)?;
         ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
@@ -1120,20 +1130,10 @@ async fn run(
     }
     let mut output = None;
     let mut alignment_error = None;
+    let mut voice_training_time = Duration::ZERO;
+    let mut tts_time = Duration::ZERO;
+    let tts_best_step = AtomicU64::new(0);
     if kind == "train" || pipeline {
-        if overlap_alignment {
-            engine
-                .jobs
-                .stage(&job.id, "Preparing speech synthesis…", None, None);
-            let mut args = text_fit_args(&engine, &p, &tts_target, None);
-            args.push("--prepare-only".into());
-            let mut spec = engine.runtime.python_command(args)?;
-            spec.env
-                .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
-            ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
-                .await?
-                .ensure_success()?;
-        }
         if pipeline {
             engine.jobs.log(
                 &job.id,
@@ -1149,34 +1149,44 @@ async fn run(
             .context("Invalid training epoch count")?;
         let training_token = token.child_token();
         let expected = format!("Model {name} trained successfully.");
-        let training = step(
-            &engine,
-            &job,
-            &training_token,
-            params::train(&p, &pretrains),
-            &expected,
-            "Training model…",
-            Some(epochs),
-        );
-        if overlap_alignment {
-            let spec = text_alignment_spec(&engine, &p, &tts_target)?;
+        let training = async {
+            let started = tokio::time::Instant::now();
+            let result = step(
+                &engine,
+                &job,
+                &training_token,
+                params::train(&p, &pretrains),
+                &expected,
+                "Training model…",
+                Some(epochs),
+            )
+            .await;
+            voice_training_time = started.elapsed();
+            result
+        };
+        if overlap_tts {
+            let spec = bounded_text_spec(&engine, &p, &tts_target)?;
+            let tts_token = training_token.child_token();
             let alignment = async {
-                let result = ManagedProcess::run(&spec, &training_token, |_, line| {
+                let started = tokio::time::Instant::now();
+                let result = ManagedProcess::run(&spec, &tts_token, |_, line| {
+                    if let Some(step) = text_checkpoint_step(line) {
+                        tts_best_step.store(step, Ordering::Relaxed);
+                    }
                     engine.jobs.log(&job.id, line);
                 })
                 .await
                 .and_then(|output| output.ensure_success());
-                // TTS is optional: preserve the voice and index even if its
-                // transcript preparation fails, as in the sequential workflow.
-                alignment_error = result.err();
+                tts_time = started.elapsed();
+                // The RVC deadline stops optional adaptation. Its atomic best
+                // export remains usable; an unfinished preparation uses the base.
+                if !tts_token.is_cancelled() {
+                    alignment_error = result.err();
+                }
                 Ok(())
             };
-            train_with_alignment(training, alignment, &training_token, || {
-                engine
-                    .jobs
-                    .stage(&job.id, "Aligning transcripts…", None, None);
-            })
-            .await?;
+            train_with_alignment(training, alignment, &training_token, || tts_token.cancel())
+                .await?;
         } else {
             training.await?;
         }
@@ -1236,33 +1246,66 @@ async fn run(
         engine.jobs.stage(&job.id, "Applio TTS", None, None);
         // The new phase has its own step count; RVC completion is not TTS completion.
         engine.jobs.progress(&job.id, 0.0);
-        let mut args = text_fit_args(&engine, &p, &target, Some(&voice));
-        if overlap_alignment {
-            args.extend([
-                "--aligned-manifest".into(),
-                path_string(&target.join("prepared/phonemes.json")),
-            ]);
+        if !overlap_tts {
+            let spec = bounded_text_spec(&engine, &p, &target)?;
+            let tts_token = token.child_token();
+            let started = tokio::time::Instant::now();
+            let process = ManagedProcess::run(&spec, &tts_token, |_, line| {
+                if let Some(step) = text_checkpoint_step(line) {
+                    tts_best_step.store(step, Ordering::Relaxed);
+                }
+                text_training_log(
+                    &engine,
+                    &job.id,
+                    line,
+                    p["ttsSteps"].as_u64().unwrap(),
+                    "Applio TTS",
+                )
+            });
+            tokio::pin!(process);
+            tokio::select! {
+                result = &mut process => { result?.ensure_success()?; }
+                _ = tokio::time::sleep(voice_training_time) => {
+                    tts_token.cancel();
+                    // Await owned child cleanup before releasing the scheduler.
+                    let _ = process.await;
+                }
+            }
+            tts_time = started.elapsed();
         }
-        let mut spec = engine.runtime.python_command(args)?;
-        spec.env
-            .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
-        ManagedProcess::run(&spec, &token, |_, line| {
-            text_training_log(
-                &engine,
-                &job.id,
-                line,
-                p["ttsSteps"].as_u64().unwrap(),
-                "Applio TTS",
-            )
-        })
-        .await?
-        .ensure_success()?;
+        if token.is_cancelled() {
+            bail!("Stopped by user");
+        }
         let frontend = target.join("frontend.pt");
         if !ready_file(&frontend) {
-            bail!("TTS training did not export a text frontend");
+            tokio::fs::create_dir_all(&target).await?;
+            let temporary = target.join("pretrained.pt");
+            tokio::fs::copy(string(&p, "ttsInitializeFrom"), &temporary).await?;
+            tokio::fs::rename(&temporary, &frontend).await?;
+        }
+        let spec = engine.runtime.python_command([
+            "-m".to_owned(),
+            "backend.python.text_rvc".into(),
+            "validate-pair".into(),
+            "--frontend".into(),
+            path_string(&frontend),
+            "--rvc".into(),
+            path_string(&voice),
+        ])?;
+        ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+            .await?
+            .ensure_success()?;
+        let adapted = tts_best_step.load(Ordering::Relaxed) > 0;
+        result["ttsAdapted"] = json!(adapted);
+        result["ttsCheckpointStep"] = json!(tts_best_step.load(Ordering::Relaxed));
+        result["ttsBudgetSeconds"] = json!(voice_training_time.as_secs_f64());
+        result["ttsElapsedSeconds"] = json!(tts_time.as_secs_f64());
+        if !adapted {
+            engine.jobs.log(&job.id,
+                "Using the pretrained TTS model; no improved adaptation was saved within the time budget.");
         }
         result["frontend"] = json!(engine.runtime.model_relative(&frontend));
-        result["pthPath"] = json!(output);
+        result["pthPath"] = json!(engine.runtime.model_relative(&voice));
     }
     engine.jobs.stage(&job.id, "Checking output…", None, None);
     if pipeline {
@@ -1319,39 +1362,27 @@ fn text_fit_args(
     args
 }
 
-fn text_alignment_spec(engine: &NativeEngine, p: &Value, target: &Path) -> Result<CommandSpec> {
-    let language = string(p, "ttsLanguage");
-    let recognizer = if matches!(language.as_str(), "en" | "en-us") {
-        "phonemes"
-    } else {
-        "phonemes-multilingual"
-    };
-    let mut spec = engine.runtime.python_command(vec![
-        "-m".into(),
-        "backend.python.text_rvc".into(),
-        "--threads".into(),
-        params::cores().saturating_sub(1).clamp(1, 2).to_string(),
-        "--device".into(),
-        "cpu".into(),
-        "align".into(),
-        "--manifest".into(),
-        path_string(&target.join("prepared/manifest.json")),
-        "--output".into(),
-        path_string(&target.join("prepared/phonemes.json")),
-        "--recognizer".into(),
-        path_string(
-            &engine
-                .runtime
-                .data
-                .join("rvc/models/aligners")
-                .join(recognizer),
-        ),
-        "--phonemes".into(),
-        "--language".into(),
-        language,
-    ])?;
+fn bounded_text_spec(engine: &NativeEngine, p: &Value, target: &Path) -> Result<CommandSpec> {
+    let mut args = text_fit_args(engine, p, target, None);
+    // Leave the accelerator exclusively to voice training. Preparation,
+    // alignment and adaptation share one bounded CPU worker and one deadline.
+    args.splice(
+        2..4,
+        [
+            "--threads".into(),
+            params::cores().saturating_sub(1).clamp(1, 2).to_string(),
+            "--device".into(),
+            "cpu".into(),
+        ],
+    );
+    args.push("--live-export".into());
+    let mut spec = engine.runtime.python_command(args)?;
     spec.env_remove.push("APPLIO_TEXT_RVC_GPU_LEASE".into());
     Ok(spec)
+}
+
+fn text_checkpoint_step(line: &str) -> Option<u64> {
+    serde_json::from_str::<Value>(line).ok()?["tts_checkpoint_step"].as_u64()
 }
 
 async fn train_with_alignment<T, A>(
@@ -1424,6 +1455,36 @@ async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Js
 #[cfg(test)]
 mod text_rvc_tests {
     use super::*;
+
+    #[tokio::test]
+    async fn voice_completion_stops_tts_without_cancelling_the_voice_and_awaits_cleanup() {
+        let token = CancellationToken::new();
+        let tts_token = token.child_token();
+        let (ready, started) = tokio::sync::oneshot::channel();
+        let cleaned = std::sync::atomic::AtomicBool::new(false);
+        let training = async {
+            started.await.unwrap();
+            Ok("voice exported".into())
+        };
+        let tts = async {
+            ready.send(()).unwrap();
+            tts_token.cancelled().await;
+            tokio::task::yield_now().await;
+            cleaned.store(true, Ordering::SeqCst);
+            Ok(())
+        };
+        let output = train_with_alignment(training, tts, &token, || tts_token.cancel())
+            .await
+            .unwrap();
+        assert_eq!(output, "voice exported");
+        assert!(cleaned.load(Ordering::SeqCst));
+        assert!(!token.is_cancelled());
+        assert_eq!(
+            text_checkpoint_step(r#"{"tts_checkpoint_step":25}"#),
+            Some(25)
+        );
+        assert_eq!(text_checkpoint_step(r#"{"step":25}"#), None);
+    }
 
     #[tokio::test]
     async fn overlapping_alignment_waits_for_sibling_cleanup_and_preserves_failure() {
@@ -1542,9 +1603,9 @@ print('done')
         )
         .unwrap();
         let app = router(engine.clone());
-        let alignment = text_alignment_spec(
+        let alignment = bounded_text_spec(
             &engine,
-            &json!({"ttsLanguage":"es"}),
+            &json!({"ttsLanguage":"es", "gpu":"0", "ttsSteps":1000}),
             &engine.runtime.logs.join("tts/voice"),
         )
         .unwrap();
@@ -1557,8 +1618,9 @@ print('done')
             .windows(2)
             .any(|args| args == ["--device", "cpu"]));
         assert!(alignment_args
-            .iter()
-            .any(|arg| arg.contains("phonemes-multilingual")));
+            .windows(2)
+            .any(|args| args == ["--language", "es"]));
+        assert!(alignment_args.iter().any(|arg| *arg == "--live-export"));
         assert!(alignment
             .env_remove
             .contains(&"APPLIO_TEXT_RVC_GPU_LEASE".into()));

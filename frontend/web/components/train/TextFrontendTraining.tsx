@@ -18,11 +18,13 @@ export function TextFrontendInitialization({
   value,
   onChange,
   disabled,
+  required = false,
 }: {
   id: string;
   value: string;
   onChange: (value: string) => void;
   disabled: boolean;
+  required?: boolean;
 }) {
   const { t } = useI18n();
   const [frontends, setFrontends] = useState<string[]>([]);
@@ -47,7 +49,8 @@ export function TextFrontendInitialization({
         type="text"
         list={`${id}-options`}
         value={value}
-        placeholder={t("None")}
+        placeholder={t(required ? "Select a TTS model." : "None")}
+        required={required}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
       />

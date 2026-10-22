@@ -1863,7 +1863,9 @@
   "Speech language": "Idioma da fala",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Alinhando transcrições…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Durante o treinamento da voz na GPU, as transcrições são alinhadas em paralelo na CPU. O treinamento TTS começa depois.",
   "Prepare and train TTS": "Preparar e treinar TTS",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Opcional. Você pode adicionar TTS depois; preparar e alinhar as gravações levará mais tempo nessa etapa."
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Opcional. Você pode adicionar TTS depois; preparar e alinhar as gravações levará mais tempo nessa etapa.",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "O TTS usa um modelo pré-treinado no idioma selecionado. A preparação e a adaptação compartilham um limite de tempo igual à duração do treinamento de voz. Se a voz for treinada na GPU, elas são executadas em paralelo na CPU; caso contrário, são executadas depois. Ao esgotar o tempo, o melhor modelo disponível é mantido.",
+  "Maximum TTS steps": "Máximo de passos de TTS",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "O modelo TTS pré-treinado está sendo usado; nenhuma adaptação melhor foi salva dentro do limite de tempo."
 }

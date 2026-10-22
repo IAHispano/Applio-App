@@ -107,6 +107,11 @@ export function JobPanelContent({
       <JobProgress status={job.status} progress={job.progress} job={job} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
+      {job.status === "done" && job.result?.ttsAdapted === false && (
+        <p className="text-xs text-neutral-400 m-0">
+          {t("Using the pretrained TTS model; no improved adaptation was saved within the time budget.")}
+        </p>
+      )}
 
       {showOutput && job.status === "done" && frontend && <TtsModelDownload frontend={frontend} />}
       {showOutput &&

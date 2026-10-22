@@ -846,6 +846,10 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
                     'train_ids':['historic'],'validation_ids':[]}
             torch.save(source,checkpoint)
             validate_initial_frontend(checkpoint,32,1,256)
+            validate_initial_frontend(checkpoint,32,1,256,'es')
+            try: validate_initial_frontend(checkpoint,32,1,256,'en')
+            except ValueError as error: assert 'language' in str(error)
+            else: raise AssertionError('A fallback base in the wrong language passed validation')
             try: validate_initial_frontend(checkpoint,128,1,256)
             except ValueError as error: assert 'hidden size' in str(error)
             else: raise AssertionError('Incompatible warm start passed training preflight')
@@ -861,9 +865,12 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
                                            'alignment':{'phoneme_vocabulary':vocabulary,'language':'es'},'corpus':'fixture','speaker':'fixture'}))
             args=argparse.Namespace(manifest=str(manifest),output=str(root/'trained'),seed=7,hidden=32,layers=1,
                 initialize_from=str(checkpoint),reset_tokenizer=False,phonetic_loss=False,device='cpu',
-                learning_rate=0.,steps=1,batch_size=2,validate_every=1)
+                learning_rate=0.,steps=1,batch_size=2,validate_every=1,live_export=root/'live.pt')
             train(args)
             _,saved=_load(root/'trained/best.pt')
+            _,live=_load(root/'live.pt')
+            assert live['step']==saved['step'] and live['manifest_sha256']==saved['manifest_sha256']
+            assert all(torch.equal(live['weights'][key],value) for key,value in saved['weights'].items())
             assert saved['step']==0, 'Fine-tuning discarded a better initial checkpoint'
             assert 'historic' in saved['seen_ids'] and len(saved['seen_audio_sha256'])==3
             source['seen_audio_sha256']=[rows[-1]['audio_sha256']]

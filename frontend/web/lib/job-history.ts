@@ -40,7 +40,7 @@ export function fieldLabel(key: string): string {
     ttsDatasetPath: "Dataset Path",
     ttsInitializeFrom: "Pretrained",
     ttsLanguage: "Speech language",
-    ttsSteps: "Training steps",
+    ttsSteps: "Maximum TTS steps",
     initializeFrom: "Pretrained",
     datasetRoot: "Dataset Path",
     sampleRate: "Sample rate",

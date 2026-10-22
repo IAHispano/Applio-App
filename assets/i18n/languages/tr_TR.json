@@ -1863,7 +1863,9 @@
   "Speech language": "Konuşma dili",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Transkriptler hizalanıyor…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Ses GPU ile eğitilirken transkriptler CPU üzerinde paralel olarak hizalanır. Ardından TTS eğitimi başlar.",
   "Prepare and train TTS": "TTS hazırlığı ve eğitimi",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "İsteğe bağlıdır. TTS daha sonra eklenebilir; kayıtların hazırlanması ve hizalanması o zaman ek süre gerektirir."
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "İsteğe bağlıdır. TTS daha sonra eklenebilir; kayıtların hazırlanması ve hizalanması o zaman ek süre gerektirir.",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS, seçilen dilde önceden eğitilmiş bir model kullanır. Hazırlık ve uyarlama, ses eğitiminin süresiyle sınırlı ortak bir zaman bütçesine sahiptir. Ses GPU üzerinde eğitiliyorsa bu işlemler CPU üzerinde paralel çalışır; aksi hâlde sonrasında çalışır. Süre dolduğunda mevcut en iyi model korunur.",
+  "Maximum TTS steps": "En fazla TTS adımı",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Önceden eğitilmiş TTS modeli kullanılıyor; ayrılan süre içinde daha iyi bir uyarlama kaydedilmedi."
 }

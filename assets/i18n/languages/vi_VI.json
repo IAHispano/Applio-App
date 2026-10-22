@@ -1863,7 +1863,9 @@
   "Speech language": "Ngôn ngữ lời nói",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Đang căn chỉnh bản chép lời…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Khi mô hình giọng nói được huấn luyện trên GPU, bản chép lời được căn chỉnh song song trên CPU. Sau đó, quá trình huấn luyện TTS bắt đầu.",
   "Prepare and train TTS": "Chuẩn bị và huấn luyện TTS",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Không bắt buộc. Bạn có thể thêm TTS sau; khi đó việc chuẩn bị và căn chỉnh bản ghi sẽ mất thêm thời gian."
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Không bắt buộc. Bạn có thể thêm TTS sau; khi đó việc chuẩn bị và căn chỉnh bản ghi sẽ mất thêm thời gian.",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS dùng mô hình được huấn luyện sẵn bằng ngôn ngữ đã chọn. Khâu chuẩn bị và thích nghi dùng chung giới hạn thời gian bằng thời gian huấn luyện giọng nói. Nếu huấn luyện giọng nói trên GPU, các tác vụ này chạy song song trên CPU; nếu không, chúng chạy sau đó. Khi hết thời gian, mô hình tốt nhất hiện có được giữ lại.",
+  "Maximum TTS steps": "Số bước TTS tối đa",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Đang dùng mô hình TTS được huấn luyện sẵn; không có bản thích nghi tốt hơn nào được lưu trong thời gian cho phép."
 }

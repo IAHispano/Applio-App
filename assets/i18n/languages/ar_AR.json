@@ -1863,7 +1863,9 @@
   "Speech language": "لغة الكلام",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "محاذاة النصوص…",
-  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "عند تدريب الصوت على وحدة الرسومات، تُحاذى النصوص على المعالج بالتوازي. يبدأ تدريب تحويل النص إلى كلام بعد ذلك.",
   "Prepare and train TTS": "تجهيز وتدريب تحويل النص إلى كلام",
-  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "اختياري. يمكنك إضافة تحويل النص إلى كلام لاحقًا؛ سيستغرق تجهيز التسجيلات ومحاذاتها وقتًا إضافيًا حينها."
+  "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "اختياري. يمكنك إضافة تحويل النص إلى كلام لاحقًا؛ سيستغرق تجهيز التسجيلات ومحاذاتها وقتًا إضافيًا حينها.",
+  "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "يستخدم تحويل النص إلى كلام نموذجًا مدرّبًا مسبقًا باللغة المحددة. تتشارك مرحلتا الإعداد والتكييف حدًا زمنيًا يساوي مدة تدريب الصوت. عند تدريب الصوت على المعالج الرسومي، تعملان بالتوازي على المعالج المركزي؛ وإلا فتعملان بعد التدريب. عند انتهاء الوقت، يُحتفظ بأفضل نموذج متاح.",
+  "Maximum TTS steps": "الحد الأقصى لخطوات تحويل النص إلى كلام",
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "يُستخدم نموذج تحويل النص إلى كلام المدرّب مسبقًا؛ لم يُحفظ نموذج مكيّف أفضل ضمن الوقت المحدد."
 }
