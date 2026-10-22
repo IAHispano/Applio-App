@@ -1862,5 +1862,6 @@
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "मौजूदा RVC आवाज़ के लिए TTS सक्षम करें। 0.25–12 सेकंड की क्लिप और हर ऑडियो फ़ाइल के साथ उसका UTF-8 .txt प्रतिलेख रखें। संरेखण मॉडल पहली बार इस्तेमाल करने पर डाउनलोड होते हैं।",
   "Speech language": "वाणी की भाषा",
   "Applio TTS": "Applio TTS",
-  "Aligning transcripts…": "प्रतिलेखों का संरेखण…"
+  "Aligning transcripts…": "प्रतिलेखों का संरेखण…",
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "GPU पर आवाज़ का प्रशिक्षण चलते समय, प्रतिलेख CPU पर समानांतर रूप से संरेखित होते हैं। इसके बाद TTS प्रशिक्षण शुरू होता है।"
 }

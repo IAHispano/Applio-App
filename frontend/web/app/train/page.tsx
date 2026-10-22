@@ -605,6 +605,11 @@ export default function TrainPage() {
         />
         {enableTts && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+            <p className="sm:col-span-3 text-xs text-neutral-400">
+              {t(
+                "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.",
+              )}
+            </p>
             <TextFrontendInitialization
               id="train-tts-initial"
               value={ttsInitializeFrom}

@@ -1862,5 +1862,6 @@
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "فعّل تحويل النص إلى كلام لصوت RVC موجود. استخدم مقاطع مدتها 0.25–12 ثانية مع نص مطابق بصيغة .txt بترميز UTF-8 بجانب كل ملف صوتي. تُنزّل نماذج المحاذاة عند أول استخدام.",
   "Speech language": "لغة الكلام",
   "Applio TTS": "Applio TTS",
-  "Aligning transcripts…": "محاذاة النصوص…"
+  "Aligning transcripts…": "محاذاة النصوص…",
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "عند تدريب الصوت على وحدة الرسومات، تُحاذى النصوص على المعالج بالتوازي. يبدأ تدريب تحويل النص إلى كلام بعد ذلك."
 }

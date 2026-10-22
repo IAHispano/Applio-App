@@ -1862,5 +1862,6 @@
   "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Abilita TTS per una voce RVC esistente. Usa clip di 0,25–12 secondi con una trascrizione .txt UTF-8 accanto a ogni file audio. I modelli di allineamento vengono scaricati al primo utilizzo.",
   "Speech language": "Lingua del parlato",
   "Applio TTS": "Applio TTS",
-  "Aligning transcripts…": "Allineamento delle trascrizioni…"
+  "Aligning transcripts…": "Allineamento delle trascrizioni…",
+  "With GPU voice training, transcripts align on the CPU in parallel. TTS training starts afterwards.": "Durante l’addestramento della voce sulla GPU, le trascrizioni vengono allineate in parallelo sulla CPU. L’addestramento TTS inizia successivamente."
 }

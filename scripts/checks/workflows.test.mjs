@@ -861,6 +861,45 @@ with tempfile.TemporaryDirectory() as directory:
         try: decode_rvc(acoustic,voice,sid)
         except ValueError: pass
         else: raise AssertionError("Incompatible speaker/features accepted")
+
+# Combined training prepares once, aligns separately and consumes the same cache.
+with tempfile.TemporaryDirectory() as directory:
+    import argparse,json
+    import rvc.lib.tools.text_rvc.data as speech_data
+    import rvc.lib.tools.text_rvc.__main__ as text_engine
+    root=Path(directory); embedder=root/'embedder';embedder.mkdir()
+    (embedder/'pytorch_model.bin').write_bytes(b'fixture');pitch=root/'rmvpe.pt';pitch.write_bytes(b'fixture')
+    recordings=[]
+    for i in range(4):
+        audio=root/f'{i}.wav';audio.write_bytes(bytes([i])*16)
+        recordings.append(dict(id=f'p225_{i:03}',text=f'phrase {i}',audio=str(audio),audio_sha256=digest(audio),
+                               split='train' if i<3 else 'validation',frames=4))
+    args=argparse.Namespace(output=str(root/'tts'),vctk_root=str(root),speaker='p225',language='en',rvc='',
+        embedder=str(embedder),rmvpe=str(pitch),recognizer=str(root/'recognizer'),initialize_from=None,
+        hidden=32,layers=1,device='cpu',prepare_only=True,aligned_manifest=None)
+    prepared=root/'tts/prepared'
+    def prepared_audio(*unused,**options):
+        prepared.mkdir(parents=True)
+        (prepared/'manifest.json').write_text(json.dumps(dict(format='applio-text-rvc-data-v1',
+            feature_space={'version':'v2'},records=recordings,alignment={'language':'en'})))
+    with patch.object(speech_data,'validate_speech',return_value=recordings), patch.object(speech_data,'prepare',side_effect=prepared_audio) as preparation, patch.object(alignment,'align') as aligner, patch('huggingface_hub.snapshot_download') as download, patch.object(text_engine,'validate_initial_frontend'), patch.object(text_engine,'train') as trainer, patch.object(text_engine,'calibrate') as calibration:
+        text_engine.fit(args)
+        assert preparation.call_count==1 and not aligner.called and not trainer.called and not calibration.called
+        aligned=prepared/'phonemes.json';aligned.write_text((prepared/'manifest.json').read_text())
+        args.prepare_only=False;args.aligned_manifest=str(aligned)
+        text_engine.fit(args)
+        assert preparation.call_count==1 and download.call_count==1 and not aligner.called
+        assert trainer.call_args.args[0].manifest==str(aligned) and calibration.call_count==1
+        transcript=recordings[0]['text'];recordings[0]['text']='edited transcript'
+        try: text_engine.fit(args)
+        except ValueError as error: assert 'changed after preparation' in str(error)
+        else: raise AssertionError('Combined training reused stale transcript alignment')
+        recordings[0]['text']=transcript
+        Path(recordings[0]['audio']).write_bytes(b'changed')
+        try: text_engine.fit(args)
+        except ValueError as error: assert 'changed after preparation' in str(error)
+        else: raise AssertionError('Combined training reused stale audio alignment')
+        assert trainer.call_count==1
 `], { encoding: "utf8", windowsHide: true });
 });
 

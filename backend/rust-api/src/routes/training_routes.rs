@@ -2,7 +2,7 @@
 use crate::{
     engine::{JobResult, NativeEngine},
     jobs::{Job, JobType},
-    process::{json_result, ManagedProcess},
+    process::{json_result, CommandSpec, ManagedProcess},
     processing_routes::{accepted, path_string, string, Accepted, Error},
     scheduler::Resource,
     training_artifacts as artifacts, training_params as params,
@@ -1053,6 +1053,9 @@ async fn run(
     let name = string(&p, "modelName");
     let directory = model_directory(&engine, &name)?;
     let pipeline = kind == "pipeline";
+    let tts_target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
+    let overlap_alignment =
+        p["enableTts"] == true && (kind == "train" || pipeline) && string(&p, "gpu") != "-";
     if p["enableTts"] == true && (kind == "train" || pipeline) {
         engine.jobs.stage(&job.id, "Preparing…", None, None);
         let mut args = vec![
@@ -1116,7 +1119,21 @@ async fn run(
         message = stdout.trim().lines().last().unwrap_or("Done").trim().into();
     }
     let mut output = None;
+    let mut alignment_error = None;
     if kind == "train" || pipeline {
+        if overlap_alignment {
+            engine
+                .jobs
+                .stage(&job.id, "Preparing speech synthesis…", None, None);
+            let mut args = text_fit_args(&engine, &p, &tts_target, None);
+            args.push("--prepare-only".into());
+            let mut spec = engine.runtime.python_command(args)?;
+            spec.env
+                .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
+            ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+                .await?
+                .ensure_success()?;
+        }
         if pipeline {
             engine.jobs.log(
                 &job.id,
@@ -1130,16 +1147,39 @@ async fn run(
         let epochs = p["totalEpoch"]
             .as_u64()
             .context("Invalid training epoch count")?;
-        step(
+        let training_token = token.child_token();
+        let expected = format!("Model {name} trained successfully.");
+        let training = step(
             &engine,
             &job,
-            &token,
+            &training_token,
             params::train(&p, &pretrains),
-            &format!("Model {name} trained successfully."),
+            &expected,
             "Training model…",
             Some(epochs),
-        )
-        .await?;
+        );
+        if overlap_alignment {
+            let spec = text_alignment_spec(&engine, &p, &tts_target)?;
+            let alignment = async {
+                let result = ManagedProcess::run(&spec, &training_token, |_, line| {
+                    engine.jobs.log(&job.id, line);
+                })
+                .await
+                .and_then(|output| output.ensure_success());
+                // TTS is optional: preserve the voice and index even if its
+                // transcript preparation fails, as in the sequential workflow.
+                alignment_error = result.err();
+                Ok(())
+            };
+            train_with_alignment(training, alignment, &training_token, || {
+                engine
+                    .jobs
+                    .stage(&job.id, "Aligning transcripts…", None, None);
+            })
+            .await?;
+        } else {
+            training.await?;
+        }
         engine.jobs.progress(&job.id, 100.0);
         output = Some(
             engine
@@ -1184,52 +1224,24 @@ async fn run(
     if token.is_cancelled() {
         bail!("Stopped by user");
     }
+    if let Some(error) = alignment_error {
+        return Err(error.context("Voice training completed, but transcript alignment failed"));
+    }
     let mut result = json!({"message":message});
     if p["enableTts"] == true && (kind == "train" || pipeline) {
         let voice = engine
             .runtime
             .require_file(output.as_deref().context("RVC model was not exported")?)?;
-        let target = engine.runtime.logs.join("tts").join(&name).join(&job.id);
+        let target = tts_target;
         engine.jobs.stage(&job.id, "Applio TTS", None, None);
         // The new phase has its own step count; RVC completion is not TTS completion.
         engine.jobs.progress(&job.id, 0.0);
-        let mut args = vec![
-            "-m".into(),
-            "backend.python.text_rvc".into(),
-            "--device".into(),
-            if string(&p, "gpu") == "-" {
-                "cpu".into()
-            } else {
-                "auto".into()
-            },
-            "fit".into(),
-            "--vctk-root".into(),
-            string(&p, "ttsDatasetPath"),
-            "--language".into(),
-            string(&p, "ttsLanguage"),
-            "--rvc".into(),
-            path_string(&voice),
-            "--output".into(),
-            path_string(&target),
-            "--embedder".into(),
-            path_string(&engine.runtime.data.join("rvc/models/embedders/contentvec")),
-            "--rmvpe".into(),
-            path_string(&engine.runtime.data.join("rvc/models/predictors/rmvpe.pt")),
-            "--recognizer".into(),
-            path_string(&engine.runtime.data.join("rvc/models/aligners/phonemes")),
-            "--steps".into(),
-            p["ttsSteps"].to_string(),
-            "--batch-size".into(),
-            "4".into(),
-            "--hidden".into(),
-            "256".into(),
-            "--layers".into(),
-            "4".into(),
-            "--phonetic-loss".into(),
-        ];
-        let initial = string(&p, "ttsInitializeFrom");
-        if !initial.is_empty() {
-            args.extend(["--initialize-from".into(), initial]);
+        let mut args = text_fit_args(&engine, &p, &target, Some(&voice));
+        if overlap_alignment {
+            args.extend([
+                "--aligned-manifest".into(),
+                path_string(&target.join("prepared/phonemes.json")),
+            ]);
         }
         let mut spec = engine.runtime.python_command(args)?;
         spec.env
@@ -1257,6 +1269,119 @@ async fn run(
         engine.jobs.log(&job.id, ">>> [4/4] Verifying artifacts...");
     }
     Ok(JobResult::new(result, output))
+}
+
+fn text_fit_args(
+    engine: &NativeEngine,
+    p: &Value,
+    target: &Path,
+    voice: Option<&Path>,
+) -> Vec<String> {
+    let mut args = vec![
+        "-m".into(),
+        "backend.python.text_rvc".into(),
+        "--device".into(),
+        if string(&p, "gpu") == "-" {
+            "cpu".into()
+        } else {
+            "auto".into()
+        },
+        "fit".into(),
+        "--vctk-root".into(),
+        string(&p, "ttsDatasetPath"),
+        "--language".into(),
+        string(&p, "ttsLanguage"),
+        "--output".into(),
+        path_string(&target),
+        "--embedder".into(),
+        path_string(&engine.runtime.data.join("rvc/models/embedders/contentvec")),
+        "--rmvpe".into(),
+        path_string(&engine.runtime.data.join("rvc/models/predictors/rmvpe.pt")),
+        "--recognizer".into(),
+        path_string(&engine.runtime.data.join("rvc/models/aligners/phonemes")),
+        "--steps".into(),
+        p["ttsSteps"].to_string(),
+        "--batch-size".into(),
+        "4".into(),
+        "--hidden".into(),
+        "256".into(),
+        "--layers".into(),
+        "4".into(),
+        "--phonetic-loss".into(),
+    ];
+    if let Some(voice) = voice {
+        args.extend(["--rvc".into(), path_string(voice)]);
+    }
+    let initial = string(&p, "ttsInitializeFrom");
+    if !initial.is_empty() {
+        args.extend(["--initialize-from".into(), initial]);
+    }
+    args
+}
+
+fn text_alignment_spec(engine: &NativeEngine, p: &Value, target: &Path) -> Result<CommandSpec> {
+    let language = string(p, "ttsLanguage");
+    let recognizer = if matches!(language.as_str(), "en" | "en-us") {
+        "phonemes"
+    } else {
+        "phonemes-multilingual"
+    };
+    let mut spec = engine.runtime.python_command(vec![
+        "-m".into(),
+        "backend.python.text_rvc".into(),
+        "--threads".into(),
+        params::cores().saturating_sub(1).clamp(1, 2).to_string(),
+        "--device".into(),
+        "cpu".into(),
+        "align".into(),
+        "--manifest".into(),
+        path_string(&target.join("prepared/manifest.json")),
+        "--output".into(),
+        path_string(&target.join("prepared/phonemes.json")),
+        "--recognizer".into(),
+        path_string(
+            &engine
+                .runtime
+                .data
+                .join("rvc/models/aligners")
+                .join(recognizer),
+        ),
+        "--phonemes".into(),
+        "--language".into(),
+        language,
+    ])?;
+    spec.env_remove.push("APPLIO_TEXT_RVC_GPU_LEASE".into());
+    Ok(spec)
+}
+
+async fn train_with_alignment<T, A>(
+    training: T,
+    alignment: A,
+    token: &CancellationToken,
+    on_wait: impl FnOnce(),
+) -> Result<String>
+where
+    T: std::future::Future<Output = Result<String>>,
+    A: std::future::Future<Output = Result<()>>,
+{
+    tokio::pin!(training, alignment);
+    // Await both workers' cleanup on error or stop, preserving the first failure
+    // before the sibling observes cancellation. The parent still owns the GPU.
+    tokio::select! {
+        result = &mut training => {
+            if result.is_err() { token.cancel(); } else { on_wait(); }
+            let aligned = alignment.await;
+            let output = result?;
+            aligned?;
+            Ok(output)
+        }
+        result = &mut alignment => {
+            if result.is_err() { token.cancel(); }
+            let trained = training.await;
+            result?;
+            trained
+        }
+    }
 }
 async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Json<Value>, Error> {
     let input = uploads::parse(request, &state.engine.runtime.uploads, &[]).await?;
@@ -1301,6 +1426,99 @@ mod text_rvc_tests {
     use super::*;
 
     #[tokio::test]
+    async fn overlapping_alignment_waits_for_sibling_cleanup_and_preserves_failure() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        for alignment_fails in [true, false] {
+            let token = CancellationToken::new();
+            let cleaned = AtomicBool::new(false);
+            let training = async {
+                if !alignment_fails {
+                    bail!("voice training failed");
+                }
+                token.cancelled().await;
+                tokio::time::sleep(Duration::from_millis(5)).await;
+                cleaned.store(true, Ordering::SeqCst);
+                bail!("Stopped by user")
+            };
+            let alignment = async {
+                if alignment_fails {
+                    bail!("transcript alignment failed");
+                }
+                token.cancelled().await;
+                tokio::time::sleep(Duration::from_millis(5)).await;
+                cleaned.store(true, Ordering::SeqCst);
+                bail!("Stopped by user")
+            };
+            let error = train_with_alignment(training, alignment, &token, || {})
+                .await
+                .unwrap_err();
+            assert_eq!(
+                error.to_string(),
+                if alignment_fails {
+                    "transcript alignment failed"
+                } else {
+                    "voice training failed"
+                }
+            );
+            assert!(token.is_cancelled() && cleaned.load(Ordering::SeqCst));
+        }
+        let token = CancellationToken::new();
+        let output = train_with_alignment(
+            async { Ok("trained".into()) },
+            async { Ok(()) },
+            &token,
+            || {},
+        )
+        .await
+        .unwrap();
+        assert_eq!(output, "trained");
+        assert!(!token.is_cancelled());
+    }
+
+    #[tokio::test]
+    async fn owned_training_and_alignment_processes_start_together() {
+        let root = tempfile::tempdir().unwrap();
+        let script = r#"import sys,time
+from pathlib import Path
+Path(sys.argv[1]).write_text('ready')
+deadline=time.monotonic()+5
+while not Path(sys.argv[2]).exists():
+    if time.monotonic()>deadline: raise RuntimeError('Sibling was not started')
+    time.sleep(.01)
+print('done')
+"#;
+        let a = root.path().join("training");
+        let b = root.path().join("alignment");
+        let first = CommandSpec::new("python", root.path()).args([
+            "-c".into(),
+            script.into(),
+            a.clone().into_os_string(),
+            b.clone().into_os_string(),
+        ]);
+        let second = CommandSpec::new("python", root.path()).args([
+            "-c".into(),
+            script.into(),
+            b.into_os_string(),
+            a.into_os_string(),
+        ]);
+        let token = CancellationToken::new();
+        let training = async {
+            let output = ManagedProcess::run(&first, &token, |_, _| {}).await?;
+            output.ensure_success()?;
+            Ok(output.stdout)
+        };
+        let alignment = async {
+            ManagedProcess::run(&second, &token, |_, _| {})
+                .await?
+                .ensure_success()
+        };
+        assert!(train_with_alignment(training, alignment, &token, || {})
+            .await
+            .unwrap()
+            .contains("done"));
+    }
+
+    #[tokio::test]
     async fn tts_model_import_and_export_preserve_storage_and_bridge_boundaries() {
         use axum::body::{to_bytes, Body};
         let root = tempfile::tempdir().unwrap();
@@ -1324,6 +1542,26 @@ mod text_rvc_tests {
         )
         .unwrap();
         let app = router(engine.clone());
+        let alignment = text_alignment_spec(
+            &engine,
+            &json!({"ttsLanguage":"es"}),
+            &engine.runtime.logs.join("tts/voice"),
+        )
+        .unwrap();
+        let alignment_args: Vec<_> = alignment
+            .args
+            .iter()
+            .map(|arg| arg.to_string_lossy())
+            .collect();
+        assert!(alignment_args
+            .windows(2)
+            .any(|args| args == ["--device", "cpu"]));
+        assert!(alignment_args
+            .iter()
+            .any(|arg| arg.contains("phonemes-multilingual")));
+        assert!(alignment
+            .env_remove
+            .contains(&"APPLIO_TEXT_RVC_GPU_LEASE".into()));
         let multipart = |name: &str| {
             format!("--tts-boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"{name}\"\r\nContent-Type: application/octet-stream\r\n\r\ncheckpoint-bytes\r\n--tts-boundary--\r\n")
         };
