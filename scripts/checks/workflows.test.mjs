@@ -710,6 +710,22 @@ with patch('rvc.lib.tools.text_rvc.__main__.decode_rvc', side_effect=lambda acou
     decode_seeded({'frames':137},'voice.pth',0)
     reference_b,_=decode_seeded({'frames':20},'voice.pth',0)
     assert torch.equal(reference_a,reference_b),'Reference audio depends on candidate duration'
+from rvc.lib.tools.text_rvc.assessment import load_seeded_decoder
+sentinel=object()
+def construct_decoder(*args):
+    torch.rand(13)
+    return sentinel
+def decode_with_construction(acoustic,checkpoint,sid,loaded=None):
+    if loaded is None: construct_decoder()
+    else: assert loaded is sentinel
+    return torch.rand(acoustic['frames']),40000
+with patch('rvc.lib.tools.text_rvc.__main__.load_rvc',side_effect=construct_decoder), patch('rvc.lib.tools.text_rvc.__main__.decode_rvc',side_effect=decode_with_construction):
+    before=torch.random.get_rng_state()
+    cached=load_seeded_decoder('voice.pth',0)
+    fresh,_=decode_seeded({'frames':20},'voice.pth',0)
+    reused,_=decode_seeded({'frames':20},'voice.pth',0,loaded=cached)
+    assert torch.equal(fresh,reused),'Cached assessment skipped model-construction noise'
+    assert torch.equal(before,torch.random.get_rng_state()),'Cached assessment changed caller RNG'
 model=TextFrontend(256,hidden=32,layers=1)
 examples=[{"text":"Hello", "features":torch.randn(21,256), "f0":torch.full((21,),200.)}, {"text":"Test", "features":torch.randn(13,256), "f0":torch.zeros(13)}]
 args=batch(examples,torch.zeros(256),torch.ones(256),4)
