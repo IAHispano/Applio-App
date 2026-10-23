@@ -22,6 +22,17 @@ function restart(fetch, now = () => 0) {
 
 const json = (body, ok = true) => ({ ok, json: async () => body });
 
+test("training clocks exclude queue time and stay fixed after completion", () => {
+  const history={};
+  new Function('exports',ts.transpileModule(fs.readFileSync(new URL('../../frontend/web/lib/job-history.ts',import.meta.url),'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(history);
+  const job={createdAt:'2026-10-22T10:00:00Z',startedAt:'2026-10-22T10:01:00Z',finishedAt:'2026-10-22T10:04:00Z',updatedAt:'2026-10-22T10:04:00Z',status:'done'};
+  assert.equal(history.jobElapsedSeconds(job,Date.parse('2026-10-23T10:00:00Z')),180);
+  assert.equal(history.jobElapsedSeconds({...job,status:'running'},Date.parse('2026-10-22T10:02:00Z')),60);
+  assert.equal(history.jobElapsedSeconds({...job,status:'error',finishedAt:undefined}),180);
+  assert.equal(history.jobElapsedSeconds({...job,status:'queued',startedAt:undefined},Date.parse('2026-10-22T10:00:30Z')),30);
+  assert.equal(history.jobElapsedSeconds({status:'done'}),0);
+});
+
 test("stopped jobs keep diagnostics without being presented as operation failures", () => {
   const history={};
   const compile=(path,exports,require)=>{
@@ -702,6 +713,39 @@ from rvc.lib.algorithm.synthesizers import Synthesizer
 
 torch.set_num_threads(2)
 torch.manual_seed(7)
+import json, numpy as np, soundfile as sf
+from rvc.lib.tools.text_rvc.data import automatic_transcripts
+import rvc.lib.tools.text_rvc.data as speech_data
+with tempfile.TemporaryDirectory() as directory:
+    root=Path(directory); originals=root/'originals'; originals.mkdir()
+    for name,seconds in [('provided',.5),('missing',.5),('long',25.),('silent',.5)]:
+        audio=np.sin(np.arange(round(22050*seconds))*2*np.pi*220/22050).astype('float32')*.1
+        if name=='silent': audio[:]=0
+        sf.write(originals/f'{name}.wav',np.column_stack([audio,audio]),22050)
+    (originals/'provided.txt').write_text('Keep this supplied transcript.',encoding='utf-8')
+    (originals/'long.txt').write_text('A long transcript. '*100,encoding='utf-8')
+    before={p.name:digest(p) for p in originals.iterdir()}
+    recognized=[]
+    def recognize(audio):
+        assert len(audio)<=12*16000 and np.isfinite(audio).all()
+        recognized.append(len(audio)); return f'Generated speech number {len(recognized)}.'
+    destination=root/'paired'
+    with patch.object(speech_data,'_transcriber',return_value=recognize) as factory:
+        automatic_transcripts(originals,destination,root/'recognizer',language='es')
+        factory.assert_called_once_with(root/'recognizer','es')
+    assert {p.name:digest(p) for p in originals.iterdir()}==before, 'Automatic transcripts modified originals'
+    assert not (originals/'missing.txt').exists(), 'Generated sidecars escaped job storage'
+    provenance=json.loads((destination/'source.json').read_text())
+    assert len(provenance['clips'])>=6 and len(recognized)==len(provenance['clips'])-1
+    assert any(r['transcript_origin']=='provided' for r in provenance['clips'])
+    assert all(.25<=sf.info(destination/r['audio']).duration<=12 for r in provenance['clips'])
+    with patch.object(speech_data,'_transcriber',side_effect=AssertionError('Cached transcripts were regenerated')):
+        automatic_transcripts(originals,destination,root/'recognizer',language='es')
+    (originals/'missing.txt').write_text('A new human transcript.',encoding='utf-8')
+    try: automatic_transcripts(originals,destination,root/'recognizer',language='es')
+    except ValueError as error: assert 'changed' in str(error)
+    else: raise AssertionError('Changed source transcripts reused the alignment cache')
+
 with patch('rvc.lib.tools.text_rvc.__main__.decode_rvc', side_effect=lambda acoustic,checkpoint,sid: (torch.rand(acoustic['frames']),40000)):
     decode_seeded({'frames':11},'voice.pth',0)
     before=torch.random.get_rng_state()
@@ -1102,6 +1146,14 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
   };
   for(const enabled of [true,false]) {
   state["page:train:enableTts"]=enabled;
+  if(enabled) {
+    const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
+    const tree=nodes(exports.default());
+    const auto=tree.find(node=>node.props?.id==="panel-auto");
+    const manual=tree.find(node=>node.props?.title==="Step 3 — Model Training");
+    assert.ok(nodes(auto).some(node=>node.props?.id==="auto-tts-initial"),"Automatic training must contain the TTS checkpoint selector");
+    assert.ok(nodes(manual).some(node=>node.props?.id==="manual-tts-initial"),"The manual training step must contain the TTS checkpoint selector");
+  }
   for(const [label,path] of [["Start Automatic Training","/api/train/pipeline"],["Start Training","/api/train/train"]]){
     const action=find(exports.default(),label);
     assert.ok(action,`Missing ${label} action`);

@@ -78,3 +78,13 @@ export function duration(from: string, to: string | number): string {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
 }
+
+export function jobElapsedSeconds(job: Job, now = Date.now()): number {
+  const start = Date.parse(job.startedAt || job.createdAt);
+  const end =
+    job.status === "running" || job.status === "queued"
+      ? now
+      : Date.parse(job.finishedAt || job.updatedAt || job.createdAt);
+  const elapsed = (end - start) / 1000;
+  return Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed)) : 0;
+}

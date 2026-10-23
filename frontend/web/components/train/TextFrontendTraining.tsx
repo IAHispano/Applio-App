@@ -185,7 +185,7 @@ export default function TextFrontendTraining({ requestedVoice = "" }: { requeste
       <CardHeader
         title={t("Enable TTS for a voice")}
         description={t(
-          "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.",
+          "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.",
         )}
       />
       {error && (

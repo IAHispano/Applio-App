@@ -170,6 +170,9 @@ async fn text_rvc(
     let resolved_manifest = path_string(&source);
     if !prepared {
         args.extend([
+            "--auto-transcribe".into(),
+            "--transcriber".into(),
+            path_string(&runtime.data.join("rvc/models/transcribers/whisper-base")),
             "--speaker".into(),
             request.speaker.clone(),
             "--language".into(),
@@ -1068,6 +1071,7 @@ async fn run(
             "-m".to_owned(),
             "backend.python.text_rvc".into(),
             "validate-data".into(),
+            "--auto-transcribe".into(),
             "--dataset".into(),
             string(&p, "ttsDatasetPath"),
             "--language".into(),
@@ -1234,10 +1238,13 @@ async fn run(
     if token.is_cancelled() {
         bail!("Stopped by user");
     }
-    if let Some(error) = alignment_error {
-        return Err(error.context("Voice training completed, but transcript alignment failed"));
-    }
     let mut result = json!({"message":message});
+    if let Some(error) = alignment_error {
+        engine
+            .jobs
+            .log(&job.id, &format!("TTS adaptation: {error:#}"));
+        result["ttsAdaptationError"] = json!(error.to_string());
+    }
     if p["enableTts"] == true && (kind == "train" || pipeline) {
         let voice = engine
             .runtime
@@ -1330,6 +1337,14 @@ fn text_fit_args(
             "auto".into()
         },
         "fit".into(),
+        "--auto-transcribe".into(),
+        "--transcriber".into(),
+        path_string(
+            &engine
+                .runtime
+                .data
+                .join("rvc/models/transcribers/whisper-base"),
+        ),
         "--vctk-root".into(),
         string(&p, "ttsDatasetPath"),
         "--language".into(),
