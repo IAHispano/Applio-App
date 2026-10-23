@@ -129,13 +129,14 @@ function TtsBaseDownload({ disabled, onImport }: { disabled: boolean; onImport: 
     if (
       job?.id !== jobId ||
       job?.status !== "done" ||
+      disabled ||
       typeof job.result?.frontend !== "string" ||
       pending.current !== job.id
     )
       return;
     pending.current = null;
     onImport(job.result.frontend);
-  }, [activity.job, activity.isActive, jobId, onImport]);
+  }, [activity.job, activity.isActive, disabled, jobId, onImport]);
   if (remote) return null;
   async function start() {
     setSubmitting(true);

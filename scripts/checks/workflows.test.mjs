@@ -1349,6 +1349,34 @@ test("training results download voice models through validated model storage", (
   assert.ok(!failed.some(node=>node.props?.children==="Using the pretrained TTS model; no improved adaptation was saved within the time budget."));
 });
 
+test("restored TTS downloads do not overwrite a selected model or an active training draft", () => {
+  const source=fs.readFileSync(new URL("../../frontend/web/components/TtsModelFiles.tsx",import.meta.url),"utf8");
+  const {outputText}=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+  const exports={}, effects=[], pending={current:null};
+  let job={id:"download",status:"done",result:{frontend:"logs/tts/base/frontend.pt"}};
+  new Function("exports","require",outputText)(exports,(name)=>{
+    if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+    if(name==="react")return {useState:(value)=>[value,()=>{}],useRef:()=>pending,useId:()=>"base-download",useEffect:(fn)=>effects.push(fn)};
+    if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
+    if(name==="@/lib/bridge-mode")return {useRemoteBridge:()=>({remote:false})};
+    if(name==="@/lib/useJob")return {usePersistentJobId:()=>["download",()=>{}],useJob:()=>({job,isActive:job.status==="running"})};
+    if(name==="@/lib/api")return {apiGet:async()=>({catalog:[]})};
+    return new Proxy({},{get:(_,key)=>key});
+  });
+  const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
+  const tree=nodes(exports.TtsModelSelect({id:"picker",value:"existing",models:[],onChange(){}}));
+  const component=tree.find(node=>typeof node.type==="function"&&node.type.name==="TtsBaseDownload").type;
+  const selected=[];
+  const render=(disabled=false)=>{component({disabled,onImport:(path)=>selected.push(path)});effects.splice(0).forEach(fn=>fn());};
+  render();
+  assert.deepEqual(selected,[],"A previously completed download must not replace the current selection after navigation");
+  job={...job,status:"running"};render();
+  job={...job,status:"done"};render(true);
+  assert.deepEqual(selected,[],"Completion cannot edit the checkpoint draft during active training");
+  render();render();
+  assert.deepEqual(selected,[job.result.frontend],"A newly completed download is selected once when the form is available");
+});
+
 test("TTS selection preserves each provider's voice and submits the synthesis contract", async () => {
   const source = fs.readFileSync(new URL("../../frontend/web/components/TtsForm.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
