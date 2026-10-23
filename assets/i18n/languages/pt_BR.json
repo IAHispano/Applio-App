@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "As transcrições são geradas automaticamente. As gravações da sua voz são reutilizadas.",
   "Choose a voice, add recordings, and train its TTS model.": "Escolha uma voz, adicione gravações e treine o modelo TTS dela.",
   "Time limit reached": "Limite de tempo atingido",
-  "Voice adaptation": "Adaptação de voz"
+  "Voice adaptation": "Adaptação de voz",
+  "TTS adaptation failed. The last valid TTS model was kept.": "A adaptação de TTS falhou. O último modelo TTS válido foi mantido."
 }

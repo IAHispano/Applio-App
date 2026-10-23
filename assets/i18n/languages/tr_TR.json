@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "Dökümler otomatik oluşturulur. Ses kayıtlarınız yeniden kullanılır.",
   "Choose a voice, add recordings, and train its TTS model.": "Bir ses seçin, kayıt ekleyin ve TTS modelini eğitin.",
   "Time limit reached": "Süre sınırına ulaşıldı",
-  "Voice adaptation": "Ses uyarlaması"
+  "Voice adaptation": "Ses uyarlaması",
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS uyarlaması başarısız oldu. Son geçerli TTS modeli korundu."
 }

@@ -589,7 +589,7 @@ export default function TrainPage() {
         trainingJob.params?.modelName === modelName.trim() &&
         typeof trainingJob.result?.frontend === "string" && (
           <>
-            {trainingJob.result.ttsAdapted === false && (
+            {trainingJob.result.ttsAdapted === false && !trainingJob.result.ttsAdaptationError && (
               <p className="mt-2 text-xs text-neutral-400">
                 {t(
                   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.",
@@ -1632,7 +1632,14 @@ export default function TrainPage() {
         </div>
       </Modal>
 
-      <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />
+      {(activeTraining || trainingJob?.params?.modelName === modelName.trim()) && (
+        <TrainingConsole
+          jobId={jobId}
+          modelName={String(trainingJob?.params?.modelName || modelName)}
+          totalEpochs={totalEpoch}
+          onStop={stop}
+        />
+      )}
     </div>
   );
 }

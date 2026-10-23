@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "전사문이 자동으로 생성됩니다. 기존 음성 녹음을 재사용합니다.",
   "Choose a voice, add recordings, and train its TTS model.": "음성을 선택하고 녹음을 추가한 다음 TTS 모델을 학습하세요.",
   "Time limit reached": "시간 제한에 도달함",
-  "Voice adaptation": "음성 적응 학습"
+  "Voice adaptation": "음성 적응 학습",
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS 적응에 실패했습니다. 마지막으로 유효한 TTS 모델이 유지되었습니다."
 }

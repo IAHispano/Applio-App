@@ -318,8 +318,18 @@ async fn text_rvc(
                     Ok::<_, anyhow::Error>(())
                 };
                 tokio::pin!(work);
+                let mut adaptation_error = None;
                 let expired = tokio::select! {
-                    result = &mut work => { result?; false }
+                    result = &mut work => {
+                        if let Err(error) = result {
+                            if !initial_validated.load(Ordering::Relaxed) {
+                                return Err(error);
+                            }
+                            engine.jobs.log(&job.id, &format!("TTS adaptation: {error:#}"));
+                            adaptation_error = Some(error.to_string());
+                        }
+                        false
+                    }
                     _ = tokio::time::sleep(budget) => {
                         work_token.cancel();
                         let _ = work.await;
@@ -330,7 +340,7 @@ async fn text_rvc(
                     bail!("Stopped by user");
                 }
                 let frontend = output.join("frontend.pt");
-                if expired && !ready_file(&frontend) {
+                if (expired || adaptation_error.is_some()) && !ready_file(&frontend) {
                     let best = output.join(if prepared { "best.pt" } else { "training/best.pt" });
                     let source = if ready_file(&best) {
                         Some(&best)
@@ -367,6 +377,7 @@ async fn text_rvc(
                         "ttsAdapted":if prepared { Value::Null } else { json!(best_step.load(Ordering::Relaxed)>0) },
                         "ttsBudgetSeconds":budget.as_secs_f64(),
                         "ttsElapsedSeconds":started.elapsed().as_secs_f64(),
+                        "ttsAdaptationError":adaptation_error,
                         "ttsTimeLimitReached":expired}),
                     None,
                 ))
@@ -1380,7 +1391,12 @@ async fn run(
             });
             tokio::pin!(process);
             tokio::select! {
-                result = &mut process => { result?.ensure_success()?; }
+                output = &mut process => {
+                    if let Err(error) = output.and_then(|output| output.ensure_success()) {
+                        engine.jobs.log(&job.id, &format!("TTS adaptation: {error:#}"));
+                        result["ttsAdaptationError"] = json!(error.to_string());
+                    }
+                }
                 _ = tokio::time::sleep(voice_training_time) => {
                     tts_token.cancel();
                     // Await owned child cleanup before releasing the scheduler.

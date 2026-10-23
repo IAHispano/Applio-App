@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "Расшифровки создаются автоматически. Записи вашего голоса используются повторно.",
   "Choose a voice, add recordings, and train its TTS model.": "Выберите голос, добавьте записи и обучите его модель TTS.",
   "Time limit reached": "Достигнуто ограничение времени",
-  "Voice adaptation": "Адаптация голоса"
+  "Voice adaptation": "Адаптация голоса",
+  "TTS adaptation failed. The last valid TTS model was kept.": "Не удалось адаптировать TTS. Последняя корректная модель TTS сохранена."
 }

@@ -1202,7 +1202,7 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
       return [state[key],()=>{}];
     }};
     if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
-    if(name==="@/lib/useJob")return {usePersistentJobId:()=>[renderJob?.id??null,()=>{}],useJob:()=>({job:renderJob,isActive:false})};
+    if(name==="@/lib/useJob")return {usePersistentJobId:()=>[renderJob?.id??null,()=>{}],useJob:()=>({job:renderJob,isActive:['running','queued'].includes(renderJob?.status)})};
     if(name==='@/lib/job-history')return history;
     if(name==="@/lib/api")return {submitJob:async(path,body)=>{requests.push({path,body});return {jobId:"job"};}};
     if(name==="@/lib/setting-help")return {SETTING_HELP:{}};
@@ -1253,6 +1253,12 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
     assert.ok(phases[2].includes('In Progress'));
     assert.ok(phases[3].includes('Pending'));
   }
+  const renderedNodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(renderedNodes)];
+  renderJob={id:'job',status:'done',logs:[],params:{modelName:'previous-voice'}};
+  assert.ok(!renderedNodes(exports.default()).some(node=>node.props?.jobId==='job'&&node.props?.onStop),"A completed job from another project must not label this project as complete");
+  renderJob={...renderJob,status:'running'};
+  const activeConsole=renderedNodes(exports.default()).find(node=>node.props?.jobId==='job'&&node.props?.onStop);
+  assert.equal(activeConsole?.props.modelName,'previous-voice',"Active training keeps its submitted project name");
 });
 
 test("adding TTS to an existing voice preselects it and submits the preparation deadline", async () => {
@@ -1333,6 +1339,12 @@ test("training results download voice models through validated model storage", (
   assert.ok(!tree.some(node=>typeof node.props?.children==='string' && node.props.children.includes('pthPath:')));
   remote=true;
   assert.ok(!nodes(exports.JobPanelContent({jobId:"test",activity})).some(node=>node.props?.href?.startsWith('/api/train/export-file')));
+  activity.job.result.ttsAdaptationError="No usable recordings";
+  activity.job.result.ttsAdapted=false;
+  const failed=nodes(exports.JobPanelContent({jobId:"test",activity}));
+  assert.ok(failed.some(node=>node.props?.details==="No usable recordings"&&node.props.variant==="warning"));
+  assert.ok(failed.some(node=>node.props?.children==="TTS adaptation failed. The last valid TTS model was kept."));
+  assert.ok(!failed.some(node=>node.props?.children==="Using the pretrained TTS model; no improved adaptation was saved within the time budget."));
 });
 
 test("TTS selection preserves each provider's voice and submits the synthesis contract", async () => {

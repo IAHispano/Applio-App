@@ -114,7 +114,12 @@ export function JobPanelContent({
       <JobProgress status={job.status} progress={job.progress} job={job} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
-      {job.status === "done" && job.result?.ttsAdapted === false && (
+      {job.status === "done" && typeof job.result?.ttsAdaptationError === "string" && (
+        <Alert variant="warning" title={t("Completed with errors")} details={job.result.ttsAdaptationError}>
+          {t("TTS adaptation failed. The last valid TTS model was kept.")}
+        </Alert>
+      )}
+      {job.status === "done" && job.result?.ttsAdapted === false && !job.result?.ttsAdaptationError && (
         <p className="text-xs text-neutral-400 m-0">
           {t("Using the pretrained TTS model; no improved adaptation was saved within the time budget.")}
         </p>

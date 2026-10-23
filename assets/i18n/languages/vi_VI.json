@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "Bản chép lời được tạo tự động. Các bản ghi giọng nói của bạn được dùng lại.",
   "Choose a voice, add recordings, and train its TTS model.": "Chọn giọng, thêm bản ghi âm và huấn luyện mô hình TTS của giọng đó.",
   "Time limit reached": "Đã đạt giới hạn thời gian",
-  "Voice adaptation": "Thích nghi giọng nói"
+  "Voice adaptation": "Thích nghi giọng nói",
+  "TTS adaptation failed. The last valid TTS model was kept.": "Điều chỉnh TTS thất bại. Mô hình TTS hợp lệ gần nhất đã được giữ lại."
 }

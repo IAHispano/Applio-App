@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "文字起こしは自動生成されます。音声の録音を再利用します。",
   "Choose a voice, add recordings, and train its TTS model.": "音声を選び、録音を追加してTTSモデルを学習させます。",
   "Time limit reached": "制限時間に達しました",
-  "Voice adaptation": "音声の適応学習"
+  "Voice adaptation": "音声の適応学習",
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTSの適応に失敗しました。最後の有効なTTSモデルは保持されています。"
 }

@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "Transkrip dibuat secara otomatis. Rekaman suara Anda digunakan kembali.",
   "Choose a voice, add recordings, and train its TTS model.": "Pilih suara, tambahkan rekaman, lalu latih model TTS-nya.",
   "Time limit reached": "Batas waktu tercapai",
-  "Voice adaptation": "Adaptasi suara"
+  "Voice adaptation": "Adaptasi suara",
+  "TTS adaptation failed. The last valid TTS model was kept.": "Adaptasi TTS gagal. Model TTS valid terakhir tetap disimpan."
 }

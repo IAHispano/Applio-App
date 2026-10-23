@@ -433,18 +433,32 @@ export default function TrainingConsole({
               <Check size={16} className="text-black" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white m-0">{t("Training Completed Successfully")}</h4>
+              <h4 className="text-sm font-bold text-white m-0">
+                {t(
+                  job.result?.ttsAdaptationError
+                    ? "Completed with errors"
+                    : "Training Completed Successfully",
+                )}
+              </h4>
               <p className="text-xs text-neutral-400 m-0 mt-0.5">
                 {t("Your voice model weights and feature index have been saved and are ready to use.")}
               </p>
             </div>
           </div>
 
+          {typeof job.result?.ttsAdaptationError === "string" && (
+            <Alert variant="warning" details={job.result.ttsAdaptationError}>
+              {t("TTS adaptation failed. The last valid TTS model was kept.")}
+            </Alert>
+          )}
+
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button
               size="md"
               onClick={() =>
-                router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)
+                router.push(
+                  `/inference?model=${encodeURIComponent(job.outputFile || `logs/${modelName}/${modelName}.pth`)}`,
+                )
               }
               iconAfter={<ArrowRight size={14} />}
             >

@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "转写文本自动生成，并复用你的声音录音。",
   "Choose a voice, add recordings, and train its TTS model.": "选择声音、添加录音，然后训练其 TTS 模型。",
   "Time limit reached": "已达到时间限制",
-  "Voice adaptation": "声音适配"
+  "Voice adaptation": "声音适配",
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS 适配失败。已保留最近一个有效的 TTS 模型。"
 }

@@ -1881,5 +1881,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "تُنشأ النصوص تلقائيًا وتُستخدم تسجيلات صوتك مجددًا.",
   "Choose a voice, add recordings, and train its TTS model.": "اختر صوتًا وأضف التسجيلات ثم درّب نموذج TTS الخاص به.",
   "Time limit reached": "تم بلوغ الحد الزمني",
-  "Voice adaptation": "تكييف الصوت"
+  "Voice adaptation": "تكييف الصوت",
+  "TTS adaptation failed. The last valid TTS model was kept.": "فشل تكييف تحويل النص إلى كلام. تم الاحتفاظ بآخر نموذج صالح لتحويل النص إلى كلام."
 }

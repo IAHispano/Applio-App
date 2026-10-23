@@ -1852,5 +1852,6 @@
   "Transcripts are generated automatically. Your voice recordings are reused.": "Transcripts are generated automatically. Your voice recordings are reused.",
   "Choose a voice, add recordings, and train its TTS model.": "Choose a voice, add recordings, and train its TTS model.",
   "Time limit reached": "Time limit reached",
-  "Voice adaptation": "Voice adaptation"
+  "Voice adaptation": "Voice adaptation",
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS adaptation failed. The last valid TTS model was kept."
 }
