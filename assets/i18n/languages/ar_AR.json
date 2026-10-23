@@ -1866,5 +1866,20 @@
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "يستخدم تحويل النص إلى كلام نموذجًا مدرّبًا مسبقًا باللغة المحددة. تتشارك مرحلتا الإعداد والتكييف حدًا زمنيًا يساوي مدة تدريب الصوت. عند تدريب الصوت على المعالج الرسومي، تعملان بالتوازي على المعالج المركزي؛ وإلا فتعملان بعد التدريب. عند انتهاء الوقت، يُحتفظ بأفضل نموذج متاح.",
   "Maximum TTS steps": "الحد الأقصى لخطوات تحويل النص إلى كلام",
   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "يُستخدم نموذج تحويل النص إلى كلام المدرّب مسبقًا؛ لم يُحفظ نموذج مكيّف أفضل ضمن الوقت المحدد.",
-  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "يقسّم تحويل النص إلى كلام التسجيلات الطويلة تلقائيًا وينشئ النصوص المفرّغة الناقصة. ويعيد استخدام النصوص المفرّغة الموجودة التي تطابق التسجيلات. تُنزّل نماذج التعرّف على الكلام عند الاستخدام الأول."
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "يقسّم تحويل النص إلى كلام التسجيلات الطويلة تلقائيًا وينشئ النصوص المفرّغة الناقصة. ويعيد استخدام النصوص المفرّغة الموجودة التي تطابق التسجيلات. تُنزّل نماذج التعرّف على الكلام عند الاستخدام الأول.",
+  "Time limit (seconds)": "الحد الزمني (بالثواني)",
+  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.": "يشترك التحضير والتكييف في هذا الحد، ولا يتجاوز مدة تدريب الصوت المسجلة إن توفرت. قد يستغرق التنظيف والتحقق من المخرجات بضع ثوانٍ إضافية. يُحتفظ بالنموذج المدرّب مسبقًا إذا تعذر إكمال التكييف.",
+  "Manage TTS models": "إدارة نماذج TTS",
+  "Import a pretrained TTS model to get started.": "استورد نموذج TTS مدرّبًا مسبقًا للبدء.",
+  "Choose an existing voice and give its TTS model a name.": "اختر صوتًا موجودًا وسمِّ نموذج TTS الخاص به.",
+  "Add recordings. Applio creates the transcripts and prepares the clips for you.": "أضف التسجيلات. ينشئ Applio النصوص ويجهّز المقاطع نيابةً عنك.",
+  "Automatic transcripts": "نصوص تلقائية",
+  "Existing datasets": "مجموعات البيانات الموجودة",
+  "Your original recordings stay untouched. Matching transcripts are reused when available.": "تبقى تسجيلاتك الأصلية دون تغيير. تُستخدم النصوص المطابقة مجددًا عند توفرها.",
+  "Start from a pretrained TTS model in your recordings’ language.": "ابدأ بنموذج TTS مدرّب مسبقًا بلغة تسجيلاتك.",
+  "Ready to train": "جاهز للتدريب",
+  "Transcripts are generated automatically. Your voice recordings are reused.": "تُنشأ النصوص تلقائيًا وتُستخدم تسجيلات صوتك مجددًا.",
+  "Choose a voice, add recordings, and train its TTS model.": "اختر صوتًا وأضف التسجيلات ثم درّب نموذج TTS الخاص به.",
+  "Time limit reached": "تم بلوغ الحد الزمني",
+  "Voice adaptation": "تكييف الصوت"
 }

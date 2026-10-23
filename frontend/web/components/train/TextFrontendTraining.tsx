@@ -1,15 +1,26 @@
 "use client";
 
-import Link from "next/link";
+import { Check, Clock, Database, Layers, Mic2, Play, Settings2, Sparkles } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { JobBadge, JobError, JobProgress, JobStage } from "@/components/JobStatus";
-import { TtsModelDownload, TtsModelImport } from "@/components/TtsModelFiles";
-import { Alert, Button, Card, CardHeader, CustomSelect, FormField } from "@/components/ui";
-import { apiGet, errMsg, fetchModels, stopJob, submitJob } from "@/lib/api";
+import { JobPanelContent } from "@/components/JobPanel";
+import { TtsModelSelect } from "@/components/TtsModelFiles";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  CustomSelect,
+  Disclosure,
+  FormField,
+  ModelDropdown,
+} from "@/components/ui";
+import { apiGet, errMsg, fetchModels, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 import type { GpuDevice } from "./GpuSelect";
+import TrainingUpload from "./TrainingUpload";
 
 const speechLanguages = ["en", "en-us", "es", "fr", "de", "it", "pt", "nl", "pl", "ru", "tr", "hi", "ar"];
 
@@ -26,7 +37,6 @@ export function TextFrontendInitialization({
   disabled: boolean;
   required?: boolean;
 }) {
-  const { t } = useI18n();
   const [frontends, setFrontends] = useState<string[]>([]);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -43,31 +53,18 @@ export function TextFrontendInitialization({
     };
   }, []);
   return (
-    <FormField label={t("Pretrained")} htmlFor={id}>
-      <input
+    <div className="min-w-0">
+      <TtsModelSelect
         id={id}
-        type="text"
-        list={`${id}-options`}
         value={value}
-        placeholder={t(required ? "Select a TTS model." : "None")}
+        models={frontends}
+        label="Pretrained"
         required={required}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={onChange}
         disabled={disabled}
-      />
-      <datalist id={`${id}-options`}>
-        {frontends.map((path) => (
-          <option key={path} value={path} />
-        ))}
-      </datalist>
-      <TtsModelImport
-        disabled={disabled}
-        onImport={(path) => {
-          onChange(path);
-          setFrontends((current) => [...new Set([...current, path])]);
-        }}
       />
       {error && <Alert variant="error">{error}</Alert>}
-    </FormField>
+    </div>
   );
 }
 
@@ -107,15 +104,19 @@ export default function TextFrontendTraining({ requestedVoice = "" }: { requeste
   const [voice, setVoice] = useWorkspaceState("train:text:voice", "");
   const [voices, setVoices] = useState<string[]>([]);
   const [initial, setInitial] = useWorkspaceState("train:text:initial", "");
-  const [steps, setSteps] = useWorkspaceState("train:text:steps", 10000);
+  const [steps, setSteps] = useWorkspaceState("train:text:steps", 1000);
+  const [maxSeconds, setMaxSeconds] = useWorkspaceState("train:text:max-seconds", 60);
   const [batchSize, setBatchSize] = useWorkspaceState("train:text:batch", 4);
   const [device, setDevice] = useWorkspaceState("train:text:device", "cpu");
   const [language, setLanguage] = useWorkspaceState("train:text:language", "en");
   const [devices, setDevices] = useState<GpuDevice[]>([]);
   const [jobId, setJobId] = usePersistentJobId("train-text");
-  const { job, isActive, error, setError } = useJob(jobId);
+  const activity = useJob(jobId);
+  const { job, isActive, error, setError } = activity;
   const [submitting, setSubmitting] = useState(false);
-  const busy = isActive || submitting;
+  const [uploading, setUploading] = useState(false);
+  const [datasets, setDatasets] = useState<string[]>([]);
+  const busy = isActive || submitting || uploading;
   const appliedVoice = useRef("");
 
   useEffect(() => {
@@ -131,6 +132,20 @@ export default function TextFrontendTraining({ requestedVoice = "" }: { requeste
     apiGet<{ devices: GpuDevice[] }>("/api/train/gpus")
       .then((response) => {
         if (active) setDevices(response.devices);
+      })
+      .catch((error) => {
+        if (active) setError(errMsg(error));
+      });
+    return () => {
+      active = false;
+    };
+  }, [setError]);
+
+  useEffect(() => {
+    let active = true;
+    apiGet<{ datasets: string[] }>("/api/train/datasets")
+      .then(({ datasets }) => {
+        if (active) setDatasets(datasets);
       })
       .catch((error) => {
         if (active) setError(errMsg(error));
@@ -165,6 +180,7 @@ export default function TextFrontendTraining({ requestedVoice = "" }: { requeste
         language,
         output: `logs/tts/${name}`,
         steps,
+        maxSeconds,
         batchSize,
         hidden: 256,
         layers: 4,
@@ -180,144 +196,241 @@ export default function TextFrontendTraining({ requestedVoice = "" }: { requeste
     }
   }
 
+  const disabledReason = busy
+    ? t(uploading ? "Uploading…" : "Pipeline Running…")
+    : !name.trim()
+      ? t("Please enter a model name.")
+      : !voice
+        ? t("Select a voice model…")
+        : !dataset.trim()
+          ? t("Please enter a dataset path.")
+          : !initial.trim()
+            ? t("Select a TTS model.")
+            : "";
+  const submitted = job?.params?.training as Record<string, unknown> | undefined;
+  const sameProject =
+    job?.params?.modelName === name && submitted?.datasetRoot === dataset && submitted?.pthPath === voice;
+  const showActivity = Boolean(jobId && (isActive || sameProject));
+
   return (
-    <Card as="section" className="space-y-4">
-      <CardHeader
-        title={t("Enable TTS for a voice")}
-        description={t(
-          "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.",
-        )}
-      />
+    <div className="space-y-5">
       {error && (
         <Alert variant="error" onDismiss={() => setError("")}>
           {error}
         </Alert>
       )}
-      <form onSubmit={start} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField label={t("Model Name")} htmlFor="text-train-name">
-            <input
-              id="text-train-name"
-              type="text"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              required
-              pattern="[A-Za-z0-9_-]{1,80}"
-              maxLength={80}
-              disabled={busy}
-            />
-          </FormField>
-          <FormField label={t("Dataset Path")} htmlFor="text-train-dataset">
-            <input
-              id="text-train-dataset"
-              type="text"
-              value={dataset}
-              onChange={(event) => setDataset(event.target.value)}
-              required
-              disabled={busy}
-            />
-          </FormField>
-          <FormField label={t("Voice Model")} htmlFor="text-train-voice">
-            <CustomSelect
-              id="text-train-voice"
-              value={voice}
-              onValueChange={setVoice}
-              options={voices.map((value) => ({ value, label: value }))}
-              disabled={busy}
-            />
-          </FormField>
-          <TextFrontendInitialization
-            id="text-train-initial"
-            value={initial}
-            onChange={setInitial}
-            disabled={busy}
+      <form onSubmit={start} className="space-y-5">
+        <Card as="section">
+          <CardHeader
+            step={1}
+            icon={<Mic2 size={18} />}
+            title={t("Training Project")}
+            description={t("Choose an existing voice and give its TTS model a name.")}
           />
-          <FormField label={t("Training steps")} htmlFor="text-train-steps">
-            <input
-              id="text-train-steps"
-              type="number"
-              value={steps}
-              onChange={(event) => setSteps(Number(event.target.value))}
-              min={1}
-              max={100000}
-              step={1}
-              required
-              disabled={busy}
-            />
-          </FormField>
-          <FormField label={t("Batch Size")} htmlFor="text-train-batch">
-            <input
-              id="text-train-batch"
-              type="number"
-              value={batchSize}
-              onChange={(event) => setBatchSize(Number(event.target.value))}
-              min={1}
-              max={32}
-              step={1}
-              required
-              disabled={busy}
-            />
-          </FormField>
-          <TextFrontendLanguage
-            id="text-train-language"
-            value={language}
-            onChange={setLanguage}
-            disabled={busy}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label={t("Voice Model")} htmlFor="text-train-voice" required>
+              <ModelDropdown
+                id="text-train-voice"
+                models={voices}
+                selectedModel={voice}
+                onSelect={setVoice}
+                disabled={busy}
+              />
+            </FormField>
+            <FormField label={t("Model Name")} htmlFor="text-train-name" required>
+              <input
+                id="text-train-name"
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+                pattern="[A-Za-z0-9_-]{1,80}"
+                maxLength={80}
+                disabled={busy}
+              />
+            </FormField>
+          </div>
+        </Card>
+
+        <Card as="section">
+          <CardHeader
+            step={2}
+            icon={<Database size={18} />}
+            title={t("Recordings")}
+            description={t("Add recordings. Applio creates the transcripts and prepares the clips for you.")}
+            action={
+              <Badge variant="info">
+                <Sparkles size={12} className="inline mr-1" aria-hidden="true" />
+                {t("Automatic transcripts")}
+              </Badge>
+            }
           />
-          <FormField label={t("GPU")} htmlFor="text-train-device">
-            <CustomSelect
-              id="text-train-device"
-              value={device}
-              onValueChange={setDevice}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField label={t("Dataset Path")} htmlFor="text-train-dataset" required>
+              <input
+                id="text-train-dataset"
+                type="text"
+                value={dataset}
+                onChange={(event) => setDataset(event.target.value)}
+                required
+                disabled={busy}
+              />
+            </FormField>
+            <TextFrontendLanguage
+              id="text-train-language"
+              value={language}
+              onChange={setLanguage}
               disabled={busy}
-              options={[
-                { value: "cpu", label: t("CPU") },
-                ...(devices.some((gpu) => gpu.kind !== "mps")
-                  ? [{ value: "cuda", label: devices.find((gpu) => gpu.kind !== "mps")?.name || "GPU" }]
-                  : []),
-                ...(devices.some((gpu) => gpu.kind === "mps")
-                  ? [{ value: "mps", label: devices.find((gpu) => gpu.kind === "mps")?.name || "GPU" }]
-                  : []),
-              ]}
             />
-          </FormField>
-        </div>
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button type="submit" disabled={busy || !voice}>
-            {submitting ? t("Submitting…") : t("Train")}
-          </Button>
-          {isActive && jobId && (
-            <Button variant="danger" onClick={() => stopJob(jobId).catch((error) => setError(errMsg(error)))}>
-              {t("Cancel")}
-            </Button>
-          )}
-          {job && (
-            <>
-              <JobBadge status={job.status} error={job.error} />
-              <JobStage job={job} />
-            </>
-          )}
-          {job?.status === "done" && <TtsModelDownload frontend={String(job.result?.frontend || "")} />}
-          {job?.status === "done" && (
-            <Link
-              href={`/tts?provider=rvc&frontend=${encodeURIComponent(String(job.result?.frontend || ""))}&pth=${encodeURIComponent(String(job.result?.pthPath || voice))}`}
-              className="underline"
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <TrainingUpload
+              kind="dataset"
+              initialName={name}
+              disabled={isActive || submitting}
+              onBusyChange={setUploading}
+              onUploaded={(path) => {
+                setDataset(path);
+                setDatasets((current) => [...new Set([...current, path])]);
+              }}
+            />
+            {datasets.length > 0 && (
+              <FormField label={t("Existing datasets")} htmlFor="text-train-existing-dataset">
+                <CustomSelect
+                  id="text-train-existing-dataset"
+                  value={datasets.includes(dataset) ? dataset : ""}
+                  onValueChange={setDataset}
+                  disabled={busy}
+                  options={datasets.map((path) => ({
+                    value: path,
+                    label: path.split(/[\\/]/).filter(Boolean).at(-1) || path,
+                  }))}
+                />
+              </FormField>
+            )}
+          </div>
+          <p className="field-help m-0">
+            {t("Your original recordings stay untouched. Matching transcripts are reused when available.")}
+          </p>
+        </Card>
+
+        <Card as="section">
+          <CardHeader
+            step={3}
+            icon={<Layers size={18} />}
+            title={t("Applio TTS")}
+            description={t("Start from a pretrained TTS model in your recordings’ language.")}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <TextFrontendInitialization
+              id="text-train-initial"
+              value={initial}
+              onChange={setInitial}
+              disabled={busy}
+              required
+            />
+            <FormField label={t("Time limit (seconds)")} htmlFor="text-train-seconds" required>
+              <input
+                id="text-train-seconds"
+                type="number"
+                value={maxSeconds}
+                onChange={(event) => setMaxSeconds(Number(event.target.value))}
+                min={1}
+                max={3600}
+                step={1}
+                required
+                disabled={busy}
+              />
+              <p className="field-help m-0">
+                {t(
+                  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.",
+                )}
+              </p>
+            </FormField>
+          </div>
+          <Disclosure title={t("Advanced training options")} icon={<Settings2 size={16} />}>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <FormField label={t("Maximum TTS steps")} htmlFor="text-train-steps">
+                <input
+                  id="text-train-steps"
+                  type="number"
+                  value={steps}
+                  onChange={(event) => setSteps(Number(event.target.value))}
+                  min={1}
+                  max={100000}
+                  step={1}
+                  required
+                  disabled={busy}
+                />
+              </FormField>
+              <FormField label={t("Batch Size")} htmlFor="text-train-batch">
+                <input
+                  id="text-train-batch"
+                  type="number"
+                  value={batchSize}
+                  onChange={(event) => setBatchSize(Number(event.target.value))}
+                  min={1}
+                  max={32}
+                  step={1}
+                  required
+                  disabled={busy}
+                />
+              </FormField>
+              <FormField label={t("GPU")} htmlFor="text-train-device">
+                <CustomSelect
+                  id="text-train-device"
+                  value={device}
+                  onValueChange={setDevice}
+                  disabled={busy}
+                  options={[
+                    { value: "cpu", label: t("CPU") },
+                    ...(devices.some((gpu) => gpu.kind !== "mps")
+                      ? [{ value: "cuda", label: devices.find((gpu) => gpu.kind !== "mps")?.name || "GPU" }]
+                      : []),
+                    ...(devices.some((gpu) => gpu.kind === "mps")
+                      ? [{ value: "mps", label: devices.find((gpu) => gpu.kind === "mps")?.name || "GPU" }]
+                      : []),
+                  ]}
+                />
+              </FormField>
+            </div>
+          </Disclosure>
+        </Card>
+
+        <Card className="space-y-3">
+          <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+              {disabledReason ? <Clock size={16} /> : <Check size={16} className="text-[var(--success)]" />}
+              <span id="text-train-ready" role="status">
+                {disabledReason || t("Ready to train")}
+              </span>
+            </div>
+            <Button
+              type="submit"
+              icon={<Play size={16} />}
+              disabled={Boolean(disabledReason)}
+              loading={submitting}
+              aria-describedby="text-train-ready"
             >
-              {t("Text to Speech")}
-            </Link>
-          )}
-        </div>
+              {t("Start Training")}
+            </Button>
+          </div>
+        </Card>
       </form>
-      {job && <JobProgress status={job.status} progress={job.progress} job={job} />}
-      {job?.status === "error" && (
-        <JobError message={job.error} details={job.errorDetails} logs={job.logs} jobId={job.id} />
+
+      {showActivity && (
+        <Card as="section">
+          <CardHeader icon={<Layers size={18} />} title={t("Training Activity Console")} />
+          <JobPanelContent jobId={jobId} activity={activity} embedded showLogs />
+        </Card>
       )}
-      {job?.logs?.length ? (
-        <details>
-          <summary>{t("Training")}</summary>
-          <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs">{job.logs.join("\n")}</pre>
-        </details>
-      ) : null}
-    </Card>
+      {!showActivity && jobId && (
+        <div className="flex justify-end">
+          <Button href="/jobs" variant="ghost" size="sm">
+            {t("Job history")}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }

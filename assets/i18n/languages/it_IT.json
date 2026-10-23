@@ -1866,5 +1866,20 @@
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS usa un modello preaddestrato nella lingua selezionata. La preparazione e l’adattamento condividono un tempo massimo pari alla durata dell’addestramento vocale. Se la voce viene addestrata sulla GPU, queste attività vengono eseguite in parallelo sulla CPU; altrimenti, vengono eseguite dopo. Alla scadenza viene conservato il miglior modello disponibile.",
   "Maximum TTS steps": "Passi TTS massimi",
   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Viene usato il modello TTS preaddestrato; nessun adattamento migliorato è stato salvato entro il tempo disponibile.",
-  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS suddivide automaticamente le registrazioni lunghe e genera le trascrizioni mancanti. Le trascrizioni esistenti corrispondenti vengono riutilizzate. I modelli di riconoscimento vengono scaricati al primo utilizzo."
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS suddivide automaticamente le registrazioni lunghe e genera le trascrizioni mancanti. Le trascrizioni esistenti corrispondenti vengono riutilizzate. I modelli di riconoscimento vengono scaricati al primo utilizzo.",
+  "Time limit (seconds)": "Limite di tempo (secondi)",
+  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.": "La preparazione e l’adattamento condividono questo limite, che non supera il tempo di addestramento della voce registrato, se disponibile. La pulizia e i controlli dell’output possono richiedere alcuni secondi in più. Il modello preaddestrato viene mantenuto se l’adattamento non può terminare.",
+  "Manage TTS models": "Gestisci modelli TTS",
+  "Import a pretrained TTS model to get started.": "Importa un modello TTS preaddestrato per iniziare.",
+  "Choose an existing voice and give its TTS model a name.": "Scegli una voce esistente e assegna un nome al suo modello TTS.",
+  "Add recordings. Applio creates the transcripts and prepares the clips for you.": "Aggiungi registrazioni. Applio crea le trascrizioni e prepara le clip per te.",
+  "Automatic transcripts": "Trascrizioni automatiche",
+  "Existing datasets": "Dataset esistenti",
+  "Your original recordings stay untouched. Matching transcripts are reused when available.": "Le registrazioni originali restano intatte. Le trascrizioni corrispondenti vengono riutilizzate quando disponibili.",
+  "Start from a pretrained TTS model in your recordings’ language.": "Parti da un modello TTS preaddestrato nella lingua delle tue registrazioni.",
+  "Ready to train": "Pronto per l’addestramento",
+  "Transcripts are generated automatically. Your voice recordings are reused.": "Le trascrizioni vengono generate automaticamente. Le registrazioni della tua voce vengono riutilizzate.",
+  "Choose a voice, add recordings, and train its TTS model.": "Scegli una voce, aggiungi registrazioni e addestra il suo modello TTS.",
+  "Time limit reached": "Limite di tempo raggiunto",
+  "Voice adaptation": "Adattamento vocale"
 }

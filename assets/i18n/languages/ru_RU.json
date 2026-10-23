@@ -1866,5 +1866,20 @@
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS использует предобученную модель на выбранном языке. Подготовка и адаптация вместе ограничены временем обучения голоса. При обучении голоса на GPU они выполняются параллельно на CPU, иначе — после него. По истечении времени сохраняется лучшая доступная модель.",
   "Maximum TTS steps": "Максимум шагов TTS",
   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Используется предобученная модель TTS: за отведённое время улучшенная адаптация не была сохранена.",
-  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS автоматически разбивает длинные записи и создаёт недостающие расшифровки. Существующие расшифровки, соответствующие записям, используются повторно. Модели распознавания загружаются при первом использовании."
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS автоматически разбивает длинные записи и создаёт недостающие расшифровки. Существующие расшифровки, соответствующие записям, используются повторно. Модели распознавания загружаются при первом использовании.",
+  "Time limit (seconds)": "Ограничение времени (секунды)",
+  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.": "Подготовка и адаптация используют общее ограничение, не превышающее сохранённое время обучения голоса, если оно доступно. Очистка и проверка результатов могут занять ещё несколько секунд. Если адаптация не завершится, сохранится предобученная модель.",
+  "Manage TTS models": "Управление моделями TTS",
+  "Import a pretrained TTS model to get started.": "Для начала импортируйте предобученную модель TTS.",
+  "Choose an existing voice and give its TTS model a name.": "Выберите существующий голос и назовите его модель TTS.",
+  "Add recordings. Applio creates the transcripts and prepares the clips for you.": "Добавьте записи. Applio создаст расшифровки и подготовит фрагменты за вас.",
+  "Automatic transcripts": "Автоматические расшифровки",
+  "Existing datasets": "Существующие наборы данных",
+  "Your original recordings stay untouched. Matching transcripts are reused when available.": "Исходные записи остаются без изменений. Имеющиеся соответствующие расшифровки используются повторно.",
+  "Start from a pretrained TTS model in your recordings’ language.": "Начните с предобученной модели TTS на языке ваших записей.",
+  "Ready to train": "Всё готово к обучению",
+  "Transcripts are generated automatically. Your voice recordings are reused.": "Расшифровки создаются автоматически. Записи вашего голоса используются повторно.",
+  "Choose a voice, add recordings, and train its TTS model.": "Выберите голос, добавьте записи и обучите его модель TTS.",
+  "Time limit reached": "Достигнуто ограничение времени",
+  "Voice adaptation": "Адаптация голоса"
 }

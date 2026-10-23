@@ -22,7 +22,7 @@ use std::{
     collections::HashMap,
     path::{Component, Path, PathBuf},
     sync::{
-        atomic::{AtomicU64, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, OnceLock,
     },
     time::Duration,
@@ -85,6 +85,8 @@ struct TextRvcTraining {
     #[serde(default)]
     phonetic_loss: bool,
     steps: u32,
+    #[serde(default = "text_rvc_seconds")]
+    max_seconds: u32,
     batch_size: u32,
     hidden: u32,
     layers: u32,
@@ -92,6 +94,9 @@ struct TextRvcTraining {
 }
 fn text_rvc_speaker() -> String {
     "p225".into()
+}
+fn text_rvc_seconds() -> u32 {
+    60
 }
 fn text_rvc_language() -> String {
     "en".into()
@@ -109,6 +114,8 @@ impl TextRvcTraining {
             || !Regex::new(r"^p\d{3}$").unwrap().is_match(&self.speaker)
             || self.output.trim().is_empty()
             || self.reset_tokenizer && self.initialize_from.is_none()
+            || !(1..=3600).contains(&self.max_seconds)
+            || (!self.pth_path.is_empty() && self.initialize_from.is_none())
         {
             bail!("Invalid text-to-RVC training parameters");
         }
@@ -168,6 +175,29 @@ async fn text_rvc(
         path_string(&output),
     ];
     let resolved_manifest = path_string(&source);
+    let voice = if request.pth_path.is_empty() {
+        None
+    } else {
+        Some(runtime.require_file(&request.pth_path)?)
+    };
+    let budget = text_training_budget(
+        request.max_seconds,
+        voice.as_deref().and_then(|voice| {
+            state.engine.jobs.list().into_iter().find_map(|job| {
+                if job.status != crate::jobs::JobStatus::Done || job.kind != JobType::Train {
+                    return None;
+                }
+                let output = job.output_file.as_deref()?;
+                if runtime.require_file(output).ok()?.as_path() != voice {
+                    return None;
+                }
+                let result = job.result?;
+                result["voiceTrainingSeconds"]
+                    .as_f64()
+                    .or_else(|| result["ttsBudgetSeconds"].as_f64())
+            })
+        }),
+    );
     if !prepared {
         args.extend([
             "--auto-transcribe".into(),
@@ -199,13 +229,19 @@ async fn text_rvc(
     ] {
         args.extend([flag.into(), value.to_string()]);
     }
-    if let Some(source) = &request.initialize_from {
+    let initial = if let Some(source) = &request.initialize_from {
         let source = runtime.resolve_user_path(source)?;
         if !source.is_file() {
             return Err(Error::input("Initialization checkpoint not found"));
         }
         args.extend(["--initialize-from".into(), path_string(&source)]);
-    }
+        if !prepared {
+            args.push("--live-export".into());
+        }
+        Some(source)
+    } else {
+        None
+    };
     if request.reset_tokenizer {
         args.push("--reset-tokenizer".into());
     }
@@ -229,43 +265,97 @@ async fn text_rvc(
                     None,
                     None,
                 );
+                let started = tokio::time::Instant::now();
+                let work_token = token.child_token();
+                let best_step = AtomicU64::new(0);
+                let initial_validated = AtomicBool::new(false);
                 let mut spec = engine.runtime.python_command(args)?;
                 if resource.is_some() {
                     spec.env
                         .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
                 }
-                let result = ManagedProcess::run(&spec, &token, |_, line| {
-                    text_training_log(&engine, &job.id, line, request.steps.into(), "Training");
-                })
-                .await?;
-                result.ensure_success()?;
-                let best = output.join(if prepared {
-                    "best.pt"
-                } else {
-                    "training/best.pt"
-                });
-                if !ready_file(&best) {
-                    bail!("Training exited without a frontend checkpoint");
-                }
-                if prepared {
-                    let spec = engine.runtime.python_command([
-                        "-m".to_owned(),
-                        "backend.python.text_rvc".into(),
-                        "calibrate".into(),
-                        "--frontend".into(),
-                        path_string(&best),
-                        "--manifest".into(),
-                        resolved_manifest.clone(),
-                        "--output".into(),
-                        path_string(&output.join("frontend.pt")),
-                    ])?;
-                    ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
-                        .await?
-                        .ensure_success()?;
+                let work = async {
+                    if let (Some(initial), Some(voice)) = (&initial, &voice) {
+                        let spec = engine.runtime.python_command([
+                            "-m".to_owned(),
+                            "backend.python.text_rvc".into(),
+                            "validate-pair".into(),
+                            "--frontend".into(), path_string(initial),
+                            "--rvc".into(), path_string(voice),
+                            "--language".into(), request.language.clone(),
+                            "--hidden".into(), request.hidden.to_string(),
+                            "--layers".into(), request.layers.to_string(),
+                        ])?;
+                        ManagedProcess::run(&spec, &work_token, |_, line| engine.jobs.log(&job.id, line))
+                            .await?
+                            .ensure_success()?;
+                        initial_validated.store(true, Ordering::Relaxed);
+                    }
+                    let result = ManagedProcess::run(&spec, &work_token, |_, line| {
+                        if let Some(step) = text_checkpoint_step(line) {
+                            best_step.store(step, Ordering::Relaxed);
+                        }
+                        text_training_log(&engine, &job.id, line, request.steps.into(), "Training");
+                    }).await?;
+                    result.ensure_success()?;
+                    let best = output.join(if prepared { "best.pt" } else { "training/best.pt" });
+                    if !ready_file(&best) {
+                        bail!("Training exited without a frontend checkpoint");
+                    }
+                    if prepared {
+                        let spec = engine.runtime.python_command([
+                            "-m".to_owned(),
+                            "backend.python.text_rvc".into(),
+                            "calibrate".into(),
+                            "--frontend".into(), path_string(&best),
+                            "--manifest".into(), resolved_manifest.clone(),
+                            "--output".into(), path_string(&output.join("frontend.pt")),
+                        ])?;
+                        ManagedProcess::run(&spec, &work_token, |_, line| engine.jobs.log(&job.id, line))
+                            .await?
+                            .ensure_success()?;
+                    }
+                    Ok::<_, anyhow::Error>(())
+                };
+                tokio::pin!(work);
+                let expired = tokio::select! {
+                    result = &mut work => { result?; false }
+                    _ = tokio::time::sleep(budget) => {
+                        work_token.cancel();
+                        let _ = work.await;
+                        true
+                    }
+                };
+                if token.is_cancelled() {
+                    bail!("Stopped by user");
                 }
                 let frontend = output.join("frontend.pt");
+                if expired && !ready_file(&frontend) {
+                    let best = output.join(if prepared { "best.pt" } else { "training/best.pt" });
+                    let source = if ready_file(&best) {
+                        Some(&best)
+                    } else if initial_validated.load(Ordering::Relaxed) {
+                        initial.as_ref()
+                    } else {
+                        None
+                    };
+                    if let Some(source) = source {
+                        tokio::fs::create_dir_all(&output).await?;
+                        let temporary = output.join("deadline.pt");
+                        tokio::fs::copy(source, &temporary).await?;
+                        tokio::fs::rename(temporary, &frontend).await?;
+                    }
+                }
                 if !ready_file(&frontend) {
                     bail!("Training did not export a calibrated frontend");
+                }
+                if let Some(voice) = &voice {
+                    let spec = engine.runtime.python_command([
+                        "-m".to_owned(), "backend.python.text_rvc".into(), "validate-pair".into(),
+                        "--frontend".into(), path_string(&frontend), "--rvc".into(), path_string(voice),
+                    ])?;
+                    ManagedProcess::run(&spec, &token, |_, line| engine.jobs.log(&job.id, line))
+                        .await?.ensure_success()?;
                 }
                 let frontend = if frontend.starts_with(&engine.runtime.logs) {
                     engine.runtime.model_relative(&frontend)
@@ -273,7 +363,11 @@ async fn text_rvc(
                     path_string(&frontend)
                 };
                 Ok(JobResult::new(
-                    json!({"frontend":frontend,"pthPath":request.pth_path}),
+                    json!({"frontend":frontend,"pthPath":request.pth_path,
+                        "ttsAdapted":if prepared { Value::Null } else { json!(best_step.load(Ordering::Relaxed)>0) },
+                        "ttsBudgetSeconds":budget.as_secs_f64(),
+                        "ttsElapsedSeconds":started.elapsed().as_secs_f64(),
+                        "ttsTimeLimitReached":expired}),
                     None,
                 ))
             },
@@ -281,6 +375,13 @@ async fn text_rvc(
         .await
         .map_err(Error::internal)?;
     Ok(accepted(job))
+}
+fn text_training_budget(requested_seconds: u32, voice_seconds: Option<f64>) -> Duration {
+    let requested = requested_seconds as f64;
+    let seconds = voice_seconds
+        .filter(|seconds| seconds.is_finite() && *seconds > 0.0)
+        .map_or(requested, |seconds| requested.min(seconds));
+    Duration::from_secs_f64(seconds)
 }
 async fn text_frontends(State(state): State<Arc<Training>>) -> Result<Json<Value>, Error> {
     let runtime = state.engine.runtime.clone();
@@ -891,7 +992,12 @@ fn text_training_log(engine: &NativeEngine, id: &str, line: &str, total: u64, st
 }
 fn text_preparation_stage(line: &str) -> Option<&'static str> {
     let line = line.trim();
-    if line.starts_with("Prepared ") {
+    if serde_json::from_str::<Value>(line)
+        .ok()
+        .is_some_and(|value| value["tts_transcribed_clip"].is_string())
+    {
+        Some("Preparing speech synthesis…")
+    } else if line.starts_with("Prepared ") {
         Some("Extracting features…")
     } else if line.starts_with("Aligned ") {
         Some("Aligning transcripts…")
@@ -1239,6 +1345,9 @@ async fn run(
         bail!("Stopped by user");
     }
     let mut result = json!({"message":message});
+    if !voice_training_time.is_zero() {
+        result["voiceTrainingSeconds"] = json!(voice_training_time.as_secs_f64());
+    }
     if let Some(error) = alignment_error {
         engine
             .jobs
@@ -1761,6 +1870,8 @@ print('done')
             .validate()
             .unwrap();
         for (key, value) in [
+            ("maxSeconds", json!(0)),
+            ("maxSeconds", json!(3601)),
             ("steps", json!(0)),
             ("batchSize", json!(33)),
             ("hidden", json!(127)),
@@ -1775,6 +1886,18 @@ print('done')
                 .validate()
                 .is_err());
         }
+        assert_eq!(
+            text_training_budget(60, Some(12.5)),
+            Duration::from_secs_f64(12.5)
+        );
+        assert_eq!(
+            text_training_budget(60, Some(180.0)),
+            Duration::from_secs(60)
+        );
+        assert_eq!(
+            text_training_budget(60, Some(f64::NAN)),
+            Duration::from_secs(60)
+        );
         let mut unknown = valid;
         unknown["command"] = json!("arbitrary command");
         assert!(serde_json::from_value::<TextRvcTraining>(unknown).is_err());

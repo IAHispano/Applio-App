@@ -1866,5 +1866,20 @@
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS menggunakan model pralatih dalam bahasa yang dipilih. Persiapan dan adaptasi berbagi batas waktu yang setara dengan durasi pelatihan suara. Jika suara dilatih di GPU, keduanya berjalan paralel di CPU; jika tidak, keduanya dijalankan setelahnya. Saat waktu habis, model terbaik yang tersedia dipertahankan.",
   "Maximum TTS steps": "Langkah TTS maksimum",
   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Model TTS pralatih digunakan; tidak ada adaptasi yang lebih baik yang disimpan dalam batas waktu.",
-  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS otomatis membagi rekaman panjang dan membuat transkrip yang belum tersedia. Transkrip yang sudah ada dan sesuai digunakan kembali. Model pengenalan suara diunduh saat pertama kali digunakan."
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS otomatis membagi rekaman panjang dan membuat transkrip yang belum tersedia. Transkrip yang sudah ada dan sesuai digunakan kembali. Model pengenalan suara diunduh saat pertama kali digunakan.",
+  "Time limit (seconds)": "Batas waktu (detik)",
+  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.": "Persiapan dan adaptasi berbagi batas ini, yang dibatasi oleh durasi pelatihan suara yang tercatat jika tersedia. Pembersihan dan pemeriksaan hasil mungkin memerlukan beberapa detik tambahan. Model pralatih dipertahankan jika adaptasi tidak dapat selesai.",
+  "Manage TTS models": "Kelola model TTS",
+  "Import a pretrained TTS model to get started.": "Impor model TTS pralatih untuk memulai.",
+  "Choose an existing voice and give its TTS model a name.": "Pilih suara yang sudah ada dan beri nama model TTS-nya.",
+  "Add recordings. Applio creates the transcripts and prepares the clips for you.": "Tambahkan rekaman. Applio membuat transkrip dan menyiapkan klip untuk Anda.",
+  "Automatic transcripts": "Transkrip otomatis",
+  "Existing datasets": "Dataset yang tersedia",
+  "Your original recordings stay untouched. Matching transcripts are reused when available.": "Rekaman asli Anda tidak diubah. Transkrip yang cocok digunakan kembali jika tersedia.",
+  "Start from a pretrained TTS model in your recordings’ language.": "Mulai dengan model TTS pralatih dalam bahasa rekaman Anda.",
+  "Ready to train": "Siap dilatih",
+  "Transcripts are generated automatically. Your voice recordings are reused.": "Transkrip dibuat secara otomatis. Rekaman suara Anda digunakan kembali.",
+  "Choose a voice, add recordings, and train its TTS model.": "Pilih suara, tambahkan rekaman, lalu latih model TTS-nya.",
+  "Time limit reached": "Batas waktu tercapai",
+  "Voice adaptation": "Adaptasi suara"
 }

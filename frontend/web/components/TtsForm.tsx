@@ -1,12 +1,11 @@
 "use client";
 
 import { FileText, Type, Upload, Wand2 } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
 import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
-import { TtsModelDownload, TtsModelImport } from "@/components/TtsModelFiles";
+import { TtsModelSelect } from "@/components/TtsModelFiles";
 import {
   Alert,
   Badge,
@@ -376,32 +375,15 @@ export default function TtsForm() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
               {direct ? (
-                <FormField label={t("TTS model")} htmlFor="tts-frontend">
-                  <input
-                    id="tts-frontend"
-                    type="text"
-                    value={frontend}
-                    onChange={(event) => setFrontend(event.target.value)}
-                    list="tts-frontend-models"
-                    required
-                  />
-                  <datalist id="tts-frontend-models">
-                    {frontends.map((path) => (
-                      <option key={path} value={path} />
-                    ))}
-                  </datalist>
-                  <TtsModelImport
-                    disabled={busy}
-                    onImport={(path) => {
-                      setFrontend(path);
-                      setFrontends((current) => [...new Set([...current, path])]);
-                    }}
-                  />
-                  {frontend && <TtsModelDownload frontend={frontend} />}
-                  <Link className="field-help underline" href="/train?mode=text">
-                    {t("Enable TTS for a voice")}
-                  </Link>
-                </FormField>
+                <TtsModelSelect
+                  id="tts-frontend"
+                  value={frontend}
+                  models={frontends}
+                  onChange={setFrontend}
+                  disabled={busy}
+                  required
+                  showTrainingLink
+                />
               ) : (
                 <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
                   <CustomSelect

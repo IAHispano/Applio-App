@@ -1255,18 +1255,20 @@ test("automatic and manual voice training retain the TTS warm-start selection", 
   }
 });
 
-test("adding TTS to an existing voice preselects it without replacing other training drafts", () => {
+test("adding TTS to an existing voice preselects it and submits the preparation deadline", async () => {
   const source=fs.readFileSync(new URL("../../frontend/web/components/train/TextFrontendTraining.tsx",import.meta.url),"utf8");
   const {outputText}=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
   for(const active of [false,true]) {
-    const state={"train:text:voice":"logs/previous.pth","train:text:dataset":"my-recordings","train:text:initial":"logs/tts/base/frontend.pt"};
+    const state={"train:text:voice":"logs/previous.pth","train:text:dataset":"my-recordings","train:text:initial":"logs/tts/base/frontend.pt","train:text:max-seconds":23};
     const exports={}; const effects=[];
+    const requests=[];
     new Function("exports","require",outputText)(exports,(name)=>{
       if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
       if(name==="react")return {useEffect:(fn)=>effects.push(fn),useRef:(current)=>({current}),useState:(value)=>[value,()=>{}]};
       if(name==="@/lib/workspace-state")return {useWorkspaceState:(key,initial)=>[state[key]??initial,(value)=>{state[key]=value;} ]};
       if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
-      if(name==="@/lib/useJob")return {usePersistentJobId:()=>[null,()=>{}],useJob:()=>({job:null,isActive:active,setError(){}})};
+      if(name==="@/lib/api")return {submitJob:async(path,body)=>{requests.push({path,body});return {jobId:"test"};}};
+      if(name==="@/lib/useJob")return {usePersistentJobId:()=>["previous",()=>{}],useJob:()=>({job:{status:"done",params:{modelName:"different-project",training:{datasetRoot:"different-recordings"}}},isActive:active,setError(){}})};
       return new Proxy({},{get:(_,key)=>key});
     });
     exports.default({requestedVoice:"logs/new voice/new.pth"});
@@ -1274,7 +1276,63 @@ test("adding TTS to an existing voice preselects it without replacing other trai
     assert.equal(state["train:text:voice"],active?"logs/previous.pth":"logs/new voice/new.pth");
     assert.equal(state["train:text:dataset"],"my-recordings");
     assert.equal(state["train:text:initial"],"logs/tts/base/frontend.pt");
+    if(!active) {
+      const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
+      const tree=nodes(exports.default({requestedVoice:"logs/new voice/new.pth"}));
+      assert.ok(tree.find(node=>node.props?.id==="text-train-initial").props.required);
+      assert.ok(!tree.some(node=>node.type==="JobPanelContent"),"A previous project's completed job must not label the current form as complete");
+      await tree.find(node=>node.type==="form").props.onSubmit({preventDefault(){}});
+      assert.equal(requests[0].path,"/api/train/text-rvc");
+      assert.equal(requests[0].body.maxSeconds,23);
+      assert.equal(requests[0].body.steps,1000);
+      assert.equal(requests[0].body.initializeFrom,"logs/tts/base/frontend.pt");
+    }
   }
+});
+
+test("TTS model selection uses friendly names and keeps file operations in model management", () => {
+  const source=fs.readFileSync(new URL("../../frontend/web/components/TtsModelFiles.tsx",import.meta.url),"utf8");
+  const {outputText}=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+  const exports={};
+  const selected=[];
+  new Function("exports","require",outputText)(exports,(name)=>{
+    if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})};
+    if(name==="react")return {useState:(value)=>[value,()=>{}]};
+    if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
+    return new Proxy({},{get:(_,key)=>key});
+  });
+  const path="logs/tts/my-voice/3db186b4-57b1-44b3-a58d-122183c5b51b/frontend.pt";
+  assert.equal(exports.ttsModelName(path),"my voice");
+  assert.equal(exports.ttsModelName("logs/tts/english-base/frontend.pt"),"english base");
+  const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
+  const tree=nodes(exports.TtsModelSelect({id:"tts-model",value:path,models:[path],onChange:(value)=>selected.push(value),required:true}));
+  const picker=tree.find(node=>node.type==="CustomSelect");
+  assert.deepEqual(picker.props.options,[{value:path,label:"my voice"}]);
+  picker.props.onValueChange(path);
+  assert.deepEqual(selected,[path]);
+  assert.ok(!tree.some(node=>node.type==="input"));
+  assert.ok(tree.some(node=>node.type==="Disclosure"&&node.props.title==="Manage TTS models"));
+});
+
+test("training results download voice models through validated model storage", () => {
+  const source=fs.readFileSync(new URL("../../frontend/web/components/JobPanel.tsx",import.meta.url),"utf8");
+  const {outputText}=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}});
+  const exports={}; let remote=false;
+  new Function("exports","require",outputText)(exports,(name)=>{
+    if(name==="react/jsx-runtime")return {jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props}),Fragment:"fragment"};
+    if(name==="@/lib/i18n")return {useI18n:()=>({t:(key)=>key})};
+    if(name==="@/lib/bridge-mode")return {useRemoteBridge:()=>({remote})};
+    if(name==="@/lib/api")return {fileBasename:(path)=>path.split('/').at(-1),isAudioFile:()=>false,isImageFile:()=>false,outputUrl:()=>{throw new Error("A model was sent to the audio output directory");}};
+    return new Proxy({},{get:(_,key)=>key});
+  });
+  const path="logs/voice/voice.pth";
+  const activity={job:{status:"done",outputFile:path,result:{frontend:"logs/tts/voice/frontend.pt",pthPath:path}},cleanedLogs:[]};
+  const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
+  const tree=nodes(exports.JobPanelContent({jobId:"test",activity}));
+  assert.ok(tree.some(node=>node.props?.href===`/api/train/export-file?file=${encodeURIComponent(path)}`));
+  assert.ok(!tree.some(node=>typeof node.props?.children==='string' && node.props.children.includes('pthPath:')));
+  remote=true;
+  assert.ok(!nodes(exports.JobPanelContent({jobId:"test",activity})).some(node=>node.props?.href?.startsWith('/api/train/export-file')));
 });
 
 test("TTS selection preserves each provider's voice and submits the synthesis contract", async () => {
@@ -1397,7 +1455,7 @@ test("native TTS refreshes models on focus while preserving edits and rejecting 
   requests[0].resolve({ frontends: ["old/frontend.pt"] });
   await Promise.resolve();
   assert.equal(drafts["TtsForm:frontend"], "new/frontend.pt");
-  assert.deepEqual(render().filter((node) => node.type === "option").map((node) => node.props.value), ["new/frontend.pt"]);
+  assert.deepEqual(render().find((node) => node.props?.id === "tts-frontend").props.models, ["new/frontend.pt"]);
   drafts["TtsForm:frontend"] = "custom/frontend.pt";
   focus();
   requests[2].resolve({ frontends: ["trained/frontend.pt"] });

@@ -1866,5 +1866,20 @@
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS चुनी गई भाषा में पहले से प्रशिक्षित मॉडल का उपयोग करता है। तैयारी और अनुकूलन, वॉइस मॉडल के प्रशिक्षण की अवधि के बराबर एक साझा समय सीमा में पूरे किए जाते हैं। GPU पर वॉइस प्रशिक्षण के दौरान ये CPU पर समानांतर चलते हैं; अन्यथा प्रशिक्षण के बाद चलते हैं। समय समाप्त होने पर उपलब्ध सर्वोत्तम मॉडल रखा जाता है।",
   "Maximum TTS steps": "TTS के अधिकतम चरण",
   "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "पहले से प्रशिक्षित TTS मॉडल का उपयोग हो रहा है; निर्धारित समय में बेहतर अनुकूलित मॉडल सहेजा नहीं गया।",
-  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS लंबी रिकॉर्डिंग को अपने आप विभाजित करता है और जहाँ लिप्यंतरण नहीं है, उसे बनाता है। रिकॉर्डिंग से मेल खाने वाले मौजूदा लिप्यंतरण दोबारा इस्तेमाल किए जाते हैं। पहचान मॉडल पहली बार उपयोग करने पर डाउनलोड होते हैं।"
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS लंबी रिकॉर्डिंग को अपने आप विभाजित करता है और जहाँ लिप्यंतरण नहीं है, उसे बनाता है। रिकॉर्डिंग से मेल खाने वाले मौजूदा लिप्यंतरण दोबारा इस्तेमाल किए जाते हैं। पहचान मॉडल पहली बार उपयोग करने पर डाउनलोड होते हैं।",
+  "Time limit (seconds)": "समय सीमा (सेकंड)",
+  "Preparation and adaptation share this limit, capped by the recorded voice training time when available. Cleanup and output checks may take a few extra seconds. The pretrained model is kept if adaptation cannot finish.": "तैयारी और अनुकूलन के लिए यही साझा समय सीमा है। आवाज़ के प्रशिक्षण का दर्ज समय उपलब्ध होने पर उससे अधिक समय नहीं लिया जाता। सफ़ाई और परिणामों की जाँच में कुछ अतिरिक्त सेकंड लग सकते हैं। अनुकूलन पूरा न हो पाने पर पूर्व-प्रशिक्षित मॉडल रखा जाता है।",
+  "Manage TTS models": "TTS मॉडल प्रबंधित करें",
+  "Import a pretrained TTS model to get started.": "शुरू करने के लिए पूर्व-प्रशिक्षित TTS मॉडल आयात करें।",
+  "Choose an existing voice and give its TTS model a name.": "मौजूदा आवाज़ चुनें और उसके TTS मॉडल को नाम दें।",
+  "Add recordings. Applio creates the transcripts and prepares the clips for you.": "रिकॉर्डिंग जोड़ें। Applio आपके लिए प्रतिलेख बनाता है और क्लिप तैयार करता है।",
+  "Automatic transcripts": "स्वचालित प्रतिलेख",
+  "Existing datasets": "मौजूदा डेटासेट",
+  "Your original recordings stay untouched. Matching transcripts are reused when available.": "आपकी मूल रिकॉर्डिंग बदली नहीं जातीं। मेल खाने वाले प्रतिलेख उपलब्ध होने पर फिर से इस्तेमाल किए जाते हैं।",
+  "Start from a pretrained TTS model in your recordings’ language.": "अपनी रिकॉर्डिंग की भाषा में पूर्व-प्रशिक्षित TTS मॉडल से शुरू करें।",
+  "Ready to train": "प्रशिक्षण के लिए तैयार",
+  "Transcripts are generated automatically. Your voice recordings are reused.": "प्रतिलेख अपने आप बनते हैं। आपकी आवाज़ की रिकॉर्डिंग का दोबारा उपयोग होता है।",
+  "Choose a voice, add recordings, and train its TTS model.": "आवाज़ चुनें, रिकॉर्डिंग जोड़ें और उसका TTS मॉडल प्रशिक्षित करें।",
+  "Time limit reached": "समय सीमा पूरी हुई",
+  "Voice adaptation": "आवाज़ अनुकूलन"
 }

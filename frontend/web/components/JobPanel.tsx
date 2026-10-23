@@ -65,6 +65,7 @@ export function JobPanelContent({
     for (const [k, v] of Object.entries(job.result)) {
       if (
         typeof v === "string" &&
+        !(typeof job.result.frontend === "string" && k === "pthPath") &&
         (v.endsWith(".txt") ||
           v.endsWith(".png") ||
           v.endsWith(".pth") ||
@@ -82,6 +83,12 @@ export function JobPanelContent({
   const resultInfo = typeof job.result?.info === "string" ? job.result.info : null;
   const frontend = typeof job.result?.frontend === "string" ? job.result.frontend : "";
   const voice = typeof job.result?.pthPath === "string" ? job.result.pthPath : job.outputFile;
+  const modelOutput = out && /\.(pth|index)$/i.test(out);
+  const downloadHref = modelOutput
+    ? `/api/train/export-file?file=${encodeURIComponent(out)}`
+    : out
+      ? outputUrl(out)
+      : "";
 
   const content = (
     <>
@@ -159,10 +166,10 @@ export function JobPanelContent({
         </div>
       )}
 
-      {out && !isAudioFile(out) && !isImageFile(out) && (
+      {out && !isAudioFile(out) && !isImageFile(out) && (!modelOutput || !remote) && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/5">
           <span className="text-xs text-neutral-300 font-medium truncate">{fileBasename(out)}</span>
-          <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+          <Button href={downloadHref} download size="sm" icon={<Download size={13} />}>
             {t("Download")}
           </Button>
         </div>
