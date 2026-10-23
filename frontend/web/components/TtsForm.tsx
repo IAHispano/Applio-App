@@ -176,17 +176,24 @@ export default function TtsForm() {
   useEffect(() => {
     let active = true;
     if (provider === "rvc") {
-      apiGet<{ frontends: string[] }>("/api/tts/frontends")
-        .then(({ frontends }) => {
-          if (!active) return;
-          setFrontends(frontends);
-          setFrontend((current) => current || frontends[0] || "");
-        })
-        .catch((error) => {
-          if (active) setError(errMsg(error));
-        });
+      let request = 0;
+      const refresh = () => {
+        const current = ++request;
+        apiGet<{ frontends: string[] }>("/api/tts/frontends")
+          .then(({ frontends }) => {
+            if (!active || current !== request) return;
+            setFrontends(frontends);
+            setFrontend((selected) => selected || frontends[0] || "");
+          })
+          .catch((error) => {
+            if (active && current === request) setError(errMsg(error));
+          });
+      };
+      refresh();
+      window.addEventListener("focus", refresh);
       return () => {
         active = false;
+        window.removeEventListener("focus", refresh);
       };
     }
     apiGet<{ voices: Voice[] }>(`/api/tts/voices?provider=${provider}`)
