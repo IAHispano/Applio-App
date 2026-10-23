@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "Escolha uma voz, adicione gravações e treine o modelo TTS dela.",
   "Time limit reached": "Limite de tempo atingido",
   "Voice adaptation": "Adaptação de voz",
-  "TTS adaptation failed. The last valid TTS model was kept.": "A adaptação de TTS falhou. O último modelo TTS válido foi mantido."
+  "TTS adaptation failed. The last valid TTS model was kept.": "A adaptação de TTS falhou. O último modelo TTS válido foi mantido.",
+  "Pretrained TTS models": "Modelos TTS pré-treinados",
+  "Download pretrained TTS model": "Baixar modelo TTS pré-treinado",
+  "This TTS model has not been published yet. Import a local model or try again later.": "Este modelo TTS ainda não foi publicado. Importe um modelo local ou tente novamente mais tarde."
 }

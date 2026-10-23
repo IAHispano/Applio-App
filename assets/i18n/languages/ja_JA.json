@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "音声を選び、録音を追加してTTSモデルを学習させます。",
   "Time limit reached": "制限時間に達しました",
   "Voice adaptation": "音声の適応学習",
-  "TTS adaptation failed. The last valid TTS model was kept.": "TTSの適応に失敗しました。最後の有効なTTSモデルは保持されています。"
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTSの適応に失敗しました。最後の有効なTTSモデルは保持されています。",
+  "Pretrained TTS models": "事前学習済みTTSモデル",
+  "Download pretrained TTS model": "事前学習済みTTSモデルをダウンロード",
+  "This TTS model has not been published yet. Import a local model or try again later.": "このTTSモデルはまだ公開されていません。ローカルモデルをインポートするか、後でもう一度お試しください。"
 }

@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "Bir ses seçin, kayıt ekleyin ve TTS modelini eğitin.",
   "Time limit reached": "Süre sınırına ulaşıldı",
   "Voice adaptation": "Ses uyarlaması",
-  "TTS adaptation failed. The last valid TTS model was kept.": "TTS uyarlaması başarısız oldu. Son geçerli TTS modeli korundu."
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS uyarlaması başarısız oldu. Son geçerli TTS modeli korundu.",
+  "Pretrained TTS models": "Önceden eğitilmiş TTS modelleri",
+  "Download pretrained TTS model": "Önceden eğitilmiş TTS modelini indir",
+  "This TTS model has not been published yet. Import a local model or try again later.": "Bu TTS modeli henüz yayımlanmadı. Yerel bir model içe aktarın veya daha sonra tekrar deneyin."
 }

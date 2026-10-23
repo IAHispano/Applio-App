@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "اختر صوتًا وأضف التسجيلات ثم درّب نموذج TTS الخاص به.",
   "Time limit reached": "تم بلوغ الحد الزمني",
   "Voice adaptation": "تكييف الصوت",
-  "TTS adaptation failed. The last valid TTS model was kept.": "فشل تكييف تحويل النص إلى كلام. تم الاحتفاظ بآخر نموذج صالح لتحويل النص إلى كلام."
+  "TTS adaptation failed. The last valid TTS model was kept.": "فشل تكييف تحويل النص إلى كلام. تم الاحتفاظ بآخر نموذج صالح لتحويل النص إلى كلام.",
+  "Pretrained TTS models": "نماذج TTS المدربة مسبقًا",
+  "Download pretrained TTS model": "تنزيل نموذج TTS مدرب مسبقًا",
+  "This TTS model has not been published yet. Import a local model or try again later.": "لم يُنشر نموذج TTS هذا بعد. استورد نموذجًا محليًا أو حاول مجددًا لاحقًا."
 }

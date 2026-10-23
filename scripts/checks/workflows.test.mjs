@@ -357,6 +357,7 @@ test("the workflow API catalog explicitly accounts for native routes and produce
     "POST /v1/applio/uvr/custom-models",
     "POST /v1/applio/train/text-rvc",
     "POST /v1/applio/tts/frontends",
+    "POST /v1/applio/tts/frontends/download",
   ]);
   for (const operation of nativeOnly) assert.ok(!documented.has(operation));
   assert.deepEqual([...new Set([...documented, ...nativeOnly])].sort(), [...actual].sort(), "new native routes need an explicit workflow capability or native-only decision");
@@ -1310,6 +1311,7 @@ test("TTS model selection uses friendly names and keeps file operations in model
   const path="logs/tts/my-voice/3db186b4-57b1-44b3-a58d-122183c5b51b/frontend.pt";
   assert.equal(exports.ttsModelName(path),"my voice");
   assert.equal(exports.ttsModelName("logs/tts/english-base/frontend.pt"),"english base");
+  assert.equal(exports.ttsModelName("logs/tts/applio-tts-en-us-45e5bc97122e/frontend.pt"),"Applio TTS (en-us)");
   const nodes=(node)=>!node||typeof node!=="object"?[]:[node,...[node.props?.children].flat(Infinity).flatMap(nodes)];
   const tree=nodes(exports.TtsModelSelect({id:"tts-model",value:path,models:[path],onChange:(value)=>selected.push(value),required:true}));
   const picker=tree.find(node=>node.type==="CustomSelect");

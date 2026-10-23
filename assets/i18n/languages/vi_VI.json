@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "Chọn giọng, thêm bản ghi âm và huấn luyện mô hình TTS của giọng đó.",
   "Time limit reached": "Đã đạt giới hạn thời gian",
   "Voice adaptation": "Thích nghi giọng nói",
-  "TTS adaptation failed. The last valid TTS model was kept.": "Điều chỉnh TTS thất bại. Mô hình TTS hợp lệ gần nhất đã được giữ lại."
+  "TTS adaptation failed. The last valid TTS model was kept.": "Điều chỉnh TTS thất bại. Mô hình TTS hợp lệ gần nhất đã được giữ lại.",
+  "Pretrained TTS models": "Mô hình TTS được huấn luyện sẵn",
+  "Download pretrained TTS model": "Tải mô hình TTS được huấn luyện sẵn",
+  "This TTS model has not been published yet. Import a local model or try again later.": "Mô hình TTS này chưa được phát hành. Hãy nhập mô hình cục bộ hoặc thử lại sau."
 }

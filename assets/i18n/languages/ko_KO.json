@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "음성을 선택하고 녹음을 추가한 다음 TTS 모델을 학습하세요.",
   "Time limit reached": "시간 제한에 도달함",
   "Voice adaptation": "음성 적응 학습",
-  "TTS adaptation failed. The last valid TTS model was kept.": "TTS 적응에 실패했습니다. 마지막으로 유효한 TTS 모델이 유지되었습니다."
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS 적응에 실패했습니다. 마지막으로 유효한 TTS 모델이 유지되었습니다.",
+  "Pretrained TTS models": "사전 학습된 TTS 모델",
+  "Download pretrained TTS model": "사전 학습된 TTS 모델 다운로드",
+  "This TTS model has not been published yet. Import a local model or try again later.": "이 TTS 모델은 아직 게시되지 않았습니다. 로컬 모델을 가져오거나 나중에 다시 시도하세요."
 }

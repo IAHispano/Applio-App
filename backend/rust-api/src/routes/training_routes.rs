@@ -1,5 +1,6 @@
 //! Training lifecycle, artifact discovery and uploads coordinated by Rust.
 use crate::{
+    download,
     engine::{JobResult, NativeEngine},
     jobs::{Job, JobType},
     process::{json_result, CommandSpec, ManagedProcess},
@@ -57,6 +58,7 @@ pub fn router(engine: Arc<NativeEngine>) -> Router {
             "/api/tts/frontends",
             get(text_frontends).post(import_text_frontend),
         )
+        .route("/api/tts/frontends/download", post(download_text_frontend))
         .layer(DefaultBodyLimit::disable())
         .with_state(Arc::new(Training {
             engine,
@@ -394,6 +396,76 @@ fn text_training_budget(requested_seconds: u32, voice_seconds: Option<f64>) -> D
         .map_or(requested, |seconds| requested.min(seconds));
     Duration::from_secs_f64(seconds)
 }
+
+#[derive(Clone, Copy, serde::Serialize)]
+struct TextBase {
+    id: &'static str,
+    language: &'static str,
+    sha256: &'static str,
+    bytes: u64,
+}
+const TEXT_BASES: [TextBase; 2] = [
+    TextBase {
+        id: "applio-tts-en-us",
+        language: "en-us",
+        sha256: "45e5bc97122e88b28c54ba6396f0058f9bbc5e46c1adadfd6274b48744ee713b",
+        bytes: 23_650_194,
+    },
+    TextBase {
+        id: "applio-tts-es",
+        language: "es",
+        sha256: "4f8eda19e75634fe438ba232b3a6fa90f11c19ce078748da4b61a5570f4a6c99",
+        bytes: 23_197_714,
+    },
+];
+fn text_base_folder(base: TextBase) -> String {
+    format!("{}-{}", base.id, &base.sha256[..12])
+}
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TextBaseRequest {
+    id: String,
+}
+async fn download_text_frontend(
+    State(state): State<Arc<Training>>,
+    Json(request): Json<TextBaseRequest>,
+) -> Accepted {
+    let base = TEXT_BASES
+        .into_iter()
+        .find(|base| base.id == request.id)
+        .ok_or_else(|| Error::input("Select a TTS model."))?;
+    // Only published catalog IDs are accepted; clients cannot choose URLs or paths.
+    let url = format!(
+        "https://huggingface.co/IAHispano/Applio/resolve/5c1d7ed4f4cc3c6ee08b6455e499d80221aca85d/Resources/tts/{}/frontend.pt",
+        base.language
+    );
+    let job = state.engine.start_job(
+        JobType::Download,
+        json!({"model":base.id,"language":base.language}),
+        Some(Resource::Network),
+        move |engine, job, token| async move {
+            let client = download::client()?;
+            let response = tokio::select! {
+                _ = token.cancelled() => bail!("Stopped by user"),
+                response = client.head(&url).send() => response?,
+            };
+            if response.status() == reqwest::StatusCode::NOT_FOUND {
+                bail!("This TTS model has not been published yet. Import a local model or try again later.");
+            }
+            response.error_for_status()?;
+            let directory = safe_directory(&engine.runtime.logs.join("tts"), &text_base_folder(base)).await?;
+            let target = directory.join("frontend.pt");
+            download::file(&client, &url, &target, Some(base.sha256), &token,
+                |received,total| {
+                    if total > 0 { engine.jobs.progress(&job.id,received as f64/total as f64*100.); }
+                },
+                |attempt| engine.jobs.log(&job.id,&format!("Retrying download ({attempt}/3)…")),
+            ).await?;
+            Ok(JobResult::new(json!({"frontend":engine.runtime.model_relative(&target)}), None))
+        },
+    ).await.map_err(Error::internal)?;
+    Ok(accepted(job))
+}
 async fn text_frontends(State(state): State<Arc<Training>>) -> Result<Json<Value>, Error> {
     let runtime = state.engine.runtime.clone();
     tokio::task::spawn_blocking(move || -> Result<Json<Value>> {
@@ -405,7 +477,7 @@ async fn text_frontends(State(state): State<Arc<Training>>) -> Result<Json<Value
             .map(|path| runtime.model_relative(&path))
             .collect();
         frontends.sort();
-        Ok(Json(json!({"frontends":frontends})))
+        Ok(Json(json!({"frontends":frontends,"catalog":TEXT_BASES})))
     })
     .await
     .map_err(Error::internal)?
@@ -1743,6 +1815,42 @@ print('done')
         )
         .unwrap();
         let app = router(engine.clone());
+        let catalog_response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/tts/frontends")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let catalog: Value =
+            serde_json::from_slice(&to_bytes(catalog_response.into_body(), 8192).await.unwrap())
+                .unwrap();
+        assert_eq!(catalog["catalog"].as_array().unwrap().len(), 2);
+        for body in [
+            json!({"id":"../arbitrary"}),
+            json!({"id":"applio-tts-en-us","url":"http://untrusted.invalid/model.pt"}),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/api/tts/frontends/download")
+                        .header(header::CONTENT_TYPE, "application/json")
+                        .body(Body::from(body.to_string()))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert!(response.status().is_client_error());
+        }
+        assert!(!crate::bridge_policy::api_allowed(
+            "POST",
+            "/api/tts/frontends/download"
+        ));
         let alignment = bounded_text_spec(
             &engine,
             &json!({"ttsLanguage":"es", "gpu":"0", "ttsSteps":1000}),

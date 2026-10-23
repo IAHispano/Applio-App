@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "आवाज़ चुनें, रिकॉर्डिंग जोड़ें और उसका TTS मॉडल प्रशिक्षित करें।",
   "Time limit reached": "समय सीमा पूरी हुई",
   "Voice adaptation": "आवाज़ अनुकूलन",
-  "TTS adaptation failed. The last valid TTS model was kept.": "TTS अनुकूलन विफल रहा। अंतिम मान्य TTS मॉडल सुरक्षित रखा गया है।"
+  "TTS adaptation failed. The last valid TTS model was kept.": "TTS अनुकूलन विफल रहा। अंतिम मान्य TTS मॉडल सुरक्षित रखा गया है।",
+  "Pretrained TTS models": "पूर्व-प्रशिक्षित TTS मॉडल",
+  "Download pretrained TTS model": "पूर्व-प्रशिक्षित TTS मॉडल डाउनलोड करें",
+  "This TTS model has not been published yet. Import a local model or try again later.": "यह TTS मॉडल अभी प्रकाशित नहीं हुआ है। स्थानीय मॉडल आयात करें या बाद में फिर कोशिश करें।"
 }

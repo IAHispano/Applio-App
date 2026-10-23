@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "Выберите голос, добавьте записи и обучите его модель TTS.",
   "Time limit reached": "Достигнуто ограничение времени",
   "Voice adaptation": "Адаптация голоса",
-  "TTS adaptation failed. The last valid TTS model was kept.": "Не удалось адаптировать TTS. Последняя корректная модель TTS сохранена."
+  "TTS adaptation failed. The last valid TTS model was kept.": "Не удалось адаптировать TTS. Последняя корректная модель TTS сохранена.",
+  "Pretrained TTS models": "Предобученные модели TTS",
+  "Download pretrained TTS model": "Скачать предобученную модель TTS",
+  "This TTS model has not been published yet. Import a local model or try again later.": "Эта модель TTS ещё не опубликована. Импортируйте локальную модель или повторите попытку позже."
 }

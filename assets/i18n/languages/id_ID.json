@@ -1882,5 +1882,8 @@
   "Choose a voice, add recordings, and train its TTS model.": "Pilih suara, tambahkan rekaman, lalu latih model TTS-nya.",
   "Time limit reached": "Batas waktu tercapai",
   "Voice adaptation": "Adaptasi suara",
-  "TTS adaptation failed. The last valid TTS model was kept.": "Adaptasi TTS gagal. Model TTS valid terakhir tetap disimpan."
+  "TTS adaptation failed. The last valid TTS model was kept.": "Adaptasi TTS gagal. Model TTS valid terakhir tetap disimpan.",
+  "Pretrained TTS models": "Model TTS pralatih",
+  "Download pretrained TTS model": "Unduh model TTS pralatih",
+  "This TTS model has not been published yet. Import a local model or try again later.": "Model TTS ini belum diterbitkan. Impor model lokal atau coba lagi nanti."
 }
