@@ -977,6 +977,21 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
             try: train(args)
             except ValueError as error: assert 'validation recordings' in str(error)
             else: raise AssertionError('Resampling automatic transcripts hid previously seen validation audio')
+            from rvc.lib.tools.text_rvc.__main__ import evaluate
+            from rvc.lib.tools.text_rvc.assessment import assess
+            source['seen_audio_sha256']=['b'*64]
+            source['seen_source_audio_sha256']=['f'*64]
+            source['validation_ids']=[rows[-1]['id']]
+            torch.save(source,checkpoint)
+            assessment_args=argparse.Namespace(frontend=str(checkpoint),manifest=str(manifest),
+                output=str(root/'leaked-assessment'),external_validation=True,recognizer_language='es',
+                recognizer='missing-recognizer',rvc='missing-voice',sid=0,limit=40)
+            for action in [evaluate,assess]:
+                with patch('transformers.Wav2Vec2Processor.from_pretrained',side_effect=AssertionError('Loaded recognizer before leakage checks')):
+                    try: action(assessment_args)
+                    except ValueError as error: assert 'recordings' in str(error)
+                    else: raise AssertionError('Evaluation accepted converted training recordings')
+            assert not Path(assessment_args.output).exists(), 'Rejected evaluation created output artifacts'
         phonetic_examples=[dict(text='hello',tokens=[5,6,511],durations=[8,8,0],features=torch.randn(16,256),f0=torch.full((16,),200.))]
         total,_=loss(phone_model,*batch(phonetic_examples,torch.zeros(256),torch.ones(256),1))
         total.backward();assert torch.isfinite(total)
