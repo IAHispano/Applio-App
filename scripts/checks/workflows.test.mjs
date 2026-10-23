@@ -739,6 +739,12 @@ with tempfile.TemporaryDirectory() as directory:
     assert len(provenance['clips'])>=6 and len(recognized)==len(provenance['clips'])-1
     assert any(r['transcript_origin']=='provided' for r in provenance['clips'])
     assert all(.25<=sf.info(destination/r['audio']).duration<=12 for r in provenance['clips'])
+    paired=speech_data.speech_records(destination,language='es')
+    provided=next(r for r in provenance['clips'] if r['source']=='provided.wav')
+    assert next(r for r in paired if Path(r['audio']).name==provided['audio'])['source_audio_sha256']==before['provided.wav']
+    long_names={r['audio'] for r in provenance['clips'] if r['source']=='long.wav'}
+    long_ids=[r['source_audio_sha256'] for r in paired if Path(r['audio']).name in long_names]
+    assert len(long_ids)==len(set(long_ids)) and before['long.wav'] not in long_ids
     with patch.object(speech_data,'_transcriber',side_effect=AssertionError('Cached transcripts were regenerated')):
         automatic_transcripts(originals,destination,root/'recognizer',language='es')
     (originals/'missing.txt').write_text('A new human transcript.',encoding='utf-8')
@@ -923,6 +929,14 @@ with patch.dict(sys.modules, {'piper.phonemize_espeak':types.SimpleNamespace(Esp
             try: train(args)
             except ValueError as error: assert 'validation recordings' in str(error)
             else: raise AssertionError('Warm-start validation audio leaked through renamed records')
+            source['seen_audio_sha256']=['f'*64]
+            rows[-1]['source_audio_sha256']='f'*64
+            document=json.loads(manifest.read_text());document['records']=rows;manifest.write_text(json.dumps(document))
+            torch.save(source,checkpoint)
+            args.output=str(root/'reencoded-rejected')
+            try: train(args)
+            except ValueError as error: assert 'validation recordings' in str(error)
+            else: raise AssertionError('Resampling automatic transcripts hid previously seen validation audio')
         phonetic_examples=[dict(text='hello',tokens=[5,6,511],durations=[8,8,0],features=torch.randn(16,256),f0=torch.full((16,),200.))]
         total,_=loss(phone_model,*batch(phonetic_examples,torch.zeros(256),torch.ones(256),1))
         total.backward();assert torch.isfinite(total)
