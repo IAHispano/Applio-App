@@ -1858,8 +1858,6 @@
   "Generate speech locally using your voice model and trained TTS model.": "Génère la parole localement avec votre modèle de voix et un modèle de synthèse vocale entraîné.",
   "Training steps": "Étapes d’entraînement",
   "Enable TTS after voice training": "Activer la synthèse vocale après l’entraînement de la voix",
-  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "La synthèse vocale réutilise vos enregistrements et nécessite des transcriptions correspondantes. Utilisez des extraits de 0,25 à 12 secondes avec un fichier .txt UTF-8 à côté de chaque enregistrement.",
-  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Activez la synthèse vocale pour une voix RVC existante. Utilisez des extraits de 0,25 à 12 secondes avec une transcription .txt UTF-8 à côté de chaque fichier audio. Les modèles d’alignement sont téléchargés à la première utilisation.",
   "Speech language": "Langue de la parole",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Alignement des transcriptions…",
@@ -1867,5 +1865,6 @@
   "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Facultatif. Vous pouvez ajouter la synthèse vocale plus tard ; la préparation et l’alignement des enregistrements prendront alors plus de temps.",
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "La synthèse vocale utilise un modèle préentraîné dans la langue choisie. La préparation et l’adaptation partagent un budget de temps égal à celui de l’entraînement vocal. Si la voix est entraînée sur GPU, ces tâches s’exécutent en parallèle sur le CPU ; sinon, elles sont exécutées ensuite. À la fin du temps imparti, le meilleur modèle disponible est conservé.",
   "Maximum TTS steps": "Nombre maximal d’étapes TTS",
-  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Le modèle TTS préentraîné est utilisé ; aucune adaptation améliorée n’a été enregistrée dans le temps imparti."
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Le modèle TTS préentraîné est utilisé ; aucune adaptation améliorée n’a été enregistrée dans le temps imparti.",
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "La synthèse vocale découpe automatiquement les longs enregistrements et génère les transcriptions manquantes. Les transcriptions existantes correspondant aux enregistrements sont réutilisées. Les modèles de reconnaissance sont téléchargés à la première utilisation."
 }

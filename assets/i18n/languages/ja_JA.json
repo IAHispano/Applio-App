@@ -1858,8 +1858,6 @@
   "Generate speech locally using your voice model and trained TTS model.": "声のモデルと学習済みの音声合成モデルを使って、ローカルで音声を生成します。",
   "Training steps": "学習ステップ数",
   "Enable TTS after voice training": "音声学習後にTTSを有効にする",
-  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTSは録音を再利用し、対応する書き起こしが必要です。0.25〜12秒のクリップを使い、各録音と同じ場所にUTF-8の.txtファイルを置いてください。",
-  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "既存のRVC音声でTTSを有効にします。0.25〜12秒のクリップを使い、各音声ファイルと同じ場所に対応するUTF-8の.txt書き起こしを置いてください。アライメントモデルは初回利用時にダウンロードされます。",
   "Speech language": "音声の言語",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "文字起こしを音声に合わせています…",
@@ -1867,5 +1865,6 @@
   "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "任意です。TTSは後から追加できますが、その際に録音の準備とアラインメントに追加の時間がかかります。",
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTSは選択した言語の事前学習済みモデルを使用します。準備と適応学習を合わせた制限時間は、音声モデルの学習時間と同じです。GPUで音声モデルを学習する場合はCPU上で並列実行し、それ以外は学習後に実行します。時間切れになると、その時点で最良のモデルを保持します。",
   "Maximum TTS steps": "TTSの最大ステップ数",
-  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "事前学習済みTTSモデルを使用しています。制限時間内に改善された適応モデルは保存されませんでした。"
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "事前学習済みTTSモデルを使用しています。制限時間内に改善された適応モデルは保存されませんでした。",
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTSは長い録音を自動で分割し、不足している文字起こしを生成します。録音に対応する既存の文字起こしは再利用します。音声認識モデルは初回使用時にダウンロードされます。"
 }

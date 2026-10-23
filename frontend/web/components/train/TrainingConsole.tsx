@@ -26,7 +26,7 @@ import { Alert, Button, Card, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { historyState, historyStateLabels } from "@/lib/job-history";
+import { historyState, historyStateLabels, jobElapsedSeconds } from "@/lib/job-history";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs, useJob } from "@/lib/useJob";
 
@@ -68,35 +68,21 @@ export default function TrainingConsole({
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [clockNow, setClockNow] = useState(Date.now);
+  const elapsedSeconds = job ? jobElapsedSeconds(job, clockNow) : 0;
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!jobId) setElapsedSeconds(0);
-  }, [jobId]);
-
-  // Resume the elapsed counter from the job start time after remount/refresh.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot resume per job
-  useEffect(() => {
-    if (!job || elapsedSeconds !== 0) return;
-    const started = new Date(job.createdAt).getTime();
-    if (Number.isNaN(started)) return;
-    const s = Math.floor((Date.now() - started) / 1000);
-    if (s > 0) setElapsedSeconds(s);
-  }, [job?.id]);
-
   const jobStatus = job?.status;
   useEffect(() => {
-    if (jobStatus !== "running" && jobStatus !== "queued") return;
+    setClockNow(Date.now());
+    if (!jobId || (jobStatus !== "running" && jobStatus !== "queued")) return;
     const interval = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
+      setClockNow(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-    // Only the status matters: depending on `job` would restart the timer on
-    // every poll tick.
-  }, [jobStatus]);
+  }, [jobId, jobStatus]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 

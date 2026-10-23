@@ -1858,8 +1858,6 @@
   "Generate speech locally using your voice model and trained TTS model.": "Создаёт речь локально с помощью вашей модели голоса и обученной модели синтеза речи.",
   "Training steps": "Шаги обучения",
   "Enable TTS after voice training": "Включить TTS после обучения голоса",
-  "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.": "TTS использует ваши записи и требует соответствующих расшифровок. Используйте отрывки длиной 0,25–12 секунд с файлом .txt в UTF-8 рядом с каждой записью.",
-  "Enable TTS for an existing RVC voice. Use clips of 0.25–12 seconds with a matching UTF-8 .txt transcript beside each audio file. Alignment models download on first use.": "Включите TTS для существующего голоса RVC. Используйте отрывки длиной 0,25–12 секунд с расшифровкой .txt в UTF-8 рядом с каждым аудиофайлом. Модели выравнивания загружаются при первом использовании.",
   "Speech language": "Язык речи",
   "Applio TTS": "Applio TTS",
   "Aligning transcripts…": "Выравнивание транскрипций…",
@@ -1867,5 +1865,6 @@
   "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.": "Необязательно. TTS можно добавить позже; тогда подготовка и выравнивание записей займут дополнительное время.",
   "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.": "TTS использует предобученную модель на выбранном языке. Подготовка и адаптация вместе ограничены временем обучения голоса. При обучении голоса на GPU они выполняются параллельно на CPU, иначе — после него. По истечении времени сохраняется лучшая доступная модель.",
   "Maximum TTS steps": "Максимум шагов TTS",
-  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Используется предобученная модель TTS: за отведённое время улучшенная адаптация не была сохранена."
+  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.": "Используется предобученная модель TTS: за отведённое время улучшенная адаптация не была сохранена.",
+  "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.": "TTS автоматически разбивает длинные записи и создаёт недостающие расшифровки. Существующие расшифровки, соответствующие записям, используются повторно. Модели распознавания загружаются при первом использовании."
 }

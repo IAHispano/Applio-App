@@ -502,6 +502,98 @@ export default function TrainPage() {
     },
   ];
 
+  const ttsOptions = (scope: string) => (
+    <section className="space-y-3">
+      <ToggleField
+        label={t("Prepare and train TTS")}
+        checked={enableTts}
+        onChange={setEnableTts}
+        disabled={activeTraining || busy}
+        description={t(
+          "TTS automatically splits long recordings and generates missing transcripts. Existing matching transcripts are reused. Recognition models download on first use.",
+        )}
+      />
+      <p className="mt-2 text-xs text-neutral-400">
+        {t("Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.")}
+      </p>
+      {enableTts && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
+          <p className="sm:col-span-3 text-xs text-neutral-400">
+            {t(
+              "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.",
+            )}
+          </p>
+          <TextFrontendInitialization
+            id={`${scope}-tts-initial`}
+            value={ttsInitializeFrom}
+            onChange={setTtsInitializeFrom}
+            disabled={activeTraining || busy}
+            required
+          />
+          <TextFrontendLanguage
+            id={`${scope}-tts-language`}
+            value={ttsLanguage}
+            onChange={setTtsLanguage}
+            disabled={activeTraining || busy}
+          />
+          <div>
+            <label htmlFor={`${scope}-tts-dataset`}>{t("Dataset Path")}</label>
+            <input
+              id={`${scope}-tts-dataset`}
+              type="text"
+              value={ttsDatasetPath}
+              onChange={(event) => setTtsDatasetPath(event.target.value)}
+              placeholder={datasetPath}
+              disabled={activeTraining || busy}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${scope}-tts-steps`}>{t("Maximum TTS steps")}</label>
+            <input
+              id={`${scope}-tts-steps`}
+              type="number"
+              min={1}
+              max={100000}
+              step={1}
+              value={ttsSteps}
+              onChange={(event) => setTtsSteps(Number(event.target.value))}
+              disabled={activeTraining || busy}
+            />
+          </div>
+        </div>
+      )}
+      {trainingJob?.status === "done" && typeof trainingJob.result?.frontend === "string" && (
+        <>
+          {trainingJob.result.ttsAdapted === false && (
+            <p className="mt-2 text-xs text-neutral-400">
+              {t("Using the pretrained TTS model; no improved adaptation was saved within the time budget.")}
+            </p>
+          )}
+          <Link
+            className="underline"
+            href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
+          >
+            {t("Text to Speech")}
+          </Link>
+        </>
+      )}
+      {trainingJob?.status === "done" &&
+        !trainingJob.result?.frontend &&
+        trainingJob.outputFile?.toLowerCase().endsWith(".pth") && (
+          <Link
+            className="underline"
+            href={`/train?mode=text&pth=${encodeURIComponent(trainingJob.outputFile)}`}
+            onClick={() => {
+              setRequestedTtsVoice(trainingJob.outputFile || "");
+              setWorkspace("text");
+            }}
+          >
+            {t("Enable TTS for a voice")}
+          </Link>
+        )}
+    </section>
+  );
+
   const workspacePicker = (
     <SegmentedControl
       value={workspace}
@@ -607,97 +699,6 @@ export default function TrainPage() {
         onDatasetUploaded={onDatasetUploaded}
       />
       <Card>
-        <ToggleField
-          label={t("Prepare and train TTS")}
-          checked={enableTts}
-          onChange={setEnableTts}
-          disabled={activeTraining || busy}
-          description={t(
-            "TTS reuses your recordings and needs matching transcripts. Use clips of 0.25–12 seconds with a UTF-8 .txt file beside each recording.",
-          )}
-        />
-        <p className="mt-2 text-xs text-neutral-400">
-          {t("Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.")}
-        </p>
-        {enableTts && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
-            <p className="sm:col-span-3 text-xs text-neutral-400">
-              {t(
-                "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.",
-              )}
-            </p>
-            <TextFrontendInitialization
-              id="train-tts-initial"
-              value={ttsInitializeFrom}
-              onChange={setTtsInitializeFrom}
-              disabled={activeTraining || busy}
-              required
-            />
-            <TextFrontendLanguage
-              id="train-tts-language"
-              value={ttsLanguage}
-              onChange={setTtsLanguage}
-              disabled={activeTraining || busy}
-            />
-            <div>
-              <label htmlFor="train-tts-dataset">{t("Dataset Path")}</label>
-              <input
-                id="train-tts-dataset"
-                type="text"
-                value={ttsDatasetPath}
-                onChange={(event) => setTtsDatasetPath(event.target.value)}
-                placeholder={datasetPath}
-                disabled={activeTraining || busy}
-              />
-            </div>
-            <div>
-              <label htmlFor="train-tts-steps">{t("Maximum TTS steps")}</label>
-              <input
-                id="train-tts-steps"
-                type="number"
-                min={1}
-                max={100000}
-                step={1}
-                value={ttsSteps}
-                onChange={(event) => setTtsSteps(Number(event.target.value))}
-                disabled={activeTraining || busy}
-              />
-            </div>
-          </div>
-        )}
-        {trainingJob?.status === "done" && typeof trainingJob.result?.frontend === "string" && (
-          <>
-            {trainingJob.result.ttsAdapted === false && (
-              <p className="mt-2 text-xs text-neutral-400">
-                {t(
-                  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.",
-                )}
-              </p>
-            )}
-            <Link
-              className="underline"
-              href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
-            >
-              {t("Text to Speech")}
-            </Link>
-          </>
-        )}
-        {trainingJob?.status === "done" &&
-          !trainingJob.result?.frontend &&
-          trainingJob.outputFile?.toLowerCase().endsWith(".pth") && (
-            <Link
-              className="underline"
-              href={`/train?mode=text&pth=${encodeURIComponent(trainingJob.outputFile)}`}
-              onClick={() => {
-                setRequestedTtsVoice(trainingJob.outputFile || "");
-                setWorkspace("text");
-              }}
-            >
-              {t("Enable TTS for a voice")}
-            </Link>
-          )}
-      </Card>
-      <Card>
         <CardHeader
           step={2}
           icon={<Layers size={18} className="text-white" />}
@@ -747,6 +748,8 @@ export default function TrainPage() {
                 </Badge>
               }
             />
+
+            {ttsOptions("auto")}
 
             <ol
               className="grid grid-cols-2 xl:grid-cols-4 gap-3 list-none p-0 m-0"
@@ -1532,6 +1535,8 @@ export default function TrainPage() {
             </div>
           </section>
         )}
+
+        {ttsOptions("manual")}
 
         <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
