@@ -766,6 +766,9 @@ with tempfile.TemporaryDirectory() as directory:
     assert audio_cleanup.cleanup_audio(source,48000,'off') is source
     cleaned=audio_cleanup.cleanup_audio(source,48000,'light',12,temporary_directory=root)
     assert cleaned.shape==source.shape and np.isfinite(cleaned).all()
+    from scipy.signal import correlate, correlation_lags
+    lag=correlation_lags(len(cleaned),len(source))[np.argmax(correlate(cleaned,source,method='fft'))]
+    assert abs(lag)<=1, 'Light cleanup shifted speech or clipped its beginning'
     assert not list(root.iterdir()), 'Cleanup leaked owned staging files'
 with tempfile.TemporaryDirectory() as directory:
     root=Path(directory); originals=root/'originals'; originals.mkdir()
