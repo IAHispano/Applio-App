@@ -363,8 +363,8 @@ async fn prerequisites(State(state): State<Arc<Setup>>) -> Accepted {
                 let python = python_runtime::find(&engine.runtime, &token).await;
                 let script = engine
                     .runtime
-                    .backend
-                    .join("rvc/lib/tools/prerequisites_download.py");
+                    .code
+                    .join("backend/python/downloads/prerequisites.py");
                 let args = vec![
                     script.into_os_string(),
                     "--pretraineds-hifigan".into(),

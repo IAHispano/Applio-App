@@ -1013,8 +1013,8 @@ pub(crate) async fn install(
     engine.jobs.stage(id, "Downloading models…", None, None);
     let script = engine
         .runtime
-        .backend
-        .join("rvc/lib/tools/prerequisites_download.py");
+        .code
+        .join("backend/python/downloads/prerequisites.py");
     run(
         engine,
         id,

@@ -685,7 +685,7 @@ async fn pretrained(
                 job,
                 token,
                 vec![
-                    "rvc/lib/tools/prerequisites_download.py".into(),
+                    "backend/python/downloads/prerequisites.py".into(),
                     "--vocoder".into(),
                     vocoder.clone(),
                     "--sample-rate".into(),

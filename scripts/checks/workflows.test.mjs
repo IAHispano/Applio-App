@@ -22,6 +22,87 @@ function restart(fetch, now = () => 0) {
 
 const json = (body, ok = true) => ({ ok, json: async () => body });
 
+test("desktop prerequisites retry resets and publish only complete models", () => {
+  execFileSync(process.platform === "win32" ? "python" : "python3", ["-X", "utf8", "-c", String.raw`
+import importlib.util, os, sys, tempfile, types
+from pathlib import Path
+from unittest.mock import patch
+
+root = Path.cwd()
+sys.path.insert(0, str(root / 'backend/applio'))
+requests = types.ModuleType('requests')
+class RequestException(Exception): pass
+class ConnectionError(RequestException): pass
+requests.RequestException = RequestException
+attempts = {}
+payload = b'model-prefix-model-suffix'
+class Response:
+ def __init__(self, offset=0):
+  self.status_code = 206 if offset else 200
+  self.headers = {'etag': '"stable"', 'content-length': str(len(payload)-offset)}
+  if offset: self.headers['content-range'] = f'bytes {offset}-{len(payload)-1}/{len(payload)}'
+  self.offset = offset
+ def __enter__(self): return self
+ def __exit__(self, *args): pass
+ def raise_for_status(self): pass
+ def iter_content(self, size):
+  if not self.offset:
+   yield payload[:13]
+   raise ConnectionError('connection reset during body')
+  yield payload[self.offset:]
+def get(url, *, headers, **kwargs):
+ attempts[url] = attempts.get(url, 0)+1
+ if 2 <= attempts[url] <= 4: raise ConnectionError('connection reset during redirect')
+ offset = int(headers['Range'][6:-1]) if 'Range' in headers else 0
+ if offset: assert headers['If-Range'] == '"stable"'
+ return Response(offset)
+requests.get = get
+requests.head = lambda *args, **kwargs: Response()
+tqdm = types.ModuleType('tqdm')
+class Bar:
+ def __init__(self, **kwargs): pass
+ def __enter__(self): return self
+ def __exit__(self, *args): pass
+ def update(self, amount): pass
+tqdm.tqdm = Bar
+with patch.dict(sys.modules, requests=requests, tqdm=tqdm):
+ from rvc.lib.tools import prerequisites_download as upstream
+ spec = importlib.util.spec_from_file_location('prerequisite_adapter', root/'backend/python/downloads/prerequisites.py')
+ adapter = importlib.util.module_from_spec(spec)
+ spec.loader.exec_module(adapter)
+ with tempfile.TemporaryDirectory() as folder, patch('time.sleep'), patch.object(sys, 'argv', ['prerequisites.py', '--models']):
+  os.chdir(folder)
+  try:
+   adapter.main()
+   for remote, names in upstream.models_list + upstream.embedders_list:
+    for name in names:
+     destination = Path(upstream.folder_mapping_list[remote]) / name
+     assert destination.read_bytes() == payload
+     assert not Path(str(destination)+'.part').exists()
+     assert not Path(str(destination)+'.part.json').exists()
+   assert len(attempts) == 5 and set(attempts.values()) == {5}, attempts
+   adapter.main()
+   assert set(attempts.values()) == {5}, 'Completed files must be reused'
+   with patch.object(sys, 'argv', ['prerequisites.py', '--vocoder', 'HiFi-GAN', '--sample-rate', '40000']):
+    adapter.main()
+   for kind in ('G', 'D'):
+    assert Path(f'rvc/models/pretraineds/hifi-gan/f0{kind}40k.pth').read_bytes() == payload
+   assert len(attempts) == 7 and set(attempts.values()) == {5}, attempts
+   with upstream.ThreadPoolExecutor() as pool: assert pool._max_workers == 4
+   assert 'torch' not in sys.modules
+   # Exhausted retries must retain the prior completed file and propagate.
+   destination = Path('old-model.pth')
+   destination.write_bytes(b'previous valid model')
+   with patch.object(requests, 'get', side_effect=ConnectionError('still offline')) as failed:
+    try: upstream.download_http('http://offline/model', destination)
+    except ConnectionError: pass
+    else: raise AssertionError('Exhausted retries must fail the job')
+    assert failed.call_count == 6
+    assert destination.read_bytes() == b'previous valid model'
+  finally: os.chdir(root)
+`], { encoding: "utf8", windowsHide: true });
+});
+
 test("existing Halloween theme files activate scenery and switching themes clears it", () => {
   const source = fs.readFileSync(new URL("../../frontend/web/lib/theme.tsx", import.meta.url), "utf8");
   const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } });
