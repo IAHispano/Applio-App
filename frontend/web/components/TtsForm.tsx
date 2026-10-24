@@ -3,7 +3,7 @@
 import { FileText, Type, Upload, Wand2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
-import ConversionParameters from "@/components/ConversionParameters";
+import ConversionParameters, { AudioCleanupControls } from "@/components/ConversionParameters";
 import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
 import { TtsModelSelect } from "@/components/TtsModelFiles";
 import {
@@ -248,6 +248,8 @@ export default function TtsForm() {
       fd.append("indexPath", direct ? "" : indexPath);
       if (direct) {
         fd.append("exportFormat", "WAV");
+        fd.append("cleanupMode", conversion.values.cleanupMode);
+        fd.append("cleanupStrength", String(conversion.values.cleanupStrength));
       } else {
         for (const [key, value] of Object.entries(conversion.values)) {
           fd.append(key, String(value));
@@ -416,6 +418,14 @@ export default function TtsForm() {
               </div>
             </div>
           </div>
+          {direct && (
+            <AudioCleanupControls
+              values={conversion.values}
+              setters={conversion.setters}
+              idPrefix="tts-direct"
+              stage="output"
+            />
+          )}
         </Card>
 
         <VoiceModelCard

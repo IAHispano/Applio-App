@@ -717,6 +717,56 @@ torch.manual_seed(7)
 import json, numpy as np, soundfile as sf
 from rvc.lib.tools.text_rvc.data import automatic_transcripts
 import rvc.lib.tools.text_rvc.data as speech_data
+# Quiet phrase tails must not change duration, soft speech, consonants or
+# internal pauses. The level ceiling follows quiet voices rather than gating them.
+rate=16000
+noise=np.full(round(rate*.3),.0002,dtype='float32')
+consonant=np.full(round(rate*.08),.02,dtype='float32')
+vowel=np.sin(np.arange(round(rate*.2))*2*np.pi*220/rate).astype('float32')*.2
+phrase=np.concatenate([noise,consonant,vowel,noise,vowel,consonant,noise])
+cleaned=speech_data.quiet_phrase_edges(phrase,rate)
+assert len(cleaned)==len(phrase) and np.isfinite(cleaned).all()
+assert np.array_equal(cleaned[len(noise):-len(noise)],phrase[len(noise):-len(noise)])
+assert not cleaned[:round(rate*.1)].any() and not cleaned[-round(rate*.1):].any()
+assert np.array_equal(phrase[:len(noise)],noise), 'Cleanup mutated its input'
+soft=consonant*.0001
+assert np.array_equal(speech_data.quiet_phrase_edges(soft,rate),soft)
+assert np.array_equal(speech_data.quiet_phrase_edges(np.zeros(100,dtype='float32'),rate),np.zeros(100))
+short_edges=np.concatenate([noise[:round(rate*.05)],vowel,noise[:round(rate*.05)]])
+assert np.array_equal(speech_data.quiet_phrase_edges(short_edges,rate),short_edges)
+# Off is a true synthesis bypass; cleanup is explicit, owned and atomic.
+from rvc.lib.tools.text_rvc import __main__ as text_cli
+from rvc.lib.tools import audio_cleanup
+with tempfile.TemporaryDirectory() as directory:
+    root=Path(directory); frontend=root/'frontend.pt'; voice=root/'voice.pth'
+    frontend.write_bytes(b'frontend'); voice.write_bytes(b'voice')
+    args=types.SimpleNamespace(output=str(root/'off.wav'),frontend=str(frontend),rvc=str(voice),sid=0,device='cpu',rate=0,text='Hello.',max_frames=100,temporary_directory=str(root))
+    acoustic={'features':np.zeros((20,768),dtype='float32')}
+    with patch.object(text_cli,'_load',return_value=(types.SimpleNamespace(language='en-us'),{})),patch.object(text_cli,'load_rvc'),patch.object(text_cli,'predict',return_value=acoustic),patch.object(text_cli,'decode_rvc',return_value=(phrase,rate)),patch.object(audio_cleanup,'cleanup_file') as cleanup:
+        text_cli.synthesize(args)
+        cleanup.assert_not_called()
+        sf.write(root/'expected.wav',phrase,rate,subtype='PCM_16')
+        assert (root/'off.wav').read_bytes()==(root/'expected.wav').read_bytes()
+        assert json.loads((root/'off.wav.json').read_text())['audio_processing']=='none'
+        args.output=str(root/'on.wav'); args.cleanup_mode='light'; args.cleanup_strength=9
+        text_cli.synthesize(args)
+        assert cleanup.call_args.args[1:]==('light',9)
+        assert cleanup.call_args.kwargs['temporary_directory']==root
+        assert json.loads((root/'on.wav.json').read_text())['audio_processing']=='quiet-phrase-edges-v2'
+        before=(root/'on.wav').read_bytes()
+        cleanup.side_effect=RuntimeError('Cleanup failed')
+        try: text_cli.synthesize(args)
+        except RuntimeError: pass
+        else: raise AssertionError('Cleanup failure was ignored')
+        assert (root/'on.wav').read_bytes()==before
+        assert not list(root.glob('tmp*.wav')), 'Leaked intermediate audio'
+with tempfile.TemporaryDirectory() as directory:
+    root=Path(directory)
+    source=np.sin(np.arange(4800)*2*np.pi*220/48000).astype('float32')*.1
+    assert audio_cleanup.cleanup_audio(source,48000,'off') is source
+    cleaned=audio_cleanup.cleanup_audio(source,48000,'light',12,temporary_directory=root)
+    assert cleaned.shape==source.shape and np.isfinite(cleaned).all()
+    assert not list(root.iterdir()), 'Cleanup leaked owned staging files'
 with tempfile.TemporaryDirectory() as directory:
     root=Path(directory); originals=root/'originals'; originals.mkdir()
     for name,seconds in [('provided',.5),('missing',.5),('long',25.),('silent',.5)]:
@@ -1404,7 +1454,7 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
     if (name === "@/lib/i18n") return { useI18n: () => ({ t: (key) => key }) };
     if (name === "@/lib/useJob") return { usePersistentJobId: () => [null, () => {}], useJob: () => ({ job: completedJob, setError() {} }) };
     if (name === "@/lib/useSpeakers") return { useSpeakers: () => [0] };
-    if (name === "@/lib/useConversionParameters") return { useConversionParameters: () => ({ loaded: true, values: { pitch: 2 }, setters: {} }) };
+    if (name === "@/lib/useConversionParameters") return { useConversionParameters: () => ({ loaded: true, values: { pitch: 2, cleanupMode: "speech", cleanupStrength: 9 }, setters: {} }) };
     if (name === "@/lib/api") return { cachedModels: () => null, fileBasename: (path) => path.split(/[\\/]/).pop(), outputUrl: (path) => `/outputs/${path.split(/[\\/]/).pop()}`, postForm: async (path, body) => { submitted.push(Object.fromEntries(body)); return { jobId: "job" }; } };
     if (name === "@/lib/setting-help") return { SETTING_HELP: {} };
     if (name === "@/components/ui") return new Proxy({}, { get: (_, key) => key });
@@ -1440,6 +1490,8 @@ test("TTS selection preserves each provider's voice and submits the synthesis co
   assert.equal(submitted.at(-1).ttsProvider, "rvc");
   assert.equal(submitted.at(-1).ttsFrontend, "logs/tts/voice/frontend.pt");
   assert.equal(submitted.at(-1).exportFormat, "WAV");
+  assert.equal(submitted.at(-1).cleanupMode, "speech");
+  assert.equal(submitted.at(-1).cleanupStrength, "9");
   assert.equal(submitted.at(-1).indexPath, "");
   assert.equal(submitted.at(-1).pitch, undefined, "Hidden conversion parameters were applied to direct synthesis");
   completedJob = {status: "done", outputFile: "assets/audios/finished.wav", params: {pthPath: "logs/original-voice.pth"}};
@@ -1593,6 +1645,27 @@ for relative, callbacks in [("tabs/inference/inference.py", {"enforce_terms": "r
    assert bound.arguments[expected] == value, (script, control, bound.arguments)
   assert "split_audio" not in signature.parameters
  assert found == set(callbacks.values()), (relative, found)
+
+# Gradio's direct TTS branch must forward cleanup, and its controls must
+# remain in the speech-source card when conversion parameters are hidden.
+import tempfile
+with tempfile.TemporaryDirectory() as directory:
+ folder=Path(directory); voice=folder/'voice.pth'; frontend=folder/'frontend.pt'; output=folder/'out.wav'
+ voice.write_bytes(b'voice'); frontend.write_bytes(b'frontend')
+ def run_tts(arguments,**kwargs):
+  assert arguments[arguments.index('--cleanup-mode')+1]=='light'
+  assert arguments[arguments.index('--cleanup-strength')+1]=='9'
+  output.write_bytes(b'wave'*20)
+  return types.SimpleNamespace(returncode=0)
+ namespace.update(os=os,run_quiet=run_tts,python='python',current_script_directory=str(root))
+ signature=inspect.signature(namespace['run_tts_script'])
+ values={key:None for key,param in signature.parameters.items() if param.default is inspect.Parameter.empty}
+ values.update(tts_text='Hello.',tts_rate=0,pth_path=str(voice),tts_frontend=str(frontend),output_rvc_path=str(output),export_format='WAV',tts_provider='rvc',cleanup_mode='light',cleanup_strength=9)
+ assert namespace['run_tts_script'](**values)[1]==str(output)
+ tree=ast.parse((root/'tabs/tts/tts.py').read_text(encoding='utf-8'))
+ for node in ast.walk(tree):
+  if isinstance(node,ast.With) and any(isinstance(item.context_expr,ast.Call) and isinstance(item.context_expr.func,ast.Name) and item.context_expr.func.id=='step_card' and item.context_expr.args[0].value==2 for item in node.items):
+   assert any(isinstance(child,ast.Name) and child.id=='cleanup_mode' for child in ast.walk(node))
 
 worker = ast.parse((root / "rvc/infer/worker.py").read_text(encoding="utf-8"))
 functions = [node for node in worker.body if isinstance(node, ast.FunctionDef) and node.name in {"map_params", "to_bool"}]
