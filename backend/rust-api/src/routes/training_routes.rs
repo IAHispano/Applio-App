@@ -403,6 +403,8 @@ struct TextBase {
     language: &'static str,
     sha256: &'static str,
     bytes: u64,
+    #[serde(skip)]
+    notices: [(&'static str, &'static str); 2],
 }
 const TEXT_BASES: [TextBase; 2] = [
     TextBase {
@@ -410,12 +412,32 @@ const TEXT_BASES: [TextBase; 2] = [
         language: "en-us",
         sha256: "45e5bc97122e88b28c54ba6396f0058f9bbc5e46c1adadfd6274b48744ee713b",
         bytes: 23_650_194,
+        notices: [
+            (
+                "model.json",
+                "675482e852d8849f9b864b175f318d2f4943a4d7b7b4b24a8adf9a9cff74f5d3",
+            ),
+            (
+                "README.md",
+                "a0edf6a3d0bf5da0a08563de4af0af327b65daebf5fcccdc9910ab236c97e579",
+            ),
+        ],
     },
     TextBase {
         id: "applio-tts-es",
         language: "es",
         sha256: "4f8eda19e75634fe438ba232b3a6fa90f11c19ce078748da4b61a5570f4a6c99",
         bytes: 23_197_714,
+        notices: [
+            (
+                "model.json",
+                "a49f60ad89914c7dc51eb4bef1a1b63c99dc1e00eafdd532363ad79b6719ff4c",
+            ),
+            (
+                "README.md",
+                "5ea1bf2567de7d593b31489eab6221b091c95dc6dfd048e23d5dbd4077c1ba38",
+            ),
+        ],
     },
 ];
 fn text_base_folder(base: TextBase) -> String {
@@ -454,6 +476,15 @@ async fn download_text_frontend(
             }
             response.error_for_status()?;
             let directory = safe_directory(&engine.runtime.logs.join("tts"), &text_base_folder(base)).await?;
+            // Retain the publisher's attribution, limitations and provenance beside the weights.
+            // Fixed names and hashes keep this download route independent of client-supplied paths.
+            let source = url.trim_end_matches("frontend.pt");
+            for (name, sha256) in base.notices {
+                download::file(&client, &format!("{source}{name}"), &directory.join(name), Some(sha256), &token,
+                    |_,_| {},
+                    |attempt| engine.jobs.log(&job.id,&format!("Retrying download ({attempt}/3)…")),
+                ).await?;
+            }
             let target = directory.join("frontend.pt");
             download::file(&client, &url, &target, Some(base.sha256), &token,
                 |received,total| {
