@@ -329,7 +329,7 @@ export default function TtsForm() {
                 ]}
                 description={
                   direct
-                    ? t("Generate speech locally using your voice model and trained TTS model.")
+                    ? undefined
                     : t("Online speech synthesis. Your text is sent to {provider}.", {
                         provider: "Microsoft",
                       })
@@ -353,7 +353,7 @@ export default function TtsForm() {
               <FormField
                 label={t("Text to Synthesize")}
                 htmlFor="tts-text-input"
-                description={t(SETTING_HELP.ttsText)}
+                description={direct ? t("Enter text or upload a .txt file.") : t(SETTING_HELP.ttsText)}
               >
                 <textarea
                   id="tts-text-input"

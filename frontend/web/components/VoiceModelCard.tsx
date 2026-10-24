@@ -202,16 +202,18 @@ export default function VoiceModelCard({
                 {selectedMeta?.pthSize ? humanSize(selectedMeta.pthSize) : "—"}
               </dd>
             </div>
-            <div>
-              <dt>{t("Index")}</dt>
-              <dd className="text-white font-medium">
-                {selectedMeta?.indexSize
-                  ? humanSize(selectedMeta.indexSize)
-                  : indexPath
-                    ? fileBasename(indexPath)
-                    : "—"}
-              </dd>
-            </div>
+            {!hideIndex && (
+              <div>
+                <dt>{t("Index")}</dt>
+                <dd className="text-white font-medium">
+                  {selectedMeta?.indexSize
+                    ? humanSize(selectedMeta.indexSize)
+                    : indexPath
+                      ? fileBasename(indexPath)
+                      : "—"}
+                </dd>
+              </div>
+            )}
             {(
               [
                 { label: t("Epochs"), value: inspectMeta?.epochs },
