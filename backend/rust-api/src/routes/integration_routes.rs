@@ -990,6 +990,21 @@ print('Model downloaded successfully.')
             .logs
             .iter()
             .any(|line| line.contains("falling back")));
+        for (provider, voice) in [("gtts", "es"), ("piper", "en_US-lessac-medium")] {
+            let response = app
+                .clone()
+                .oneshot(request(
+                    "GET",
+                    &format!("/v1/applio/tts/voices?provider={provider}"),
+                    Some(&first),
+                    Value::Null,
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            let response = app.clone().oneshot(request("POST", "/v1/applio/tts", Some(&first), json!({"pthPath":"logs/test.pth", "ttsText":"provider-speech", "ttsProvider":provider, "ttsVoice":voice}))).await.unwrap();
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
         for path in [
             "/v1/capabilities",
             "/v1/applio/models",

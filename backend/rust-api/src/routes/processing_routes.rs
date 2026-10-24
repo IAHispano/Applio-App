@@ -250,8 +250,12 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
         .get::<super::integration_routes::ApiCall>()
         .is_some();
     let mut input = uploads::parse(request, &engine.runtime.uploads, &uploads::text_rule()).await?;
-    ready(&engine).await?;
     let mut params = infer_params::tts(&input.body)?;
+    if params["ttsProvider"] == "rvc" {
+        engine.require_ready(true).await.map_err(Error::internal)?;
+    } else {
+        ready(&engine).await?;
+    }
     if let Some(file) = input.file("txt_file") {
         let bytes = tokio::fs::read(file).await.map_err(anyhow::Error::from)?;
         if let Some(text) = normalize_tts_text(&bytes)? {
@@ -270,6 +274,75 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
         saved["source"] = json!("api");
     }
     model_paths(&engine, &mut params)?;
+    if params["ttsProvider"] == "rvc" {
+        params["ttsFrontend"] = json!(engine
+            .runtime
+            .require_file(&string(&params, "ttsFrontend"))?);
+        let job = engine
+            .start_job(
+                JobType::Tts,
+                saved,
+                Some(Resource::Gpu),
+                move |engine, job, token| async move {
+                    engine.worker.stop().await?;
+                    engine.jobs.stage(&job.id, "Generating speech…", None, None);
+                    let wav = output(&engine, "tts_rvc_output", "wav");
+                    // The job owns partial audio even when terminating Python skips its finally block.
+                    let work = tempfile::Builder::new()
+                        .prefix(".tts-")
+                        .tempdir_in(wav.parent().context("Speech conversion failed.")?)?;
+                    let text = if tts_file.is_empty() {
+                        string(&params, "ttsText")
+                    } else {
+                        tokio::fs::read_to_string(&tts_file).await?
+                    };
+                    // Keep long text out of the platform command-line limit and
+                    // remove the temporary input when the owned process exits.
+                    let text_path =
+                        tempfile::NamedTempFile::new_in(&engine.runtime.uploads)?.into_temp_path();
+                    tokio::fs::write(&text_path, text).await?;
+                    let mut stdout = String::new();
+                    let mut spec = engine.runtime.python_command(vec![
+                        "-m".into(),
+                        "backend.python.text_rvc".into(),
+                        "--device".into(),
+                        "auto".into(),
+                        "synthesize".into(),
+                        "--frontend".into(),
+                        string(&params, "ttsFrontend"),
+                        "--text-file".into(),
+                        path_string(&text_path),
+                        "--rvc".into(),
+                        string(&params, "pthPath"),
+                        "--sid".into(),
+                        params["sid"].to_string(),
+                        "--rate".into(),
+                        params["ttsRate"].to_string(),
+                        "--cleanup-mode".into(),
+                        string(&params, "cleanupMode"),
+                        "--cleanup-strength".into(),
+                        params["cleanupStrength"].to_string(),
+                        "--output".into(),
+                        path_string(&wav),
+                        "--temporary-directory".into(),
+                        path_string(work.path()),
+                    ])?;
+                    spec.env
+                        .insert("APPLIO_TEXT_RVC_GPU_LEASE".into(), job.id.clone().into());
+                    ManagedProcess::run(&spec, &token, |_, line| {
+                        log(&engine, &job.id, line, &mut stdout)
+                    })
+                    .await?
+                    .ensure_success()?;
+                    let file = final_output(&engine, &wav, "WAV", &Value::Null, &[])?;
+                    Ok(JobResult::new(json!({"stdout":tail(&stdout)}), Some(file)))
+                },
+            )
+            .await
+            .map_err(Error::internal)?;
+        input.retain();
+        return Ok(accepted(job));
+    }
     let job = engine.start_job(JobType::Tts, saved, Some(Resource::Gpu), move |engine, job, token| async move {
         let intermediate = output(&engine, "tts_output", "wav");
         let wav = output(&engine, "tts_rvc_output", "wav");
@@ -283,7 +356,7 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
                 if token.is_cancelled() { bail!("Stopped by user"); }
                 engine.jobs.log(&job.id, &format!("Worker notice: {error}; falling back to standalone CLI runner..."));
                 engine.jobs.stage(&job.id, "Generating speech…", None, None);
-                cli(&engine, &job.id, vec!["rvc/lib/tools/tts.py".into(), "--tts-file".into(), tts_file, "--tts-text".into(), string(&params,"ttsText"), "--tts-voice".into(), string(&params,"ttsVoice"), "--tts-rate".into(), params["ttsRate"].to_string(), "--output-tts-path".into(), path_string(&intermediate)], &token, &mut stdout).await?;
+                cli(&engine, &job.id, vec!["rvc/lib/tools/tts.py".into(), "--tts-provider".into(), string(&params,"ttsProvider"), "--tts-file".into(), tts_file, "--tts-text".into(), string(&params,"ttsText"), "--tts-voice".into(), string(&params,"ttsVoice"), "--tts-rate".into(), params["ttsRate"].to_string(), "--output-tts-path".into(), path_string(&intermediate)], &token, &mut stdout).await?;
                 engine.jobs.stage(&job.id, "Loading voice model…", None, None);
                 let mut args = infer_cli(&params, &intermediate, &wav);
                 args.extend(["--cleanup-stage".into(), "output".into()]);

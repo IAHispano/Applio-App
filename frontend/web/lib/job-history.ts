@@ -33,6 +33,23 @@ export function fieldLabel(key: string): string {
     f0UpKey: "Pitch shift",
     ttsText: "Text",
     ttsVoice: "Voice",
+    ttsProvider: "TTS engine",
+    ttsFrontend: "TTS model",
+    frontend: "TTS model",
+    enableTts: "Prepare and train TTS",
+    ttsDatasetPath: "Dataset Path",
+    ttsInitializeFrom: "Pretrained",
+    ttsLanguage: "Speech language",
+    ttsSteps: "Maximum TTS steps",
+    maxSeconds: "Time limit (seconds)",
+    ttsBudgetSeconds: "Time limit (seconds)",
+    ttsElapsedSeconds: "Elapsed",
+    voiceTrainingSeconds: "Duration",
+    ttsCheckpointStep: "Step",
+    ttsTimeLimitReached: "Time limit reached",
+    ttsAdapted: "Voice adaptation",
+    initializeFrom: "Pretrained",
+    datasetRoot: "Dataset Path",
     sampleRate: "Sample rate",
     indexRate: "Index rate",
     setup: "Setup",
@@ -67,4 +84,14 @@ export function duration(from: string, to: string | number): string {
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+export function jobElapsedSeconds(job: Job, now = Date.now()): number {
+  const start = Date.parse(job.startedAt || job.createdAt);
+  const end =
+    job.status === "running" || job.status === "queued"
+      ? now
+      : Date.parse(job.finishedAt || job.updatedAt || job.createdAt);
+  const elapsed = (end - start) / 1000;
+  return Number.isFinite(elapsed) ? Math.max(0, Math.floor(elapsed)) : 0;
 }

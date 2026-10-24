@@ -1151,6 +1151,16 @@
       },
       "exportFormat": {
         "type": "string"
+      },
+      "ttsFrontend": {
+        "type": "string"
+      },
+      "ttsProvider": {
+        "type": "string",
+        "enum": [
+          "edge",
+          "rvc"
+        ]
       }
     },
     "files": {
@@ -1168,6 +1178,16 @@
     "path": "/v1/applio/tts/voices",
     "group": "Text to Speech",
     "response": "json",
+    "query": {
+      "provider": {
+        "type": "string",
+        "enum": [
+          "edge",
+          "rvc"
+        ],
+        "default": "edge"
+      }
+    },
     "example": {},
     "required": []
   },
@@ -1336,6 +1356,26 @@
       },
       "datasetPath": {
         "type": "string"
+      },
+      "enableTts": {
+        "type": "boolean",
+        "default": false
+      },
+      "ttsDatasetPath": {
+        "type": "string",
+        "default": ""
+      },
+      "ttsSteps": {
+        "type": "number",
+        "default": 10000
+      },
+      "ttsLanguage": {
+        "type": "string",
+        "default": "en"
+      },
+      "ttsInitializeFrom": {
+        "type": "string",
+        "default": ""
       }
     },
     "required": []
@@ -1395,6 +1435,26 @@
     "properties": {
       "modelName": {
         "type": "string"
+      },
+      "enableTts": {
+        "type": "boolean",
+        "default": false
+      },
+      "ttsDatasetPath": {
+        "type": "string",
+        "default": ""
+      },
+      "ttsSteps": {
+        "type": "number",
+        "default": 10000
+      },
+      "ttsLanguage": {
+        "type": "string",
+        "default": "en"
+      },
+      "ttsInitializeFrom": {
+        "type": "string",
+        "default": ""
       }
     },
     "required": []
@@ -1527,5 +1587,13 @@
     "required": [
       "modelName"
     ]
+  },
+  {
+    "method": "GET",
+    "path": "/v1/applio/tts/frontends",
+    "group": "Text to Speech",
+    "response": "json",
+    "example": {},
+    "required": []
   }
 ]

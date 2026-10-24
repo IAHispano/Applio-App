@@ -72,7 +72,17 @@ pub(crate) const LANGUAGES: &[(&str, &str)] = &[
     ("vi_VI", "Tiếng Việt"),
     ("zh_CN", "简体中文"),
 ];
-pub(crate) async fn voices(State(state): State<Arc<ApiState>>) -> ApiResult {
+pub(crate) async fn voices(
+    State(state): State<Arc<ApiState>>,
+    Query(query): Query<HashMap<String, String>>,
+) -> ApiResult {
+    let provider = query.get("provider").map(String::as_str).unwrap_or("edge");
+    if provider != "edge" {
+        if provider != "rvc" {
+            return Err(failure(StatusCode::BAD_REQUEST, "Invalid params"));
+        }
+        return Ok(Json(json!({"voices": []})));
+    }
     let raw = read_json(
         state
             .config

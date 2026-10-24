@@ -51,7 +51,9 @@ export function JobError({ message, details, logs, jobId, className, onDismiss }
   const { t } = useI18n();
   if (!message && !details && (!logs || logs.length === 0)) return null;
 
-  const errorTitle = message || t("Operation failed.");
+  const state = historyState({ status: "error", error: message } as Job);
+  const interrupted = state === "stopped" || state === "interrupted";
+  const errorTitle = message ? t(message) : t("Operation failed.");
 
   let diagnosticText = details;
   if (!diagnosticText && logs && logs.length > 0) {
@@ -62,7 +64,7 @@ export function JobError({ message, details, logs, jobId, className, onDismiss }
 
   const fullCopyText = [
     jobId ? `Job ID: ${jobId}` : null,
-    `Error: ${errorTitle}`,
+    interrupted ? errorTitle : `Error: ${errorTitle}`,
     diagnosticText ? `\nLogs / Details:\n${diagnosticText}` : null,
   ]
     .filter(Boolean)
@@ -70,8 +72,8 @@ export function JobError({ message, details, logs, jobId, className, onDismiss }
 
   return (
     <Alert
-      variant="error"
-      title={t("Operation Failed")}
+      variant={state === "stopped" ? "info" : state === "interrupted" ? "warning" : "error"}
+      title={interrupted ? t(historyStateLabels[state]) : t("Operation Failed")}
       details={diagnosticText}
       copyText={fullCopyText}
       className={className}

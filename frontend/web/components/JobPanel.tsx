@@ -4,8 +4,10 @@ import { ChevronDown, Download } from "lucide-react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobBadge, JobCancelButton, JobError, JobProgress } from "@/components/JobStatus";
 import SetupLogLine from "@/components/setup/SetupLogLine";
+import { TtsModelDownload } from "@/components/TtsModelFiles";
 import { Alert, Button, Card } from "@/components/ui";
 import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
+import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { useJob } from "@/lib/useJob";
@@ -34,6 +36,7 @@ export function JobPanelContent({
   activity,
 }: JobPanelProps & { activity: ReturnType<typeof useJob> }) {
   const { t } = useI18n();
+  const { remote } = useRemoteBridge();
   const { job, error, setError, cleanedLogs } = activity;
 
   if (!jobId) return null;
@@ -62,6 +65,7 @@ export function JobPanelContent({
     for (const [k, v] of Object.entries(job.result)) {
       if (
         typeof v === "string" &&
+        !(typeof job.result.frontend === "string" && k === "pthPath") &&
         (v.endsWith(".txt") ||
           v.endsWith(".png") ||
           v.endsWith(".pth") ||
@@ -77,6 +81,14 @@ export function JobPanelContent({
 
   const resultMsg = typeof job.result?.message === "string" ? job.result.message : null;
   const resultInfo = typeof job.result?.info === "string" ? job.result.info : null;
+  const frontend = typeof job.result?.frontend === "string" ? job.result.frontend : "";
+  const voice = typeof job.result?.pthPath === "string" ? job.result.pthPath : job.outputFile;
+  const modelOutput = out && /\.(pth|index)$/i.test(out);
+  const downloadHref = modelOutput
+    ? `/api/train/export-file?file=${encodeURIComponent(out)}`
+    : out
+      ? outputUrl(out)
+      : "";
 
   const content = (
     <>
@@ -102,6 +114,36 @@ export function JobPanelContent({
       <JobProgress status={job.status} progress={job.progress} job={job} />
 
       {resultMsg && <p className="text-xs font-medium text-white m-0">{resultMsg}</p>}
+      {job.status === "done" && typeof job.result?.ttsAdaptationError === "string" && (
+        <Alert variant="warning" title={t("Completed with errors")} details={job.result.ttsAdaptationError}>
+          {t("TTS adaptation failed. The last valid TTS model was kept.")}
+        </Alert>
+      )}
+      {job.status === "done" && job.result?.ttsAdapted === false && !job.result?.ttsAdaptationError && (
+        <p className="text-xs text-neutral-400 m-0">
+          {t("Using the pretrained TTS model; no improved adaptation was saved within the time budget.")}
+        </p>
+      )}
+
+      {showOutput && job.status === "done" && frontend && <TtsModelDownload frontend={frontend} />}
+      {showOutput &&
+        !remote &&
+        job.status === "done" &&
+        !frontend &&
+        voice?.toLowerCase().endsWith(".pth") && (
+          <Button href={`/train?mode=text&pth=${encodeURIComponent(voice)}`} variant="ghost" size="sm">
+            {t("Enable TTS for a voice")}
+          </Button>
+        )}
+      {showOutput && job.status === "done" && frontend && (
+        <Button
+          href={`/tts?provider=rvc&frontend=${encodeURIComponent(frontend)}${voice ? `&pth=${encodeURIComponent(voice)}` : ""}`}
+          variant="ghost"
+          size="sm"
+        >
+          {t("Text to Speech")}
+        </Button>
+      )}
 
       {resultInfo && (
         <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
@@ -129,10 +171,10 @@ export function JobPanelContent({
         </div>
       )}
 
-      {out && !isAudioFile(out) && !isImageFile(out) && (
+      {out && !isAudioFile(out) && !isImageFile(out) && (!modelOutput || !remote) && (
         <div className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/5">
           <span className="text-xs text-neutral-300 font-medium truncate">{fileBasename(out)}</span>
-          <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+          <Button href={downloadHref} download size="sm" icon={<Download size={13} />}>
             {t("Download")}
           </Button>
         </div>

@@ -19,15 +19,30 @@ import { JobProgress, JobStage } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
 import DatasetReview from "@/components/train/DatasetReview";
 import GpuSelect, { type GpuDevice } from "@/components/train/GpuSelect";
+import TextFrontendTraining, {
+  TextFrontendInitialization,
+  TextFrontendLanguage,
+} from "@/components/train/TextFrontendTraining";
 import TrainingConsole from "@/components/train/TrainingConsole";
 import TrainingUpload from "@/components/train/TrainingUpload";
-import { Alert, Badge, Button, Card, CardHeader, Disclosure, Modal, ToggleField } from "@/components/ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  Disclosure,
+  FormField,
+  Modal,
+  ToggleField,
+} from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { apiGet, apiSend, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { historyState, historyStateLabels } from "@/lib/job-history";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { toast } from "@/lib/toast";
 import { useJob, usePersistentJobId } from "@/lib/useJob";
@@ -38,6 +53,11 @@ type StepModal = null | "preprocess" | "extract" | "train" | "index";
 
 export default function TrainPage() {
   const { t } = useI18n();
+  const [workspace, setWorkspace] = useWorkspaceState<"voice" | "text">("page:train:workspace", "voice");
+  const [requestedTtsVoice, setRequestedTtsVoice] = useState("");
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("mode") === "text") setWorkspace("text");
+  }, [setWorkspace]);
   const [trainMode, setTrainMode] = useWorkspaceState<TrainMode>("page:train:trainMode", "auto");
   const [activeModal, setActiveModal] = useState<StepModal>(null);
 
@@ -50,6 +70,11 @@ export default function TrainPage() {
   const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:train:gpuDevices", []);
 
   const [datasetPath, setDatasetPath] = useWorkspaceState("page:train:datasetPath", "");
+  const [enableTts, setEnableTts] = useWorkspaceState("page:train:enableTts", false);
+  const [ttsDatasetPath, setTtsDatasetPath] = useWorkspaceState("page:train:ttsDatasetPath", "");
+  const [ttsSteps, setTtsSteps] = useWorkspaceState("page:train:ttsSteps", 1000);
+  const [ttsLanguage, setTtsLanguage] = useWorkspaceState("page:train:ttsLanguage", "en");
+  const [ttsInitializeFrom, setTtsInitializeFrom] = useWorkspaceState("page:train:ttsInitializeFrom", "");
   const [sampleRate, setSampleRate] = useWorkspaceState("page:train:sampleRate", "40000");
   const [cpuCores, setCpuCores] = useWorkspaceState("page:train:cpuCores", "");
   const [hostCores, setHostCores] = useWorkspaceState("page:train:hostCores", 16);
@@ -99,6 +124,7 @@ export default function TrainPage() {
         trainingJob.params.datasetPath === cleanDatasetPath()))
       ? trainingJob
       : null;
+  const automaticState = automaticJob ? historyState(automaticJob) : null;
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploadsInProgress, setUploadsInProgress] = useState(0);
@@ -268,6 +294,10 @@ export default function TrainPage() {
 
   async function runPipeline() {
     if (busy || activeTraining || uploadsInProgress > 0) return;
+    if (enableTts && !ttsInitializeFrom.trim()) {
+      toast(t("Select a TTS model."), "error");
+      return;
+    }
     if (!modelName.trim()) {
       toast(t("Please enter a model name."), "error");
       return;
@@ -309,6 +339,11 @@ export default function TrainPage() {
         checkpointing,
         gpu: gpuCount,
         indexAlgorithm: indexAlgo,
+        enableTts,
+        ttsDatasetPath: ttsDatasetPath.trim() || cleanDataset,
+        ttsSteps,
+        ttsLanguage,
+        ttsInitializeFrom,
       });
       setJobId(id);
     } catch (e) {
@@ -359,6 +394,10 @@ export default function TrainPage() {
 
   async function runTrainStep() {
     if (!needModel()) return;
+    if (enableTts && !ttsInitializeFrom.trim()) {
+      toast(t("Select a TTS model."), "error");
+      return;
+    }
     const ok = await run(
       "/api/train/train",
       {
@@ -379,6 +418,11 @@ export default function TrainPage() {
         cleanup,
         cacheDataInGpu: cacheGpu,
         checkpointing,
+        enableTts,
+        ttsDatasetPath: ttsDatasetPath.trim() || cleanDatasetPath(),
+        ttsSteps,
+        ttsLanguage,
+        ttsInitializeFrom,
       },
       "train",
     );
@@ -409,11 +453,16 @@ export default function TrainPage() {
     { n: 2, label: t("Extract"), stage: "Extracting features…" },
     { n: 3, label: t("Train"), stage: "Training model…" },
     { n: 4, label: t("Index"), stage: "Generating index…" },
+    ...(automaticJob?.params?.enableTts
+      ? [{ n: 5, label: t("Enable TTS for a voice"), stage: "Applio TTS" }]
+      : []),
   ];
   const currentPhase =
     automaticJob?.stage === "Checking output…"
       ? pipelinePhases.length
-      : pipelinePhases.findIndex((phase) => phase.stage === automaticJob?.stage);
+      : ["Preparing speech synthesis…", "Aligning transcripts…"].includes(automaticJob?.stage || "")
+        ? 2
+        : pipelinePhases.findIndex((phase) => phase.stage === automaticJob?.stage);
   const automaticDisabledReason =
     busy || activeTraining
       ? t("Pipeline Running…")
@@ -462,12 +511,151 @@ export default function TrainPage() {
     },
   ];
 
+  const ttsOptions = (scope: string) => (
+    <section
+      className="space-y-4 rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-4"
+      aria-label={t("Applio TTS")}
+    >
+      <CardHeader
+        icon={<Layers size={17} />}
+        title={t("Applio TTS")}
+        description={t(
+          "Optional. You can add TTS later; preparing and aligning the recordings then takes extra time.",
+        )}
+        action={
+          <ToggleField
+            id={`${scope}-enable-tts`}
+            label={t("Prepare and train TTS")}
+            checked={enableTts}
+            onChange={setEnableTts}
+            disabled={activeTraining || busy}
+          />
+        }
+      />
+      {enableTts && (
+        <div className="space-y-4">
+          <p className="field-help m-0">
+            {t("Transcripts are generated automatically. Your voice recordings are reused.")}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <TextFrontendInitialization
+              id={`${scope}-tts-initial`}
+              value={ttsInitializeFrom}
+              onChange={setTtsInitializeFrom}
+              disabled={activeTraining || busy}
+              required
+            />
+            <TextFrontendLanguage
+              id={`${scope}-tts-language`}
+              value={ttsLanguage}
+              onChange={setTtsLanguage}
+              disabled={activeTraining || busy}
+            />
+          </div>
+          <Disclosure title={t("Advanced training options")} icon={<Sliders size={16} />}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <FormField label={t("Dataset Path")} htmlFor={`${scope}-tts-dataset`}>
+                <input
+                  id={`${scope}-tts-dataset`}
+                  type="text"
+                  value={ttsDatasetPath}
+                  onChange={(event) => setTtsDatasetPath(event.target.value)}
+                  placeholder={datasetPath}
+                  disabled={activeTraining || busy}
+                />
+              </FormField>
+              <FormField label={t("Maximum TTS steps")} htmlFor={`${scope}-tts-steps`}>
+                <input
+                  id={`${scope}-tts-steps`}
+                  type="number"
+                  min={1}
+                  max={100000}
+                  step={1}
+                  value={ttsSteps}
+                  onChange={(event) => setTtsSteps(Number(event.target.value))}
+                  disabled={activeTraining || busy}
+                />
+              </FormField>
+            </div>
+            <p className="field-help m-0">
+              {t(
+                "TTS uses a pretrained model in the selected language. Preparation and adaptation share the voice training time budget. With GPU voice training, they run on the CPU in parallel; otherwise they run afterwards. When time runs out, the best available model is kept.",
+              )}
+            </p>
+          </Disclosure>
+        </div>
+      )}
+      {trainingJob?.status === "done" &&
+        trainingJob.params?.modelName === modelName.trim() &&
+        typeof trainingJob.result?.frontend === "string" && (
+          <>
+            {trainingJob.result.ttsAdapted === false && !trainingJob.result.ttsAdaptationError && (
+              <p className="mt-2 text-xs text-neutral-400">
+                {t(
+                  "Using the pretrained TTS model; no improved adaptation was saved within the time budget.",
+                )}
+              </p>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              icon={<Play size={14} />}
+              href={`/tts?provider=rvc&frontend=${encodeURIComponent(trainingJob.result.frontend)}&pth=${encodeURIComponent(trainingJob.outputFile || "")}`}
+            >
+              {t("Text to Speech")}
+            </Button>
+          </>
+        )}
+      {trainingJob?.status === "done" &&
+        trainingJob.params?.modelName === modelName.trim() &&
+        !trainingJob.result?.frontend &&
+        trainingJob.outputFile?.toLowerCase().endsWith(".pth") && (
+          <Button
+            variant="ghost"
+            size="sm"
+            icon={<Layers size={14} />}
+            href={`/train?mode=text&pth=${encodeURIComponent(trainingJob.outputFile)}`}
+            onClick={() => {
+              setRequestedTtsVoice(trainingJob.outputFile || "");
+              setWorkspace("text");
+            }}
+          >
+            {t("Enable TTS for a voice")}
+          </Button>
+        )}
+    </section>
+  );
+
+  const workspacePicker = (
+    <SegmentedControl
+      value={workspace}
+      onChange={setWorkspace}
+      ariaLabel={t("Training")}
+      options={[
+        { value: "voice", label: t("Voice Model") },
+        { value: "text", label: t("Applio TTS") },
+      ]}
+    />
+  );
+  if (workspace === "text")
+    return (
+      <div className="w-full max-w-[1920px] mx-auto page-stack">
+        <PageHeader
+          title={t("Training")}
+          description={t("Choose a voice, add recordings, and train its TTS model.")}
+        />
+        {workspacePicker}
+        <TextFrontendTraining requestedVoice={requestedTtsVoice} />
+      </div>
+    );
+
   return (
     <div className="w-full max-w-[1920px] mx-auto page-stack">
       <PageHeader
         title={t("Training")}
         description={t("First set up your project below, then choose Automatic or Manual training.")}
       />
+      {workspacePicker}
 
       {/* Shared top section: Model & Compute Hardware */}
       <Card>
@@ -596,6 +784,8 @@ export default function TrainPage() {
               }
             />
 
+            {ttsOptions("auto")}
+
             <ol
               className="grid grid-cols-2 xl:grid-cols-4 gap-3 list-none p-0 m-0"
               aria-label={t("Automatic Training")}
@@ -605,13 +795,13 @@ export default function TrainPage() {
                   index === 3 && (automaticJob?.params?.indexAlgorithm ?? indexAlgo) === "Skip";
                 const done = !skipIndex && (automaticJob?.status === "done" || currentPhase > index);
                 const running = !skipIndex && automaticJob?.status === "running" && currentPhase === index;
-                const failed = !skipIndex && automaticJob?.status === "error" && currentPhase === index;
+                const halted = !skipIndex && automaticJob?.status === "error" && currentPhase === index;
                 const status = skipIndex
                   ? "Skipped"
                   : done
                     ? "Completed"
-                    : failed
-                      ? "Failed"
+                    : halted
+                      ? historyStateLabels[automaticState || "error"]
                       : running
                         ? "In Progress"
                         : "Pending";
@@ -628,7 +818,15 @@ export default function TrainPage() {
                       <span className="text-sm font-medium text-[var(--heading)]">{phase.label}</span>
                     </div>
                     <Badge
-                      variant={done ? "success" : failed ? "danger" : running ? "info" : "neutral"}
+                      variant={
+                        done
+                          ? "success"
+                          : halted && automaticState === "error"
+                            ? "danger"
+                            : running
+                              ? "info"
+                              : "neutral"
+                      }
                       size="sm"
                     >
                       {t(status)}
@@ -771,7 +969,11 @@ export default function TrainPage() {
                 <JobProgress status={automaticJob.status} progress={automaticJob.progress} />
               </div>
             )}
-            {automaticJob?.status === "error" && <Alert variant="error">{automaticJob.error}</Alert>}
+            {automaticJob?.status === "error" && (
+              <Alert variant={automaticState === "error" ? "error" : "info"}>
+                {t(automaticJob.error || "Operation failed.")}
+              </Alert>
+            )}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <Button
                 loading={busy}
@@ -1369,6 +1571,8 @@ export default function TrainPage() {
           </section>
         )}
 
+        {ttsOptions("manual")}
+
         <div className="modal-footer">
           <Button variant="ghost" onClick={() => setActiveModal(null)}>
             {t("Cancel")}
@@ -1428,7 +1632,14 @@ export default function TrainPage() {
         </div>
       </Modal>
 
-      <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />
+      {(activeTraining || trainingJob?.params?.modelName === modelName.trim()) && (
+        <TrainingConsole
+          jobId={jobId}
+          modelName={String(trainingJob?.params?.modelName || modelName)}
+          totalEpochs={totalEpoch}
+          onStop={stop}
+        />
+      )}
     </div>
   );
 }

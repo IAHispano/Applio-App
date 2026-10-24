@@ -20,12 +20,13 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { JobError, JobStage } from "@/components/JobStatus";
+import { JobBadge, JobError, JobStage } from "@/components/JobStatus";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
-import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import { Alert, Button, Card, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { historyState, historyStateLabels, jobElapsedSeconds } from "@/lib/job-history";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs, useJob } from "@/lib/useJob";
 
@@ -67,35 +68,21 @@ export default function TrainingConsole({
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [clockNow, setClockNow] = useState(Date.now);
+  const elapsedSeconds = job ? jobElapsedSeconds(job, clockNow) : 0;
 
   const logEndRef = useRef<HTMLDivElement>(null);
   const logContainerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!jobId) setElapsedSeconds(0);
-  }, [jobId]);
-
-  // Resume the elapsed counter from the job start time after remount/refresh.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot resume per job
-  useEffect(() => {
-    if (!job || elapsedSeconds !== 0) return;
-    const started = new Date(job.createdAt).getTime();
-    if (Number.isNaN(started)) return;
-    const s = Math.floor((Date.now() - started) / 1000);
-    if (s > 0) setElapsedSeconds(s);
-  }, [job?.id]);
-
   const jobStatus = job?.status;
   useEffect(() => {
-    if (jobStatus !== "running" && jobStatus !== "queued") return;
+    setClockNow(Date.now());
+    if (!jobId || (jobStatus !== "running" && jobStatus !== "queued")) return;
     const interval = setInterval(() => {
-      setElapsedSeconds((s) => s + 1);
+      setClockNow(Date.now());
     }, 1000);
     return () => clearInterval(interval);
-    // Only the status matters: depending on `job` would restart the timer on
-    // every poll tick.
-  }, [jobStatus]);
+  }, [jobId, jobStatus]);
 
   const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 
@@ -281,27 +268,7 @@ export default function TrainingConsole({
               <h3 className="text-base font-bold text-white m-0 truncate">
                 {modelName ? `${t("Training:")} ${modelName}` : t("Training Project")}
               </h3>
-              <Badge
-                variant={
-                  job?.status === "done"
-                    ? "success"
-                    : job?.status === "running"
-                      ? "info"
-                      : job?.status === "error"
-                        ? "danger"
-                        : "neutral"
-                }
-                dot
-                size="sm"
-              >
-                {job?.status === "done"
-                  ? t("Completed")
-                  : job?.status === "running"
-                    ? t("In Progress")
-                    : job?.status === "error"
-                      ? t("Failed")
-                      : t("Queued")}
-              </Badge>
+              <JobBadge status={job?.status || "queued"} error={job?.error} />
             </div>
             <div className="flex items-center gap-3 text-xs text-neutral-400 mt-0.5">
               <span className="flex items-center gap-1">
@@ -414,7 +381,7 @@ export default function TrainingConsole({
                   job && job.status !== "done" && job.status !== "error" ? (
                     <JobStage job={job} />
                   ) : job?.status === "error" ? (
-                    t("Failed")
+                    t(historyStateLabels[historyState(job)])
                   ) : (
                     t("Training Completed Successfully")
                   )
@@ -466,18 +433,32 @@ export default function TrainingConsole({
               <Check size={16} className="text-black" />
             </div>
             <div>
-              <h4 className="text-sm font-bold text-white m-0">{t("Training Completed Successfully")}</h4>
+              <h4 className="text-sm font-bold text-white m-0">
+                {t(
+                  job.result?.ttsAdaptationError
+                    ? "Completed with errors"
+                    : "Training Completed Successfully",
+                )}
+              </h4>
               <p className="text-xs text-neutral-400 m-0 mt-0.5">
                 {t("Your voice model weights and feature index have been saved and are ready to use.")}
               </p>
             </div>
           </div>
 
+          {typeof job.result?.ttsAdaptationError === "string" && (
+            <Alert variant="warning" details={job.result.ttsAdaptationError}>
+              {t("TTS adaptation failed. The last valid TTS model was kept.")}
+            </Alert>
+          )}
+
           <div className="flex flex-wrap items-center gap-3 pt-1">
             <Button
               size="md"
               onClick={() =>
-                router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)
+                router.push(
+                  `/inference?model=${encodeURIComponent(job.outputFile || `logs/${modelName}/${modelName}.pth`)}`,
+                )
               }
               iconAfter={<ArrowRight size={14} />}
             >
