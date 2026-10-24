@@ -56,6 +56,24 @@ fn venv_python(root: &Path) -> PathBuf {
         "bin/python"
     })
 }
+fn uv_command(
+    runtime: &crate::engine_runtime::EngineRuntime,
+    program: &Path,
+    args: impl IntoIterator<Item = impl Into<std::ffi::OsString>>,
+) -> Result<CommandSpec> {
+    let mut spec = runtime.python_command(Vec::<String>::new())?;
+    spec.program = program.into();
+    spec.args = args.into_iter().map(Into::into).collect();
+    // Large wheels are streamed while extracting; slow connections can hit
+    // uv's 30-second HTTP timeout even when the archive itself is valid.
+    for (key, default) in [("UV_HTTP_TIMEOUT", "120"), ("UV_HTTP_RETRIES", "5")] {
+        spec.env.insert(
+            key.into(),
+            runtime.env(key).unwrap_or_else(|| default.into()),
+        );
+    }
+    Ok(spec)
+}
 pub(crate) fn validate_venv_rebuild(data: &Path, venv: &Path) -> Result<()> {
     let metadata = match std::fs::symlink_metadata(venv) {
         Ok(metadata) => metadata,
@@ -580,8 +598,8 @@ async fn amd(
         run(
             engine,
             id,
-            &command(
-                engine,
+            &uv_command(
+                &engine.runtime,
                 uv,
                 vec![
                     "pip".into(),
@@ -679,8 +697,8 @@ pub(crate) async fn install(
     if !valid {
         validate_venv_rebuild(&engine.runtime.data, &venv)?;
         if let Some(uv) = &uv {
-            let mut spec = command(
-                engine,
+            let mut spec = uv_command(
+                &engine.runtime,
                 uv,
                 vec![
                     "venv".into(),
@@ -907,7 +925,14 @@ pub(crate) async fn install(
                 "unsafe-best-match".into(),
             ]);
         }
-        run(engine, id, &command(engine, uv, args)?, token, 7200).await?;
+        run(
+            engine,
+            id,
+            &uv_command(&engine.runtime, uv, args)?,
+            token,
+            7200,
+        )
+        .await?;
     } else {
         run(
             engine,
@@ -1033,4 +1058,76 @@ pub(crate) async fn install(
         json!({"message":"Setup complete — Applio is ready.","ready":true}),
         None,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn uv_downloads_use_resilient_defaults_and_preserve_overrides() {
+        let root = tempfile::tempdir().unwrap();
+        let backend = root.path().join("backend/applio/rvc/configs");
+        std::fs::create_dir_all(&backend).unwrap();
+        std::fs::write(backend.join("config.py"), "").unwrap();
+        std::fs::create_dir_all(root.path().join("assets")).unwrap();
+        std::fs::write(root.path().join("assets/config_template.json"), "{}").unwrap();
+        let config = crate::ApiConfig {
+            code_root: root.path().into(),
+            data_root: root.path().join("data"),
+            config_dir: root.path().join("config"),
+        };
+        let mut runtime = crate::engine_runtime::EngineRuntime::open(&config).unwrap();
+        let expected_timeout = runtime
+            .env("UV_HTTP_TIMEOUT")
+            .unwrap_or_else(|| "120".into());
+        let expected_retries = runtime.env("UV_HTTP_RETRIES").unwrap_or_else(|| "5".into());
+        // Environment creation (including seed packages), ordinary dependencies,
+        // and AMD packages must all receive the same network policy.
+        for args in [
+            vec!["venv", "--seed"],
+            vec!["pip", "install", "-r", "requirements.txt"],
+            vec!["pip", "install", "torch[device-gfx1200]", "torchaudio"],
+        ] {
+            let spec = uv_command(&runtime, Path::new("uv"), args.clone()).unwrap();
+            assert_eq!(spec.program, Path::new("uv"));
+            assert_eq!(
+                spec.args,
+                args.iter()
+                    .map(std::ffi::OsString::from)
+                    .collect::<Vec<_>>()
+            );
+            assert_eq!(
+                spec.env.get(OsStr::new("UV_HTTP_TIMEOUT")),
+                Some(&expected_timeout)
+            );
+            assert_eq!(
+                spec.env.get(OsStr::new("UV_HTTP_RETRIES")),
+                Some(&expected_retries)
+            );
+        }
+        runtime
+            .environment
+            .insert("UV_HTTP_TIMEOUT".into(), "600".into());
+        runtime
+            .environment
+            .insert("UV_HTTP_RETRIES".into(), "8".into());
+        let spec = uv_command(&runtime, Path::new("uv"), ["pip", "install"]).unwrap();
+        assert_eq!(
+            spec.env.get(OsStr::new("UV_HTTP_TIMEOUT")),
+            Some(&"600".into())
+        );
+        assert_eq!(
+            spec.env.get(OsStr::new("UV_HTTP_RETRIES")),
+            Some(&"8".into())
+        );
+        let python = runtime.python_command(["-m", "pip", "--version"]).unwrap();
+        assert_eq!(spec.cwd, python.cwd);
+        assert_eq!(spec.env_remove, python.env_remove);
+        assert_eq!(
+            spec.env.get(OsStr::new("APPLIO_ROOT")),
+            python.env.get(OsStr::new("APPLIO_ROOT"))
+        );
+    }
 }
