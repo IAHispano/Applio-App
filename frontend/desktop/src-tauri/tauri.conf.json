@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Applio",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "identifier": "org.applio.app",
   "plugins": {
     "updater": {
@@ -18,17 +18,29 @@
     "windows": [],
     "withGlobalTauri": true,
     "security": {
-      "capabilities": ["desktop", "startup"],
+      "capabilities": [
+        "desktop",
+        "startup"
+      ],
       "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "dmg", "appimage", "deb"],
+    "targets": [
+      "nsis",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
     "category": "Music",
     "shortDescription": "AI voice conversion and training",
     "copyright": "Copyright AI Hispano",
-    "icon": ["../../../assets/ICON.ico", "../../../assets/icon.icns", "../../../assets/icon.png"],
+    "icon": [
+      "../../../assets/ICON.ico",
+      "../../../assets/icon.icns",
+      "../../../assets/icon.png"
+    ],
     "resources": {
       "../resources/": "app/"
     },
