@@ -3,14 +3,14 @@
 import { ChevronDown, Mic, Music, SquarePlay, UploadCloud } from "lucide-react";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
-import CustomSelect from "@/components/ui/CustomSelect";
-import { apiSend, errMsg, fetchModels } from "@/lib/api";
+import MicrophoneSource from "@/components/audio-source/MicrophoneSource";
+import SampleAudioSource from "@/components/audio-source/SampleAudioSource";
+import { useMicrophoneRecording } from "@/components/audio-source/useMicrophoneRecording";
+import { useYoutubeAudio } from "@/components/audio-source/useYoutubeAudio";
+import YoutubeSource from "@/components/audio-source/YoutubeSource";
+import { fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { SETTING_HELP } from "@/lib/setting-help";
-import { useJob } from "@/lib/useJob";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
-import Alert from "./Alert";
-import Button from "./Button";
 import SourceTabs, { type SourceTab } from "./SourceTabs";
 
 export interface AudioDropzoneProps {
@@ -26,60 +26,7 @@ export interface AudioDropzoneProps {
   onRefreshAudios?: () => void;
 }
 
-const YOUTUBE_RE =
-  /^(https?:\/\/)?(www\.|m\.|music\.)?(youtube\.com\/(watch|shorts|live|embed)|youtu\.be\/)/i;
-
 type DropzoneTab = "upload" | "samples" | "youtube" | "mic";
-
-async function blobToWavFile(blob: Blob, baseName: string): Promise<File> {
-  const ctx = new AudioContext();
-  try {
-    const audio = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const nCh = Math.min(audio.numberOfChannels, 2);
-    const len = audio.length;
-    const buf = new ArrayBuffer(44 + len * nCh * 2);
-    const v = new DataView(buf);
-    const str = (o: number, s: string) => {
-      for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i));
-    };
-    str(0, "RIFF");
-    v.setUint32(4, 36 + len * nCh * 2, true);
-    str(8, "WAVEfmt ");
-    v.setUint32(16, 16, true);
-    v.setUint16(20, 1, true);
-    v.setUint16(22, nCh, true);
-    v.setUint32(24, audio.sampleRate, true);
-    v.setUint32(28, audio.sampleRate * nCh * 2, true);
-    v.setUint16(32, nCh * 2, true);
-    v.setUint16(34, 16, true);
-    str(36, "data");
-    v.setUint32(40, len * nCh * 2, true);
-    const ch: Float32Array[] = [];
-    for (let c = 0; c < nCh; c++) ch.push(audio.getChannelData(c));
-    let o = 44;
-    for (let i = 0; i < len; i++)
-      for (let c = 0; c < nCh; c++) {
-        const s = Math.max(-1, Math.min(1, ch[c][i]));
-        v.setInt16(o, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-        o += 2;
-      }
-    return new File([buf], `${baseName}.wav`, { type: "audio/wav" });
-  } finally {
-    void ctx.close().catch(() => {});
-  }
-}
-
-function pickMime(): string {
-  if (typeof MediaRecorder === "undefined" || !MediaRecorder.isTypeSupported) return "";
-  for (const m of ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"]) {
-    try {
-      if (MediaRecorder.isTypeSupported(m)) return m;
-    } catch {
-      /* ignore */
-    }
-  }
-  return "";
-}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 Bytes";
@@ -102,15 +49,7 @@ function AudioDropzoneInner({
   const { t } = useI18n();
   const [tab, setTab] = useState<DropzoneTab>("upload");
   const [isDragging, setIsDragging] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [recDuration, setRecDuration] = useState(0);
-  const [micError, setMicError] = useState("");
   const [showSourcePicker, setShowSourcePicker] = useState(false);
-  const [ytUrl, setYtUrl] = useState("");
-  const [ytJobId, setYtJobId] = useState<string | null>(null);
-  const [ytStarting, setYtStarting] = useState(false);
-  const [ytError, setYtError] = useState("");
-  const { job: ytJob } = useJob(youtube ? ytJobId : null);
 
   const [localSampleAudios, setLocalSampleAudios] = useState<string[]>(sampleAudios);
 
@@ -141,6 +80,18 @@ function AudioDropzoneInner({
     setShowSourcePicker(!showSourcePicker);
   };
 
+  const youtubeSource = useYoutubeAudio({
+    enabled: youtube,
+    disabled,
+    onRefresh: refreshSampleAudios,
+    onSelected: (path) => {
+      onPathSelect(path);
+      onFileSelect(null);
+      setShowSourcePicker(false);
+    },
+  });
+  const resetYoutube = youtubeSource.reset;
+
   const sourceTabs: SourceTab<DropzoneTab>[] = [
     { id: "upload", label: t("Upload file"), icon: <UploadCloud size={14} /> },
     { id: "samples", label: t("Sample Library"), icon: <Music size={14} /> },
@@ -148,23 +99,20 @@ function AudioDropzoneInner({
     ...(youtube ? [{ id: "youtube" as const, label: t("YouTube"), icon: <SquarePlay size={14} /> }] : []),
   ];
 
+  const microphone = useMicrophoneRecording({
+    disabled,
+    onRecorded: (file) => {
+      onFileSelect(file);
+      onPathSelect("");
+      setShowSourcePicker(false);
+    },
+  });
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const recRef = useRef<{ rec: MediaRecorder; chunks: Blob[]; stream: MediaStream } | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const hasAudio = !!audioFile || !!inputPath;
 
   const previewSrc = usePreviewUrl(audioFile, inputPath) || "";
-
-  // Cleanup mic recording on unmount
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      recRef.current?.stream.getTracks().forEach((trk) => {
-        trk.stop();
-      });
-    };
-  }, []);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -206,151 +154,19 @@ function AudioDropzoneInner({
     }
   };
 
-  const startMic = async () => {
-    setMicError("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mime = pickMime();
-      const rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
-      const chunks: Blob[] = [];
-
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      rec.onstop = () => {
-        stream.getTracks().forEach((trk) => {
-          trk.stop();
-        });
-        setRecording(false);
-        if (timerRef.current) clearInterval(timerRef.current);
-
-        const blob = new Blob(chunks, { type: mime || "audio/webm" });
-        blobToWavFile(blob, `mic-recording-${Date.now()}`)
-          .then((file) => {
-            onFileSelect(file);
-            onPathSelect("");
-            setShowSourcePicker(false);
-          })
-          .catch(() => {
-            setMicError(t("Could not process the recording — try uploading a WAV file."));
-          });
-      };
-
-      recRef.current = { rec, chunks, stream };
-      rec.start();
-      setRecording(true);
-      setRecDuration(0);
-
-      timerRef.current = setInterval(() => {
-        setRecDuration((d) => d + 1);
-      }, 1000);
-    } catch {
-      setMicError(t("Microphone unavailable — check permissions."));
-      setRecording(false);
-    }
-  };
-
-  const stopMic = () => {
-    recRef.current?.rec.stop();
-  };
-
   const clearAudio = () => {
     onFileSelect(null);
     onPathSelect("");
     setShowSourcePicker(false);
-    setYtJobId(null);
-    setYtError("");
+    resetYoutube();
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const resetYoutube = () => {
-    setYtJobId(null);
-    setYtError("");
-  };
-
-  const ytActive = ytStarting || ytJob?.status === "running" || ytJob?.status === "queued";
-
-  // Adopt a finished YouTube download as the selected source.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: adopt terminal states once
-  useEffect(() => {
-    if (!youtube || !ytJobId || !ytJob) return;
-    if (ytJob.status === "done") {
-      void refreshSampleAudios();
-      const file = (ytJob.result as { file?: string } | undefined)?.file;
-      if (file) {
-        onPathSelect(file);
-        onFileSelect(null);
-        setShowSourcePicker(false);
-        setYtUrl("");
-      } else {
-        setYtError(t("Download finished without an audio file."));
-      }
-      setYtJobId(null);
-    } else if (ytJob.status === "error") {
-      setYtError(ytJob.error || t("YouTube download failed."));
-      setYtJobId(null);
-    }
-  }, [youtube, ytJobId, ytJob, refreshSampleAudios]);
-
-  async function startYoutubeDownload() {
-    const url = ytUrl.trim();
-    if (!YOUTUBE_RE.test(url)) {
-      setYtError(t("Paste a single YouTube video link (watch, shorts or youtu.be)."));
-      return;
-    }
-    setYtError("");
-    setYtStarting(true);
-    try {
-      const { jobId } = await apiSend<{ jobId: string }>("/api/audio/youtube", "POST", {
-        url,
-        outputFormat: "wav",
-      });
-      setYtJobId(jobId);
-    } catch (e) {
-      setYtError(errMsg(e));
-    } finally {
-      setYtStarting(false);
-    }
-  }
-
-  function renderYoutubePanel(idSuffix: string) {
-    return (
-      <div className="space-y-2 py-1">
-        <label htmlFor={`yt-url-${idSuffix}`} className="text-xs font-medium text-neutral-300">
-          {t("Paste a YouTube link")}
-        </label>
-        <div className="flex items-center gap-2">
-          <input
-            id={`yt-url-${idSuffix}`}
-            type="url"
-            value={ytUrl}
-            disabled={disabled || ytActive}
-            onChange={(e) => setYtUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") startYoutubeDownload();
-            }}
-            placeholder="https://youtube.com/watch?v=…"
-            className="flex-1 min-w-0"
-          />
-          <Button
-            size="sm"
-            onClick={startYoutubeDownload}
-            disabled={disabled || ytActive || !ytUrl.trim()}
-            loading={ytActive}
-            icon={<SquarePlay size={14} />}
-          >
-            {t("Fetch audio")}
-          </Button>
-        </div>
-        <p className="text-[11px] text-neutral-500 m-0">
-          {ytActive
-            ? t("Downloading… the track is saved to assets/audios when done.")
-            : t("Single videos only — saved to assets/audios for reuse.")}
-        </p>
-        {ytError && <Alert variant="error">{ytError}</Alert>}
-      </div>
-    );
+  function handleSampleSelect(path: string) {
+    resetYoutube();
+    onPathSelect(path);
+    onFileSelect(null);
+    setShowSourcePicker(false);
   }
 
   const activeTitle = audioFile ? audioFile.name : inputPath.split(/[\\/]/).pop()?.split("?")[0] || inputPath;
@@ -426,99 +242,23 @@ function AudioDropzoneInner({
               )}
 
               {tab === "samples" && (
-                <div
-                  id="picker-panel-samples"
-                  role="tabpanel"
-                  aria-labelledby="picker-tab-samples"
-                  className="space-y-2"
-                >
-                  <label
-                    htmlFor="change-sample-audio-select"
-                    className="text-xs font-medium text-neutral-300"
-                  >
-                    {t("Pick a sample audio from assets/audios")}
-                  </label>
-                  {localSampleAudios.length === 0 ? (
-                    <p className="text-xs text-neutral-400 m-0 py-2">
-                      {t("No sample files found in assets/audios")}
-                    </p>
-                  ) : (
-                    <CustomSelect
-                      id="change-sample-audio-select"
-                      value={inputPath}
-                      onOpen={refreshSampleAudios}
-                      onChange={(e) => {
-                        if (e.target.value) {
-                          onPathSelect(e.target.value);
-                          onFileSelect(null);
-                          setShowSourcePicker(false);
-                        }
-                      }}
-                      placeholder={t("Choose a sample audio…")}
-                      className="w-full"
-                      description={t(SETTING_HELP.audioSource)}
-                    >
-                      <option value="">{t("Select an audio file…")}</option>
-                      {localSampleAudios.map((s) => {
-                        const name = s.split(/[\\/]/).pop() || s;
-                        return (
-                          <option key={s} value={s}>
-                            {name}
-                          </option>
-                        );
-                      })}
-                    </CustomSelect>
-                  )}
-                </div>
+                <SampleAudioSource
+                  audios={localSampleAudios}
+                  value={inputPath}
+                  onSelect={handleSampleSelect}
+                  onRefresh={refreshSampleAudios}
+                  compact={true}
+                />
               )}
 
               {youtube && tab === "youtube" && (
                 <div id="picker-panel-youtube" role="tabpanel" aria-labelledby="picker-tab-youtube">
-                  {renderYoutubePanel("change")}
+                  <YoutubeSource source={youtubeSource} idSuffix="change" disabled={disabled} />
                 </div>
               )}
 
               {tab === "mic" && (
-                <div
-                  id="picker-panel-mic"
-                  role="tabpanel"
-                  aria-labelledby="picker-tab-mic"
-                  className="py-4 flex flex-col items-center justify-center text-center space-y-3"
-                >
-                  <div
-                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
-                      recording
-                        ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110"
-                        : "bg-white/10 text-white hover:bg-white/20"
-                    }`}
-                  >
-                    <Mic size={22} />
-                  </div>
-                  <p className="text-xs text-neutral-300 m-0">
-                    {recording
-                      ? `${t("Recording")} (${Math.floor(recDuration / 60)}:${
-                          recDuration % 60 < 10 ? "0" : ""
-                        }${recDuration % 60})`
-                      : t("Record a new take to replace current audio")}
-                  </p>
-                  {!recording ? (
-                    <button
-                      type="button"
-                      onClick={startMic}
-                      className="cta text-xs py-1.5 px-4 cursor-pointer"
-                    >
-                      {t("Start recording")}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={stopMic}
-                      className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors shadow-md cursor-pointer"
-                    >
-                      {t("Stop recording")}
-                    </button>
-                  )}
-                </div>
+                <MicrophoneSource microphone={microphone} disabled={disabled} compact={true} />
               )}
             </div>
           )}
@@ -582,101 +322,22 @@ function AudioDropzoneInner({
           )}
 
           {tab === "samples" && (
-            <div
-              id="empty-panel-samples"
-              role="tabpanel"
-              aria-labelledby="empty-tab-samples"
-              className="space-y-2 py-1"
-            >
-              <label htmlFor="sample-audio-select" className="text-xs font-medium text-neutral-300">
-                {t("Pick a sample audio from assets/audios")}
-              </label>
-              {localSampleAudios.length === 0 ? (
-                <p className="text-xs text-neutral-400 m-0 py-2">
-                  {t("No sample files found in assets/audios")}
-                </p>
-              ) : (
-                <CustomSelect
-                  id="sample-audio-select"
-                  value={inputPath}
-                  onOpen={refreshSampleAudios}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      onPathSelect(e.target.value);
-                      onFileSelect(null);
-                    }
-                  }}
-                  placeholder={t("Choose a sample audio…")}
-                  className="w-full"
-                  description={t(SETTING_HELP.audioSource)}
-                >
-                  <option value="">{t("Select an audio file…")}</option>
-                  {localSampleAudios.map((s) => {
-                    const name = s.split(/[\\/]/).pop() || s;
-                    return (
-                      <option key={s} value={s}>
-                        {name}
-                      </option>
-                    );
-                  })}
-                </CustomSelect>
-              )}
-            </div>
+            <SampleAudioSource
+              audios={localSampleAudios}
+              value={inputPath}
+              onSelect={handleSampleSelect}
+              onRefresh={refreshSampleAudios}
+              compact={false}
+            />
           )}
 
           {youtube && tab === "youtube" && (
             <div id="empty-panel-youtube" role="tabpanel" aria-labelledby="empty-tab-youtube">
-              {renderYoutubePanel("empty")}
+              <YoutubeSource source={youtubeSource} idSuffix="empty" disabled={disabled} />
             </div>
           )}
 
-          {tab === "mic" && (
-            <div
-              id="empty-panel-mic"
-              role="tabpanel"
-              aria-labelledby="empty-tab-mic"
-              className="p-6 bg-white/[0.03] border border-white/10 rounded-2xl flex flex-col items-center justify-center text-center space-y-4"
-            >
-              <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                  recording
-                    ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110"
-                    : "bg-white/10 text-white hover:bg-white/20"
-                }`}
-              >
-                <Mic size={28} />
-              </div>
-
-              <div>
-                <p className="text-sm font-semibold text-white m-0">
-                  {recording ? t("Recording in progress…") : t("Record directly with microphone")}
-                </p>
-                <p className="text-xs text-neutral-400 m-0 mt-1">
-                  {recording
-                    ? `${Math.floor(recDuration / 60)}:${recDuration % 60 < 10 ? "0" : ""}${recDuration % 60}`
-                    : t("High quality voice capture")}
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                {!recording ? (
-                  <button type="button" onClick={startMic} className="cta text-xs cursor-pointer">
-                    {t("Start recording")}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={stopMic}
-                    className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors shadow-md cursor-pointer"
-                  >
-                    {t("Stop recording")}
-                  </button>
-                )}
-              </div>
-
-              {micError && <p className="text-xs text-red-400 m-0">{micError}</p>}
-            </div>
-          )}
+          {tab === "mic" && <MicrophoneSource microphone={microphone} disabled={disabled} compact={false} />}
         </div>
       )}
     </div>

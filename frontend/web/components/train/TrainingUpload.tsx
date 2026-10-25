@@ -16,6 +16,8 @@ export default function TrainingUpload({
   disabled = false,
   onUploaded,
   onBusyChange,
+  inline = false,
+  onDraftChange,
 }: {
   kind: UploadKind;
   label?: string;
@@ -23,6 +25,8 @@ export default function TrainingUpload({
   disabled?: boolean;
   onUploaded: (path: string) => void;
   onBusyChange?: (busy: boolean) => void;
+  inline?: boolean;
+  onDraftChange?: () => void;
 }) {
   const { t } = useI18n();
   const { remote } = useRemoteBridge();
@@ -86,75 +90,87 @@ export default function TrainingUpload({
     }
   }
 
+  const fields = (
+    <fieldset disabled={busy || disabled} className="border-0 p-0 m-0 min-w-0 space-y-3">
+      {kind !== "pretrained" && (
+        <FormField
+          label={t(kind === "dataset" ? "Dataset name (e.g. my_vocals)" : "Folder Name")}
+          htmlFor={`${id}-name`}
+          required
+        >
+          <input
+            id={`${id}-name`}
+            type="text"
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+              onDraftChange?.();
+            }}
+          />
+        </FormField>
+      )}
+      <FormField
+        label={kind === "embedder" ? ".bin" : t(kind === "dataset" ? "Audio files" : "Weights")}
+        htmlFor={`${id}-files`}
+        required
+      >
+        <FileInput
+          key={selectionKey}
+          id={`${id}-files`}
+          accept={kind === "dataset" ? ".wav,.mp3,.flac" : kind === "embedder" ? ".bin" : ".pth"}
+          multiple={kind === "dataset"}
+          disabled={busy || disabled}
+          onChange={(selected) => {
+            setFiles(selected);
+            onDraftChange?.();
+            setUploaded(false);
+            setError("");
+            if (kind === "embedder" && !name && selected?.[0])
+              setName(selected[0].name.replace(/\.[^.]+$/, ""));
+          }}
+        />
+      </FormField>
+      {kind === "embedder" && (
+        <FormField label=".json" htmlFor={`${id}-config`} required>
+          <FileInput
+            key={selectionKey}
+            id={`${id}-config`}
+            accept=".json"
+            disabled={busy || disabled}
+            onChange={(selected) => setConfig(selected?.[0] || null)}
+          />
+        </FormField>
+      )}
+      {error && <Alert variant="error">{error}</Alert>}
+      <Button
+        size="sm"
+        loading={busy}
+        disabled={disabled || !ready}
+        icon={<Upload size={14} />}
+        onClick={() => void upload()}
+      >
+        {t("Upload")}
+      </Button>
+    </fieldset>
+  );
+
   if (remote) return null;
   return (
     <div className="min-w-0">
-      <Disclosure
-        title={`${t("Upload")} · ${title}`}
-        icon={<Upload size={15} />}
-        open={open}
-        onToggle={(value) => {
-          if (!busy) setOpen(value);
-        }}
-      >
-        <fieldset disabled={busy || disabled} className="border-0 p-0 m-0 min-w-0 space-y-3">
-          {kind !== "pretrained" && (
-            <FormField
-              label={t(kind === "dataset" ? "Dataset name (e.g. my_vocals)" : "Folder Name")}
-              htmlFor={`${id}-name`}
-              required
-            >
-              <input
-                id={`${id}-name`}
-                type="text"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-              />
-            </FormField>
-          )}
-          <FormField
-            label={kind === "embedder" ? ".bin" : t(kind === "dataset" ? "Audio files" : "Weights")}
-            htmlFor={`${id}-files`}
-            required
-          >
-            <FileInput
-              key={selectionKey}
-              id={`${id}-files`}
-              accept={kind === "dataset" ? ".wav,.mp3,.flac" : kind === "embedder" ? ".bin" : ".pth"}
-              multiple={kind === "dataset"}
-              disabled={busy || disabled}
-              onChange={(selected) => {
-                setFiles(selected);
-                setUploaded(false);
-                setError("");
-                if (kind === "embedder" && !name && selected?.[0])
-                  setName(selected[0].name.replace(/\.[^.]+$/, ""));
-              }}
-            />
-          </FormField>
-          {kind === "embedder" && (
-            <FormField label=".json" htmlFor={`${id}-config`} required>
-              <FileInput
-                key={selectionKey}
-                id={`${id}-config`}
-                accept=".json"
-                disabled={busy || disabled}
-                onChange={(selected) => setConfig(selected?.[0] || null)}
-              />
-            </FormField>
-          )}
-          {error && <Alert variant="error">{error}</Alert>}
-          <Button
-            size="sm"
-            loading={busy}
-            disabled={disabled || !ready}
-            icon={<Upload size={14} />}
-            onClick={() => void upload()}
-          >
-            {t("Upload")}
-          </Button>
-        </fieldset>
-      </Disclosure>
+      {inline ? (
+        fields
+      ) : (
+        <Disclosure
+          title={`${t("Upload")} · ${title}`}
+          icon={<Upload size={15} />}
+          open={open}
+          onToggle={(value) => {
+            if (!busy) setOpen(value);
+          }}
+        >
+          {fields}
+        </Disclosure>
+      )}
       {uploaded && (
         <p className="field-help flex items-center gap-1.5" role="status">
           <Check size={14} className="text-[var(--ok)]" />

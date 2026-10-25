@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Минимум проходов и минимальное перекрытие: быстрее всего, но с небольшим смешением между дорожками.",
   "Middle ground between speed and quality. Good for most songs.": "Золотая середина между скоростью и качеством. Подходит для большинства треков.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Максимальное перекрытие и дополнительные проходы: чище разделение, но заметно медленнее.",
-  "Max {size}": "Макс. {size}"
+  "Max {size}": "Макс. {size}",
+  "Upload a dataset": "Загрузить датасет",
+  "Use a folder path": "Указать путь к папке",
+  "Choose a saved dataset": "Выбрать сохранённый датасет",
+  "Selected dataset": "Выбранный датасет",
+  "Select a dataset…": "Выберите датасет…",
+  "No saved datasets found.": "Сохранённые датасеты не найдены."
 }

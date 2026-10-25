@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "パス回数が最も少なく、重叠も最小：最速ですが、少しステムが混ざります。",
   "Middle ground between speed and quality. Good for most songs.": "速度と品質のバランス。ほとんどの曲に適しています。",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大の重叠と追加パス：分離はよりきれいになりますが、明確に遅くなります。",
-  "Max {size}": "最大 {size}"
+  "Max {size}": "最大 {size}",
+  "Upload a dataset": "データセットをアップロード",
+  "Use a folder path": "フォルダーのパスを入力",
+  "Choose a saved dataset": "保存済みデータセットを選択",
+  "Selected dataset": "選択中のデータセット",
+  "Select a dataset…": "データセットを選択…",
+  "No saved datasets found.": "保存済みデータセットが見つかりません。"
 }

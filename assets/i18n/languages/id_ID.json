@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Passage paling sedikit dan overlap terendah: paling cepat, dengan sedikit tumpang tindih antar stem.",
   "Middle ground between speed and quality. Good for most songs.": "Kompromi antara kecepatan dan kualitas. Bagus untuk sebagian besar lagu.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Overlap tertinggi dan ekstra pass: pemisahan lebih bersih, tetapi jauh lebih lambat.",
-  "Max {size}": "Maks. {size}"
+  "Max {size}": "Maks. {size}",
+  "Upload a dataset": "Unggah dataset",
+  "Use a folder path": "Gunakan jalur folder",
+  "Choose a saved dataset": "Pilih dataset tersimpan",
+  "Selected dataset": "Dataset terpilih",
+  "Select a dataset…": "Pilih dataset…",
+  "No saved datasets found.": "Tidak ada dataset tersimpan."
 }

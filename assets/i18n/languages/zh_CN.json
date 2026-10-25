@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "处理次数最少、重叠最低：速度最快，但各音轨之间会略有串音。",
   "Middle ground between speed and quality. Good for most songs.": "速度与质量之间的折中，适合大多数歌曲。",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "最大重叠加额外处理：分离更干净，但明显更慢。",
-  "Max {size}": "最大 {size}"
+  "Max {size}": "最大 {size}",
+  "Upload a dataset": "上传数据集",
+  "Use a folder path": "输入文件夹路径",
+  "Choose a saved dataset": "选择已保存的数据集",
+  "Selected dataset": "已选数据集",
+  "Select a dataset…": "请选择数据集…",
+  "No saved datasets found.": "未找到已保存的数据集。"
 }

@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Ít lượt xử lý ít nhất và độ chồng lấn thấp nhất: nhanh nhất, nhưng các stem hơi lẫn vào nhau.",
   "Middle ground between speed and quality. Good for most songs.": "Cân bằng giữa tốc độ và chất lượng. Hợp với hầu hết các bài hát.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Độ chồng lấn cao nhất và thêm lượt xử lý: tách sạch hơn, nhưng chậm hơn đáng kể.",
-  "Max {size}": "Tối đa {size}"
+  "Max {size}": "Tối đa {size}",
+  "Upload a dataset": "Tải bộ dữ liệu lên",
+  "Use a folder path": "Nhập đường dẫn thư mục",
+  "Choose a saved dataset": "Chọn bộ dữ liệu đã lưu",
+  "Selected dataset": "Bộ dữ liệu đã chọn",
+  "Select a dataset…": "Chọn một bộ dữ liệu…",
+  "No saved datasets found.": "Không tìm thấy bộ dữ liệu đã lưu."
 }

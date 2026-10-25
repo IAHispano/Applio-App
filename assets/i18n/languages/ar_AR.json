@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "أقل عدد من المراحل وأقل تداخل: الأسرع، مع قدر من التداخل بين المسارات.",
   "Middle ground between speed and quality. Good for most songs.": "توازن بين السرعة والجودة. مناسب لمعظم الأغاني.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "أقصى تداخل وخطوات إضافية: فصل أنظف، لكن أبطأ بشكل ملحوظ.",
-  "Max {size}": "بحد أقصى {size}"
+  "Max {size}": "بحد أقصى {size}",
+  "Upload a dataset": "تحميل مجموعة بيانات",
+  "Use a folder path": "استخدام مسار مجلد",
+  "Choose a saved dataset": "اختيار مجموعة بيانات محفوظة",
+  "Selected dataset": "مجموعة البيانات المحددة",
+  "Select a dataset…": "اختر مجموعة بيانات…",
+  "No saved datasets found.": "لم يُعثر على مجموعات بيانات محفوظة."
 }

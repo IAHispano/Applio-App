@@ -1,26 +1,21 @@
 "use client";
 
-import { Disc, Gauge, Headphones, ListMusic, Play, RefreshCw, Sparkles, Square, Wand2 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { Gauge, Play, Square } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
-import RealtimeCalibration from "@/components/RealtimeCalibration";
 import RealtimeDiagnostics from "@/components/RealtimeDiagnostics";
-import {
-  Badge,
-  Button,
-  Card,
-  CardHeader,
-  Disclosure,
-  EMBEDDER_MODELS,
-  EmbedderSelect,
-  FormField,
-  IconButton,
-  PitchMethodSelect,
-  REALTIME_F0_METHODS,
-  ToggleField,
-} from "@/components/ui";
-import CustomSelect from "@/components/ui/CustomSelect";
-import SettingHelp from "@/components/ui/SettingHelp";
+import RealtimeAudioSettings from "@/components/realtime/RealtimeAudioSettings";
+import RealtimeConversionSettings from "@/components/realtime/RealtimeConversionSettings";
+import RealtimeDevices from "@/components/realtime/RealtimeDevices";
+import RealtimeFormantSettings from "@/components/realtime/RealtimeFormantSettings";
+import RealtimeMonitorSettings from "@/components/realtime/RealtimeMonitorSettings";
+import Stage from "@/components/realtime/RealtimeStage";
+import RealtimeTools from "@/components/realtime/RealtimeTools";
+import RealtimeVoiceCleanup from "@/components/realtime/RealtimeVoiceCleanup";
+import type { RealtimeAudioSession } from "@/components/realtime/types";
+import { useRealtimeAudioRouting } from "@/components/realtime/useRealtimeAudioRouting";
+import { useRealtimeCalibration } from "@/components/realtime/useRealtimeCalibration";
+import { Badge, Button, Disclosure, EMBEDDER_MODELS, REALTIME_F0_METHODS } from "@/components/ui";
 import SliderField from "@/components/ui/SliderField";
 import VoiceModelCard from "@/components/VoiceModelCard";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
@@ -28,12 +23,6 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset, loadModelPresets, saveModelPreset, useModelPresets } from "@/lib/model-presets";
 import { INPUT_WORKLET, PLAYBACK_WORKLET, RealtimeAudioSender } from "@/lib/realtime-audio";
-import {
-  CALIBRATION_CANDIDATES,
-  CalibrationMeter,
-  type CalibrationResult,
-  calibrationDelay,
-} from "@/lib/realtime-calibration";
 import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
 import { connectRealtimeOutput, DEFAULT_REALTIME_OUTPUT } from "@/lib/realtime-output";
 import { setRealtimeGpuReserved } from "@/lib/realtime-presence";
@@ -58,31 +47,6 @@ interface RtStatus {
   startedAt: string | null;
   logs: string[];
   scheduling?: { realtime?: boolean } | null;
-}
-
-function Stage({
-  step,
-  title,
-  description,
-  icon,
-  children,
-  disabled = false,
-}: {
-  step: number;
-  title: string;
-  description: string;
-  icon: ReactNode;
-  children: ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <Card as="section" aria-label={`${step}. ${title}`}>
-      <CardHeader step={step} title={title} description={description} icon={icon} />
-      <fieldset disabled={disabled} className="min-w-0 border-0 m-0 p-0">
-        {children}
-      </fieldset>
-    </Card>
-  );
 }
 
 const REALTIME_PRESET_DEFAULTS = {
@@ -177,17 +141,27 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     recentUnderrunMs: 0,
   });
   const [roundTrip, setRoundTrip] = useState(0);
-  const [calibrating, setCalibrating] = useState(false);
   const [realtimeToolsOpen, setRealtimeToolsOpen] = useState(false);
-  const [calibrationResults, setCalibrationResults] = useState<CalibrationResult[]>([]);
-  const [calibrationError, setCalibrationError] = useState("");
-  const [calibrationCurrent, setCalibrationCurrent] = useState(0);
-  const [calibrationProgress, setCalibrationProgress] = useState(0);
-  const [calibrationActivity, setCalibrationActivity] = useState("Preparing…");
-  const [calibrationKey, setCalibrationKey] = useState("");
-  const calibrationControllerRef = useRef<AbortController | null>(null);
-  const calibrationMeterRef = useRef(new CalibrationMeter());
-  const calibrationCountersRef = useRef({ droppedBlocks: 0, underrunMs: 0, playbackDroppedMs: 0 });
+  const {
+    calibrating,
+    calibrationResults,
+    calibrationError,
+    calibrationCurrent,
+    calibrationProgress,
+    calibrationActivity,
+    calibrationKey,
+    calibrationControllerRef,
+    calibrationMeterRef,
+    calibrationCountersRef,
+    calibrateHardware,
+  } = useRealtimeCalibration({
+    getSession: () => sessRef.current,
+    canStart: () => streaming && !recOn && !passthrough && inGain !== 0,
+    autoChunk,
+    getContext: () => calibrationContextRef.current,
+    setChunkMs,
+    onRestoreFailure: () => stopStream(true),
+  });
   // Preset values waiting for the debounce window to close.
   const pendingPresetRef = useRef<{
     model: string;
@@ -205,19 +179,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid]);
 
-  const sessRef = useRef<{
-    ws: WebSocket;
-    ctx: AudioContext;
-    stream: MediaStream;
-    nodes: AudioNode[];
-    playback: AudioWorkletNode;
-    els: HTMLAudioElement[];
-    settings: RealtimeSettingsSender;
-    inputBridge?: AudioNode;
-    outputBridge?: AudioNode;
-    inputLatencyMs: number;
-    blockFrame: number;
-  } | null>(null);
+  const sessRef = useRef<RealtimeAudioSession | null>(null);
   const streamEpochRef = useRef(0);
   const [applyingSettings, setApplyingSettings] = useState(false);
   const [applyingAudio, setApplyingAudio] = useState(false);
@@ -1108,94 +1070,6 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
   const calibrationContextRef = useRef(calibrationContextKey);
   calibrationContextRef.current = calibrationContextKey;
 
-  async function calibrateHardware() {
-    const session = sessRef.current;
-    if (
-      !streaming ||
-      !session ||
-      calibrationControllerRef.current ||
-      session.settings.busy ||
-      recOn ||
-      passthrough ||
-      inGain === 0
-    )
-      return;
-    const controller = new AbortController();
-    calibrationControllerRef.current = controller;
-    calibrationMeterRef.current.stop();
-    setCalibrating(true);
-    setCalibrationResults([]);
-    setCalibrationError("");
-    setCalibrationProgress(0);
-    const original = { block_frame: session.blockFrame, automatic_block_size: autoChunk };
-    const context = calibrationContextRef.current;
-    const results: CalibrationResult[] = [];
-    try {
-      for (const [index, chunk] of CALIBRATION_CANDIDATES.entries()) {
-        controller.signal.throwIfAborted();
-        if (sessRef.current !== session || calibrationContextRef.current !== context)
-          throw new Error("The realtime model or audio settings changed. Run calibration again.");
-        setCalibrationCurrent(chunk);
-        setCalibrationActivity("Applying settings…");
-        const actualFrames = await session.settings.apply({
-          automatic_block_size: false,
-          block_frame: chunk * 48,
-        });
-        if (actualFrames !== chunk * 48)
-          throw new Error("The engine did not apply the requested calibration buffer.");
-        setCalibrationActivity("Warming up…");
-        await calibrationDelay(1500, controller.signal);
-        setCalibrationActivity("Measuring latency…");
-        calibrationMeterRef.current.begin(calibrationCountersRef.current);
-        await calibrationDelay(6000, controller.signal);
-        if (session.ctx.state !== "running" || sessRef.current !== session)
-          throw new Error("The audio session paused during calibration.");
-        if (calibrationContextRef.current !== context)
-          throw new Error("The realtime model or audio settings changed. Run calibration again.");
-        results.push(calibrationMeterRef.current.finish(chunk, calibrationCountersRef.current));
-        setCalibrationResults([...results]);
-        setCalibrationProgress(Math.round(((index + 1) / CALIBRATION_CANDIDATES.length) * 100));
-      }
-      setCalibrationKey(context);
-    } catch (error) {
-      setCalibrationResults([]);
-      setCalibrationError(
-        t(
-          controller.signal.aborted
-            ? "Calibration cancelled. Original buffer settings restored."
-            : errMsg(error),
-        ),
-      );
-    } finally {
-      calibrationMeterRef.current.stop();
-      setCalibrationActivity("Restoring settings…");
-      if (sessRef.current === session && session.ws.readyState === WebSocket.OPEN) {
-        try {
-          const restored = await session.settings.apply(original);
-          setChunkMs(restored / 48);
-        } catch (error) {
-          setCalibrationResults([]);
-          setCalibrationError(
-            t("Could not restore buffer settings. Realtime has been stopped: {message}", {
-              message: errMsg(error),
-            }),
-          );
-          stopStream(true);
-        }
-      }
-      calibrationControllerRef.current = null;
-      setCalibrating(false);
-    }
-  }
-
-  useEffect(() => {
-    const hidden = () => {
-      if (document.hidden) calibrationControllerRef.current?.abort();
-    };
-    document.addEventListener("visibilitychange", hidden);
-    return () => document.removeEventListener("visibilitychange", hidden);
-  }, []);
-
   useEffect(() => {
     if (!model || !settingsLoadedRef.current || !modelPresets.loaded) return;
     const values = realtimePreset(JSON.parse(settingsKey));
@@ -1237,165 +1111,24 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     }, 800);
   }, [settingsKey]);
 
-  useEffect(() => {
-    const session = sessRef.current;
-    if (!streaming || !session) return;
-    if (!inDev) {
-      controlRef.current.stop();
-      setMsg(t("Select input and output devices before starting realtime."));
-      return;
-    }
-    const previous = { ...audioRoutingRef.current };
-    if (previous.input === inDev && previous.focus === voiceFocus) return;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      audioApplyCountRef.current++;
-      setApplyingAudio(true);
-      void (async () => {
-        let stream: MediaStream | undefined;
-        let source: MediaStreamAudioSourceNode | undefined;
-        let bridge: GainNode | undefined;
-        let cleanup: (() => Promise<void>) | undefined;
-        let committed = false;
-        try {
-          // Reopening the same microphone can mute the existing track in
-          // WebKit. A Voice Focus change only needs different constraints.
-          if (previous.input === inDev) {
-            stream = session.stream;
-            await stream
-              .getAudioTracks()[0]
-              ?.applyConstraints(realtimeMicrophoneConstraints(inDev, voiceFocus));
-          } else {
-            stream = await navigator.mediaDevices.getUserMedia({
-              audio: realtimeMicrophoneConstraints(inDev, voiceFocus),
-            });
-          }
-          if (cancelled || sessRef.current !== session) return;
-          source = session.ctx.createMediaStreamSource(stream);
-          bridge = session.ctx.createGain();
-          if (voiceFocus === "off") source.connect(bridge);
-          else cleanup = await connectVoiceFocus(session.ctx, source, bridge, stream, voiceFocus);
-          if (cancelled || sessRef.current !== session) return;
-          const oldStream = session.stream;
-          const oldSource = session.nodes[0];
-          const oldBridge = session.inputBridge;
-          const oldCleanup = voiceFocusCleanupRef.current;
-          bridge.connect(session.nodes[1]);
-          source.connect(session.playback);
-          oldSource.disconnect();
-          oldBridge?.disconnect();
-          session.stream = stream;
-          session.nodes[0] = source;
-          session.nodes = session.nodes.filter((node) => node !== oldBridge);
-          session.nodes.push(bridge);
-          session.inputBridge = bridge;
-          session.inputLatencyMs =
-            ((stream.getAudioTracks()[0]?.getSettings() as MediaTrackSettings & { latency?: number })
-              ?.latency || 0) * 1000;
-          voiceFocusCleanupRef.current = cleanup || null;
-          audioRoutingRef.current.input = inDev;
-          audioRoutingRef.current.focus = voiceFocus;
-          committed = true;
-          if (oldStream !== stream)
-            oldStream.getTracks().forEach((track) => {
-              track.stop();
-            });
-          void oldCleanup?.().catch(() => {});
-          setVoiceFocusError("");
-          setMsg(t("Settings applied"));
-        } catch (error) {
-          if (!cancelled && sessRef.current === session) {
-            setInDev(previous.input);
-            setVoiceFocus(previous.focus);
-            setVoiceFocusError(errMsg(error));
-            setMsg(t("Could not apply settings: {message}", { message: t(errMsg(error)) }));
-          }
-        } finally {
-          if (!committed) {
-            if (stream !== session.stream) {
-              stream?.getTracks().forEach((track) => {
-                track.stop();
-              });
-            } else if (!cancelled && sessRef.current === session) {
-              await stream
-                ?.getAudioTracks()[0]
-                ?.applyConstraints(realtimeMicrophoneConstraints(previous.input, previous.focus))
-                .catch(() => {});
-            }
-            source?.disconnect();
-            bridge?.disconnect();
-            await cleanup?.().catch(() => {});
-          }
-          audioApplyCountRef.current--;
-          setApplyingAudio(audioApplyCountRef.current > 0);
-        }
-      })();
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [inDev, voiceFocus, streaming, t]);
-
-  useEffect(() => {
-    const session = sessRef.current;
-    if (!streaming || !session || audioRoutingRef.current.output === outDev) return;
-    if (!outDev) {
-      controlRef.current.stop();
-      setMsg(t("Select input and output devices before starting realtime."));
-      return;
-    }
-    const previous = audioRoutingRef.current.output;
-    let cancelled = false;
-    const timer = setTimeout(() => {
-      audioApplyCountRef.current++;
-      setApplyingAudio(true);
-      void (async () => {
-        const bridge = session.ctx.createGain();
-        let elements: HTMLAudioElement[] = [];
-        let committed = false;
-        try {
-          elements = await connectRealtimeOutput(session.ctx, bridge, outDev);
-          if (cancelled || sessRef.current !== session) return;
-          const gain = outGainNodeRef.current;
-          if (!gain) return;
-          gain.disconnect();
-          gain.connect(bridge);
-          session.outputBridge?.disconnect();
-          session.nodes = session.nodes.filter((node) => node !== session.outputBridge);
-          session.nodes.push(bridge);
-          session.outputBridge = bridge;
-          session.els.forEach((element) => {
-            element.pause();
-            element.srcObject = null;
-          });
-          session.els = elements;
-          audioRoutingRef.current.output = outDev;
-          committed = true;
-          setMsg(t("Settings applied"));
-        } catch (error) {
-          if (!cancelled && sessRef.current === session) {
-            setOutDev(previous);
-            setMsg(t("Could not apply settings: {message}", { message: t(errMsg(error)) }));
-          }
-        } finally {
-          if (!committed) {
-            bridge.disconnect();
-            elements.forEach((element) => {
-              element.pause();
-              element.srcObject = null;
-            });
-          }
-          audioApplyCountRef.current--;
-          setApplyingAudio(audioApplyCountRef.current > 0);
-        }
-      })();
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [outDev, streaming, t]);
+  useRealtimeAudioRouting({
+    sessRef,
+    streaming,
+    inDev,
+    controlRef,
+    setMsg,
+    audioRoutingRef,
+    voiceFocus,
+    audioApplyCountRef,
+    setApplyingAudio,
+    voiceFocusCleanupRef,
+    setVoiceFocusError,
+    setInDev,
+    setVoiceFocus,
+    outDev,
+    outGainNodeRef,
+    setOutDev,
+  });
 
   const selectedLiveSettings = {
     ...realtimePreset(settingsSnapshot),
@@ -1444,7 +1177,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
         sessRef.current.settings.update(key, value, effect);
       }
     }
-  }, [selectedLiveKey, streaming]);
+  }, [selectedLiveKey, streaming, calibrationControllerRef]);
 
   useEffect(() => {
     if (calibrating || recOn) setRealtimeToolsOpen(true);
@@ -1492,65 +1225,9 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
         />
       </fieldset>
 
-      <Stage
-        disabled={calibrating}
-        step={2}
-        title={t("Audio Devices")}
-        description={t("Select your input and output devices.")}
-        icon={<ListMusic size={18} className="text-white" />}
-      >
-        <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
-          <FormField label={t("Input Device")} htmlFor="rt-in-dev" required>
-            <CustomSelect
-              id="rt-in-dev"
-              value={inDev}
-              onChange={(e) => setInDev(e.target.value)}
-              className="w-full"
-              description={t(SETTING_HELP.inputDevice)}
-            >
-              <option value="" disabled>
-                {t("Select an input device")}
-              </option>
-              {inputs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </CustomSelect>
-          </FormField>
-          <FormField label={t("Output Device")} htmlFor="rt-out-dev" required>
-            <CustomSelect
-              id="rt-out-dev"
-              value={outDev}
-              onChange={(e) => setOutDev(e.target.value)}
-              className="w-full"
-              description={t(SETTING_HELP.outputDevice)}
-            >
-              <option value="" disabled>
-                {t("Select an output device")}
-              </option>
-              {outputs.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.label}
-                </option>
-              ))}
-            </CustomSelect>
-          </FormField>
-          <div className="flex items-start sm:pt-[30px]">
-            <IconButton
-              label={t("Refresh audio devices")}
-              icon={<RefreshCw size={14} />}
-              size="md"
-              onClick={() => void enumDevices()}
-            />
-          </div>
-        </div>
-        <p className="text-xs text-neutral-400">
-          {t(
-            "Choose your microphone as input. To send converted audio to another app, select a virtual cable as output and select its paired input in that app.",
-          )}
-        </p>
-      </Stage>
+      <RealtimeDevices
+        controls={{ calibrating, inDev, setInDev, inputs, outDev, setOutDev, outputs, enumDevices }}
+      />
 
       <Stage
         disabled={calibrating}
@@ -1580,460 +1257,97 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           icon={<Gauge size={16} />}
           description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-            <div>
-              <SliderField
-                id="rt-index-rate"
-                label={t("Search Feature Ratio")}
-                value={indexRate}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={(v) => {
-                  setIndexRate(v);
-                  if (streaming) changeConfigDebounced("index_rate", v);
-                }}
-                description={t(SETTING_HELP.indexRate)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-protect"
-                label={t("Protect Voiceless Consonants")}
-                value={protect}
-                min={0}
-                max={0.5}
-                step={0.01}
-                onChange={(v) => {
-                  setProtect(v);
-                  if (streaming) changeConfigDebounced("protect", v);
-                }}
-                description={t(SETTING_HELP.protect)}
-              />
-            </div>
-            <div>
-              <SliderField
-                id="rt-volume-envelope"
-                label={t("Volume Envelope")}
-                value={volumeEnvelope}
-                min={0}
-                max={1}
-                step={0.05}
-                onChange={(v) => {
-                  setVolumeEnvelope(v);
-                  if (streaming) changeConfigDebounced("volume_envelope", v);
-                }}
-                description={t(SETTING_HELP.envelope)}
-              />
-            </div>
-
-            <PitchMethodSelect
-              id="rt-f0-method"
-              label={t("Pitch extraction algorithm")}
-              value={f0Method}
-              onChange={setF0Method}
-              methods={REALTIME_F0_METHODS}
-            />
-            <EmbedderSelect
-              id="rt-embedder"
-              label={t("Embedder Model")}
-              value={embedder}
-              onChange={setEmbedder}
-            />
-            {embedder === "custom" && (
-              <div>
-                <label htmlFor="rt-custom-embedder">{t("Custom embedder path")}</label>
-                <input
-                  id="rt-custom-embedder"
-                  type="text"
-                  value={embedderCustom}
-                  onChange={(e) => setEmbedderCustom(e.target.value)}
-                  placeholder="rvc/models/embedders/embedders_custom/my-embedder"
-                  aria-describedby={`${"rt-custom-embedder"}-help`}
-                />
-                <SettingHelp text={t(SETTING_HELP.customEmbedder)} controlId={"rt-custom-embedder"} />
-              </div>
-            )}
-          </div>
-          <Disclosure
-            title={t("Voice cleanup (autotune / proposed pitch)")}
-            icon={<Wand2 size={15} />}
-            description={t(SETTING_HELP.autotune)}
-          >
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="min-w-0">
-                <ToggleField
-                  id="rt-autotune"
-                  label={t("Autotune")}
-                  checked={autotune}
-                  onChange={(checked) => {
-                    setAutotune(checked);
-                    if (streaming) changeConfig("autotune", checked);
-                  }}
-                  description={t(SETTING_HELP.autotune)}
-                />
-              </div>
-              <div className="min-w-0">
-                <ToggleField
-                  id="rt-proposed-pitch"
-                  label={t("Proposed Pitch")}
-                  checked={proposedPitch}
-                  onChange={(checked) => {
-                    setProposedPitch(checked);
-                    if (streaming) changeConfig("proposed_pitch", checked);
-                  }}
-                  description={t(SETTING_HELP.proposed)}
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4" style={{ marginTop: 8 }}>
-              <div>
-                <SliderField
-                  id="rt-autotune-strength"
-                  label={t("Autotune Strength")}
-                  value={autotuneStrength}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  onChange={(v) => {
-                    setAutotuneStrength(v);
-                    if (streaming) changeConfigDebounced("autotune_strength", v);
-                  }}
-                  description={t(SETTING_HELP.autotuneStrength)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-proposed-threshold"
-                  label={t("Proposed Pitch Threshold")}
-                  value={proposedPitchThreshold}
-                  min={50}
-                  max={1200}
-                  step={1}
-                  unit="Hz"
-                  onChange={(v) => {
-                    setProposedPitchThreshold(v);
-                    if (streaming) changeConfigDebounced("proposed_pitch_threshold", v);
-                  }}
-                  description={t(SETTING_HELP.proposedThreshold)}
-                />
-              </div>
-            </div>
-          </Disclosure>
-          <Disclosure
-            title={t("Formant Shifting")}
-            icon={<Sparkles size={15} />}
-            description={t(SETTING_HELP.formant)}
-          >
-            <ToggleField
-              id="rt-formant-shifting"
-              label={t("Enable Formant Shifting")}
-              checked={formantShifting}
-              onChange={(checked) => {
-                setFormantShifting(checked);
-                if (streaming) changeConfig("formant_shifting", checked);
-              }}
-              description={t(SETTING_HELP.formant)}
-            />
-            {formantShifting && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                <SliderField
-                  id="rt-formant-qfrency"
-                  label={t("Quefrency for formant shifting")}
-                  value={formantQfrency}
-                  min={0}
-                  max={16}
-                  step={0.1}
-                  onChange={(v) => {
-                    setFormantQfrency(v);
-                    if (streaming) changeConfigDebounced("formant_qfrency", v);
-                  }}
-                  description={t("Modifies formants width and spectral envelope")}
-                />
-                <SliderField
-                  id="rt-formant-timbre"
-                  label={t("Timbre for formant shifting")}
-                  value={formantTimbre}
-                  min={0.1}
-                  max={16}
-                  step={0.1}
-                  onChange={(v) => {
-                    setFormantTimbre(v);
-                    if (streaming) changeConfigDebounced("formant_timbre", v);
-                  }}
-                  description={t("Adjusts vocal tract length / timbre brightness")}
-                />
-                <p className="text-xs text-neutral-400 sm:col-span-2">
-                  {t("Active formant shifting adds 64 ms of audio delay. Timbre 1 is neutral.")}
-                </p>
-              </div>
-            )}
-          </Disclosure>
-          <Disclosure
-            title={t("Latency / VAD / gains")}
-            icon={<Gauge size={15} />}
-            description={
-              <>
-                {t(SETTING_HELP.chunk)} {t(SETTING_HELP.vad)}
-              </>
-            }
-          >
-            <div className="mb-4 space-y-3">
-              <ToggleField
-                id="rt-decoder-fp16"
-                label={t("FP16 HiFi-GAN decoder (CUDA)")}
-                checked={decoderFp16}
-                onChange={(checked) => {
-                  setDecoderFp16(checked);
-                  if (streaming) changeConfig("decoder_fp16", checked);
-                }}
-                description={t(SETTING_HELP.fp16)}
-              />
-              <label htmlFor="rt-voice-focus" className="text-xs text-neutral-300">
-                {t("Voice Focus")}
-              </label>
-              <CustomSelect
-                id="rt-voice-focus"
-                value={voiceFocus}
-                onChange={(e) => void selectVoiceFocus(e.target.value as VoiceFocusVariant)}
-                options={[
-                  { value: "off", label: t("Off") },
-                  {
-                    value: "c20",
-                    label: "Voice Focus c20",
-                    disabled: voiceFocusUnsupported,
-                  },
-                  {
-                    value: "c50",
-                    label: "Voice Focus c50",
-                    disabled: voiceFocusUnsupported,
-                  },
-                  {
-                    value: "c100",
-                    label: "Voice Focus c100",
-                    disabled: voiceFocusUnsupported,
-                  },
-                ]}
-                description={t(SETTING_HELP.voiceFocus)}
-              />
-              <p className="text-xs text-neutral-400">
-                {voiceFocusUnsupported
-                  ? t("Voice Focus is not available on this system. Input keeps working without it.")
-                  : t(
-                      "Voice Focus processes microphone audio locally. Model assets download from AWS when enabled.",
-                    )}
-              </p>
-              {voiceFocusError ? (
-                <p className="text-xs text-amber-300" role="status">
-                  {voiceFocusError}
-                </p>
-              ) : null}
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-              <div>
-                <SliderField
-                  id="rt-chunk-ms"
-                  label={t("Chunk Size (ms)")}
-                  value={chunkMs}
-                  min={20}
-                  max={1000}
-                  step={10}
-                  unit="ms"
-                  onChange={(value) => {
-                    setChunkMs(value);
-                    setAutoChunk(false);
-                  }}
-                  description={t(SETTING_HELP.chunk)}
-                />
-                <ToggleField
-                  label={t("Auto chunk size")}
-                  checked={autoChunk}
-                  onChange={setAutoChunk}
-                  description={t(SETTING_HELP.autoChunk)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-crossfade"
-                  label={t("Crossfade Overlap Size (s)")}
-                  value={crossfade}
-                  min={0.05}
-                  max={0.2}
-                  step={0.01}
-                  unit="s"
-                  onChange={(v) => {
-                    setCrossfade(v);
-                    if (streaming) changeConfigDebounced("cross_fade_overlap_size", v);
-                  }}
-                  description={t(SETTING_HELP.crossfade)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-extra-size"
-                  label={t("Extra Conversion Size (s)")}
-                  value={extraSize}
-                  min={0.1}
-                  max={5}
-                  step={0.1}
-                  unit="s"
-                  onChange={(v) => {
-                    setExtraSize(v);
-                    if (streaming) changeConfigDebounced("extra_convert_size", v);
-                  }}
-                  description={t(SETTING_HELP.context)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-silent-threshold"
-                  label={t("Silence Threshold (dB)")}
-                  value={silent}
-                  min={-90}
-                  max={-30}
-                  step={1}
-                  unit="dB"
-                  onChange={(v) => {
-                    setSilent(v);
-                    if (streaming) changeConfigDebounced("silent_threshold", v);
-                  }}
-                  description={t(SETTING_HELP.silence)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-in-gain"
-                  label={t("Input Gain (%)")}
-                  value={inGain}
-                  min={0}
-                  max={200}
-                  step={1}
-                  unit="%"
-                  onChange={(v) => {
-                    setInGain(v);
-                    if (streaming) changeConfigDebounced("input_audio_gain", v);
-                  }}
-                  description={t(SETTING_HELP.inputGain)}
-                />
-              </div>
-              <div>
-                <SliderField
-                  id="rt-out-gain"
-                  label={`${t("Output Gain (%)")} ${t("(local)")}`}
-                  value={outGain}
-                  min={0}
-                  max={200}
-                  step={1}
-                  unit="%"
-                  onChange={setOutGain}
-                  description={t(SETTING_HELP.outputGain)}
-                />
-              </div>
-            </div>
-            <ToggleField
-              id="rt-vad-enabled"
-              label={t("Enable VAD")}
-              checked={vad}
-              onChange={(checked) => {
-                setVad(checked);
-                if (streaming) changeConfig("vad_enabled", checked);
-              }}
-              className="mt-3"
-              description={t(SETTING_HELP.vad)}
-            />
-          </Disclosure>
-          <Disclosure
-            title={t("Monitor")}
-            icon={<Headphones size={15} />}
-            description={t(SETTING_HELP.outputDevice)}
-          >
-            <div className="space-y-4">
-              <ToggleField
-                id="rt-monitor-enabled"
-                label={t("Hear myself")}
-                description={t(
-                  "Play the converted output on this device's speakers/headphones while streaming. The stream sent to the output device is unaffected.",
-                )}
-                checked={monitorSelf}
-                onChange={setMonitorSelf}
-              />
-              {monitorSelf && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-start">
-                  <SliderField
-                    id="rt-monitor-volume"
-                    label={t("Monitor volume")}
-                    value={monitorVolume}
-                    min={0}
-                    max={200}
-                    step={1}
-                    unit="%"
-                    onChange={setMonitorVolume}
-                    description={t("Local playback volume. Does not change the streamed output.")}
-                  />
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs font-medium text-neutral-300">{t("Output level")}</span>
-                      <span className="text-[11px] text-neutral-400 tabular-nums" aria-live="off">
-                        {streaming || connecting ? `${outLevel}%` : "—"}
-                      </span>
-                    </div>
-                    <meter
-                      className="h-2 w-full overflow-hidden rounded-full bg-white/10 [&::-webkit-meter-bar]:bg-transparent [&::-webkit-meter-optimum-value]:bg-[var(--accent)] [&::-moz-meter-bar]:bg-[var(--accent)]"
-                      min={0}
-                      max={100}
-                      value={streaming || connecting ? outLevel : 0}
-                      aria-label={t("Output level")}
-                    />
-                    <p className="text-[11px] text-neutral-400 m-0 leading-tight">
-                      {t("Use headphones to avoid feedback when monitoring.")}
-                    </p>
-                  </div>
-                </div>
-              )}
-              <div className="space-y-4">
-                <ToggleField
-                  id="rt-passthrough"
-                  disabled={!streaming}
-                  label={t("Passthrough")}
-                  checked={passthrough}
-                  onChange={(value) => {
-                    if (streaming) setPassthrough(value);
-                  }}
-                  description={t(
-                    "Send your microphone directly to the output. Conversion stays ready for instant switching; recordings still use the converted voice.",
-                  )}
-                />
-                <div className="space-y-2 pl-6">
-                  <label htmlFor="rt-passthrough-hotkey" className="block text-xs text-neutral-300">
-                    {t("Passthrough hotkey")}
-                  </label>
-                  <input
-                    id="rt-passthrough-hotkey"
-                    value={passthroughHotkey}
-                    maxLength={80}
-                    onChange={(event) => setPassthroughHotkey(event.target.value)}
-                    aria-describedby="rt-passthrough-hotkey-help"
-                    autoComplete="off"
-                    spellCheck={false}
-                    className="block w-full max-w-sm rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs font-sans focus:border-white/25 focus:outline-none"
-                  />
-                  <p
-                    id="rt-passthrough-hotkey-help"
-                    className="max-w-xl text-[11px] leading-relaxed text-neutral-400"
-                  >
-                    {t(
-                      "Desktop shortcut: CommandOrControl+Alt+V switches while another app is focused. Clear it to disable.",
-                    )}
-                  </p>
-                  {!hotkeyAvailable && (
-                    <p className="text-xs text-amber-300" role="status">
-                      {t("Hotkey unavailable. Choose another combination.")}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </div>
-          </Disclosure>
+          <RealtimeConversionSettings
+            controls={{
+              indexRate,
+              setIndexRate,
+              streaming,
+              changeConfigDebounced,
+              protect,
+              setProtect,
+              volumeEnvelope,
+              setVolumeEnvelope,
+              f0Method,
+              setF0Method,
+              embedder,
+              setEmbedder,
+              embedderCustom,
+              setEmbedderCustom,
+            }}
+          />
+          <RealtimeVoiceCleanup
+            controls={{
+              autotune,
+              setAutotune,
+              streaming,
+              changeConfig,
+              proposedPitch,
+              setProposedPitch,
+              autotuneStrength,
+              setAutotuneStrength,
+              changeConfigDebounced,
+              proposedPitchThreshold,
+              setProposedPitchThreshold,
+            }}
+          />
+          <RealtimeFormantSettings
+            controls={{
+              formantShifting,
+              setFormantShifting,
+              streaming,
+              changeConfig,
+              formantQfrency,
+              setFormantQfrency,
+              changeConfigDebounced,
+              formantTimbre,
+              setFormantTimbre,
+            }}
+          />
+          <RealtimeAudioSettings
+            controls={{
+              decoderFp16,
+              setDecoderFp16,
+              streaming,
+              changeConfig,
+              voiceFocus,
+              selectVoiceFocus,
+              voiceFocusUnsupported,
+              voiceFocusError,
+              chunkMs,
+              setChunkMs,
+              setAutoChunk,
+              autoChunk,
+              crossfade,
+              setCrossfade,
+              changeConfigDebounced,
+              extraSize,
+              setExtraSize,
+              silent,
+              setSilent,
+              inGain,
+              setInGain,
+              outGain,
+              setOutGain,
+              vad,
+              setVad,
+            }}
+          />
+          <RealtimeMonitorSettings
+            controls={{
+              monitorSelf,
+              setMonitorSelf,
+              monitorVolume,
+              setMonitorVolume,
+              streaming,
+              connecting,
+              outLevel,
+              passthrough,
+              setPassthrough,
+              passthroughHotkey,
+              setPassthroughHotkey,
+              hotkeyAvailable,
+            }}
+          />
         </Disclosure>
         <div className="space-y-4 pt-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -2097,86 +1411,37 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           )}
         </div>
       </Stage>
-      <Disclosure
-        title={t("Recording & Calibration")}
-        icon={<Disc size={16} />}
-        open={realtimeToolsOpen}
-        onToggle={setRealtimeToolsOpen}
-      >
-        <RealtimeCalibration
-          streaming={streaming}
-          disabled={
-            connecting ||
-            applyingSettings ||
-            applyingAudio ||
-            recOn ||
-            passthrough ||
-            inGain === 0 ||
-            !!sessRef.current?.settings.busy
-          }
-          running={calibrating}
-          current={calibrationCurrent}
-          results={calibrationResults}
-          stale={!!calibrationKey && calibrationKey !== calibrationContextKey}
-          error={calibrationError}
-          progress={calibrationProgress}
-          activity={calibrationActivity}
-          onStart={() => void calibrateHardware()}
-          onCancel={() => calibrationControllerRef.current?.abort()}
-          onApply={(size) => {
-            setChunkMs(size);
-            setAutoChunk(false);
-          }}
-        />
-        <Card aria-label={t("Record Output")}>
-          <CardHeader
-            icon={<Disc size={18} className="text-white" />}
-            title={t("Record Output")}
-            description={t("Records the converted stream server-side via the engine.")}
-          />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
-            <div>
-              <label htmlFor="rt-rec-path">{t("Recording path (server)")}</label>
-              <input
-                id="rt-rec-path"
-                disabled={calibrating}
-                type="text"
-                value={recPath}
-                onChange={(e) => setRecPath(e.target.value)}
-                aria-describedby={`${"rt-rec-path"}-help`}
-              />
-              <SettingHelp text={t(SETTING_HELP.recordPath)} controlId={"rt-rec-path"} />
-            </div>
-            <div>
-              <label htmlFor="rt-rec-format">{t("Export Format")}</label>
-              <CustomSelect
-                id="rt-rec-format"
-                disabled={calibrating}
-                value={recFormat}
-                onChange={(e) => setRecFormat(e.target.value)}
-                className="w-full mt-1"
-                description={t(SETTING_HELP.export)}
-              >
-                {["WAV", "MP3", "FLAC", "OGG", "M4A"].map((m) => (
-                  <option key={m} value={m}>
-                    {m}
-                  </option>
-                ))}
-              </CustomSelect>
-            </div>
-          </div>
-          <div className="flex justify-end">
-            <Button
-              variant={recOn ? "ghost" : "primary"}
-              onClick={toggleRecord}
-              disabled={calibrating || !streaming}
-              icon={<Disc size={16} className={recOn ? "animate-pulse text-white" : undefined} />}
-            >
-              {recOn ? t("Stop Recording") : t("Start Recording")}
-            </Button>
-          </div>
-        </Card>
-      </Disclosure>
+      <RealtimeTools
+        controls={{
+          realtimeToolsOpen,
+          setRealtimeToolsOpen,
+          streaming,
+          connecting,
+          applyingSettings,
+          applyingAudio,
+          recOn,
+          passthrough,
+          inGain,
+          settingsBusy: !!sessRef.current?.settings.busy,
+          calibrating,
+          calibrationCurrent,
+          calibrationResults,
+          calibrationKey,
+          calibrationContextKey,
+          calibrationError,
+          calibrationProgress,
+          calibrationActivity,
+          calibrateHardware,
+          cancelCalibration: () => calibrationControllerRef.current?.abort(),
+          setChunkMs,
+          setAutoChunk,
+          recPath,
+          setRecPath,
+          recFormat,
+          setRecFormat,
+          toggleRecord,
+        }}
+      />
     </div>
   );
 }

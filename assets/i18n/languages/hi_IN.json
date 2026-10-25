@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "सबसे कम पास और सबसे कम ओवरलैप: सबसे तेज़, पर स्टेम्स के बीच थोड़ा मिश्रण रहता है।",
   "Middle ground between speed and quality. Good for most songs.": "गति और गुणवत्ता के बीच का संतुलन। ज़्यादातर गानों के लिए अच्छा।",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "सर्वाधिक ओवरलैप और अतिरिक्त पास: साफ़ अलगाव, पर स्पष्ट रूप से धीमा।",
-  "Max {size}": "अधिकतम {size}"
+  "Max {size}": "अधिकतम {size}",
+  "Upload a dataset": "डेटासेट अपलोड करें",
+  "Use a folder path": "फ़ोल्डर पथ का उपयोग करें",
+  "Choose a saved dataset": "सहेजा गया डेटासेट चुनें",
+  "Selected dataset": "चुना गया डेटासेट",
+  "Select a dataset…": "डेटासेट चुनें…",
+  "No saved datasets found.": "कोई सहेजा गया डेटासेट नहीं मिला।"
 }

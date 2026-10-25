@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "En az geçiş ve en düşük örtüşme: en hızlısı, ancak stemler arasında bir miktar karışma olur.",
   "Middle ground between speed and quality. Good for most songs.": "Hız ve kalite arasında bir orta yol. Çoğu şarkı için uygundur.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "En yüksek örtüşme ve fazladan geçiş: daha temiz ayrım, ama belirgin şekilde daha yavaş.",
-  "Max {size}": "En fazla {size}"
+  "Max {size}": "En fazla {size}",
+  "Upload a dataset": "Veri kümesi yükle",
+  "Use a folder path": "Klasör yolu kullan",
+  "Choose a saved dataset": "Kayıtlı veri kümesi seç",
+  "Selected dataset": "Seçilen veri kümesi",
+  "Select a dataset…": "Bir veri kümesi seçin…",
+  "No saved datasets found.": "Kayıtlı veri kümesi bulunamadı."
 }

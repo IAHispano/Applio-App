@@ -1849,5 +1849,11 @@
   "Fewest passes and the lowest overlap: quickest, with some bleed between stems.": "Le moins de passes et le plus faible recouvrement : le plus rapide, avec un peu de mélange entre les stems.",
   "Middle ground between speed and quality. Good for most songs.": "Un juste milieu entre vitesse et qualité. Convient à la plupart des morceaux.",
   "Highest overlap and extra passes: cleaner separation, but noticeably slower.": "Recouvrement maximal et passes supplémentaires : séparation plus propre, mais nettement plus lent.",
-  "Max {size}": "Max {size}"
+  "Max {size}": "Max {size}",
+  "Upload a dataset": "Importer un jeu de données",
+  "Use a folder path": "Saisir le chemin d’un dossier",
+  "Choose a saved dataset": "Choisir un jeu de données enregistré",
+  "Selected dataset": "Jeu de données sélectionné",
+  "Select a dataset…": "Sélectionnez un jeu de données…",
+  "No saved datasets found.": "Aucun jeu de données enregistré trouvé."
 }
