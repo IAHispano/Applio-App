@@ -15,9 +15,101 @@ function load(
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
   });
   const exports = {};
-  new Function("exports", "require", "document", "AudioContext", "IntersectionObserver", outputText)(exports, require, globals.document, globals.AudioContext, globals.IntersectionObserver);
+  new Function("exports", "require", "document", "AudioContext", "IntersectionObserver", "Audio", outputText)(exports, require, globals.document, globals.AudioContext, globals.IntersectionObserver, globals.Audio);
   return exports;
 }
+
+test("realtime uses the default output when enumeration exposes no concrete outputs", async () => {
+  const path = new URL("../../frontend/web/components/RealtimeWorkspace.tsx", import.meta.url);
+  const source = fs.readFileSync(path, "utf8");
+  const tree = ts.createSourceFile("RealtimeWorkspace.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const functions = [];
+  let outputExpression;
+  const visit = (node) => {
+    if (ts.isFunctionDeclaration(node) && ["dedupeDevices", "enumDevices"].includes(node.name?.text)) functions.push(node.getText(tree));
+    if (ts.isVariableDeclaration(node) && node.name.getText(tree) === "outDev") outputExpression = node.initializer.getText(tree);
+    ts.forEachChild(node, visit);
+  };
+  visit(tree);
+  assert.equal(functions.length, 2);
+  const compiled = ts.transpileModule(functions.join("\n"), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const { DEFAULT_REALTIME_OUTPUT } = load("../../frontend/web/lib/realtime-output.ts");
+  let reported = [{ kind: "audioinput", deviceId: "mic", label: "Microphone" }];
+  let inputs, outputs, selectedInput = "mic", selectedOutput = "saved-cable", stopped = 0, permissionDenied = false;
+  const messages = [];
+  const navigator = { mediaDevices: {
+    getUserMedia: async () => {
+      if (permissionDenied) throw new Error("denied");
+      return { getTracks: () => [{ stop: () => stopped++ }] };
+    },
+    enumerateDevices: async () => reported,
+  } };
+  const enumerate = new Function("navigator", "setInputs", "setOutputs", "setInDev", "setOutDev", "setMsg", "t", "DEFAULT_REALTIME_OUTPUT", `${compiled};return enumDevices;`)(
+    navigator, (value) => inputs = value, (value) => outputs = value,
+    (update) => selectedInput = update(selectedInput), (update) => selectedOutput = update(selectedOutput),
+    (message) => messages.push(message), (value) => value, DEFAULT_REALTIME_OUTPUT,
+  );
+  await enumerate();
+  assert.equal(stopped, 1, "permission-probe microphone tracks are released");
+  assert.deepEqual(inputs, [{ id: "mic", label: "Microphone" }]);
+  assert.deepEqual(outputs, [{ id: DEFAULT_REALTIME_OUTPUT, label: "Default" }]);
+  assert.equal(selectedInput, "mic");
+  assert.equal(selectedOutput, DEFAULT_REALTIME_OUTPUT);
+  const effectiveOutput = new Function("outputs", "selectedOutDev", "DEFAULT_REALTIME_OUTPUT", `return ${outputExpression};`);
+  assert.equal(effectiveOutput(outputs, "late-saved-cable", DEFAULT_REALTIME_OUTPUT), DEFAULT_REALTIME_OUTPUT, "late settings restoration cannot disable the fallback");
+  reported.push({ kind: "audiooutput", deviceId: "default", label: "Default" });
+  await enumerate();
+  assert.equal(selectedOutput, DEFAULT_REALTIME_OUTPUT, "default-only enumeration still uses automatic playback");
+  reported.push({ kind: "audiooutput", deviceId: "cable", label: "Virtual cable" });
+  await enumerate();
+  assert.deepEqual(outputs, [{ id: "cable", label: "Virtual cable" }]);
+  assert.equal(selectedOutput, "", "a named output requires an explicit selection");
+  selectedOutput = "cable";
+  await enumerate();
+  assert.equal(selectedOutput, "cable");
+  assert.equal(effectiveOutput(outputs, "cable", DEFAULT_REALTIME_OUTPUT), "cable");
+  permissionDenied = true;
+  await enumerate();
+  assert.equal(messages.length, 1, "permission failures are still reported");
+});
+
+test("default realtime playback does not require a selectable audio sink", async () => {
+  const { connectRealtimeOutput, DEFAULT_REALTIME_OUTPUT } = load("../../frontend/web/lib/realtime-output.ts");
+  const connections = [];
+  const sinks = [];
+  let resumed = 0;
+  const source = { connect: (target) => connections.push(target) };
+  const ctx = { destination: {}, resume: async () => resumed++ };
+  assert.deepEqual(await connectRealtimeOutput(ctx, source, DEFAULT_REALTIME_OUTPUT), []);
+  assert.deepEqual(connections, [ctx.destination]);
+  assert.equal(resumed, 1);
+  ctx.setSinkId = async (id) => sinks.push(id);
+  await connectRealtimeOutput(ctx, source, "virtual-cable");
+  await connectRealtimeOutput(ctx, source, DEFAULT_REALTIME_OUTPUT);
+  assert.deepEqual(sinks, ["virtual-cable", ""], "switching back restores the system default sink");
+  ctx.setSinkId = async () => { throw new Error("device disconnected"); };
+  await assert.rejects(connectRealtimeOutput(ctx, source, "missing-cable"), /device disconnected/);
+  assert.equal(connections.length, 3, "an explicit device failure must not redirect audio to speakers");
+});
+
+test("legacy realtime output failures release the temporary playback route", async () => {
+  let paused = 0, stopped = 0, disconnected = 0;
+  const elements = [];
+  class Audio {
+    constructor() { elements.push(this); }
+    async setSinkId() { throw new Error("device unavailable"); }
+    pause() { paused++; }
+  }
+  const { connectRealtimeOutput } = load("../../frontend/web/lib/realtime-output.ts", undefined, { Audio });
+  const destination = { stream: { getTracks: () => [{ stop: () => stopped++ }] } };
+  const source = { connect() {}, disconnect: (node) => { assert.equal(node, destination); disconnected++; } };
+  const ctx = { createMediaStreamDestination: () => destination };
+  await assert.rejects(connectRealtimeOutput(ctx, source, "cable"), /device unavailable/);
+  assert.equal(paused, 1);
+  assert.equal(stopped, 1);
+  assert.equal(disconnected, 1);
+  assert.equal(elements[0].srcObject, null);
+});
 
 test("Halloween music plays the score and releases audio when disabled", () => {
   const ref = { current: null };

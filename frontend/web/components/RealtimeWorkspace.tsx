@@ -35,7 +35,7 @@ import {
   calibrationDelay,
 } from "@/lib/realtime-calibration";
 import { RealtimeHealthWindow } from "@/lib/realtime-diagnostics";
-import { connectRealtimeOutput } from "@/lib/realtime-output";
+import { connectRealtimeOutput, DEFAULT_REALTIME_OUTPUT } from "@/lib/realtime-output";
 import { setRealtimeGpuReserved } from "@/lib/realtime-presence";
 import { RealtimeSettingsSender } from "@/lib/realtime-settings";
 import { realtimeWsUrl } from "@/lib/realtime-ws";
@@ -120,7 +120,12 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
   const [inputs, setInputs] = useState<Array<{ id: string; label: string }>>([]);
   const [outputs, setOutputs] = useState<Array<{ id: string; label: string }>>([]);
   const [inDev, setInDev] = useState("");
-  const [outDev, setOutDev] = useState("");
+  const [selectedOutDev, setOutDev] = useState("");
+  // Settings restoration and device enumeration finish independently. Keep
+  // the fallback usable even if saved settings arrive after the device list.
+  const outDev = outputs.some((device) => device.id === DEFAULT_REALTIME_OUTPUT)
+    ? DEFAULT_REALTIME_OUTPUT
+    : selectedOutDev;
   const inputSelected = inputs.some((device) => device.id === inDev);
   const outputSelected = outputs.some((device) => device.id === outDev);
   const devicesSelected = inputSelected && outputSelected;
@@ -470,7 +475,7 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     setSid(0);
   }
 
-  // Require concrete devices: default aliases can silently change routing.
+  // Prefer concrete devices so default aliases cannot silently change routing.
   function dedupeDevices(devs: Array<{ id: string; label: string }>) {
     const seen = new Set<string>();
     return devs.filter((d) => {
@@ -499,11 +504,17 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
           .filter((d) => d.kind === "audiooutput")
           .map((d, i) => ({ id: d.deviceId, label: d.label || `Output ${i + 1}` })),
       );
+      // Some browsers expose microphones but no output devices. Web Audio can
+      // still play through the system default without enumerating that output.
+      const defaultOutput = outs.length === 0;
+      if (defaultOutput) outs.push({ id: DEFAULT_REALTIME_OUTPUT, label: t("Default") });
       setInputs(ins);
       setOutputs(outs);
       // Drop selections (e.g. restored from last session) that no longer exist.
       setInDev((cur) => (cur && !ins.some((d) => d.id === cur) ? "" : cur));
-      setOutDev((cur) => (cur && !outs.some((d) => d.id === cur) ? "" : cur));
+      setOutDev((cur) =>
+        defaultOutput ? DEFAULT_REALTIME_OUTPUT : cur && !outs.some((d) => d.id === cur) ? "" : cur,
+      );
     } catch {
       setMsg(t("Microphone permission denied — device list unavailable."));
     }

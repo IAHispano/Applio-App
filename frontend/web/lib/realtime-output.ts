@@ -1,13 +1,18 @@
 // Route Web Audio directly to the device when possible, avoiding the
 // MediaStream -> HTMLAudioElement playback queue in modern Chromium.
+export const DEFAULT_REALTIME_OUTPUT = "default";
+
 export async function connectRealtimeOutput(
   ctx: AudioContext,
   source: AudioNode,
   deviceId: string,
 ): Promise<HTMLAudioElement[]> {
+  // An empty sink ID selects the system default without requiring output
+  // enumeration or HTMLAudioElement.setSinkId support (including WebKit).
+  const sinkId = deviceId === DEFAULT_REALTIME_OUTPUT ? "" : deviceId;
   const routable = ctx as AudioContext & { setSinkId?: (id: string) => Promise<void> };
-  if (!deviceId || routable.setSinkId) {
-    await routable.setSinkId?.(deviceId);
+  if (!sinkId || routable.setSinkId) {
+    await routable.setSinkId?.(sinkId);
     source.connect(ctx.destination);
     await ctx.resume();
     return [];
@@ -20,7 +25,7 @@ export async function connectRealtimeOutput(
   try {
     if (!selectable.setSinkId)
       throw new Error("Audio output device selection is unavailable in this browser.");
-    await selectable.setSinkId(deviceId);
+    await selectable.setSinkId(sinkId);
     await element.play();
     await ctx.resume();
     return [element];
