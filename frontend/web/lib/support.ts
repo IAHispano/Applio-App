@@ -26,10 +26,4 @@ export function supportReminderDue(storage: Pick<Storage, "getItem" | "setItem">
   }
 }
 
-export function disableSupportReminders(): void {
-  try {
-    localStorage.setItem(REMINDER_KEY, JSON.stringify({ disabled: true }));
-  } catch {
-    /* optional */
-  }
-}
+

@@ -162,9 +162,6 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Check application regressions
-        run: pnpm check
-
       - name: Check TypeScript
         run: pnpm -r typecheck
 

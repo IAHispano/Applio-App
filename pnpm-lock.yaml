@@ -23,10 +23,6 @@ importers:
         version: 5.9.3
 
   frontend/desktop:
-    dependencies:
-      ws:
-        specifier: ^8.21.3
-        version: 8.21.3
     devDependencies:
       '@tauri-apps/cli':
         specifier: ^2.0.0
@@ -34,9 +30,6 @@ importers:
       '@types/node':
         specifier: ^22.10.2
         version: 22.20.3
-      '@types/ws':
-        specifier: ^8.18.1
-        version: 8.18.1
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
@@ -707,9 +700,6 @@ packages:
   '@types/ua-parser-js@0.7.39':
     resolution: {integrity: sha512-P/oDfpofrdtF5xw433SPALpdSchtJmY7nsJItf8h3KXqOslkbySh8zq4dSWXH2oTjRvJ5PczVEoCZPow6GicLg==}
 
-  '@types/ws@8.18.1':
-    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
-
   amazon-chime-sdk-js@3.32.0:
     resolution: {integrity: sha512-47EhjDTr9YBNPuxdsTr0Qy0iwg9ZEhXt9E0qHmo2wOs1tVdZeOsRhpIkJSlswVCkQSbjBNqLYPfhXS8XdjVTMg==}
     engines: {node: '>=20', npm: '>=10'}
@@ -1084,18 +1074,6 @@ packages:
   wrap-ansi@7.0.0:
     resolution: {integrity: sha512-YVGIj2kamLSTxw6NsZjoBxfSwsn0ycdesmc4p+Q21c5zPuZ1pl+NfxVdxPtdHvmNVOQ6XSYG4AUtyt/Fi7D16Q==}
     engines: {node: '>=10'}
-
-  ws@8.21.3:
-    resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
 
   y18n@4.0.3:
     resolution: {integrity: sha512-JKhqTOwSrqNA1NY5lSztJ1GrBiUodLMmIZuLiDaMRJ+itFd+ABVE8XBjOvIWL+rSqNDC74LCSFmlb/U4UZ4hJQ==}
@@ -1677,10 +1655,6 @@ snapshots:
 
   '@types/ua-parser-js@0.7.39': {}
 
-  '@types/ws@8.18.1':
-    dependencies:
-      '@types/node': 22.20.3
-
   amazon-chime-sdk-js@3.32.0:
     dependencies:
       '@aws-crypto/sha256-js': 2.0.2
@@ -2022,8 +1996,6 @@ snapshots:
       ansi-styles: 4.3.0
       string-width: 4.2.3
       strip-ansi: 6.0.1
-
-  ws@8.21.3: {}
 
   y18n@4.0.3: {}
 

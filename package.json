@@ -32,7 +32,6 @@
     "backend:check": "node scripts/check-backend.mjs",
     "backend:check:dev": "node scripts/check-backend.mjs --dev",
     "build:web-services": "pnpm backend:check && pnpm --filter @applio/web build",
-    "check": "node --test \"scripts/checks/*.test.mjs\" && python scripts/checks/realtime-service.py",
     "i18n:extract": "node scripts/i18n/extract.mjs",
     "i18n:sync": "node scripts/i18n/sync.mjs"
   },

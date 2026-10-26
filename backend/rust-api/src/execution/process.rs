@@ -484,23 +484,6 @@ impl Drop for ProcessTree {
     }
 }
 
-/// Whether another process is still alive. Used to recognize leftovers from a
-/// previous run; recycled pids are rejected by [`process_name`] before
-/// anything is signaled.
-#[cfg(unix)]
-pub fn process_alive(pid: u32) -> bool {
-    unsafe {
-        if libc::kill(pid as i32, 0) == 0 {
-            return true;
-        }
-    }
-    std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
-}
-#[cfg(not(unix))]
-pub fn process_alive(_pid: u32) -> bool {
-    false
-}
-
 /// Best-effort executable name of another process, or `None` when the platform
 /// cannot report it. On macOS `proc_pidpath` resolves the real interpreter, so
 /// a Python leftover is recognizable even behind a virtual environment.
