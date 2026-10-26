@@ -25,5 +25,3 @@ export function supportReminderDue(storage: Pick<Storage, "getItem" | "setItem">
     return false;
   }
 }
-
-
