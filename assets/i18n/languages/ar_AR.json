@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "اختيار مجموعة بيانات محفوظة",
   "Selected dataset": "مجموعة البيانات المحددة",
   "Select a dataset…": "اختر مجموعة بيانات…",
-  "No saved datasets found.": "لم يُعثر على مجموعات بيانات محفوظة."
+  "No saved datasets found.": "لم يُعثر على مجموعات بيانات محفوظة.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "قد تختلف أرقام وحدات GPU عن مدير المهام. طابق اسم وحدة GPU وتحقق من مخطط CUDA أو Compute الخاص بها."
 }

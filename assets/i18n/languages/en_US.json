@@ -1826,5 +1826,6 @@
   "Choose a saved dataset": "Choose a saved dataset",
   "Selected dataset": "Selected dataset",
   "Select a dataset…": "Select a dataset…",
-  "No saved datasets found.": "No saved datasets found."
+  "No saved datasets found.": "No saved datasets found.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph."
 }

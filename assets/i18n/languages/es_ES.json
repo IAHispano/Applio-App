@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "Elegir un conjunto de datos guardado",
   "Selected dataset": "Conjunto de datos seleccionado",
   "Select a dataset…": "Selecciona un conjunto de datos…",
-  "No saved datasets found.": "No se encontraron conjuntos de datos guardados."
+  "No saved datasets found.": "No se encontraron conjuntos de datos guardados.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "Los números de GPU pueden diferir de los del Administrador de tareas. Comprueba el nombre de la GPU y su gráfico CUDA o Compute."
 }

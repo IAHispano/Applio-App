@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "Выбрать сохранённый датасет",
   "Selected dataset": "Выбранный датасет",
   "Select a dataset…": "Выберите датасет…",
-  "No saved datasets found.": "Сохранённые датасеты не найдены."
+  "No saved datasets found.": "Сохранённые датасеты не найдены.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "Номера GPU могут отличаться от номеров в диспетчере задач. Сверьте название GPU и проверьте его график CUDA или Compute."
 }

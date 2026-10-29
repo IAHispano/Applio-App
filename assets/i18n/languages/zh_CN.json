@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "选择已保存的数据集",
   "Selected dataset": "已选数据集",
   "Select a dataset…": "请选择数据集…",
-  "No saved datasets found.": "未找到已保存的数据集。"
+  "No saved datasets found.": "未找到已保存的数据集。",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU 编号可能与任务管理器不同。请核对 GPU 名称，并查看其 CUDA 或 Compute 图表。"
 }

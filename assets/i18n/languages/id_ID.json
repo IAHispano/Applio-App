@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "Pilih dataset tersimpan",
   "Selected dataset": "Dataset terpilih",
   "Select a dataset…": "Pilih dataset…",
-  "No saved datasets found.": "Tidak ada dataset tersimpan."
+  "No saved datasets found.": "Tidak ada dataset tersimpan.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "Nomor GPU dapat berbeda dari Task Manager. Cocokkan nama GPU dan periksa grafik CUDA atau Compute-nya."
 }

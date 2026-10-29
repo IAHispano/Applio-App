@@ -190,18 +190,24 @@ def separate_stems(
     single_stem="all",
     arch_overrides=None,
     logger=None,
+    device_index=None,
 ):
     """Separate one audio file. Returns {stem_name: absolute_path}."""
     logger = logger or logging.getLogger("uvr")
     model = _resolve_model(model_key)
-    models_dir = ensure_model_files(model, models_dir, logger)
 
     output_dir = os.path.abspath(output_dir) if output_dir else None
     # Imports and model construction happen only in the scheduled inference process.
     from uvr.base import select_onnx_providers, select_torch_device
 
-    torch_device = select_torch_device(use_gpu)
-    logger.info(f"Separating with {model.label} on {torch_device}...")
+    torch_device = select_torch_device(use_gpu, device_index)
+    device_label = str(torch_device)
+    if torch_device.type == "cuda":
+        import torch
+
+        device_label += f" ({torch.cuda.get_device_name(torch_device)})"
+    logger.info(f"Separating with {model.label} on {device_label}...")
+    models_dir = ensure_model_files(model, models_dir, logger)
 
     weight_path = os.path.join(models_dir, model.files[0][0])
     roformer_config = None

@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "Kayıtlı veri kümesi seç",
   "Selected dataset": "Seçilen veri kümesi",
   "Select a dataset…": "Bir veri kümesi seçin…",
-  "No saved datasets found.": "Kayıtlı veri kümesi bulunamadı."
+  "No saved datasets found.": "Kayıtlı veri kümesi bulunamadı.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU numaraları Görev Yöneticisi ile farklı olabilir. GPU adını eşleştirin ve CUDA veya Compute grafiğini kontrol edin."
 }

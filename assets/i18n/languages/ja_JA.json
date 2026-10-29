@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "保存済みデータセットを選択",
   "Selected dataset": "選択中のデータセット",
   "Select a dataset…": "データセットを選択…",
-  "No saved datasets found.": "保存済みデータセットが見つかりません。"
+  "No saved datasets found.": "保存済みデータセットが見つかりません。",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU番号はタスク マネージャーと異なる場合があります。GPU名を照合し、そのCUDAまたはComputeグラフを確認してください。"
 }

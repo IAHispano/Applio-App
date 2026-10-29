@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "सहेजा गया डेटासेट चुनें",
   "Selected dataset": "चुना गया डेटासेट",
   "Select a dataset…": "डेटासेट चुनें…",
-  "No saved datasets found.": "कोई सहेजा गया डेटासेट नहीं मिला।"
+  "No saved datasets found.": "कोई सहेजा गया डेटासेट नहीं मिला।",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU के नंबर टास्क मैनेजर से अलग हो सकते हैं। GPU का नाम मिलाएँ और उसका CUDA या Compute ग्राफ देखें।"
 }

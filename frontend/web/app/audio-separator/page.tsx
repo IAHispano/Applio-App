@@ -565,10 +565,18 @@ export default function UvrPage() {
                   options={[
                     { value: "auto", label: t("Auto (GPU if available)") },
                     { value: "cpu", label: t("CPU (saves VRAM)") },
-                    ...gpuDevices.map((g) => ({ value: g.id, label: g.name })),
+                    ...gpuDevices.map((g) => ({
+                      value: g.id,
+                      label: `cuda:${g.id} · ${g.name.replace(/^GPU \d+:\s*/, "")}`,
+                    })),
                   ]}
                   description={t(SETTING_HELP.gpu)}
                 />
+                <p className="text-xs text-[var(--muted)]">
+                  {t(
+                    "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.",
+                  )}
+                </p>
               </div>
             </div>
             <Disclosure className="!mt-0" icon={<FlaskConical size={16} />} title={t("Advanced Settings")}>

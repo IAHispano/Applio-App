@@ -77,9 +77,17 @@ def atomic_output_path(target_path, backend="soundfile"):
         ) from error
 
 
-def select_torch_device(use_gpu: bool):
+def select_torch_device(use_gpu: bool, device_index=None):
+    if device_index is not None:
+        # An explicit selection must not quietly become a CPU job. These are
+        # PyTorch-visible ordinals, matching the desktop's GPU inventory.
+        if not use_gpu or not torch.cuda.is_available():
+            raise RuntimeError("No CUDA GPU detected")
+        torch.cuda.get_device_properties(device_index)
+        torch.cuda.set_device(device_index)
+        return torch.device("cuda", device_index)
     if use_gpu and torch.cuda.is_available():
-        return torch.device("cuda")
+        return torch.device("cuda", torch.cuda.current_device())
     return torch.device("cpu")
 
 

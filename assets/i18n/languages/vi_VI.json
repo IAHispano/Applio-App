@@ -1855,5 +1855,6 @@
   "Choose a saved dataset": "Chọn bộ dữ liệu đã lưu",
   "Selected dataset": "Bộ dữ liệu đã chọn",
   "Select a dataset…": "Chọn một bộ dữ liệu…",
-  "No saved datasets found.": "Không tìm thấy bộ dữ liệu đã lưu."
+  "No saved datasets found.": "Không tìm thấy bộ dữ liệu đã lưu.",
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "Số GPU có thể khác với Trình quản lý tác vụ. Đối chiếu tên GPU và kiểm tra biểu đồ CUDA hoặc Compute của GPU đó."
 }

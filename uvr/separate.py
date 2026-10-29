@@ -275,19 +275,19 @@ def main():
         }
     else:
         overrides = {}
-    OUTPUT_MODELS_DIRNAME, separate_stems = _engine()
-    models_dir = os.path.join(repo_root, OUTPUT_MODELS_DIRNAME, resolved.key)
-
     device = (args.device or "auto").lower()
+    device_index = None
     if device == "cpu":
         use_gpu = False
     elif device == "auto":
         use_gpu = True
     elif device.isdigit():
-        os.environ["CUDA_VISIBLE_DEVICES"] = device
+        device_index = int(device)
         use_gpu = True
     else:
         parser.error("--device must be 'auto', 'cpu' or a CUDA index")
+    OUTPUT_MODELS_DIRNAME, separate_stems = _engine()
+    models_dir = os.path.join(repo_root, OUTPUT_MODELS_DIRNAME, resolved.key)
     stems = separate_stems(
         input_path=args.input_path,
         model_key=args.model,
@@ -298,6 +298,7 @@ def main():
         single_stem=args.single_stem,
         arch_overrides=overrides,
         logger=logging.getLogger("uvr"),
+        device_index=device_index,
     )
     if not stems:
         logging.getLogger("uvr").error(
