@@ -1856,5 +1856,8 @@
   "Selected dataset": "Seçilen veri kümesi",
   "Select a dataset…": "Bir veri kümesi seçin…",
   "No saved datasets found.": "Kayıtlı veri kümesi bulunamadı.",
-  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU numaraları Görev Yöneticisi ile farklı olabilir. GPU adını eşleştirin ve CUDA veya Compute grafiğini kontrol edin."
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU numaraları Görev Yöneticisi ile farklı olabilir. GPU adını eşleştirin ve CUDA veya Compute grafiğini kontrol edin.",
+  "Welcome to Applio": "Applio’ya hoş geldiniz",
+  "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "Sesinizle üretmeye başlamak için ihtiyacınız olan her şeyi hazırlayacağız. Kurulum otomatik olarak yapılır.",
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Applio’yu açık tutun. Bağlantınıza ve bilgisayarınıza bağlı olarak bu işlem birkaç dakika sürebilir."
 }

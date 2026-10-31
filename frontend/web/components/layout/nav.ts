@@ -116,6 +116,7 @@ export const MENU: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
 // These host pages remain usable before engine dependencies are installed.
 export const SETUP_OPTIONAL_ROUTES = new Set([
   "/",
+  "/setup",
   "/settings",
   "/bridge-mode",
   "/report",

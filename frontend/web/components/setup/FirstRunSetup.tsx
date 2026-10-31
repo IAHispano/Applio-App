@@ -1,14 +1,15 @@
 "use client";
 
-import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Sparkles, Terminal, XCircle } from "lucide-react";
+import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Terminal, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JobStage } from "@/components/JobStatus";
 import SetupLogLine from "@/components/setup/SetupLogLine";
-import { Alert, Badge, Button, Card, CardHeader } from "@/components/ui";
+import { useAcceptedTerms } from "@/components/setup/TermsModal";
+import { Alert, Badge, Button, Card, CardHeader, Disclosure } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import type { SetupStatus } from "@/lib/setup";
+import { type SetupStatus, useSetup } from "@/lib/setup";
 import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs } from "@/lib/useJob";
@@ -56,6 +57,8 @@ function phaseFromLogs(text: string): number {
 
 export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const { t } = useI18n();
+  const termsAccepted = useAcceptedTerms();
+  const { refresh: refreshSetup } = useSetup();
   const [jobId, setJobId] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState("");
@@ -66,14 +69,15 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const completionStarted = useRef(false);
 
   const autoStartedRef = useRef(false);
-  const logsEndRef = useRef<HTMLDivElement | null>(null);
+  const logsRef = useRef<HTMLDivElement | null>(null);
+  const [logsOpen, setLogsOpen] = useState(false);
   // Furthest setup phase reached so far. Kept monotonic so the checklist never
   // flaps backwards when early log lines scroll out of the capped history.
   const setupPhase = useRef(0);
 
   // Auto-start installation on mount
   useEffect(() => {
-    if (autoStartedRef.current) return;
+    if (!termsAccepted || autoStartedRef.current) return;
     autoStartedRef.current = true;
     setDesktop(typeof setupBridge()?.restartAfterSetup === "function");
 
@@ -88,7 +92,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     }
 
     start();
-  }, []);
+  }, [termsAccepted]);
 
   // Poll setup job progress
   useEffect(() => {
@@ -137,11 +141,16 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   // across lines) so each download renders as one tidy row.
   const displayLogs = useMemo(() => mergeSetupLines(processedLogs), [processedLogs]);
 
-  // Auto-scroll logs as new output arrives
+  useEffect(() => {
+    if (error) setLogsOpen(true);
+  }, [error]);
+
+  // Scroll only the console, keeping the welcome and progress in view.
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes
   useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [displayLogs.length]);
+    const console = logsRef.current;
+    if (logsOpen && console) console.scrollTop = console.scrollHeight;
+  }, [displayLogs.length, logsOpen]);
 
   // Copy logs handler
   const handleCopyLogs = useCallback(() => {
@@ -165,6 +174,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     setCountdown(null);
     const restart = setupBridge()?.restartAfterSetup;
     if (!restart) {
+      await refreshSetup(true);
       onComplete();
       return;
     }
@@ -177,7 +187,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       setRestarting(false);
       setError(errMsg(err));
     }
-  }, [jobId, job?.status, onComplete]);
+  }, [jobId, job?.status, onComplete, refreshSetup]);
 
   // Countdown to restart desktop or launch the browser UI.
   useEffect(() => {
@@ -219,45 +229,13 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
       job?.status === "done" ? DONE_PHASE : Math.max(setupPhase.current, stage ?? 0, phaseFromLogs(logsText));
     setupPhase.current = phase;
 
-    const hasAmd = /rocm|zluda|amd gpu/i.test(logsText);
     const rawSteps = [
-      {
-        id: "env",
-        title: "AI Runtime Environment",
-        desc: "Isolated core processing runtime",
-        phase: 2,
-      },
-      {
-        id: "torch",
-        title: hasAmd ? "Hardware Acceleration (ROCm / AMD)" : "Hardware Acceleration",
-        desc: hasAmd
-          ? "Native AMD ROCm hardware acceleration backend"
-          : "CUDA, MPS, or high-performance compute backend",
-        phase: 3,
-      },
-      {
-        id: "engine",
-        title: "Audio Processing Engine",
-        desc: "Faiss indexer, FCPE, Crepe, and acoustic models",
-        phase: 4,
-      },
-      {
-        id: "models",
-        title: "Base Acoustic Checkpoints",
-        desc: "HuBERT feature extractor & RMVPE pitch models",
-        phase: 4,
-      },
-      {
-        id: "ready",
-        title: "Finalizing Applio",
-        desc: "Configuring workspaces and pipelines",
-        phase: DONE_PHASE,
-      },
+      { id: "env", title: "Creating Python environment…", activity: "Preparing…", phase: 2 },
+      { id: "engine", title: "Installing dependencies…", activity: "Installing…", phase: 3 },
+      { id: "models", title: "Downloading models…", activity: "Downloading…", phase: 4 },
+      { id: "ready", title: "Verifying installation…", activity: "Checking…", phase: DONE_PHASE },
     ];
 
-    // Every step whose phase is still ahead of the current one waits; the
-    // nearest such phase is the one currently running (both the engine and
-    // checkpoint rows are active during "Downloading models…").
     const nextPhase = Math.min(...rawSteps.map((step) => step.phase).filter((value) => value > phase));
 
     return rawSteps.map((step) => ({
@@ -267,41 +245,35 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   }, [job?.status, job?.stage, logsText]);
 
   return (
-    <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-3xl mx-auto">
-      <div className="w-full page-stack">
-        {/* Brand Header */}
-        <div className="text-center space-y-3">
-          <div className="relative inline-flex items-center justify-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 flex items-center justify-center shadow-xl">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            {job?.status !== "done" && !error && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white/40 opacity-75" />
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-white" />
-              </span>
-            )}
-          </div>
-
-          <div className="space-y-1">
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white m-0">
-              {job?.status === "done" ? t("Applio is Ready") : t("Preparing Applio for First Use")}
+    <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-2xl mx-auto">
+      <div className="w-full space-y-6 sm:space-y-8">
+        <header className="space-y-4">
+          <p className="m-0 flex items-center gap-2 text-xs font-medium text-[var(--muted)]">
+            <span className="font-bold tracking-wide text-[var(--heading)]">Applio</span>
+            <span aria-hidden="true">/</span>
+            {t("Setup")}
+          </p>
+          <div className="space-y-3">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--heading)] m-0">
+              {job?.status === "done" ? t("Applio is Ready") : t("Welcome to Applio")}
             </h1>
-            <p className="text-sm text-neutral-400 max-w-md mx-auto leading-relaxed m-0">
+            <p className="text-sm text-[var(--muted)] max-w-lg leading-relaxed m-0">
               {job?.status === "done"
                 ? t("Your environment, voice conversion engine, and acoustic models are prepared.")
                 : t(
-                    "Automatically setting up dependencies, neural models, and audio engines. This only happens on first launch.",
+                    "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.",
                   )}
             </p>
           </div>
-        </div>
+        </header>
 
         {/* Progress Bar Card */}
-        <Card as="section" className="w-full space-y-4">
+        <Card as="section" className="w-full !p-4 sm:!p-6 space-y-5">
           <div className="flex items-center justify-between text-xs text-neutral-300">
             <span className="font-medium flex items-center gap-2">
-              {job?.status === "done" ? (
+              {error ? (
+                <XCircle size={16} className="text-red-400" />
+              ) : job?.status === "done" ? (
                 <CheckCircle2 size={16} className="text-white" />
               ) : (
                 <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
@@ -338,16 +310,17 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           )}
 
           {/* Checklist */}
-          <div className="space-y-2 pt-2">
-            {steps.map((step) => {
+          <ol className="list-none m-0 p-0 space-y-2">
+            {steps.map((step, index) => {
               const isDone = step.status === "done";
-              const isFailed = job?.status === "error" && step.status === "running";
-              const isRunning = step.status === "running" && job?.status !== "error";
+              const isFailed = !!error && step.status === "running";
+              const isRunning = step.status === "running" && !error;
 
               return (
-                <div
+                <li
                   key={step.id}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-all duration-200 ${
+                  aria-current={isRunning || isFailed ? "step" : undefined}
+                  className={`flex items-center justify-between gap-3 p-3 rounded-xl border transition-all duration-200 ${
                     isDone
                       ? "bg-emerald-500/[0.05] border-emerald-500/20 text-neutral-200"
                       : isFailed
@@ -358,7 +331,10 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="shrink-0">
+                    <div
+                      aria-hidden="true"
+                      className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 border border-current/15 text-xs tabular-nums"
+                    >
                       {isDone ? (
                         <CheckCircle2 className="w-4 h-4 text-white" />
                       ) : isFailed ? (
@@ -366,12 +342,11 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                       ) : isRunning ? (
                         <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
                       ) : (
-                        <div className="w-4 h-4 rounded-full border border-neutral-600" />
+                        <span className="font-mono tabular-nums lining-nums leading-none">{index + 1}</span>
                       )}
                     </div>
                     <div>
                       <p className="text-xs font-semibold m-0">{t(step.title)}</p>
-                      <p className="text-[11px] text-neutral-400 m-0">{t(step.desc)}</p>
                     </div>
                   </div>
 
@@ -385,13 +360,18 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                       : isFailed
                         ? t("Failed")
                         : isRunning
-                          ? t("Installing…")
+                          ? t(step.activity)
                           : t("Queued")}
                   </Badge>
-                </div>
+                </li>
               );
             })}
-          </div>
+          </ol>
+          {!error && job?.status !== "done" && (
+            <p className="m-0 text-xs leading-relaxed text-[var(--muted)]">
+              {t("Keep Applio open. This may take a few minutes, depending on your connection and computer.")}
+            </p>
+          )}
         </Card>
 
         {/* Error Alert */}
@@ -399,10 +379,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           <Alert
             variant="error"
             title={t("Setup Encountered an Issue")}
-            details={
-              job?.errorDetails ||
-              (job?.logs && job.logs.length > 0 ? cleanJobLogs(job.logs).slice(-50).join("\n") : undefined)
-            }
             copyText={[
               "Applio Setup Error:",
               error,
@@ -427,10 +403,22 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           </Alert>
         )}
 
-        {/* Activity Details / Live Console Logs (Shown by default) */}
-        <Card as="section" className="w-full space-y-3">
+        <Disclosure
+          title={t("Technical Details & Logs")}
+          icon={<Terminal size={15} />}
+          open={logsOpen}
+          onToggle={setLogsOpen}
+          className="w-full"
+        >
+          {error && job?.errorDetails && (
+            <div className="space-y-2">
+              <p className="m-0 text-xs font-semibold">{t("Failure details")}</p>
+              <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-red-500/5 p-3 text-xs text-red-300 select-text">
+                {job.errorDetails}
+              </pre>
+            </div>
+          )}
           <CardHeader
-            icon={<Terminal size={15} className="text-white" />}
             title={
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold text-white">{t("Activity Details")}</span>
@@ -473,9 +461,10 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           />
 
           <div
+            ref={logsRef}
             id="setup-console-logs"
             role="log"
-            aria-live="polite"
+            aria-live={logsOpen ? "polite" : "off"}
             aria-label={t("Live console output")}
             className="w-full p-3 sm:p-3.5 rounded-xl border border-white/5 bg-black/50 text-xs h-80 overflow-y-auto space-y-0.5 font-mono select-text scrollbar-thin"
           >
@@ -499,9 +488,8 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                 <span>{t("Initializing setup stream…")}</span>
               </div>
             )}
-            <div ref={logsEndRef} />
           </div>
-        </Card>
+        </Disclosure>
 
         {/* Launch Button when Done */}
         {job?.status === "done" && (

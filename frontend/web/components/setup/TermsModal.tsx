@@ -22,6 +22,7 @@ import { useI18n } from "@/lib/i18n";
 
 const TERMS_STORAGE_KEY = "applio:terms-accepted";
 const TERMS_DATE_KEY = "applio:terms-accepted-at";
+const TERMS_ACCEPTED_EVENT = "applio:terms-accepted";
 
 export function hasAcceptedTerms(): boolean {
   if (typeof window === "undefined") return true;
@@ -30,6 +31,21 @@ export function hasAcceptedTerms(): boolean {
   } catch {
     return true;
   }
+}
+
+export function useAcceptedTerms(): boolean {
+  const [accepted, setAccepted] = useState(false);
+  useEffect(() => {
+    const update = () => setAccepted(hasAcceptedTerms());
+    update();
+    window.addEventListener(TERMS_ACCEPTED_EVENT, update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener(TERMS_ACCEPTED_EVENT, update);
+      window.removeEventListener("storage", update);
+    };
+  }, []);
+  return accepted;
 }
 
 export default function TermsModal() {
@@ -82,6 +98,7 @@ export default function TermsModal() {
       /* non-fatal */
     }
     setOpen(false);
+    window.dispatchEvent(new Event(TERMS_ACCEPTED_EVENT));
   };
 
   if (!open || pathname === "/your-data") return null;

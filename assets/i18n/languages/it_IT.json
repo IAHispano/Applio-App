@@ -1856,5 +1856,8 @@
   "Selected dataset": "Set di dati selezionato",
   "Select a dataset…": "Seleziona un set di dati…",
   "No saved datasets found.": "Nessun set di dati salvato trovato.",
-  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "I numeri delle GPU possono differire da Gestione attività. Verifica il nome della GPU e il relativo grafico CUDA o Compute."
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "I numeri delle GPU possono differire da Gestione attività. Verifica il nome della GPU e il relativo grafico CUDA o Compute.",
+  "Welcome to Applio": "Benvenuto in Applio",
+  "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "Prepareremo tutto il necessario per iniziare a creare con la tua voce. La configurazione è automatica.",
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Lascia Applio aperto. Potrebbero servire alcuni minuti, a seconda della connessione e del computer."
 }

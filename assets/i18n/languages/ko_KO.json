@@ -1856,5 +1856,8 @@
   "Selected dataset": "선택한 데이터셋",
   "Select a dataset…": "데이터셋을 선택하세요…",
   "No saved datasets found.": "저장된 데이터셋이 없습니다.",
-  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU 번호는 작업 관리자와 다를 수 있습니다. GPU 이름을 확인하고 해당 CUDA 또는 Compute 그래프를 확인하세요."
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU 번호는 작업 관리자와 다를 수 있습니다. GPU 이름을 확인하고 해당 CUDA 또는 Compute 그래프를 확인하세요.",
+  "Welcome to Applio": "Applio에 오신 것을 환영합니다",
+  "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "목소리로 창작을 시작하는 데 필요한 모든 것을 준비합니다. 설정은 자동으로 진행됩니다.",
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Applio를 열어 두세요. 인터넷 연결과 컴퓨터 성능에 따라 몇 분 정도 걸릴 수 있습니다."
 }
