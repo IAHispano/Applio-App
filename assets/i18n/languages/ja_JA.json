@@ -1856,5 +1856,8 @@
   "Selected dataset": "選択中のデータセット",
   "Select a dataset…": "データセットを選択…",
   "No saved datasets found.": "保存済みデータセットが見つかりません。",
-  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU番号はタスク マネージャーと異なる場合があります。GPU名を照合し、そのCUDAまたはComputeグラフを確認してください。"
+  "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU番号はタスク マネージャーと異なる場合があります。GPU名を照合し、そのCUDAまたはComputeグラフを確認してください。",
+  "Welcome to Applio": "Applio へようこそ",
+  "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "あなたの声で創作を始めるために必要なものを準備します。セットアップは自動で進みます。",
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Applio を開いたままにしてください。接続環境やパソコンによっては、数分かかる場合があります。"
 }

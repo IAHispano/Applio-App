@@ -99,10 +99,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const hostOnly = remote && REMOTE_HOST_ROUTES.has(pathname);
   const hidePage = pathname === "/realtime" && isReady && !remote;
+  const showNavigation = pathname !== "/setup" && (remote || pathname !== "/" || isReady);
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
-      <Sidebar />
+      {showNavigation && <Sidebar />}
       <HalloweenEffects />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
         <RemoteBridgeBanner />
@@ -113,7 +114,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (!scrollRoute.current.restoring) workspaceScroll.set(pathname, event.currentTarget.scrollTop);
           }}
           tabIndex={-1}
-          className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4 outline-none flex flex-col"
+          className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 outline-none flex flex-col ${showNavigation ? "pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}
         >
           <div
             hidden={hidePage}
@@ -152,7 +153,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <SupportLink />
           </footer>
         </main>
-        <BottomNav />
+        {showNavigation && <BottomNav />}
       </div>
     </div>
   );
