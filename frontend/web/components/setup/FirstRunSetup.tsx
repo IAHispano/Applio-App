@@ -230,10 +230,10 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     setupPhase.current = phase;
 
     const rawSteps = [
-      { id: "env", title: "Creating Python environment…", phase: 2 },
-      { id: "engine", title: "Installing dependencies…", phase: 3 },
-      { id: "models", title: "Downloading models…", phase: 4 },
-      { id: "ready", title: "Verifying installation…", phase: DONE_PHASE },
+      { id: "env", title: "Creating Python environment…", activity: "Preparing…", phase: 2 },
+      { id: "engine", title: "Installing dependencies…", activity: "Installing…", phase: 3 },
+      { id: "models", title: "Downloading models…", activity: "Downloading…", phase: 4 },
+      { id: "ready", title: "Verifying installation…", activity: "Checking…", phase: DONE_PHASE },
     ];
 
     const nextPhase = Math.min(...rawSteps.map((step) => step.phase).filter((value) => value > phase));
@@ -342,7 +342,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                       ) : isRunning ? (
                         <span className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
                       ) : (
-                        <span>{index + 1}</span>
+                        <span className="font-mono tabular-nums lining-nums leading-none">{index + 1}</span>
                       )}
                     </div>
                     <div>
@@ -360,7 +360,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                       : isFailed
                         ? t("Failed")
                         : isRunning
-                          ? t("Installing…")
+                          ? t(step.activity)
                           : t("Queued")}
                   </Badge>
                 </li>
