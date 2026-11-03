@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
 import BlenderPanel from "@/components/models/BlenderPanel";
 import DownloadPanel from "@/components/models/DownloadPanel";
@@ -50,7 +50,82 @@ interface ModelItem {
   folder: string;
 }
 
+interface ModelGroup {
+  key: string;
+  title: string;
+  folder: string;
+  models: ModelItem[];
+  totalSize: number;
+  modifiedAt: string;
+}
+
+interface CheckpointPosition {
+  epoch: number;
+  step: number;
+}
+
 type Section = "library" | "download" | "blend" | "inspect" | "export";
+
+// Training saves every checkpoint in the same folder as
+// "<name>_<epoch>e_<step>s.pth" (or "<name>.pth" for a final/exported model).
+function checkpointBase(name: string): string {
+  return name.replace(/_\d+e_\d+s$/i, "");
+}
+
+function checkpointPosition(model: ModelItem): CheckpointPosition | null {
+  const match = model.name.match(/_(\d+)e_(\d+)s$/i);
+  if (!match) return null;
+  return { epoch: Number(match[1]), step: Number(match[2]) };
+}
+
+function compareCheckpoints(left: ModelItem, right: ModelItem): number {
+  const a = checkpointPosition(left);
+  const b = checkpointPosition(right);
+  // A plain "<name>.pth" is the final export, so keep it at the top.
+  if (a && b) return b.epoch - a.epoch || b.step - a.step;
+  if (a) return 1;
+  if (b) return -1;
+  const pth = (model: ModelItem) => (model.pthPath.toLowerCase().endsWith(".pth") ? 0 : 1);
+  return pth(left) - pth(right) || left.pthPath.localeCompare(right.pthPath);
+}
+
+function groupModels(models: ModelItem[]): ModelGroup[] {
+  const grouped = new Map<string, ModelItem[]>();
+  for (const model of models) {
+    const key = `${model.folder}:${checkpointBase(model.name)}`;
+    const entries = grouped.get(key);
+    if (entries) entries.push(model);
+    else grouped.set(key, [model]);
+  }
+  return Array.from(grouped, ([key, entries]) => {
+    const sorted = [...entries].sort(compareCheckpoints);
+    const folderName = entries[0].folder === "root" ? "" : entries[0].folder.split("/").pop() || "";
+    const base = checkpointBase(entries[0].name);
+    return {
+      key,
+      title: folderName && folderName !== base ? `${folderName} · ${base}` : folderName || base,
+      folder: entries[0].folder,
+      models: sorted,
+      totalSize: entries.reduce((total, model) => total + model.pthSize, 0),
+      modifiedAt: entries.reduce(
+        (latest, model) => (model.modifiedAt > latest ? model.modifiedAt : latest),
+        "",
+      ),
+    };
+  });
+}
+
+function checkpointLabel(
+  model: ModelItem,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
+  const position = checkpointPosition(model);
+  if (position) {
+    return t("Epoch {epoch} · Step {step}", { epoch: position.epoch, step: position.step });
+  }
+  const extension = model.pthPath.split(".").pop()?.toUpperCase();
+  return extension ? `${t("Final checkpoint")} (${extension})` : t("Final checkpoint");
+}
 
 function formatBytes(bytes: number): string {
   if (!bytes || bytes === 0) return "0 B";
@@ -73,6 +148,10 @@ export default function ModelsPage() {
   const [deleteTargets, setDeleteTargets] = useState<ModelItem[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [selected, setSelected] = useWorkspaceState<Set<string>>("page:models:selected", new Set());
+  const [checkpointSelection, setCheckpointSelection] = useWorkspaceState<Record<string, string>>(
+    "page:models:checkpointSelection",
+    {},
+  );
 
   // Inspect modal state
   const [inspectModal, setInspectModal] = useState<ModelItem | null>(null);
@@ -150,9 +229,10 @@ export default function ModelsPage() {
     }
   }
 
-  // One on-disk target per request: models sharing a folder delete together.
+  // A folder can hold several checkpoints from one training run. Delete only
+  // the selected files so removing one checkpoint never clears its siblings.
   function deleteKey(m: ModelItem): string {
-    return m.folder !== "root" ? m.folder : m.name;
+    return m.pthPath;
   }
 
   async function confirmDelete() {
@@ -239,21 +319,40 @@ export default function ModelsPage() {
     }
   }
 
-  const filteredModels = models.filter(
-    (m) =>
-      m.name.toLowerCase().includes(search.toLowerCase()) ||
-      m.folder.toLowerCase().includes(search.toLowerCase()) ||
-      m.pthPath.toLowerCase().includes(search.toLowerCase()),
-  );
+  const groups = useMemo(() => groupModels(models), [models]);
+  const filteredGroups = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return groups;
+    return groups.filter(
+      (group) =>
+        group.title.toLowerCase().includes(query) ||
+        group.folder.toLowerCase().includes(query) ||
+        group.models.some(
+          (m) => m.name.toLowerCase().includes(query) || m.pthPath.toLowerCase().includes(query),
+        ),
+    );
+  }, [groups, search]);
+  const filteredModels = useMemo(() => filteredGroups.flatMap((group) => group.models), [filteredGroups]);
 
   const selectedCount = selected.size;
   const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((m) => selected.has(m.id));
 
-  function toggleSelect(id: string) {
+  function activeCheckpoint(group: ModelGroup): ModelItem {
+    return group.models.find((m) => m.id === checkpointSelection[group.key]) ?? group.models[0];
+  }
+
+  function chooseCheckpoint(group: ModelGroup, id: string) {
+    setCheckpointSelection((prev) => ({ ...prev, [group.key]: id }));
+  }
+
+  function toggleGroup(group: ModelGroup) {
+    const allSelected = group.models.every((m) => selected.has(m.id));
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      for (const m of group.models) {
+        if (allSelected) next.delete(m.id);
+        else next.add(m.id);
+      }
       return next;
     });
   }
@@ -382,7 +481,7 @@ export default function ModelsPage() {
           </div>
 
           {/* Model Cards Grid */}
-          {filteredModels.length === 0 ? (
+          {filteredGroups.length === 0 ? (
             <Card>
               <EmptyState
                 icon={<Database size={40} />}
@@ -410,13 +509,16 @@ export default function ModelsPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 card-grid items-stretch">
-              {filteredModels.map((m) => {
-                const isSelected = selected.has(m.id);
+              {filteredGroups.map((group, groupIndex) => {
+                const current = activeCheckpoint(group);
+                const selectedInGroup = group.models.filter((m) => selected.has(m.id)).length;
+                const isSelected = selectedInGroup === group.models.length;
+                const selectId = `checkpoint-select-${groupIndex}`;
                 return (
                   // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: card click toggles selection; the checkbox inside is the keyboard control
                   <div
-                    key={m.id}
-                    onClick={() => toggleSelect(m.id)}
+                    key={group.key}
+                    onClick={() => toggleGroup(group)}
                     className={`card m-0 h-full transition-all flex flex-col justify-between cursor-pointer ${
                       isSelected ? "border-white/30 bg-white/[0.05]" : "hover:border-white/20"
                     }`}
@@ -427,35 +529,68 @@ export default function ModelsPage() {
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleSelect(m.id)}
+                          ref={(el) => {
+                            if (el) el.indeterminate = selectedInGroup > 0 && !isSelected;
+                          }}
+                          onChange={() => toggleGroup(group)}
                           onClick={(e) => e.stopPropagation()}
-                          aria-label={`${t("Select model")} ${m.name}`}
+                          aria-label={`${t("Select model")} ${group.title}`}
                           className="mt-1 shrink-0 cursor-pointer"
                         />
                         <h3
                           className="font-semibold text-white text-base truncate m-0 flex-1 min-w-0"
-                          title={m.name}
+                          title={group.title}
                         >
-                          {m.name}
+                          {group.title}
                         </h3>
                         <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-neutral-300 flex items-center gap-1 shrink-0 min-w-0 max-w-[42%]">
                           <Folder size={12} className="shrink-0" />
-                          <span className="truncate">{m.folder}</span>
+                          <span className="truncate">{group.folder}</span>
                         </span>
                       </div>
+
+                      {/* Checkpoint picker for folders with multiple training saves */}
+                      {group.models.length > 1 && (
+                        // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction
+                        <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <label htmlFor={selectId} className="text-xs font-medium text-neutral-400">
+                              {t("Checkpoint")}
+                            </label>
+                            <span className="text-[11px] text-neutral-500 tabular-nums">
+                              {t("{count} checkpoints", { count: group.models.length })} ·{" "}
+                              {formatBytes(group.totalSize)}
+                            </span>
+                          </div>
+                          <CustomSelect
+                            id={selectId}
+                            value={current.id}
+                            onChange={(e) => chooseCheckpoint(group, e.target.value)}
+                            className="w-full"
+                          >
+                            {group.models.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {checkpointLabel(m, t)}
+                              </option>
+                            ))}
+                          </CustomSelect>
+                        </div>
+                      )}
 
                       {/* Stats & Index status */}
                       <div className="space-y-1.5 text-xs text-neutral-400 my-3">
                         <div className="flex justify-between">
                           <span>{t("Weights (.pth):")}</span>
-                          <span className="text-neutral-200 tabular-nums">{formatBytes(m.pthSize)}</span>
+                          <span className="text-neutral-200 tabular-nums">
+                            {formatBytes(current.pthSize)}
+                          </span>
                         </div>
                         <div className="flex justify-between items-center">
                           <span>{t("Feature Index:")}</span>
-                          {m.indexPath ? (
+                          {current.indexPath ? (
                             <span className="text-neutral-200 flex items-center gap-1">
                               <FileCheck size={12} />
-                              <span>{formatBytes(m.indexSize || 0)}</span>
+                              <span>{formatBytes(current.indexSize || 0)}</span>
                             </span>
                           ) : (
                             <span className="text-neutral-500 flex items-center gap-1">
@@ -466,7 +601,7 @@ export default function ModelsPage() {
                         </div>
                         <div className="flex justify-between text-neutral-500">
                           <span>{t("Modified:")}</span>
-                          <span>{new Date(m.modifiedAt).toLocaleDateString()}</span>
+                          <span>{new Date(group.modifiedAt).toLocaleDateString()}</span>
                         </div>
                       </div>
                     </div>
@@ -477,7 +612,11 @@ export default function ModelsPage() {
                       className="flex items-center justify-between gap-2 mt-2"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Button size="xs" onClick={() => openInInference(m)} icon={<Sparkles size={13} />}>
+                      <Button
+                        size="xs"
+                        onClick={() => openInInference(current)}
+                        icon={<Sparkles size={13} />}
+                      >
                         {t("Use")}
                       </Button>
 
@@ -485,9 +624,9 @@ export default function ModelsPage() {
                         <Button
                           variant="ghost"
                           size="xs"
-                          onClick={() => openInspect(m)}
+                          onClick={() => openInspect(current)}
                           title={t("View checkpoint metadata")}
-                          aria-label={`${t("Inspect model metadata for")} ${m.name}`}
+                          aria-label={`${t("Inspect model metadata for")} ${current.name}`}
                           icon={<Info size={13} aria-hidden="true" />}
                         >
                           {t("Inspect")}
@@ -495,8 +634,8 @@ export default function ModelsPage() {
                         <IconButton
                           variant="danger"
                           icon={<Trash2 size={13} aria-hidden="true" />}
-                          label={`${t("Delete model")} ${m.name}`}
-                          onClick={() => setDeleteTargets([m])}
+                          label={`${t("Delete checkpoint")} ${current.name}`}
+                          onClick={() => setDeleteTargets([current])}
                         />
                       </div>
                     </div>

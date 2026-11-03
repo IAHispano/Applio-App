@@ -1859,5 +1859,10 @@
   "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "قد تختلف أرقام وحدات GPU عن مدير المهام. طابق اسم وحدة GPU وتحقق من مخطط CUDA أو Compute الخاص بها.",
   "Welcome to Applio": "مرحبًا بك في Applio",
   "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "سنجهز كل ما تحتاج إليه لبدء الإبداع بصوتك. يتم الإعداد تلقائيًا.",
-  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "أبقِ Applio مفتوحًا. قد يستغرق ذلك بضع دقائق حسب اتصالك بالإنترنت وجهاز الكمبيوتر."
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "أبقِ Applio مفتوحًا. قد يستغرق ذلك بضع دقائق حسب اتصالك بالإنترنت وجهاز الكمبيوتر.",
+  "Checkpoint": "نقطة تحقق",
+  "Final checkpoint": "نقطة التحقق النهائية",
+  "Epoch {epoch} · Step {step}": "الحقبة {epoch} · الخطوة {step}",
+  "{count} checkpoints": "{count} نقاط تحقق",
+  "Delete checkpoint": "حذف نقطة التحقق"
 }

@@ -1859,5 +1859,10 @@
   "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "Os números das GPUs podem ser diferentes dos exibidos no Gerenciador de Tarefas. Confira o nome da GPU e seu gráfico CUDA ou Compute.",
   "Welcome to Applio": "Boas-vindas ao Applio",
   "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "Vamos preparar tudo o que você precisa para começar a criar com sua voz. A configuração é automática.",
-  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Mantenha o Applio aberto. Isso pode levar alguns minutos, dependendo da conexão e do computador."
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "Mantenha o Applio aberto. Isso pode levar alguns minutos, dependendo da conexão e do computador.",
+  "Checkpoint": "Checkpoint",
+  "Final checkpoint": "Checkpoint final",
+  "Epoch {epoch} · Step {step}": "Época {epoch} · Passo {step}",
+  "{count} checkpoints": "{count} checkpoints",
+  "Delete checkpoint": "Excluir checkpoint"
 }

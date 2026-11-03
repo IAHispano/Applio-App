@@ -1859,5 +1859,10 @@
   "GPU numbers may differ from Task Manager. Match the GPU name and check its CUDA or Compute graph.": "GPU 编号可能与任务管理器不同。请核对 GPU 名称，并查看其 CUDA 或 Compute 图表。",
   "Welcome to Applio": "欢迎使用 Applio",
   "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.": "我们将准备好一切，让你开始用声音创作。设置将自动进行。",
-  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "请保持 Applio 开启。根据网络连接和电脑性能，这可能需要几分钟。"
+  "Keep Applio open. This may take a few minutes, depending on your connection and computer.": "请保持 Applio 开启。根据网络连接和电脑性能，这可能需要几分钟。",
+  "Checkpoint": "检查点",
+  "Final checkpoint": "最终检查点",
+  "Epoch {epoch} · Step {step}": "轮数 {epoch} · 步数 {step}",
+  "{count} checkpoints": "{count} 个检查点",
+  "Delete checkpoint": "删除检查点"
 }

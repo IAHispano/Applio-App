@@ -443,7 +443,7 @@ fn delete_path(logs: &Path, name: &str) -> Result<PathBuf> {
     let root = std::fs::canonicalize(logs)?;
     let candidate = logs.join(name);
     // Check the lexical path before following links, then check the resolved
-    // path too. Recursive deletes are confined to the selected models folder.
+    // path too. Deletes are confined to the logs directory.
     let mut lexical = PathBuf::new();
     for part in candidate.components() {
         match part {
@@ -475,6 +475,60 @@ fn delete_path(logs: &Path, name: &str) -> Result<PathBuf> {
     }
     Ok(candidate)
 }
+fn is_model_checkpoint(path: &Path) -> bool {
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| matches!(extension.to_lowercase().as_str(), "pth" | "onnx"))
+        && !name.starts_with("G_")
+        && !name.starts_with("D_")
+}
+fn prune_model_directory(directory: &Path) -> Result<()> {
+    let entries = match std::fs::read_dir(directory) {
+        Ok(entries) => entries.collect::<std::io::Result<Vec<_>>>()?,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    if entries.iter().any(|entry| {
+        entry.file_type().is_ok_and(|kind| kind.is_file()) && is_model_checkpoint(&entry.path())
+    }) {
+        return Ok(());
+    }
+    // Indexes are shared by all checkpoints in a training folder, so keep them
+    // until the last inference model is gone.
+    for entry in &entries {
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_lowercase();
+        if path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("index"))
+            && !name.contains("trained")
+        {
+            std::fs::remove_file(path)?;
+        }
+    }
+    if std::fs::read_dir(directory)?.next().is_none() {
+        std::fs::remove_dir(directory)?;
+    }
+    Ok(())
+}
+fn remove_model_file(logs: &Path, target: &Path) -> Result<()> {
+    std::fs::remove_file(target)?;
+    if let Some(parent) = target.parent().filter(|parent| *parent != logs) {
+        prune_model_directory(parent)?;
+    }
+    Ok(())
+}
+fn remove_target(logs: &Path, target: &Path) -> Result<(), Error> {
+    // Folders contain every checkpoint from a training run. Only remove the
+    // file the user selected.
+    if target.is_dir() {
+        return Err(Error::input(
+            "Select a model checkpoint to delete, not a folder",
+        ));
+    }
+    remove_model_file(logs, target).map_err(Error::internal)
+}
 async fn remove(
     State(state): State<Arc<Models>>,
     RoutePath(name): RoutePath<String>,
@@ -490,18 +544,9 @@ async fn remove(
                 json!({"error":format!("Model not found: {display}")}),
             ));
         }
-        // Recheck immediately before a recursive operation.
+        // Recheck immediately before removing anything.
         let target = delete_path(&logs, &path_string(&target))?;
-        if target.is_dir() {
-            std::fs::remove_dir_all(&target).map_err(Error::internal)?;
-        } else {
-            std::fs::remove_file(&target).map_err(Error::internal)?;
-            if let Some(parent) = target.parent().filter(|parent| *parent != logs) {
-                if std::fs::read_dir(parent).is_ok_and(|mut entries| entries.next().is_none()) {
-                    let _ = std::fs::remove_dir(parent);
-                }
-            }
-        }
+        remove_target(&logs, &target)?;
         Ok(())
     })
     .await
@@ -510,3 +555,71 @@ async fn remove(
     Ok(Json(json!({"ok":true,"message":format!("Deleted {name}")})))
 }
 const INSPECT_CODE:&str="import sys,json; from rvc.lib.tools.inspect_checkpoint import inspect_checkpoint; print('APPLIO_JSON:'+json.dumps(inspect_checkpoint(sys.argv[1])))";
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    fn write(path: &Path) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, b"checkpoint").unwrap();
+    }
+
+    #[test]
+    fn deleting_one_checkpoint_keeps_snapshots_and_shared_index() {
+        let temp = tempfile::tempdir().unwrap();
+        let logs = temp.path().join("logs");
+        let folder = logs.join("voice");
+        let first = folder.join("voice_10e_100s.pth");
+        let second = folder.join("voice_20e_200s.pth");
+        let index = folder.join("voice.index");
+        let training = folder.join("G_2333333.pth");
+        for file in [&first, &second, &index, &training] {
+            write(file);
+        }
+
+        remove_model_file(&logs, &first).unwrap();
+        assert!(!first.exists());
+        assert!(second.exists());
+        assert!(index.exists());
+        assert!(training.exists());
+
+        remove_model_file(&logs, &second).unwrap();
+        assert!(!second.exists());
+        assert!(!index.exists());
+        assert!(training.exists());
+        assert!(folder.exists());
+    }
+
+    #[test]
+    fn deleting_the_last_checkpoint_removes_the_index_and_empty_folder() {
+        let temp = tempfile::tempdir().unwrap();
+        let logs = temp.path().join("logs");
+        let folder = logs.join("voice");
+        let model = folder.join("voice.pth");
+        let index = folder.join("voice.index");
+        write(&model);
+        write(&index);
+
+        remove_model_file(&logs, &model).unwrap();
+        assert!(!model.exists());
+        assert!(!index.exists());
+        assert!(!folder.exists());
+    }
+
+    #[test]
+    fn deleting_a_folder_is_rejected_without_touching_its_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let logs = temp.path().join("logs");
+        let folder = logs.join("voice");
+        let first = folder.join("voice_10e_100s.pth");
+        let second = folder.join("voice_20e_200s.pth");
+        write(&first);
+        write(&second);
+
+        let error = remove_target(&logs, &folder).unwrap_err();
+        assert_eq!(error.0, StatusCode::BAD_REQUEST);
+        assert!(first.exists());
+        assert!(second.exists());
+    }
+}
