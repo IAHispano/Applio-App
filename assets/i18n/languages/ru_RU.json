@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "Каждый запрос /v1 требует Authorization: Bearer с вашим ключом API.",
   "Examples": "Примеры",
   "Excessive silence": "Избыточная тишина",
+  "Exclude all flagged": "Исключить все отмеченные",
   "Exclude duplicates": "Исключить дубликаты",
   "Execution in progress": "Выполнение…",
   "Expand": "Развернуть",

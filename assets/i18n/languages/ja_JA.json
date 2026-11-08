@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "すべての/v1リクエストに、APIキーを続けたAuthorization: Bearerが必要です。",
   "Examples": "使用例",
   "Excessive silence": "無音が多い",
+  "Exclude all flagged": "フラグ付き録音をすべて除外",
   "Exclude duplicates": "重複を除外",
   "Execution in progress": "実行中",
   "Expand": "展開",

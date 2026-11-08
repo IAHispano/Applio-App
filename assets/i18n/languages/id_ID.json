@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "Setiap permintaan /v1 memerlukan Authorization: Bearer diikuti kunci API Anda.",
   "Examples": "Contoh",
   "Excessive silence": "Senyap berlebihan",
+  "Exclude all flagged": "Kecualikan semua yang ditandai",
   "Exclude duplicates": "Kecualikan duplikat",
   "Execution in progress": "Eksekusi sedang berlangsung",
   "Expand": "Perluas",

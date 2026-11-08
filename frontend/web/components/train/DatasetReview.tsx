@@ -327,6 +327,22 @@ export default function DatasetReview({
                 variant="ghost"
                 disabled={active}
                 onClick={() =>
+                  setIncluded((previous) => {
+                    const next = new Set(previous);
+                    for (const clip of review.clips) {
+                      if (clip.error || clip.issues.length > 0) next.delete(clip.id);
+                    }
+                    return next;
+                  })
+                }
+              >
+                {t("Exclude all flagged")}
+              </Button>
+              <Button
+                size="xs"
+                variant="ghost"
+                disabled={active}
+                onClick={() =>
                   setIncluded(
                     new Set(review.clips.filter((c) => !c.error && !c.duplicateOf).map((c) => c.id)),
                   )

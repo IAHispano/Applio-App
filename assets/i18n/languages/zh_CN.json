@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "每个 /v1 请求都需要在 Authorization: Bearer 后填写 API 密钥。",
   "Examples": "示例",
   "Excessive silence": "静音过多",
+  "Exclude all flagged": "排除所有已标记项",
   "Exclude duplicates": "排除重复项",
   "Execution in progress": "执行中",
   "Expand": "展开",

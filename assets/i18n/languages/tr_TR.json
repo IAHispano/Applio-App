@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "Her /v1 isteğinde Authorization: Bearer ifadesinin ardından API anahtarınız gerekir.",
   "Examples": "Örnekler",
   "Excessive silence": "Aşırı sessizlik",
+  "Exclude all flagged": "İşaretlenenlerin tümünü hariç tut",
   "Exclude duplicates": "Yinelenenleri hariç tut",
   "Execution in progress": "Yürütme devam ediyor",
   "Expand": "Genişlet",

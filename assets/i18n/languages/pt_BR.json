@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "Cada solicitação /v1 precisa de Authorization: Bearer seguido da sua chave de API.",
   "Examples": "Exemplos",
   "Excessive silence": "Silêncio excessivo",
+  "Exclude all flagged": "Excluir todas as sinalizadas",
   "Exclude duplicates": "Excluir duplicatas",
   "Execution in progress": "Execução em andamento",
   "Expand": "Expandir",

@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "모든 /v1 요청에는 Authorization: Bearer 뒤에 API 키가 필요합니다.",
   "Examples": "예제",
   "Excessive silence": "과도한 무음",
+  "Exclude all flagged": "플래그된 모든 항목 제외",
   "Exclude duplicates": "중복 제외",
   "Execution in progress": "실행 중",
   "Expand": "확장",

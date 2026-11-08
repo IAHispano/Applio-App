@@ -571,6 +571,7 @@
   "Every /v1 request needs Authorization: Bearer followed by your API key.": "हर /v1 अनुरोध में Authorization: Bearer के बाद आपकी API कुंजी चाहिए।",
   "Examples": "उदाहरण",
   "Excessive silence": "अत्यधिक मौन",
+  "Exclude all flagged": "सभी चिह्नित हटाएँ",
   "Exclude duplicates": "डुप्लिकेट हटाएँ",
   "Execution in progress": "निष्पादन प्रगति पर है",
   "Expand": "विस्तृत करें",
