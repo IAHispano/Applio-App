@@ -595,6 +595,236 @@ html[data-theme-effects="halloween"] .card:hover {
   }
 }
 
+.xmas-scene {
+  z-index: 20;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+  contain: strict;
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+@media (min-width: 1024px) {
+  .xmas-scene {
+    left: calc(var(--sidebar-w) + var(--sidebar-gap));
+  }
+}
+.xmas-lights {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: clamp(80px, 11vh, 140px);
+  opacity: 0.95;
+}
+.xmas-wire {
+  stroke: #241a10;
+  stroke-width: 0.8;
+  opacity: 0.9;
+}
+.xmas-light circle {
+  filter: drop-shadow(0 0 2.2px currentColor);
+  animation: xmas-twinkle 2.7s ease-in-out infinite;
+}
+.xmas-light:nth-child(2n) circle {
+  animation-delay: -1.4s;
+}
+.xmas-light:nth-child(3n) circle {
+  animation-delay: -0.9s;
+}
+@keyframes xmas-twinkle {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.xmas-tree {
+  position: absolute;
+  bottom: 0;
+  left: 6px;
+  width: clamp(112px, 12vw, 176px);
+  height: auto;
+  opacity: 0.95;
+  filter: drop-shadow(0 6px 16px #000a);
+}
+.xmas-topper {
+  transform-origin: 100px 10px;
+  animation: xmas-topper 4.2s ease-in-out infinite;
+}
+@keyframes xmas-topper {
+  0%,
+  100% {
+    opacity: 0.82;
+    transform: rotate(-4deg) scale(0.95);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(4deg) scale(1.06);
+  }
+}
+.xmas-garland {
+  animation: xmas-garland 2.2s ease-in-out infinite;
+}
+.xmas-garland-2 {
+  animation-delay: -1.1s;
+}
+@keyframes xmas-garland {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.xmas-snow-far i {
+  position: absolute;
+  top: -3vh;
+  background: #e4ecff;
+  border-radius: 50%;
+  opacity: 0;
+  filter: blur(0.7px);
+  animation: xmas-snow-far var(--fall) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes xmas-snow-far {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  10% {
+    opacity: 0.55;
+  }
+  33% {
+    transform: translate3d(calc(var(--drift) * 0.35), 32vh, 0);
+  }
+  66% {
+    transform: translate3d(calc(var(--drift) * 0.75), 68vh, 0);
+  }
+  80% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), 109vh, 0);
+  }
+}
+.xmas-snow i {
+  position: absolute;
+  top: -3vh;
+  background: #f2f7ff;
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 5px #e3edff88;
+  animation: xmas-snow var(--fall) linear infinite;
+  animation-delay: var(--delay);
+}
+@keyframes xmas-snow {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0);
+  }
+  12% {
+    opacity: 0.95;
+  }
+  33% {
+    transform: translate3d(calc(var(--drift) * 0.3), 30vh, 0);
+  }
+  66% {
+    transform: translate3d(calc(var(--drift) * 0.72), 68vh, 0);
+  }
+  88% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--drift), 109vh, 0);
+  }
+}
+.xmas-glow-left,
+.xmas-glow-right {
+  position: absolute;
+  bottom: -60px;
+  width: 420px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, #e7b55824, transparent 62%);
+  filter: blur(6px);
+  animation: xmas-candle 9s ease-in-out infinite alternate;
+}
+.xmas-glow-left {
+  left: -120px;
+}
+.xmas-glow-right {
+  right: -140px;
+  animation-delay: -4.5s;
+  animation-duration: 11s;
+}
+@keyframes xmas-candle {
+  from {
+    opacity: 0.5;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+.xmas-controls {
+  z-index: 21;
+  position: fixed;
+  right: 17px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 12px;
+  background: #101f15ee;
+  border: 1px solid rgb(255 209 102 / 0.22);
+  box-shadow: 0 4px 18px #0006;
+}
+.xmas-controls .icon-btn {
+  color: #ffe9a3;
+}
+html[data-theme-effects="christmas"] #main-content {
+  background-image: radial-gradient(at 100% 0, #e7b5580d, transparent 45%),
+    radial-gradient(at 0 100%, #1c4a2f14, transparent 45%);
+}
+html[data-theme-effects="christmas"] .card:hover {
+  box-shadow: var(--shadow-card), 0 0 24px #ffd16608;
+}
+.xmas-prompt {
+  background: radial-gradient(at 100% 0, #3d1f14 0, transparent 70%), #14241a;
+  border: 1px solid #36563f;
+  box-shadow: 0 8px 24px #00000026;
+}
+@media (max-width: 1023px) {
+  .xmas-tree {
+    opacity: 0.55;
+    bottom: 88px;
+    left: 2px;
+    width: 56px;
+  }
+  .xmas-controls {
+    bottom: calc(87px + env(safe-area-inset-bottom));
+    right: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .xmas-scene *,
+  .xmas-scene *::before {
+    animation: none !important;
+  }
+  .xmas-snow,
+  .xmas-snow-far {
+    display: none;
+  }
+}
+
 .bridge-link-row {
   display: flex;
   align-items: center;
@@ -2388,3 +2618,4 @@ button.segmented-item.is-active {
   color: var(--muted);
   font-size: 10px;
 }
+

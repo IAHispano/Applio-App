@@ -6,10 +6,10 @@
 // (Music ID Mutopia-2013/12/07-1888, Public Domain / CC0) and is kept here as
 // plain data so the app ships no audio file and no extra dependency.
 //
-// The upper staff becomes a music box and the lower staff the bass; both are
-// slowed and transposed for a background loop.
-
-export type Voice = "bell" | "bass" | "pad";
+// The upper staff becomes the lead voice, the lower staff the bass; both are
+// slowed and transposed for a background loop, with a choir sustaining the
+// tonic pedal and a march drum kit underneath.
+export type Voice = "piano" | "choir" | "bass" | "kick" | "snare" | "hat";
 
 export interface ScoreNote {
   /** Seconds from the start of the loop. */
@@ -35,9 +35,12 @@ const MELODY_OCTAVE = 12;
 const BASS_OCTAVE = 12;
 const MELODY_LEVEL = 0.55;
 const BASS_LEVEL = 0.15;
-/** A slow organ bed on the tonic triad, which the bare score never spells out. */
-const PAD_LEVEL = 0.05;
+/** A slow choir sustain on the tonic triad; keeps the loop from ringing hollow. */
+const PAD_LEVEL = 0.28;
 const PAD_CHORD = [35, 38, 42];
+const KICK_LEVEL = 0.78;
+const SNARE_LEVEL = 0.5;
+const HAT_LEVEL = 0.35;
 
 const MOUNTAIN_KING_MELODY: ScoreEntry[] = [
   // bar 1
@@ -244,7 +247,7 @@ export function buildMountainKingScore(): ScoreNote[] {
       duration: duration * eighth,
       pitch: pitch + MELODY_OCTAVE,
       level: MELODY_LEVEL,
-      voice: "bell",
+      voice: "piano",
     });
   }
   for (const [start, duration, pitch] of MOUNTAIN_KING_BASS) {
@@ -256,19 +259,33 @@ export function buildMountainKingScore(): ScoreNote[] {
       voice: "bass",
     });
   }
-  // The score leaves the harmony to the two-handed bass; a slow tonic bed
-  // underneath keeps the loop from sounding like a bare ostinato.
+  // A slow choir sustain on the tonic triad; keeps the loop from sounding hollow.
   const unitsPerBar = 8;
-  const phraseUnits = 8 * unitsPerBar;
-  for (let bar = 0; bar < 16; bar += 8) {
+  const phraseUnits = 16 * unitsPerBar; // full 16 bars
+  for (let bar = 0; bar < 16; bar += 16) {
     for (const pitch of PAD_CHORD) {
       notes.push({
         time: bar * unitsPerBar * eighth,
         duration: phraseUnits * eighth,
         pitch,
         level: PAD_LEVEL,
-        voice: "pad",
+        voice: "choir",
       });
+    }
+  }
+  // March drum kit, one bar at a time (4/4 has two eighths per beat).
+  const bars = 16;
+  for (let bar = 0; bar < bars; bar++) {
+    const barStart = bar * unitsPerBar * eighth;
+    for (let step = 0; step < 8; step++) {
+      const t = barStart + step * eighth;
+      if (step % 4 === 0) {
+        notes.push({ time: t, duration: 0.1, pitch: 36, level: KICK_LEVEL, voice: "kick" });
+      }
+      if (step === 2 || step === 6) {
+        notes.push({ time: t, duration: 0.09, pitch: 38, level: SNARE_LEVEL, voice: "snare" });
+      }
+      notes.push({ time: t, duration: 0.03, pitch: 42, level: step % 2 === 0 ? HAT_LEVEL : HAT_LEVEL * 0.7, voice: "hat" });
     }
   }
   return notes.sort((a, b) => a.time - b.time);

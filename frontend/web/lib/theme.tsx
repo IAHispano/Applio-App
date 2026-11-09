@@ -8,7 +8,7 @@ export interface ThemeFile {
   version?: string;
   description?: string;
   mode?: string;
-  effects?: "halloween";
+  effects?: string;
   colors?: Record<string, string>;
   fonts?: { display?: string[]; body?: string[]; mono?: string[] };
   radius?: Record<string, string>;
@@ -108,10 +108,17 @@ export function fontCss(families: string[] | undefined): string {
   return fontStack(families).css;
 }
 
+// Built-in theme files that predate the effects marker in the bundle can
+// still turn their effects on by file name; theme JSONs declare effects: "<name>".
+const EFFECTS_BY_FILE: Record<string, string> = {
+  "halloween.json": "halloween",
+  "christmas.json": "christmas",
+};
+
 export function applyTheme(theme: ThemeFile, file?: string): void {
   const root = document.documentElement;
-  // Existing writable theme files can predate the effects marker in the bundle.
-  root.dataset.themeEffects = theme.effects === "halloween" || file === "halloween.json" ? "halloween" : "";
+  // Any effect set built into the app self-activates on this attribute.
+  root.dataset.themeEffects = theme.effects ?? (file ? (EFFECTS_BY_FILE[file] ?? "") : "");
 
   // Clear all previously applied theme CSS variables so switching cleanly resets
   for (const v of Object.values(COLOR_TO_VAR)) {
