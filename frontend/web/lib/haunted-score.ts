@@ -285,7 +285,13 @@ export function buildMountainKingScore(): ScoreNote[] {
       if (step === 2 || step === 6) {
         notes.push({ time: t, duration: 0.09, pitch: 38, level: SNARE_LEVEL, voice: "snare" });
       }
-      notes.push({ time: t, duration: 0.03, pitch: 42, level: step % 2 === 0 ? HAT_LEVEL : HAT_LEVEL * 0.7, voice: "hat" });
+      notes.push({
+        time: t,
+        duration: 0.03,
+        pitch: 42,
+        level: step % 2 === 0 ? HAT_LEVEL : HAT_LEVEL * 0.7,
+        voice: "hat",
+      });
     }
   }
   return notes.sort((a, b) => a.time - b.time);

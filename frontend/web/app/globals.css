@@ -791,11 +791,14 @@ html[data-theme-effects="halloween"] .card:hover {
   color: #ffe9a3;
 }
 html[data-theme-effects="christmas"] #main-content {
-  background-image: radial-gradient(at 100% 0, #e7b5580d, transparent 45%),
+  background-image:
+    radial-gradient(at 100% 0, #e7b5580d, transparent 45%),
     radial-gradient(at 0 100%, #1c4a2f14, transparent 45%);
 }
 html[data-theme-effects="christmas"] .card:hover {
-  box-shadow: var(--shadow-card), 0 0 24px #ffd16608;
+  box-shadow:
+    var(--shadow-card),
+    0 0 24px #ffd16608;
 }
 .xmas-prompt {
   background: radial-gradient(at 100% 0, #3d1f14 0, transparent 70%), #14241a;
@@ -2618,4 +2621,3 @@ button.segmented-item.is-active {
   color: var(--muted);
   font-size: 10px;
 }
-
