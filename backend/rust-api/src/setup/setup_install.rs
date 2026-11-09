@@ -16,6 +16,7 @@ use std::{
     time::Duration,
 };
 use tokio_util::sync::CancellationToken;
+use uuid::Uuid;
 pub(crate) async fn run(
     engine: &NativeEngine,
     id: &str,
@@ -74,6 +75,164 @@ fn uv_command(
     }
     Ok(spec)
 }
+fn uv_archive_target() -> Result<&'static str> {
+    if cfg!(windows) {
+        bail!("Direct uv downloads are not used on Windows.");
+    }
+    match (
+        cfg!(target_os = "macos"),
+        cfg!(target_env = "musl"),
+        std::env::consts::ARCH,
+    ) {
+        (true, _, "aarch64") => Ok("aarch64-apple-darwin"),
+        (true, _, "x86_64") => Ok("x86_64-apple-darwin"),
+        (false, true, "aarch64") => Ok("aarch64-unknown-linux-musl"),
+        (false, true, "x86_64") => Ok("x86_64-unknown-linux-musl"),
+        (false, false, "aarch64") => Ok("aarch64-unknown-linux-gnu"),
+        (false, false, "x86_64") => Ok("x86_64-unknown-linux-gnu"),
+        _ => bail!("Automatic uv installation is not available for this platform."),
+    }
+}
+
+fn extract_uv(archive: &Path, destination: &Path) -> Result<()> {
+    const MAX_EXECUTABLE: u64 = 128 * 1024 * 1024;
+    let file = std::fs::File::open(archive)?;
+    let mut archive = tar::Archive::new(flate2::read::GzDecoder::new(file));
+    let parent = destination
+        .parent()
+        .context("uv destination has no parent folder")?;
+    std::fs::create_dir_all(parent)?;
+    let temporary = destination.with_file_name(format!(".applio-uv-{}.tmp", Uuid::new_v4()));
+    let result = (|| {
+        for entry in archive.entries()? {
+            let mut entry = entry?;
+            if entry.path()?.file_name() != Some(std::ffi::OsStr::new("uv")) {
+                continue;
+            }
+            if !entry.header().entry_type().is_file() || entry.size() > MAX_EXECUTABLE {
+                bail!("Invalid uv archive executable");
+            }
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o700);
+            }
+            let mut file = options.open(&temporary)?;
+            std::io::copy(&mut entry, &mut file)?;
+            file.sync_all()?;
+            drop(file);
+            crate::storage::replace_file(&temporary, destination)?;
+            return Ok(());
+        }
+        bail!("The downloaded uv archive did not contain the uv executable")
+    })();
+    let _ = std::fs::remove_file(temporary);
+    result
+}
+
+async fn uv_script(
+    engine: &NativeEngine,
+    id: &str,
+    token: &CancellationToken,
+    install_dir: &Path,
+    managed: &Path,
+) -> Result<()> {
+    let root = engine.runtime.data.join(".applio-setup");
+    tokio::fs::create_dir_all(&root).await?;
+    let installer = root.join(if cfg!(windows) {
+        "uv-install.ps1"
+    } else {
+        "uv-install.sh"
+    });
+    let url = if cfg!(windows) {
+        "https://astral.sh/uv/install.ps1"
+    } else {
+        "https://astral.sh/uv/install.sh"
+    };
+    download(engine, id, url, &installer, token, None).await?;
+    let mut spec = if cfg!(windows) {
+        command(
+            engine,
+            "powershell.exe",
+            vec![
+                "-NoProfile".into(),
+                "-NonInteractive".into(),
+                "-ExecutionPolicy".into(),
+                "Bypass".into(),
+                "-File".into(),
+                installer.into_os_string(),
+            ],
+        )?
+    } else {
+        command(engine, "sh", [installer.into_os_string()])?
+    };
+    spec.env.insert(
+        "UV_UNMANAGED_INSTALL".into(),
+        install_dir.as_os_str().to_owned(),
+    );
+    spec.env
+        .insert("UV_INSTALL_DIR".into(), install_dir.as_os_str().to_owned());
+    spec.env.insert("UV_NO_MODIFY_PATH".into(), "1".into());
+    run(engine, id, &spec, token, 180).await?;
+    if !managed.is_file() {
+        bail!("The uv installer did not produce the uv executable.");
+    }
+    Ok(())
+}
+
+// The install script fetches this archive with curl or wget. Downloading it
+// directly keeps setup working on minimal systems without either tool.
+async fn uv_archive(
+    engine: &NativeEngine,
+    id: &str,
+    token: &CancellationToken,
+    install_dir: &Path,
+) -> Result<PathBuf> {
+    let target = uv_archive_target()?;
+    let name = format!("uv-{target}.tar.gz");
+    let url = format!("https://github.com/astral-sh/uv/releases/latest/download/{name}");
+    let root = engine.runtime.data.join(".applio-setup");
+    tokio::fs::create_dir_all(&root).await?;
+    let checksum_file = root.join(format!("{name}.sha256"));
+    let checksum = match download(
+        engine,
+        id,
+        &format!("{url}.sha256"),
+        &checksum_file,
+        token,
+        None,
+    )
+    .await
+    {
+        Ok(()) => std::fs::read_to_string(&checksum_file)
+            .ok()
+            .and_then(|text| text.split_whitespace().next().map(str::to_owned))
+            .filter(|value| value.len() == 64),
+        Err(error) if token.is_cancelled() => return Err(error),
+        Err(error) => {
+            engine.jobs.log(id, &format!("uv checksum note: {error}"));
+            None
+        }
+    };
+    let archive = root.join(&name);
+    download(engine, id, &url, &archive, token, checksum.as_deref()).await?;
+    let destination = install_dir.join("uv");
+    let source = archive.clone();
+    let target_path = destination.clone();
+    tokio::task::spawn_blocking(move || extract_uv(&source, &target_path)).await??;
+    let _ = tokio::fs::remove_file(&archive).await;
+    if setup_routes::run_check(&command(engine, &destination, ["--version"])?, token, 15)
+        .await
+        .is_ok_and(|output| output.success)
+    {
+        Ok(destination)
+    } else {
+        bail!("The downloaded uv executable did not run.")
+    }
+}
+
 pub(crate) fn validate_venv_rebuild(data: &Path, venv: &Path) -> Result<()> {
     let metadata = match std::fs::symlink_metadata(venv) {
         Ok(metadata) => metadata,
@@ -106,13 +265,14 @@ async fn download(
     url: &str,
     path: &Path,
     token: &CancellationToken,
+    sha256: Option<&str>,
 ) -> Result<()> {
     engine.jobs.log(id, &format!("Downloading {url}"));
     download::file(
         &download::client()?,
         url,
         path,
-        None,
+        sha256,
         token,
         |received, total| {
             if total > 0 {
@@ -156,49 +316,24 @@ async fn uv(engine: &NativeEngine, id: &str, token: &CancellationToken) -> Resul
             return Ok(Some(candidate));
         }
     }
-    let root = engine.runtime.data.join(".applio-setup");
-    tokio::fs::create_dir_all(&root).await?;
-    let installer = root.join(if cfg!(windows) {
-        "uv-install.ps1"
+    if let Err(error) = uv_script(engine, id, token, &install_dir, &managed).await {
+        if token.is_cancelled() {
+            return Err(error);
+        }
+        engine.jobs.log(
+            id,
+            &format!("uv installer note: {error}. Trying a direct uv download."),
+        );
     } else {
-        "uv-install.sh"
-    });
-    let url = if cfg!(windows) {
-        "https://astral.sh/uv/install.ps1"
-    } else {
-        "https://astral.sh/uv/install.sh"
-    };
-    download(engine, id, url, &installer, token).await?;
-    let mut spec = if cfg!(windows) {
-        command(
-            engine,
-            "powershell.exe",
-            vec![
-                "-NoProfile".into(),
-                "-NonInteractive".into(),
-                "-ExecutionPolicy".into(),
-                "Bypass".into(),
-                "-File".into(),
-                installer.into_os_string(),
-            ],
-        )?
-    } else {
-        command(engine, "sh", [installer.into_os_string()])?
-    };
-    spec.env.insert(
-        "UV_UNMANAGED_INSTALL".into(),
-        install_dir.as_os_str().to_owned(),
-    );
-    spec.env
-        .insert("UV_INSTALL_DIR".into(), install_dir.into_os_string());
-    spec.env.insert("UV_NO_MODIFY_PATH".into(), "1".into());
-    match run(engine, id, &spec, token, 180).await {
-        Ok(()) if managed.is_file() => Ok(Some(managed)),
+        return Ok(Some(managed));
+    }
+    match uv_archive(engine, id, token, &install_dir).await {
+        Ok(uv) => Ok(Some(uv)),
         Err(error) if token.is_cancelled() => Err(error),
-        result => {
+        Err(error) => {
             engine.jobs.log(
                 id,
-                &format!("uv installer note: {result:?}. Trying the Python installer fallback."),
+                &format!("uv download note: {error}. Trying the Python installer fallback."),
             );
             Ok(None)
         }
@@ -257,11 +392,57 @@ pub(crate) async fn nvidia(
     };
     (devices, driver)
 }
+async fn uv_python(
+    engine: &NativeEngine,
+    id: &str,
+    uv: &Path,
+    token: &CancellationToken,
+) -> Result<Python> {
+    engine.jobs.log(id, "Installing Python 3.12 with uv…");
+    run(
+        engine,
+        id,
+        &command(engine, uv, ["python", "install", "3.12"])?,
+        token,
+        1800,
+    )
+    .await?;
+    let output =
+        setup_routes::run_check(&command(engine, uv, ["python", "find", "3.12"])?, token, 30)
+            .await?;
+    output.ensure_success()?;
+    let executable = PathBuf::from(output.stdout.trim());
+    if !executable.is_file() {
+        bail!("uv did not report a Python 3.12 interpreter");
+    }
+    let output =
+        setup_routes::run_check(&command(engine, &executable, ["--version"])?, token, 15).await?;
+    output.ensure_success()?;
+    Ok(Python {
+        cmd: vec![executable.to_string_lossy().into_owned()],
+        version: python_runtime::version(&format!("{}{}", output.stdout, output.stderr))
+            .context("Invalid uv-managed Python version")?,
+        source: "uv managed".into(),
+    })
+}
 async fn bootstrap_python(
     engine: &NativeEngine,
     id: &str,
+    uv: Option<&Path>,
     token: &CancellationToken,
 ) -> Result<Python> {
+    if let Some(uv) = uv {
+        match uv_python(engine, id, uv, token).await {
+            Ok(python) => return Ok(python),
+            Err(error) if token.is_cancelled() => return Err(error),
+            Err(error) => {
+                engine.jobs.log(
+                    id,
+                    &format!("uv Python note: {error}. Trying the platform installer."),
+                );
+            }
+        }
+    }
     if engine
         .runtime
         .env("APPLIO_LOCAL_STORAGE")
@@ -302,6 +483,7 @@ async fn bootstrap_python(
             "https://www.python.org/ftp/python/3.12.9/python-3.12.9-amd64.exe",
             &installer,
             token,
+            None,
         )
         .await?;
         run(
@@ -331,7 +513,7 @@ async fn bootstrap_python(
         )
         .await?;
     } else {
-        bail!("Install Python 3.12 (for example python3-venv and python3-pip), then retry setup.");
+        bail!("Python 3.12 could not be installed automatically. Check your internet connection and retry setup.");
     }
     python_runtime::find(&engine.runtime, token)
         .await
@@ -374,6 +556,7 @@ async fn vcredist(engine: &NativeEngine, id: &str, token: &CancellationToken) ->
         "https://aka.ms/vs/17/release/vc_redist.x64.exe",
         &installer,
         token,
+        None,
     )
     .await?;
     let result = run(
@@ -437,6 +620,7 @@ async fn msvc_tools(engine: &NativeEngine, id: &str, token: &CancellationToken) 
         "https://aka.ms/vs/17/release/vs_buildtools.exe",
         &installer,
         token,
+        None,
     )
     .await?;
     // The bootstrapper must wait for its installer; otherwise the supervised
@@ -696,6 +880,7 @@ pub(crate) async fn install(
     };
     if !valid {
         validate_venv_rebuild(&engine.runtime.data, &venv)?;
+        let mut created = false;
         if let Some(uv) = &uv {
             let mut spec = uv_command(
                 &engine.runtime,
@@ -717,12 +902,22 @@ pub(crate) async fn install(
                 spec.env
                     .insert("UV_PYTHON_PREFERENCE".into(), "only-managed".into());
             }
-            run(engine, id, &spec, token, 1800).await?;
-        } else {
+            match run(engine, id, &spec, token, 1800).await {
+                Ok(()) => created = true,
+                Err(error) if token.is_cancelled() => return Err(error),
+                Err(error) => {
+                    engine.jobs.log(
+                        id,
+                        &format!("uv environment note: {error}. Trying system Python."),
+                    );
+                }
+            }
+        }
+        if !created {
             let python = if let Some(python) = python_runtime::find(&engine.runtime, token).await {
                 python
             } else {
-                bootstrap_python(engine, id, token).await?
+                bootstrap_python(engine, id, uv.as_deref(), token).await?
             };
             run(
                 engine,
@@ -1064,6 +1259,66 @@ pub(crate) async fn install(
 mod tests {
     use super::*;
     use std::ffi::OsStr;
+
+    fn uv_archive(path: &Path, entries: &[(&str, &[u8])]) {
+        let file = std::fs::File::create(path).unwrap();
+        let encoder = flate2::write::GzEncoder::new(file, flate2::Compression::fast());
+        let mut builder = tar::Builder::new(encoder);
+        for (name, data) in entries {
+            let mut header = tar::Header::new_gnu();
+            header.set_size(data.len() as u64);
+            header.set_mode(0o755);
+            header.set_cksum();
+            builder.append_data(&mut header, name, *data).unwrap();
+        }
+        builder.into_inner().unwrap().finish().unwrap();
+    }
+
+    #[test]
+    fn extract_uv_keeps_only_the_downloaded_executable() {
+        let root = tempfile::tempdir().unwrap();
+        let archive = root.path().join("uv.tar.gz");
+        uv_archive(
+            &archive,
+            &[
+                ("uv-x86_64-unknown-linux-gnu/README.md", b"ignored"),
+                ("uv-x86_64-unknown-linux-gnu/uv", b"#!/bin/sh\n"),
+            ],
+        );
+        let destination = root.path().join("tools/uv");
+        extract_uv(&archive, &destination).unwrap();
+        assert_eq!(
+            std::fs::read(&destination).unwrap(),
+            b"#!/bin/sh\n",
+            "the uv executable should be staged at its managed path"
+        );
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(
+                std::fs::metadata(&destination)
+                    .unwrap()
+                    .permissions()
+                    .mode()
+                    & 0o777,
+                0o700
+            );
+        }
+    }
+
+    #[test]
+    fn extract_uv_rejects_archives_without_the_executable() {
+        let root = tempfile::tempdir().unwrap();
+        let archive = root.path().join("uv.tar.gz");
+        uv_archive(
+            &archive,
+            &[("uv-x86_64-unknown-linux-gnu/README.md", b"missing")],
+        );
+        let destination = root.path().join("tools/uv");
+        let error = extract_uv(&archive, &destination).unwrap_err();
+        assert!(error.to_string().contains("did not contain"));
+        assert!(!destination.exists());
+    }
 
     #[test]
     fn uv_downloads_use_resilient_defaults_and_preserve_overrides() {
