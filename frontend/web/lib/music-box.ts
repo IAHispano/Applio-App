@@ -1,13 +1,12 @@
-// Shared season ambience engine.
-//
-// Christmas theme ambience. Springs from a public-domain MIDI of Jingle Bells
-// converted to plain note data (lib/jingle-bells.ts), voiced as piano + choir
-// over a real drum pattern. Halloween uses a public-domain orchestral recording
-// instead of synthesis, so no Halloween voices live here.
+// Shared season ambience engine. Springs from the public-domain MIDI corpus
+// (Jingle Bells for Christmas via Commons MIDI; Grieg's "In the Hall of the
+// Mountain King" transcription for Halloween), voiced as piano + choir over a
+// real drum pattern for Christmas, and as music box + organ over the bass
+// line for Halloween.
 
 import { useEffect, useRef } from "react";
 
-export type Voice = "piano" | "choir" | "bass" | "kick" | "snare" | "hat" | "sleigh";
+export type Voice = "piano" | "choir" | "bass" | "kick" | "snare" | "hat" | "sleigh" | "bell" | "pad";
 
 export interface ScoreNote {
   /** Seconds from the start of the loop. */
@@ -129,6 +128,70 @@ function playBass(
   osc.stop(time + duration + 0.1);
 }
 
+// Music box voice: inharmonic partial stack under a fast-decaying body.
+function playBell(
+  context: AudioContext,
+  out: AudioNode,
+  midi: number,
+  time: number,
+  level: number,
+  duration: number,
+) {
+  const frequency = midiToHz(midi);
+  const decay = Math.min(1.2, Math.max(0.22, duration * 0.8));
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0, time);
+  envelope.gain.linearRampToValueAtTime(level, time + 0.006);
+  envelope.gain.exponentialRampToValueAtTime(0.0001, time + decay);
+  envelope.connect(out);
+  const partials = [
+    [1, 1, decay],
+    [2.76, 0.26, decay * 0.42],
+    [5.4, 0.09, decay * 0.2],
+  ];
+  for (const [ratio, weight, partialDecay] of partials) {
+    const osc = context.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = frequency * ratio;
+    const gain = context.createGain();
+    gain.gain.setValueAtTime(weight, time);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + partialDecay);
+    osc.connect(gain).connect(envelope);
+    osc.start(time);
+    osc.stop(time + partialDecay + 0.05);
+  }
+}
+
+// Organ bed: two detuned sawtooths through a low pass, with a slow swell.
+function playPad(
+  context: AudioContext,
+  out: AudioNode,
+  midi: number,
+  time: number,
+  duration: number,
+  level: number,
+) {
+  const filter = context.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = 820;
+  filter.Q.value = 0.6;
+  const envelope = context.createGain();
+  envelope.gain.setValueAtTime(0.0001, time);
+  envelope.gain.linearRampToValueAtTime(level, time + 1.6);
+  envelope.gain.setValueAtTime(level, time + Math.max(1.7, duration - 2));
+  envelope.gain.linearRampToValueAtTime(0.0001, time + duration);
+  filter.connect(envelope).connect(out);
+  for (const detune of [-8, 8]) {
+    const osc = context.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.value = midiToHz(midi);
+    osc.detune.value = detune;
+    osc.connect(filter);
+    osc.start(time);
+    osc.stop(time + duration + 0.1);
+  }
+}
+
 function playKick(context: AudioContext, out: AudioNode, time: number, level: number) {
   const osc = context.createOscillator();
   osc.type = "sine";
@@ -242,6 +305,8 @@ export function startSeasonalAmbience(context: AudioContext, score: ScoreNote[])
   const snareBus = bus(1.1);
   const hatBus = bus(1);
   const sleighBus = bus(0.9);
+  const bellBus = bus(1);
+  const padBus = bus(0.9);
 
   // Lookahead scheduler: notes are queued slightly ahead of the clock and
   // the score repeats for as long as the ambience stays on.
@@ -259,20 +324,28 @@ export function startSeasonalAmbience(context: AudioContext, score: ScoreNote[])
     while (index < score.length && nextAt <= horizon) {
       const note = score[index++];
       const when = nextAt;
-      if (note.voice === "piano") {
-        playPiano(context, pianoBus, note.pitch, when, note.level, note.duration);
-      } else if (note.voice === "choir") {
-        playChoir(context, choirBus, note.pitch, when, note.level, note.duration);
-      } else if (note.voice === "bass") {
-        playBass(context, bassBus, note.pitch, when, note.duration, note.level);
-      } else if (note.voice === "kick") {
-        playKick(context, kickBus, when, note.level);
-      } else if (note.voice === "snare") {
-        playSnare(context, snareBus, when, note.level);
-      } else if (note.voice === "hat") {
-        playHat(context, hatBus, when, note.level);
-      } else if (note.voice === "sleigh") {
-        playSleigh(context, sleighBus, when, note.level);
+      try {
+        if (note.voice === "piano") {
+          playPiano(context, pianoBus, note.pitch, when, note.level, note.duration);
+        } else if (note.voice === "choir") {
+          playChoir(context, choirBus, note.pitch, when, note.level, note.duration);
+        } else if (note.voice === "bass") {
+          playBass(context, bassBus, note.pitch, when, note.duration, note.level);
+        } else if (note.voice === "bell") {
+          playBell(context, bellBus, note.pitch, when, note.level, note.duration);
+        } else if (note.voice === "pad") {
+          playPad(context, padBus, note.pitch, when, note.duration, note.level);
+        } else if (note.voice === "kick") {
+          playKick(context, kickBus, when, note.level);
+        } else if (note.voice === "snare") {
+          playSnare(context, snareBus, when, note.level);
+        } else if (note.voice === "hat") {
+          playHat(context, hatBus, when, note.level);
+        } else if (note.voice === "sleigh") {
+          playSleigh(context, sleighBus, when, note.level);
+        }
+      } catch (error) {
+        console.error("seasonal ambience scheduling error:", error);
       }
       nextAt = cycleStart + (index < score.length ? score[index].time : loopSeconds);
     }
@@ -289,6 +362,8 @@ export function startSeasonalAmbience(context: AudioContext, score: ScoreNote[])
       pianoBus,
       choirBus,
       bassBus,
+      bellBus,
+      padBus,
       kickBus,
       snareBus,
       hatBus,
