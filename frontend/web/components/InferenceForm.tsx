@@ -14,22 +14,17 @@ import {
   apiSend,
   cachedModels,
   errMsg,
-  fetchJob,
   fetchModels,
   fileBasename,
-  type Job,
   onModelsChanged,
   outputUrl,
-  pollJob,
-  stopJob,
   submitInference,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset } from "@/lib/model-presets";
 import { useConversionParameters } from "@/lib/useConversionParameters";
-import { usePersistentJobId } from "@/lib/useJob";
-import { usePreviewUrl } from "@/lib/usePreviewUrl";
+import { useJob, usePersistentJobId } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
@@ -87,8 +82,9 @@ export default function InferenceForm() {
   const { embedderModel: setEmbedderModel } = conversion.setters;
 
   // Job submission & status
-  const [job, setJob] = useWorkspaceState<Job | null>("InferenceForm:components:job", null);
-  const [persistedJobId, setPersistedJobId] = usePersistentJobId("inference");
+  const [jobId, setJobId] = usePersistentJobId("inference");
+  const { job: watchedJob, error: jobError, stop } = useJob(jobId);
+  const job = watchedJob?.id === jobId ? watchedJob : null;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -157,30 +153,6 @@ export default function InferenceForm() {
     }
   }, [setPthPath, setIndexPath]);
 
-  // Poll running jobs
-  // biome-ignore lint/correctness/useExhaustiveDependencies: poll active job until completion
-  useEffect(() => {
-    if (!job || job.status === "done" || job.status === "error") return;
-    const stop = pollJob(job.id, setJob);
-    return stop;
-  }, [job?.id]);
-
-  // Restore the last job (running or finished) after navigation/refresh.
-  useEffect(() => {
-    if (job || !persistedJobId) return;
-    let cancelled = false;
-    fetchJob(persistedJobId)
-      .then(({ job: j }) => {
-        if (!cancelled) setJob(j);
-      })
-      .catch(() => {
-        if (!cancelled) setPersistedJobId(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [job, persistedJobId, setPersistedJobId, setJob]);
-
   const primedRef = useRef("");
 
   // Settings sent with the preload so the API can run one tiny background
@@ -242,13 +214,18 @@ export default function InferenceForm() {
     setSid(0);
   };
 
-  // Temporary original audio URL for A/B comparison waveplayer (safe auto-revoke)
-  const originalAudioUrl = usePreviewUrl(audioFile, inputPath);
-
   const directAudioUrl = job?.outputFile ? outputUrl(job.outputFile) : null;
+  const jobInputPath = job?.params?.inputPath;
+  const originalAudioUrl =
+    typeof jobInputPath === "string" && jobInputPath
+      ? `/api/audio/raw?path=${encodeURIComponent(jobInputPath)}`
+      : null;
+  const resultModel = job?.params?.pthPath;
+  const missingOutput = job?.status === "done" && !directAudioUrl;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (isConverting) return;
     if (!conversion.loaded) {
       setSubmitError(t("Loading model settings…"));
       return;
@@ -295,11 +272,14 @@ export default function InferenceForm() {
     }
 
     setSubmitting(true);
+    setJobId(null);
     try {
-      const { jobId } = await submitInference(fd);
-      const { job: fresh } = await fetchJob(jobId);
-      setJob(fresh);
-      setPersistedJobId(jobId);
+      const accepted = await submitInference(fd);
+      if (typeof accepted?.jobId !== "string" || !accepted.jobId) {
+        setSubmitError(t("Submit failed"));
+        return;
+      }
+      setJobId(accepted.jobId);
     } catch (err) {
       setSubmitError(errMsg(err) || t("Submit failed"));
     } finally {
@@ -307,7 +287,8 @@ export default function InferenceForm() {
     }
   }
 
-  const isConverting = Boolean(submitting || (job && job.status !== "done" && job.status !== "error"));
+  const jobActive = job?.status === "queued" || job?.status === "running";
+  const isConverting = submitting || jobActive || Boolean(jobId && !job && !jobError);
 
   const disabledReason = isConverting
     ? t("Wait for the current conversion to finish.")
@@ -410,12 +391,8 @@ export default function InferenceForm() {
               {isConverting ? t("Converting Audio…") : t("Convert Audio")}
             </Button>
 
-            {job && isConverting && (
-              <Button
-                variant="danger"
-                onClick={() => stopJob(job.id).catch((e) => setSubmitError(errMsg(e)))}
-                className="w-full sm:w-auto"
-              >
+            {jobActive && (
+              <Button variant="danger" onClick={stop} className="w-full sm:w-auto">
                 {t("Stop Conversion")}
               </Button>
             )}
@@ -424,14 +401,22 @@ export default function InferenceForm() {
           <div className="flex items-center gap-2">
             {job && (
               <Badge
-                variant={job.status === "done" ? "success" : job.status === "error" ? "danger" : "info"}
+                variant={
+                  job.status === "error" || missingOutput
+                    ? "danger"
+                    : job.status === "done"
+                      ? "success"
+                      : "info"
+                }
                 dot
               >
-                {job.status === "done"
-                  ? t("Completed")
-                  : job.status === "running"
-                    ? t("In Progress")
-                    : t("Queued")}
+                {job.status === "error" || missingOutput
+                  ? t("Error")
+                  : job.status === "done"
+                    ? t("Completed")
+                    : job.status === "running"
+                      ? t("In Progress")
+                      : t("Queued")}
               </Badge>
             )}
           </div>
@@ -472,7 +457,10 @@ export default function InferenceForm() {
         )}
 
         {/* Submit or Runtime Error */}
-        {submitError && <Alert variant="error">{submitError}</Alert>}
+        {(submitError || (jobId && jobError)) && <Alert variant="error">{submitError || jobError}</Alert>}
+        {missingOutput && (
+          <Alert variant="error">{t("Inference finished but no output file was found.")}</Alert>
+        )}
 
         {job && job.status === "error" && (
           <JobError
@@ -485,10 +473,15 @@ export default function InferenceForm() {
       </Card>
       {job && directAudioUrl && job.status === "done" && (
         <AudioWavePlayer
+          key={job.id}
           src={directAudioUrl}
           originalSrc={originalAudioUrl}
           resultLabel={t("Conversion Output Waveform")}
-          title={fileBasename(pthPath).replace(/\.(pth|onnx)$/i, "")}
+          title={
+            typeof resultModel === "string"
+              ? fileBasename(resultModel).replace(/\.(pth|onnx)$/i, "")
+              : undefined
+          }
           filename={job.outputFile ? fileBasename(job.outputFile) : undefined}
         />
       )}
