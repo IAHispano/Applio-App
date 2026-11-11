@@ -600,7 +600,7 @@ export default function SettingsPage() {
           { force: true },
         );
         if (mounted.current && preview === themePreview.current && response.theme) {
-          applyTheme(response.theme, response.id);
+          applyTheme(response.theme);
         }
       } catch {
         // The persisted theme is loaded by the shared theme provider after saving.

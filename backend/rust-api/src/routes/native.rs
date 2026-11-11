@@ -21,7 +21,10 @@ pub(crate) fn operation_routes(config: ApiConfig, engine: Arc<NativeEngine>) -> 
         .route("/api/settings/themes", get(catalog::themes))
         .route("/api/settings/theme", get(catalog::theme))
         .route("/api/tts/voices", get(catalog::voices))
-        .with_state(Arc::new(ApiState { config }));
+        .with_state(Arc::new(ApiState {
+            config,
+            settings: engine.runtime.config.clone(),
+        }));
     let health = Router::new()
         .route("/api/health", get(health))
         .with_state(engine.clone());

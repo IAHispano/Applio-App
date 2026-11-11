@@ -10,6 +10,12 @@ use std::{
 };
 use uuid::Uuid;
 
+pub(crate) fn is_retired_theme(file: &str) -> bool {
+    ["halloween.json", "christmas.json"]
+        .iter()
+        .any(|retired| file.eq_ignore_ascii_case(retired))
+}
+
 #[derive(Clone)]
 pub struct ConfigStore(Arc<ConfigInner>);
 struct ConfigInner {
@@ -44,6 +50,7 @@ impl ConfigStore {
         let mut user = read_object(&self.0.path)?;
         user.as_object_mut().unwrap().remove("version");
         merge(&mut defaults, user);
+        normalize_theme(&mut defaults);
         if defaults["lang"]["override"] != true {
             if !defaults["lang"].is_object() {
                 defaults["lang"] = json!({});
@@ -65,6 +72,7 @@ impl ConfigStore {
         let _gate = self.0.gate.lock().unwrap();
         let mut value = self.load()?;
         change(&mut value)?;
+        normalize_theme(&mut value);
         self.write(&value, false)?;
         Ok(value)
     }
@@ -120,6 +128,15 @@ impl ConfigStore {
             [crate::locale::system().as_str()],
             &crate::locale::available(&self.0.code, &self.0.data),
         )
+    }
+}
+
+fn normalize_theme(settings: &mut Value) {
+    if settings["theme"]["file"]
+        .as_str()
+        .is_some_and(is_retired_theme)
+    {
+        settings["theme"]["file"] = json!("");
     }
 }
 

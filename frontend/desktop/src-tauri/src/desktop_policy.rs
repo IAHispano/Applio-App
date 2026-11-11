@@ -1,4 +1,4 @@
-//! Turn off native browser chrome as well as the injected keyboard defaults.
+//! Configure native webview behavior alongside the injected keyboard defaults.
 pub const SCRIPT: &str = include_str!("desktop-policy.js");
 
 pub fn apply(window: &tauri::WebviewWindow) -> tauri::Result<()> {
@@ -26,7 +26,15 @@ pub fn apply(window: &tauri::WebviewWindow) -> tauri::Result<()> {
             eprintln!("Could not disable native browser features: {error}");
         }
     })?;
-    #[cfg(not(windows))]
+    #[cfg(target_os = "linux")]
+    window.with_webview(|webview| {
+        use webkit2gtk::{SettingsExt, WebViewExt};
+        if let Some(settings) = webview.inner().settings() {
+            // WebKitGTK interpolates wheel steps after input, adding visible lag.
+            settings.set_enable_smooth_scrolling(false);
+        }
+    })?;
+    #[cfg(not(any(windows, target_os = "linux")))]
     let _ = window;
     Ok(())
 }

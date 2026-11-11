@@ -4,7 +4,6 @@ import { AlertTriangle, ArrowRight, BookOpen, Globe, MessageCircle } from "lucid
 import { usePathname } from "next/navigation";
 import Link from "@/components/layout/IntentLink";
 import { NAV_SECTIONS, SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
-import SeasonalThemePrompt from "@/components/SeasonalThemePrompt";
 import SupportLink from "@/components/SupportLink";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { DOCS_URL, WEBSITE_URL } from "@/lib/ecosystem";
@@ -138,7 +137,6 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
-      {!remote && <SeasonalThemePrompt />}
       <div className="shrink-0 mt-2 px-3 flex flex-col">
         <div className="flex items-center gap-4 pt-2">
           <a

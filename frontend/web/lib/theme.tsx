@@ -108,17 +108,9 @@ export function fontCss(families: string[] | undefined): string {
   return fontStack(families).css;
 }
 
-// Built-in theme files that predate the effects marker in the bundle can
-// still turn their effects on by file name; theme JSONs declare effects: "<name>".
-const EFFECTS_BY_FILE: Record<string, string> = {
-  "halloween.json": "halloween",
-  "christmas.json": "christmas",
-};
-
-export function applyTheme(theme: ThemeFile, file?: string): void {
+export function applyTheme(theme: ThemeFile): void {
   const root = document.documentElement;
-  // Any effect set built into the app self-activates on this attribute.
-  root.dataset.themeEffects = theme.effects ?? (file ? (EFFECTS_BY_FILE[file] ?? "") : "");
+  root.dataset.themeEffects = theme.effects ?? "";
 
   // Clear all previously applied theme CSS variables so switching cleanly resets
   for (const v of Object.values(COLOR_TO_VAR)) {
@@ -191,9 +183,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let live = true;
     const load = () => {
-      apiGet<{ id: string; theme: ThemeFile }>("/api/settings/theme", { force: true })
+      apiGet<{ theme: ThemeFile }>("/api/settings/theme", { force: true })
         .then((r) => {
-          if (live && r.theme) applyTheme(r.theme, r.id);
+          if (live && r.theme) applyTheme(r.theme);
         })
         .catch(() => {});
     };

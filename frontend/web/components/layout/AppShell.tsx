@@ -3,8 +3,6 @@
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
-import ChristmasEffects from "@/components/ChristmasEffects";
-import HalloweenEffects from "@/components/HalloweenEffects";
 import Link from "@/components/layout/IntentLink";
 import { BottomNav } from "@/components/layout/MobileNav";
 import { SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
@@ -39,12 +37,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { t } = useI18n();
   const { remote } = useRemoteBridge();
+  const mainRef = useRef<HTMLElement>(null);
   const previousPath = useRef(pathname);
   const previousHeading = useRef<HTMLElement | null>(null);
   const scrollRoute = useRef({ path: pathname, top: 0, restoring: false });
   if (scrollRoute.current.path !== pathname) {
     scrollRoute.current = { path: pathname, top: workspaceScroll.get(pathname) ?? 0, restoring: true };
   }
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+    const rememberScroll = () => {
+      const route = scrollRoute.current;
+      if (!route.restoring) workspaceScroll.set(route.path, main.scrollTop);
+    };
+    main.addEventListener("scroll", rememberScroll, { passive: true });
+    return () => main.removeEventListener("scroll", rememberScroll);
+  }, []);
   useEffect(() => {
     if (previousPath.current === pathname) {
       previousHeading.current = document.querySelector("#main-content h1");
@@ -55,7 +64,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     let restoreFrame = 0;
     const focusPage = () => {
       if (document.querySelector("dialog[open]")) return;
-      const main = document.getElementById("main-content");
+      const main = mainRef.current;
       if (!main) return;
       const heading = main.querySelector<HTMLElement>("h1");
       if (!heading || heading === previousHeading.current) return;
@@ -105,16 +114,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
       {showNavigation && <Sidebar />}
-      <HalloweenEffects />
-      <ChristmasEffects />
       <div className="flex-1 flex flex-col min-w-0 min-h-0 relative">
         <RemoteBridgeBanner />
         {pathname !== "/realtime" && <RealtimeGpuBanner />}
         <main
           id="main-content"
-          onScroll={(event) => {
-            if (!scrollRoute.current.restoring) workspaceScroll.set(pathname, event.currentTarget.scrollTop);
-          }}
+          ref={mainRef}
           tabIndex={-1}
           className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 outline-none flex flex-col ${showNavigation ? "pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}
         >

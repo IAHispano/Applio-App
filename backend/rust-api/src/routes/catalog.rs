@@ -1,5 +1,8 @@
 //! Settings, language, voice and theme catalogs.
-use crate::ApiConfig;
+use crate::{
+    engine_runtime::{is_retired_theme, ConfigStore},
+    ApiConfig,
+};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -11,6 +14,7 @@ use std::{collections::HashMap, path::PathBuf, sync::Arc};
 #[derive(Clone)]
 pub(crate) struct ApiState {
     pub(crate) config: ApiConfig,
+    pub(crate) settings: ConfigStore,
 }
 
 type ApiResult = Result<Json<Value>, (StatusCode, Json<Value>)>;
@@ -22,34 +26,6 @@ async fn read_json(path: PathBuf) -> Result<Value, (StatusCode, Json<Value>)> {
         .await
         .map_err(|e| failure(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     serde_json::from_slice(&data).map_err(|e| failure(StatusCode::INTERNAL_SERVER_ERROR, e))
-}
-async fn settings(state: &ApiState) -> Result<Value, (StatusCode, Json<Value>)> {
-    let mut defaults =
-        read_json(state.config.code_root.join("assets/config_template.json")).await?;
-    let path = state.config.config_dir.join("config.json");
-    if tokio::fs::try_exists(&path).await.unwrap_or(false) {
-        let mut saved = read_json(path).await?;
-        if let Some(object) = saved.as_object_mut() {
-            object.remove("version");
-        }
-        merge(&mut defaults, saved);
-    }
-    Ok(defaults)
-}
-fn merge(base: &mut Value, value: Value) {
-    if let (Some(base), Some(values)) = (base.as_object_mut(), value.as_object()) {
-        for (key, value) in values {
-            if ["__proto__", "constructor", "prototype"].contains(&key.as_str()) {
-                continue;
-            }
-            merge(
-                base.entry(key.clone()).or_insert(Value::Null),
-                value.clone(),
-            );
-        }
-    } else {
-        *base = value;
-    }
 }
 pub(crate) async fn version() -> Json<Value> {
     Json(json!({"version": env!("CARGO_PKG_VERSION")}))
@@ -108,7 +84,7 @@ pub(crate) async fn themes(State(state): State<Arc<ApiState>>) -> ApiResult {
         .map_err(|e| failure(StatusCode::INTERNAL_SERVER_ERROR, e))?
     {
         let name = entry.file_name().to_string_lossy().into_owned();
-        if !name.ends_with(".json") || name.ends_with(".example.json") {
+        if !name.ends_with(".json") || name.ends_with(".example.json") || is_retired_theme(&name) {
             continue;
         }
         let raw = read_json(entry.path())
@@ -118,7 +94,10 @@ pub(crate) async fn themes(State(state): State<Arc<ApiState>>) -> ApiResult {
             "description": raw["description"].as_str().unwrap_or(""), "colors": raw.get("colors").unwrap_or(&json!({})), "example": false}));
     }
     themes.sort_by(|a, b| a["id"].as_str().cmp(&b["id"].as_str()));
-    let config = settings(&state).await?;
+    let config = state
+        .settings
+        .load()
+        .map_err(|e| failure(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(
         json!({"themes": themes, "selected": config["theme"]["file"].as_str().unwrap_or("")}),
     ))
@@ -127,11 +106,17 @@ pub(crate) async fn theme(
     State(state): State<Arc<ApiState>>,
     Query(query): Query<HashMap<String, String>>,
 ) -> ApiResult {
-    let config = settings(&state).await?;
+    let config = state
+        .settings
+        .load()
+        .map_err(|e| failure(StatusCode::INTERNAL_SERVER_ERROR, e))?;
     let file = query
         .get("file")
         .map(String::as_str)
         .unwrap_or_else(|| config["theme"]["file"].as_str().unwrap_or(""));
+    if is_retired_theme(file) {
+        return Err(failure(StatusCode::NOT_FOUND, "Theme not found"));
+    }
     let (id, mut theme) = if file.ends_with(".json") {
         // Reject both Windows and POSIX separators on every platform.
         if file.contains(['/', '\\', '\0']) || file == ".." {
@@ -172,4 +157,69 @@ pub(crate) async fn theme(
         }
     }
     Ok(Json(json!({"id": id, "theme": theme})))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{
+        body::{to_bytes, Body},
+        http::Request,
+        routing::get,
+        Router,
+    };
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn installed_seasonal_themes_fall_back_to_default() {
+        let root = tempfile::tempdir().unwrap();
+        let config = ApiConfig {
+            code_root: root.path().into(),
+            data_root: root.path().into(),
+            config_dir: root.path().join("config"),
+        };
+        let themes_dir = root.path().join("assets/themes");
+        std::fs::create_dir_all(&themes_dir).unwrap();
+        std::fs::write(root.path().join("assets/config_template.json"), "{}").unwrap();
+        for file in ["halloween.json", "christmas.json", "emerald.json"] {
+            std::fs::write(themes_dir.join(file), "{}").unwrap();
+        }
+        let settings = ConfigStore::open(&config).unwrap();
+        let config_path = config.config_dir.join("config.json");
+        let app = Router::new()
+            .route("/theme", get(theme))
+            .route("/themes", get(themes))
+            .with_state(Arc::new(ApiState { config, settings }));
+        let get = |uri: &str| {
+            app.clone()
+                .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+        };
+        for file in ["halloween.json", "christmas.json"] {
+            std::fs::write(
+                &config_path,
+                json!({"theme": {"file": file, "font": ["Inter"]}}).to_string(),
+            )
+            .unwrap();
+            let catalog = get("/themes").await.unwrap();
+            assert_eq!(catalog.status(), StatusCode::OK);
+            let body: Value =
+                serde_json::from_slice(&to_bytes(catalog.into_body(), 4096).await.unwrap())
+                    .unwrap();
+            assert_eq!(body["selected"], "");
+            assert_eq!(body["themes"].as_array().unwrap().len(), 1);
+            assert_eq!(body["themes"][0]["id"], "emerald.json");
+
+            let selected = get("/theme").await.unwrap();
+            assert_eq!(selected.status(), StatusCode::OK);
+            let body: Value =
+                serde_json::from_slice(&to_bytes(selected.into_body(), 4096).await.unwrap())
+                    .unwrap();
+            assert_eq!(body["id"], "");
+            assert_eq!(body["theme"]["fonts"]["body"], json!(["Inter"]));
+            assert_eq!(
+                get(&format!("/theme?file={file}")).await.unwrap().status(),
+                StatusCode::NOT_FOUND
+            );
+        }
+    }
 }

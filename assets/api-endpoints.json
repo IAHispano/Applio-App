@@ -867,7 +867,7 @@
         "selected_lang": "en_US"
       },
       "theme": {
-        "file": "halloween.json"
+        "file": "emerald.json"
       }
     },
     "properties": {
@@ -1036,7 +1036,7 @@
     "response": "json",
     "example": {},
     "query": {
-      "file": "halloween.json"
+      "file": "emerald.json"
     },
     "required": []
   },
