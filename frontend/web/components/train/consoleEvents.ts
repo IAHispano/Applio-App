@@ -1,4 +1,4 @@
-import { parseLogProgress } from "@/lib/log-progress";
+import { parseLogProgress, parseTrainingProgress } from "@/lib/log-progress";
 
 export type ConsoleEvent =
   | { kind: "phase"; key: string; index: number; total: number; title: string }
@@ -39,12 +39,6 @@ const TASK_DONE_RE =
 // "Saved model 'C:\...\G_2333333.pth' (epoch 30)" and
 // "Saved model 'C:\...\model_30e_720s.pth' (epoch 30 and step 720)".
 const SAVE_RE = /^Saved model '(.+)' \(epoch (\d+)(?: and step (\d+))?\)\s*$/;
-// Intra-epoch heartbeat from rvc/train/train.py:
-// "mymodel | epoch=12 | step=1456 | batch=48/128". Folded into the live
-// per-epoch progress bar (same as tqdm lines) instead of one log row each,
-// so the Activity Log stays readable while the bar fills until the epoch
-// completes. Epoch/step tiles still read these lines from the raw logs.
-const HEARTBEAT_RE = /^(.+?)\s*\|\s*epoch=(\d+)\s*\|\s*step=(\d+)\s*\|\s*batch=\s*(\d+)\s*\/\s*(\d+)\s*$/;
 const ERROR_RE = /error|fail|exception|traceback/i;
 
 function isContinuationOfError(line: string): boolean {
@@ -195,22 +189,23 @@ export function parseConsoleEvents(lines: string[], terminal = false): ConsoleEv
     }
 
     const tqdm = parseLogProgress(line);
-    if (tqdm) {
-      // stdout heartbeats and stderr tqdm redraws can arrive out of order.
-      // Once training reports batches, those counters own the epoch percentage.
-      if (!trainingHeartbeat || tqdm.description) {
-        pushProgress(tqdm.percent, tqdm.detail, tqdm.description);
-      }
+    const heartbeat = parseTrainingProgress(line);
+    if (heartbeat) {
+      trainingHeartbeat = true;
+      const done = heartbeat.current;
+      const total = heartbeat.total;
+      const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
+      const detail = tqdm?.detail || `batch ${done}/${total}`;
+      pushProgress(percent, `epoch ${heartbeat.epoch} · ${detail}`);
       continue;
     }
 
-    const heartbeat = line.match(HEARTBEAT_RE);
-    if (heartbeat) {
-      trainingHeartbeat = true;
-      const done = Number(heartbeat[4]);
-      const total = Number(heartbeat[5]);
-      const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((done / total) * 100))) : 0;
-      pushProgress(percent, `epoch ${heartbeat[2]} · batch ${done}/${total}`);
+    if (tqdm) {
+      // Older engines emit counters on stdout and bars on stderr. Prefer the
+      // counters when those streams arrive out of order.
+      if (!trainingHeartbeat || tqdm.description) {
+        pushProgress(tqdm.percent, tqdm.detail, tqdm.description);
+      }
       continue;
     }
 

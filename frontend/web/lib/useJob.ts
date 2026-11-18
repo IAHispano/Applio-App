@@ -70,6 +70,7 @@ export function progressBarDesc(line: string): string {
   return line
     .slice(0, idx)
     .replace(/^\[(stdout|stderr)\]\s*/i, "")
+    .replace(/\s*\|\s*step=\d+(?:\s*\|\s*batch=\d+\/\d+)?\s*\|?\s*$/i, "")
     .trim()
     .toLowerCase();
 }

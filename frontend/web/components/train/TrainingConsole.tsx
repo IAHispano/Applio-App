@@ -160,13 +160,8 @@ export default function TrainingConsole({
       const mStep = rawLine.match(/step=(\d+)/i) || rawLine.match(/step:\s*(\d+)/i);
       if (mStep) {
         currentStep = Number.parseInt(mStep[1], 10);
-      } else if (activePhase === 3) {
-        // tqdm bars ("189/322 [..., 1.93it/s]") carry no step= token: attribute
-        // the fraction to training steps only while already in phase 3, so
-        // preprocess/extract bars can never pollute the counter.
-        const mTqdm = rawLine.match(/(\d+)\/(\d+)\s*\[[^\]]*it\/s/);
-        if (mTqdm) currentStep = Number.parseInt(mTqdm[1], 10);
       }
+      // tqdm fractions count batches within an epoch, not global optimizer steps.
 
       const mLoss =
         rawLine.match(/lowest_value=([0-9.]+)/i) ||

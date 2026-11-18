@@ -717,6 +717,7 @@ fn normalize_log_line(line: &str) -> String {
 }
 
 fn progress_description(line: &str) -> Option<String> {
+    static TRAINING_COUNTERS: OnceLock<Regex> = OnceLock::new();
     static PROGRESS: OnceLock<Regex> = OnceLock::new();
     let found = PROGRESS
         .get_or_init(|| Regex::new(r"\d{1,3}(?:\.\d+)?%\s*\|").unwrap())
@@ -726,7 +727,11 @@ fn progress_description(line: &str) -> Option<String> {
         .strip_prefix("[stdout]")
         .or_else(|| description.strip_prefix("[stderr]"))
         .unwrap_or(description);
-    Some(description.trim().to_lowercase())
+    let counters = TRAINING_COUNTERS.get_or_init(|| {
+        Regex::new(r"(?i)\s*\|\s*step=\d+(?:\s*\|\s*batch=\d+/\d+)?\s*\|?\s*$").unwrap()
+    });
+    // Changing counters are redraws of the same epoch, not new log entries.
+    Some(counters.replace(description, "").trim().to_lowercase())
 }
 
 fn load_history(path: &Path) -> Result<Vec<Job>> {
@@ -803,5 +808,44 @@ mod progress_tests {
             normalize_log_line("Starting pitch extraction..."),
             "Starting pitch extraction..."
         );
+    }
+
+    #[tokio::test]
+    async fn training_bar_redraws_keep_latest_counters_without_filling_history() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = store
+            .create(JobType::Train, json!({"modelName":"voice"}))
+            .unwrap();
+        store.running(&job.id);
+        for batch in 0..=7 {
+            store.log(
+                &job.id,
+                &format!(
+                    "epoch=18 | step={} | {}%|{}| batch={batch}/7 [00:01<00:01, 4.00it/s]",
+                    119 + batch,
+                    batch * 100 / 7,
+                    "█".repeat(3000)
+                ),
+            );
+        }
+        let logs = store.get(&job.id).unwrap().logs;
+        assert_eq!(logs.len(), 1);
+        assert!(logs[0].contains("step=126 | 100%|| batch=7/7"));
+        assert_eq!(progress_description(&logs[0]).as_deref(), Some("epoch=18"));
+
+        store.log(
+            &job.id,
+            "voice | epoch=18 | step=126 | time=21:50:46 | training_speed=0:00:02",
+        );
+        store.log(
+            &job.id,
+            "epoch=19 | step=126 | 0%|| batch=0/7 [00:00<?, ?it/s]",
+        );
+        let logs = store.get(&job.id).unwrap().logs;
+        assert_eq!(logs.len(), 3);
+        assert!(logs[1].contains("training_speed="));
+        assert!(logs[2].contains("epoch=19"));
+        store.seal().await;
     }
 }
