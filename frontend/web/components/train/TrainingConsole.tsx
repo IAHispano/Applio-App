@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JobError, JobStage } from "@/components/JobStatus";
+import LogProgress from "@/components/LogProgress";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
@@ -600,53 +601,36 @@ export default function TrainingConsole({
                 }
                 if (ev.kind === "progress") {
                   return (
-                    <div key={ev.key} className="space-y-1 pl-[30px]">
-                      <div className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="text-neutral-300 font-medium truncate">
-                          {t(ev.phase) || t("Working…")}
-                        </span>
-                        <span className="text-neutral-400 tabular-nums shrink-0">{ev.percent}%</span>
-                      </div>
-                      <ProgressBar
-                        progress={ev.percent}
-                        label={t(ev.phase) || t("Job progress")}
-                        showValue={false}
-                      />
-                      {ev.detail && (
-                        <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
-                      )}
-                    </div>
+                    <LogProgress
+                      key={ev.key}
+                      label={t(ev.phase) || t("Working…")}
+                      percent={ev.percent}
+                      detail={ev.detail}
+                    />
                   );
                 }
                 if (ev.kind === "task") {
                   const runningTask = ev.status === "running";
                   return (
-                    <div key={ev.key} className="space-y-1 pl-[30px]">
-                      <div className="flex items-center justify-between gap-2 text-[11px]">
-                        <span className="flex items-center gap-1.5 text-neutral-200 font-medium truncate min-w-0">
-                          {runningTask ? (
-                            <Loader2 size={12} className="animate-spin text-neutral-300 shrink-0" />
-                          ) : (
-                            <CheckCircle2 size={12} className="text-emerald-400 shrink-0" />
-                          )}
-                          <span className="truncate">{ev.title}</span>
-                        </span>
-                        <span className="text-neutral-400 tabular-nums shrink-0">
-                          {ev.duration ?? (ev.percent !== null ? `${ev.percent}%` : "")}
-                        </span>
-                      </div>
-                      {ev.meta && <p className="text-[10px] text-neutral-500 m-0 truncate">{ev.meta}</p>}
-                      <ProgressBar
-                        progress={ev.percent ?? (runningTask ? undefined : 100)}
-                        label={ev.title}
-                        showValue={false}
-                      />
-                      {ev.detail && (
-                        <p className="text-[10px] text-neutral-500 m-0 tabular-nums truncate">{ev.detail}</p>
-                      )}
-                    </div>
+                    <LogProgress
+                      key={ev.key}
+                      label={t(ev.title)}
+                      percent={ev.percent}
+                      detail={ev.detail}
+                      meta={ev.meta}
+                      value={ev.duration ?? undefined}
+                      active={runningTask}
+                      icon={
+                        runningTask ? (
+                          <Loader2 size={16} className="mt-0.5 animate-spin text-neutral-300 shrink-0" />
+                        ) : ev.percent === 100 ? (
+                          <CheckCircle2 size={16} className="mt-0.5 text-emerald-400 shrink-0" />
+                        ) : undefined
+                      }
+                    />
                   );
                 }
+
                 if (ev.kind === "epoch") {
                   const isBest = ev.loss !== null && ev.loss.epoch === ev.epoch && ev.loss.step === ev.step;
                   return (

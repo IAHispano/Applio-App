@@ -1,10 +1,24 @@
 "use client";
 
 import { Check, Download } from "lucide-react";
+import LogProgress from "@/components/LogProgress";
+import { useI18n } from "@/lib/i18n";
+import { parseLogProgress } from "@/lib/log-progress";
 import { parseSetupLine } from "@/lib/setup-logs";
 
 /** One nicely formatted activity-log row. Returns null for hidden noise lines. */
 export default function SetupLogLine({ text }: { text: string }) {
+  const { t } = useI18n();
+  const progress = parseLogProgress(text);
+  if (progress) {
+    return (
+      <LogProgress
+        label={progress.description || t("Working…")}
+        percent={progress.percent}
+        detail={progress.detail}
+      />
+    );
+  }
   const parsed = parseSetupLine(text);
   switch (parsed.kind) {
     case "hide":

@@ -59,13 +59,13 @@ export function usePersistentJobId(key: string) {
 const ANSI_RE = /\[[0-9;?]*[a-zA-Z]/g;
 
 // Matches tqdm-style live progress bars ("Downloading all files: 64%|██| ...").
-// Keep in sync with the backend collapse helper in api/src/jobs.ts.
+// Keep in sync with progress_description in backend/rust-api/src/execution/jobs.rs.
 export function isProgressBarLine(line: string): boolean {
-  return /(\d{1,3})%\s*\|/.test(line);
+  return /\d{1,3}(?:\.\d+)?%\s*\|/.test(line);
 }
 
 export function progressBarDesc(line: string): string {
-  const idx = line.search(/\d{1,3}%\s*\|/);
+  const idx = line.search(/\d{1,3}(?:\.\d+)?%\s*\|/);
   if (idx === -1) return "";
   return line
     .slice(0, idx)

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JobDetails from "@/components/JobDetails";
 import { JobBadge, JobCancelButton, JobProgress } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
+import SetupLogLine from "@/components/setup/SetupLogLine";
 import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -232,9 +233,13 @@ export default function JobsPage() {
                       {job.logs.length > 0 && (
                         <section>
                           <h3 className="text-sm font-medium mt-0 mb-2">{t("Recent logs")}</h3>
-                          <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words text-xs rounded-lg bg-black/30 p-3 m-0">
-                            {cleanJobLogs(job.logs).join("\n")}
-                          </pre>
+                          <div className="max-h-48 overflow-auto space-y-2 break-words text-xs rounded-lg bg-black/30 p-3">
+                            {cleanJobLogs(job.logs)
+                              .map((line, position) => ({ id: `log-${position}`, line }))
+                              .map(({ id, line }) => (
+                                <SetupLogLine key={id} text={line} />
+                              ))}
+                          </div>
                         </section>
                       )}
                     </div>

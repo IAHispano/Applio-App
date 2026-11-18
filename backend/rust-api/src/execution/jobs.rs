@@ -533,9 +533,7 @@ impl JobStore {
     }
 
     pub fn log(&self, id: &str, line: &str) {
-        static ANSI: OnceLock<Regex> = OnceLock::new();
-        let ansi = ANSI.get_or_init(|| Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]").unwrap());
-        let clean: String = ansi.replace_all(line, "").chars().take(2000).collect();
+        let clean = normalize_log_line(line);
         let mut state = self.0.state.lock().unwrap();
         let Some(entry) = state.jobs.get_mut(id) else {
             return;
@@ -704,10 +702,24 @@ fn ordered_entries(state: &StoreState, descending: bool) -> Vec<&Entry> {
     entries
 }
 
+fn normalize_log_line(line: &str) -> String {
+    static ANSI: OnceLock<Regex> = OnceLock::new();
+    static BAR: OnceLock<Regex> = OnceLock::new();
+    let ansi = ANSI.get_or_init(|| Regex::new(r"\x1b\[[0-9;?]*[a-zA-Z]").unwrap());
+    let bar = BAR.get_or_init(|| Regex::new(r"(\d{1,3}(?:\.\d+)?%\s*\|)[^|\r\n]*\|").unwrap());
+    let clean = ansi.replace_all(line, "");
+    // Terminal-sized fill is meaningless in the UI and can exceed the log limit,
+    // cutting off the counts, ETA and speed that the desktop actually renders.
+    bar.replace_all(&clean, "${1}|")
+        .chars()
+        .take(2000)
+        .collect()
+}
+
 fn progress_description(line: &str) -> Option<String> {
     static PROGRESS: OnceLock<Regex> = OnceLock::new();
     let found = PROGRESS
-        .get_or_init(|| Regex::new(r"\d{1,3}%\s*\|").unwrap())
+        .get_or_init(|| Regex::new(r"\d{1,3}(?:\.\d+)?%\s*\|").unwrap())
         .find(line)?;
     let description = line[..found.start()].trim();
     let description = description
@@ -762,5 +774,34 @@ fn load_history(path: &Path) -> Result<Vec<Job>> {
             );
             Ok(Vec::new())
         }
+    }
+}
+
+#[cfg(test)]
+mod progress_tests {
+    use super::*;
+
+    #[test]
+    fn wide_tqdm_preserves_metadata_before_truncation() {
+        let line = format!(
+            "\x1b[32m 52%|{}| 480/915 [00:19<00:09, 47.05it/s]\x1b[A",
+            "█".repeat(3000)
+        );
+        assert_eq!(
+            normalize_log_line(&line),
+            " 52%|| 480/915 [00:19<00:09, 47.05it/s]"
+        );
+    }
+
+    #[test]
+    fn log_normalization_preserves_messages_and_progress_descriptions() {
+        let line = "model | epoch=11 | step=2346 | batch=46/230";
+        assert_eq!(normalize_log_line(line), line);
+        let line = normalize_log_line("Downloading: 12%|##    | 12/100 [00:01<00:08, 10it/s]");
+        assert_eq!(progress_description(&line).as_deref(), Some("downloading:"));
+        assert_eq!(
+            normalize_log_line("Starting pitch extraction..."),
+            "Starting pitch extraction..."
+        );
     }
 }
