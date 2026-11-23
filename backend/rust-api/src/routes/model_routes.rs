@@ -14,6 +14,7 @@ use axum::{
     routing::{delete, get, post},
     Json, Router,
 };
+use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
@@ -47,7 +48,7 @@ fn files(root: &Path, extensions: &[&str], found: &mut Vec<PathBuf>) -> Result<(
         Err(error) => return Err(error.into()),
     };
     let mut entries: Vec<_> = entries.collect::<std::io::Result<_>>()?;
-    entries.sort_by_key(|entry| entry.file_name());
+    entries.sort_by_cached_key(|entry| entry.file_name());
     for entry in entries {
         let kind = entry.file_type()?;
         let path = entry.path();
@@ -119,25 +120,121 @@ async fn list(State(state): State<Arc<Models>>) -> Result<Json<Value>, Error> {
     .map_err(Error::internal)?
     .map_err(Error::internal)
 }
-async fn library(State(state): State<Arc<Models>>) -> Result<Json<Value>, Error> {
+#[derive(Serialize)]
+struct ModelLibrary {
+    models: Vec<LibraryModel>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct LibraryModel {
+    id: String,
+    name: String,
+    pth_path: String,
+    pth_size: u64,
+    index_path: Option<String>,
+    index_size: Option<u64>,
+    modified_at: String,
+    folder: String,
+}
+
+struct LibraryIndex<'a> {
+    path: &'a Path,
+    folded_stem: String,
+    details: Option<(String, u64)>,
+}
+
+impl LibraryIndex<'_> {
+    fn details(&mut self, runtime: &EngineRuntime) -> Result<(String, u64)> {
+        let details = match &self.details {
+            Some(details) => details,
+            None => self.details.insert((
+                runtime.model_relative(self.path),
+                self.path.metadata()?.len(),
+            )),
+        };
+        Ok(details.clone())
+    }
+}
+
+fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
+    let (models, indexes) = scan(&runtime.logs)?;
+    let mut first_index_by_folder = HashMap::new();
+    let mut candidates: Vec<_> = indexes
+        .iter()
+        .enumerate()
+        .map(|(position, path)| {
+            first_index_by_folder
+                .entry(path.parent())
+                .or_insert(position);
+            LibraryIndex {
+                path,
+                folded_stem: path
+                    .file_stem()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .to_lowercase(),
+                details: None,
+            }
+        })
+        .collect();
+
+    let mut results = Vec::with_capacity(models.len());
+    for model in models {
+        let metadata = model.metadata()?;
+        let name = model.file_stem().unwrap_or_default().to_string_lossy();
+        let folded_stem = name.to_lowercase();
+        let parent = model.parent();
+        let first_local = first_index_by_folder
+            .get(&parent)
+            .copied()
+            .unwrap_or(candidates.len());
+        // The scan's first match wins. A name match in an earlier folder can
+        // take precedence over the first index in the model's own folder.
+        let position = candidates[..first_local]
+            .iter()
+            .position(|index| {
+                index.folded_stem.contains(&folded_stem) || folded_stem.contains(&index.folded_stem)
+            })
+            .unwrap_or(first_local);
+        let (index_path, index_size) = candidates
+            .get_mut(position)
+            .map(|index| index.details(runtime))
+            .transpose()?
+            .unzip();
+        let relative = runtime.model_relative(&model);
+        let folder = parent
+            .context("Model has no parent folder")?
+            .strip_prefix(&runtime.logs)?
+            .to_string_lossy()
+            .replace('\\', "/");
+        results.push(LibraryModel {
+            id: relative.clone(),
+            name: name.into_owned(),
+            pth_path: relative,
+            pth_size: metadata.len(),
+            index_path,
+            index_size,
+            modified_at: chrono::DateTime::<chrono::Utc>::from(metadata.modified()?)
+                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            folder: if folder.is_empty() {
+                "root".into()
+            } else {
+                folder
+            },
+        });
+    }
+    results.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
+    Ok(ModelLibrary { models: results })
+}
+
+async fn library(State(state): State<Arc<Models>>) -> Result<Json<ModelLibrary>, Error> {
     let runtime = state.engine.runtime.clone();
-    tokio::task::spawn_blocking(move || -> Result<Json<Value>> {
-        let (models,indexes)=scan(&runtime.logs)?;
-        let mut results = Vec::new();
-        for model in models {
-            let metadata = model.metadata()?;
-            let stem = model.file_stem().unwrap_or_default().to_string_lossy().into_owned();
-            let index = indexes.iter().find(|index| index.parent()==model.parent() || {
-                let index = index.file_stem().unwrap_or_default().to_string_lossy().to_lowercase();
-                index.contains(&stem.to_lowercase()) || stem.to_lowercase().contains(&index)
-            });
-            let relative = runtime.model_relative(&model);
-            let folder = model.parent().unwrap().strip_prefix(&runtime.logs)?.to_string_lossy().replace('\\',"/");
-            results.push(json!({"id":relative,"name":stem,"pthPath":relative,"pthSize":metadata.len(),"indexPath":index.map(|file| runtime.model_relative(file)),"indexSize":index.map(|file| file.metadata().map(|m| m.len())).transpose()?,"modifiedAt":chrono::DateTime::<chrono::Utc>::from(metadata.modified()?).to_rfc3339_opts(chrono::SecondsFormat::Millis,true),"folder":if folder.is_empty() {"root"} else {&folder}}));
-        }
-        results.sort_by(|a,b| b["modifiedAt"].as_str().cmp(&a["modifiedAt"].as_str()));
-        Ok(Json(json!({"models":results})))
-    }).await.map_err(Error::internal)?.map_err(Error::internal)
+    tokio::task::spawn_blocking(move || model_library(&runtime))
+        .await
+        .map_err(Error::internal)?
+        .map(Json)
+        .map_err(Error::internal)
 }
 fn model_path(runtime: &EngineRuntime, value: &str) -> Result<PathBuf, Error> {
     if value.is_empty() {
@@ -563,6 +660,61 @@ mod tests {
     fn write(path: &Path) {
         fs::create_dir_all(path.parent().unwrap()).unwrap();
         fs::write(path, b"checkpoint").unwrap();
+    }
+
+    #[test]
+    fn library_preserves_the_first_matching_index_and_model_aliases() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let logs = root.join("moved models");
+        fs::create_dir_all(root.join("assets")).unwrap();
+        fs::write(
+            root.join("assets/config_template.json"),
+            json!({"logs_dir": logs}).to_string(),
+        )
+        .unwrap();
+        write(&root.join("backend/applio/rvc/configs/config.py"));
+        let runtime = EngineRuntime::open(&crate::ApiConfig {
+            code_root: root.into(),
+            data_root: root.join("data"),
+            config_dir: root.join("config"),
+        })
+        .unwrap();
+
+        for file in [
+            "a/älva.index",
+            "b/000-fallback.index",
+            "b/voice.index",
+            "b/ÄLVA_100s.pth",
+            "b/voice_100s.pth",
+            "b/voice_200s.ONNX",
+            "c/added_IVF_Zola.index",
+            "d/zola.pth",
+            "plain.pth",
+        ] {
+            write(&logs.join(file));
+        }
+
+        let library = model_library(&runtime).unwrap();
+        let entries: HashMap<_, _> = library
+            .models
+            .iter()
+            .map(|model| (model.pth_path.as_str(), model))
+            .collect();
+        let cases = [
+            ("logs/b/ÄLVA_100s.pth", Some("logs/a/älva.index")),
+            ("logs/b/voice_100s.pth", Some("logs/b/000-fallback.index")),
+            ("logs/b/voice_200s.ONNX", Some("logs/b/000-fallback.index")),
+            ("logs/d/zola.pth", Some("logs/c/added_IVF_Zola.index")),
+            ("logs/plain.pth", None),
+        ];
+        assert_eq!(entries.len(), cases.len());
+        for (path, expected_index) in cases {
+            let entry = entries[path];
+            assert_eq!(entry.id, path);
+            assert_eq!(entry.index_path.as_deref(), expected_index);
+            assert_eq!(entry.index_size, expected_index.map(|_| 10));
+        }
     }
 
     #[test]
