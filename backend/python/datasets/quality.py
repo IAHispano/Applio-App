@@ -127,27 +127,44 @@ def analyze_audio(filename, workspace, silence_db=-50):
         )
         pcm_hash = hashlib.sha256(f"{rate}:{channels}:".encode())
         silence_amplitude = 10 ** (silence_db / 20)
+        window_samples = window * channels
+        buffer = np.empty((min(window * 64, total_frames), channels), dtype=np.float32)
         # Bound memory while retaining sample-accurate decoded content hashes.
-        for data in audio.blocks(
-            blocksize=window * 64, dtype="float32", always_2d=True
-        ):
+        for data in audio.blocks(out=buffer):
             if not np.isfinite(data).all():
                 raise ValueError("Audio contains non-finite sample values")
-            pcm_hash.update(np.asarray(data, dtype="<f4").tobytes())
-            peak = max(peak, float(np.max(np.abs(data))))
-            energy += float(np.sum(data.astype(np.float64) ** 2))
+            pcm_hash.update(np.ascontiguousarray(data, dtype="<f4"))
+            magnitude = np.abs(data)
+            peak = max(peak, float(magnitude.max()))
+            clipped = magnitude >= 0.999
+            clipping_samples += int(np.count_nonzero(clipped))
+            squares = np.square(data, dtype=np.float64)
+            energy += float(squares.sum())
             count += data.size
-            clipping_samples += int(np.count_nonzero(np.abs(data) >= 0.999))
-            for begin in range(0, len(data), window):
-                frame = data[begin : begin + window]
-                squared = float(np.sum(frame.astype(np.float64) ** 2))
-                rms = math.sqrt(squared / frame.size)
-                is_silent = rms < silence_amplitude
-                silent_windows.append(is_silent)
-                clipping_windows.append(bool(np.any(np.abs(frame) >= 0.999)))
-                if not is_silent:
-                    active_energy += squared
-                    active_count += frame.size
+
+            full_frames = len(data) // window * window
+            window_energy = (
+                squares[:full_frames].reshape(-1, window_samples).sum(axis=1)
+            )
+            window_clipping = (
+                clipped[:full_frames].reshape(-1, window_samples).any(axis=1)
+            )
+            sample_counts = np.full(len(window_energy), window_samples)
+            if full_frames < len(data):
+                # The last window uses its actual sample count for RMS.
+                tail = squares[full_frames:]
+                window_energy = np.append(window_energy, tail.sum())
+                window_clipping = np.append(window_clipping, clipped[full_frames:].any())
+                sample_counts = np.append(sample_counts, tail.size)
+
+            silent = np.sqrt(window_energy / sample_counts) < silence_amplitude
+            silent_windows.extend(silent.tolist())
+            clipping_windows.extend(window_clipping.tolist())
+            active = ~silent
+            active_count += int(sample_counts[active].sum())
+            # Preserve the order of the per-window sums for the reported level.
+            for value in window_energy[active].tolist():
+                active_energy += value
         silence_sections = sections(silent_windows, window / rate, duration, 0.3)
         clipping_sections = sections(clipping_windows, window / rate, duration)
         first_voice = next(
