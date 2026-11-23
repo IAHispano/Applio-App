@@ -1,7 +1,7 @@
 //! HTTP/SSE contracts for the native job engine. Mounted by the native engine
 //! router when the processing route groups are switched over together.
 use crate::{
-    jobs::{EventKind, JobStore},
+    jobs::{JobStore, JobSubscription},
     scheduler::Scheduler,
 };
 use axum::{
@@ -105,12 +105,12 @@ fn stream_response(
 }
 
 async fn job_events(State(state): State<JobsState>, Path(id): Path<String>) -> Response {
-    let Some((initial, mut receiver)) = state.jobs.subscribe_job(&id) else {
+    let Some(JobSubscription { snapshot, updates }) = state.jobs.subscribe_job(&id) else {
         return not_found();
     };
     stream_response(async_stream::stream! {
-        yield event(json!({"job": initial.public_value(None)}));
-        if !initial.active() { return; }
+        yield event(json!({"job": snapshot.public_value(None)}));
+        let Some(mut receiver) = updates else { return; };
         loop {
             let update=tokio::select! {
                 biased;
@@ -121,18 +121,17 @@ async fn job_events(State(state): State<JobsState>, Path(id): Path<String>) -> R
                 update=receiver.recv()=>update,
             };
             match update {
-                Ok(update) if update.job.id == id => {
-                    yield event(json!({"job": update.job.public_value(None)}));
-                    if !update.job.active() { break; }
+                Ok(job) => {
+                    yield event(json!({"job": job.public_value(None)}));
+                    if !job.active() { break; }
                 }
-                Ok(_) => {}
                 Err(broadcast::error::RecvError::Lagged(_)) => {
                     // Discard the old receiver before resynchronizing. Replaying
                     // its buffered older events could regress terminal states.
-                    let Some((current, new_receiver)) = state.jobs.subscribe_job(&id) else { break; };
+                    let Some(JobSubscription { snapshot, updates }) = state.jobs.subscribe_job(&id) else { break; };
+                    yield event(json!({"job": snapshot.public_value(None)}));
+                    let Some(new_receiver) = updates else { break; };
                     receiver = new_receiver;
-                    yield event(json!({"job": current.public_value(None)}));
-                    if !current.active() { break; }
                 }
                 Err(broadcast::error::RecvError::Closed) => break,
             }
@@ -154,8 +153,7 @@ async fn all_events(State(state): State<JobsState>) -> Response {
                 update=receiver.recv()=>update,
             };
             match update {
-                Ok(update) if update.kind == EventKind::State => yield event(json!({"job": update.job.summary()})),
-                Ok(_) => {}
+                Ok(summary) => yield event(json!({"job": summary.as_ref()})),
                 Err(broadcast::error::RecvError::Lagged(_)) => {
                     let (current, new_receiver) = state.jobs.subscribe_activity();
                     receiver = new_receiver;

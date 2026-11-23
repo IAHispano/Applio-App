@@ -2,7 +2,7 @@
 use super::integration_catalog::catalog as operation_catalog;
 use crate::{
     engine::NativeEngine,
-    jobs::{Job, JobStatus},
+    jobs::{Job, JobStatus, JobSubscription},
     processing_routes, uploads,
 };
 use axum::{
@@ -424,14 +424,7 @@ struct Waiting {
 }
 impl Drop for Waiting {
     fn drop(&mut self) {
-        if self
-            .engine
-            .jobs
-            .get(&self.id)
-            .is_some_and(|job| job.active())
-        {
-            self.engine.jobs.cancel(&self.id, "API request ended");
-        }
+        self.engine.jobs.cancel(&self.id, "API request ended");
     }
 }
 async fn speech(State(engine): State<Arc<NativeEngine>>, request: Request) -> Response {
@@ -514,7 +507,11 @@ async fn speech(State(engine): State<Arc<NativeEngine>>, request: Request) -> Re
         engine: engine.clone(),
         id: id.clone(),
     };
-    let Some((_, mut events)) = engine.jobs.subscribe_job(&id) else {
+    let Some(JobSubscription {
+        snapshot: mut job,
+        updates,
+    }) = engine.jobs.subscribe_job(&id)
+    else {
         return failure(
             StatusCode::INTERNAL_SERVER_ERROR,
             "Speech job unavailable.",
@@ -523,25 +520,31 @@ async fn speech(State(engine): State<Arc<NativeEngine>>, request: Request) -> Re
     };
     let shutdown = engine.cancellation_token();
     let wait = async {
-        loop {
-            let Some(job) = engine.jobs.get(&id) else {
-                return failure(StatusCode::NOT_FOUND, "Speech job unavailable.", None);
-            };
-            if job.status == JobStatus::Done {
-                return output_response(&engine, &job).await;
+        if let Some(mut events) = updates {
+            while job.active() {
+                let update = tokio::select! {
+                    _ = shutdown.cancelled() => return failure(StatusCode::SERVICE_UNAVAILABLE, "Applio is shutting down.", None),
+                    update = events.recv() => update,
+                };
+                job = match update {
+                    Ok(job) => job,
+                    Err(_) => match engine.jobs.get(&id) {
+                        Some(job) => Arc::new(job),
+                        None => {
+                            return failure(StatusCode::NOT_FOUND, "Speech job unavailable.", None)
+                        }
+                    },
+                };
             }
-            if job.status == JobStatus::Error {
-                return failure(
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    job.error.as_deref().unwrap_or("Speech generation failed."),
-                    None,
-                );
-            }
-            tokio::select! {
-                _ = shutdown.cancelled() => return failure(StatusCode::SERVICE_UNAVAILABLE, "Applio is shutting down.", None),
-                _ = events.recv() => {},
-                _ = tokio::time::sleep(Duration::from_secs(1)) => {},
-            }
+        }
+        if job.status == JobStatus::Done {
+            output_response(&engine, &job).await
+        } else {
+            failure(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                job.error.as_deref().unwrap_or("Speech generation failed."),
+                None,
+            )
         }
     };
     tokio::time::timeout(Duration::from_secs(600), wait)

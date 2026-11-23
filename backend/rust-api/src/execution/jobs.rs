@@ -24,6 +24,7 @@ tokio::task_local! { pub(crate) static API_REQUEST: bool; }
 pub const MAX_JOBS: usize = 200;
 const MAX_LOGS: usize = 500;
 const HISTORY_LOGS: usize = 100;
+const EVENT_BUFFER: usize = 256;
 
 pub fn timestamp() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
@@ -190,16 +191,9 @@ fn truthy(value: &Value) -> bool {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum EventKind {
-    State,
-    Log,
-}
-
-#[derive(Clone, Debug)]
-pub struct JobEvent {
-    pub kind: EventKind,
-    pub job: Job,
+pub(crate) struct JobSubscription {
+    pub snapshot: Arc<Job>,
+    pub updates: Option<broadcast::Receiver<Arc<Job>>>,
 }
 
 struct Entry {
@@ -207,7 +201,25 @@ struct Entry {
     job: Job,
     cancellation: CancellationToken,
     last_log_event: Option<Instant>,
+    updates: Option<broadcast::Sender<Arc<Job>>>,
 }
+
+impl Entry {
+    fn publish(&mut self) {
+        if let Some(updates) = self
+            .updates
+            .as_ref()
+            .filter(|sender| sender.receiver_count() > 0)
+        {
+            let _ = updates.send(Arc::new(self.job.clone()));
+            if self.job.active() {
+                return;
+            }
+        }
+        self.updates = None;
+    }
+}
+
 struct StoreState {
     jobs: HashMap<String, Entry>,
     revision: u64,
@@ -217,7 +229,7 @@ struct StoreState {
 struct Inner {
     state: Mutex<StoreState>,
     path: PathBuf,
-    events: broadcast::Sender<JobEvent>,
+    activity: broadcast::Sender<Arc<Value>>,
     dirty: watch::Sender<u64>,
     persist_gate: tokio::sync::Mutex<()>,
     sealed: CancellationToken,
@@ -245,11 +257,12 @@ impl JobStore {
                         job,
                         cancellation,
                         last_log_event: None,
+                        updates: None,
                     },
                 )
             })
             .collect();
-        let (events, _) = broadcast::channel(256);
+        let (activity, _) = broadcast::channel(EVENT_BUFFER);
         let (dirty, mut changes) = watch::channel(0);
         let next_ordinal = jobs.len() as u64;
         let store = Self(Arc::new(Inner {
@@ -260,7 +273,7 @@ impl JobStore {
                 closed: false,
             }),
             path,
-            events,
+            activity,
             dirty,
             persist_gate: tokio::sync::Mutex::new(()),
             sealed: CancellationToken::new(),
@@ -341,11 +354,11 @@ impl JobStore {
                 job: job.clone(),
                 cancellation: CancellationToken::new(),
                 last_log_event: None,
+                updates: None,
             },
         );
         self.changed(&mut state);
-        self.publish(EventKind::State, job.clone());
-        drop(state);
+        self.publish_activity(&job);
         Ok(job)
     }
 
@@ -353,8 +366,10 @@ impl JobStore {
         state.revision += 1;
         self.0.dirty.send_replace(state.revision);
     }
-    fn publish(&self, kind: EventKind, job: Job) {
-        let _ = self.0.events.send(JobEvent { kind, job });
+    fn publish_activity(&self, job: &Job) {
+        if self.0.activity.receiver_count() > 0 {
+            let _ = self.0.activity.send(Arc::new(job.summary()));
+        }
     }
 
     pub fn get(&self, id: &str) -> Option<Job> {
@@ -400,24 +415,26 @@ impl JobStore {
             .map(|entry| entry.job.summary())
             .collect()
     }
-    pub fn subscribe(&self) -> broadcast::Receiver<JobEvent> {
-        self.0.events.subscribe()
-    }
-
     /// Register while holding the mutation lock, then capture the snapshot.
     /// Events received afterwards can never predate this initial snapshot.
-    pub fn subscribe_job(&self, id: &str) -> Option<(Job, broadcast::Receiver<JobEvent>)> {
-        let state = self.0.state.lock().unwrap();
-        let receiver = self.0.events.subscribe();
-        state
-            .jobs
-            .get(id)
-            .map(|entry| (entry.job.clone(), receiver))
+    pub(crate) fn subscribe_job(&self, id: &str) -> Option<JobSubscription> {
+        let mut state = self.0.state.lock().unwrap();
+        let entry = state.jobs.get_mut(id)?;
+        let updates = entry.job.active().then(|| {
+            entry
+                .updates
+                .get_or_insert_with(|| broadcast::channel(EVENT_BUFFER).0)
+                .subscribe()
+        });
+        Some(JobSubscription {
+            snapshot: Arc::new(entry.job.clone()),
+            updates,
+        })
     }
 
-    pub fn subscribe_activity(&self) -> (Vec<Value>, broadcast::Receiver<JobEvent>) {
+    pub(crate) fn subscribe_activity(&self) -> (Vec<Value>, broadcast::Receiver<Arc<Value>>) {
         let state = self.0.state.lock().unwrap();
-        let receiver = self.0.events.subscribe();
+        let receiver = self.0.activity.subscribe();
         let activity = ordered_entries(&state, true)
             .into_iter()
             .map(|entry| entry.job.summary())
@@ -434,21 +451,22 @@ impl JobStore {
             .map(|entry| entry.cancellation.clone())
     }
 
-    fn update(&self, id: &str, update: impl FnOnce(&mut Job) -> bool) -> Option<Job> {
+    fn update(&self, id: &str, update: impl FnOnce(&mut Job) -> bool) -> bool {
         let mut state = self.0.state.lock().unwrap();
-        let entry = state.jobs.get_mut(id)?;
+        let Some(entry) = state.jobs.get_mut(id) else {
+            return false;
+        };
         if !entry.job.active() || !update(&mut entry.job) {
-            return None;
+            return false;
         }
         entry.job.updated_at = timestamp();
         if !entry.job.active() {
             entry.cancellation.cancel();
         }
-        let job = entry.job.clone();
+        entry.publish();
+        self.publish_activity(&entry.job);
         self.changed(&mut state);
-        self.publish(EventKind::State, job.clone());
-        drop(state);
-        Some(job)
+        true
     }
 
     pub fn running(&self, id: &str) {
@@ -519,7 +537,6 @@ impl JobStore {
             job.finished_at = Some(timestamp());
             true
         })
-        .is_some()
     }
     pub fn cancel(&self, id: &str, reason: &str) -> bool {
         self.fail(id, reason.to_owned(), None)
@@ -559,20 +576,14 @@ impl JobStore {
             entry.job.logs.drain(..entry.job.logs.len() - MAX_LOGS);
         }
         entry.job.updated_at = timestamp();
-        let event = if entry
+        if entry
             .last_log_event
             .is_none_or(|at| at.elapsed() >= Duration::from_millis(250))
         {
             entry.last_log_event = Some(Instant::now());
-            Some(entry.job.clone())
-        } else {
-            None
-        };
-        self.changed(&mut state);
-        if let Some(job) = event {
-            self.publish(EventKind::Log, job);
+            entry.publish();
         }
-        drop(state);
+        self.changed(&mut state);
     }
 
     pub fn conversion_output(&self, id: &str, output: &str) {
@@ -783,8 +794,67 @@ fn load_history(path: &Path) -> Result<Vec<Job>> {
 }
 
 #[cfg(test)]
-mod progress_tests {
+mod tests {
     use super::*;
+    use tokio::sync::broadcast::error::TryRecvError;
+
+    #[tokio::test]
+    async fn activity_and_job_subscribers_receive_their_own_updates() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let watched = store.create(JobType::Train, json!({})).unwrap();
+        let other = store.create(JobType::Download, json!({})).unwrap();
+        let (_, mut activity) = store.subscribe_activity();
+        let subscription = store.subscribe_job(&watched.id).unwrap();
+        assert_eq!(subscription.snapshot.status, JobStatus::Queued);
+        let mut details = subscription.updates.unwrap();
+        let mut second_view = store.subscribe_job(&watched.id).unwrap().updates.unwrap();
+
+        store.log(&other.id, "Unrelated output");
+        store.running(&other.id);
+        let state = activity.try_recv().unwrap();
+        assert_eq!(state["id"], other.id);
+        assert_eq!(state["status"], "running");
+        assert!(state.get("logs").is_none());
+        assert!(matches!(activity.try_recv(), Err(TryRecvError::Empty)));
+        assert!(matches!(details.try_recv(), Err(TryRecvError::Empty)));
+
+        store.log(&watched.id, "Preparing dataset");
+        let log = details.try_recv().unwrap();
+        assert_eq!(log.logs, ["Preparing dataset"]);
+        assert!(Arc::ptr_eq(&log, &second_view.try_recv().unwrap()));
+        assert!(matches!(activity.try_recv(), Err(TryRecvError::Empty)));
+
+        store.done(&watched.id, json!({"ok": true}), Some("output.wav".into()));
+        let terminal = details.try_recv().unwrap();
+        assert_eq!(terminal.status, JobStatus::Done);
+        assert_eq!(terminal.output_file.as_deref(), Some("output.wav"));
+        assert_eq!(activity.try_recv().unwrap()["status"], "done");
+        assert!(matches!(details.try_recv(), Err(TryRecvError::Closed)));
+        let finished = store.subscribe_job(&watched.id).unwrap();
+        assert_eq!(finished.snapshot.status, JobStatus::Done);
+        assert!(finished.updates.is_none());
+        store.seal().await;
+    }
+
+    #[tokio::test]
+    async fn job_subscriptions_can_resynchronize_after_lag() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = store.create(JobType::Train, json!({})).unwrap();
+        let mut details = store.subscribe_job(&job.id).unwrap().updates.unwrap();
+        for i in 0..=EVENT_BUFFER {
+            store.progress(&job.id, (i % 101) as f64);
+        }
+        assert!(matches!(details.try_recv(), Err(TryRecvError::Lagged(_))));
+        let current = store.subscribe_job(&job.id).unwrap();
+        assert_eq!(current.snapshot.progress, Some((EVENT_BUFFER % 101) as u8));
+        let mut updates = current.updates.unwrap();
+        assert!(matches!(updates.try_recv(), Err(TryRecvError::Empty)));
+        store.cancel(&job.id, "Stopped by user");
+        assert_eq!(updates.try_recv().unwrap().status, JobStatus::Error);
+        store.seal().await;
+    }
 
     #[test]
     fn wide_tqdm_preserves_metadata_before_truncation() {
