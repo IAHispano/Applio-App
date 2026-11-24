@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Applio</title>
   <style>
-    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #060606; color: #eee; }
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; }
-    main { width: min(640px, calc(100% - 64px)); padding: 32px; }
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; background: #09090b; color: #f5f5f5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+    main { width: min(100%, 40rem); min-width: 0; padding: clamp(18px, 4vw, 32px); background: #151517; border: 1px solid #303034; border-radius: 12px; }
     [hidden] { display: none !important; }
-    h1 { font-size: 24px; font-weight: 600; }
-    p { color: #aaa; line-height: 1.6; }
-    pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 45vh; overflow: auto; color: #bbb; }
-    button { background: #eee; color: #111; border: 0; border-radius: 8px; padding: 12px 18px; font: inherit; cursor: pointer; }
+    h1 { margin: 0; font-size: clamp(26px, 4vw, 32px); line-height: 1.2; letter-spacing: -.02em; }
+    p { margin: 8px 0 20px; color: #b5b5bb; line-height: 1.6; }
+    pre { margin: 0 0 20px; padding: 12px 14px; background: #0d0d10; border: 1px solid #303034; border-radius: 8px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 45vh; overflow: auto; color: #e3e3e8; font: .875rem/1.6 ui-monospace, monospace; }
+    button { background: #f5f5f5; color: #111; border: 0; border-radius: 10px; min-height: 44px; padding: 6px 14px; font: 600 .875rem/1.35 system-ui, sans-serif; cursor: pointer; }
     button:disabled { opacity: .5; cursor: wait; }
     button:focus-visible { outline: 2px solid #eee; outline-offset: 4px; }
   </style>
