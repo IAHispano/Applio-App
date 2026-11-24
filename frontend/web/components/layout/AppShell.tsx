@@ -55,20 +55,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => main.removeEventListener("scroll", rememberScroll);
   }, []);
   useEffect(() => {
-    if (previousPath.current === pathname) {
-      previousHeading.current = document.querySelector("#main-content h1");
-      return;
-    }
+    const main = mainRef.current;
+    if (!main) return;
+    const navigated = previousPath.current !== pathname;
     previousPath.current = pathname;
     // Next can update the URL before the new page replaces the old heading.
     let restoreFrame = 0;
     const focusPage = () => {
-      if (document.querySelector("dialog[open]")) return;
-      const main = mainRef.current;
-      if (!main) return;
-      const heading = main.querySelector<HTMLElement>("h1");
-      if (!heading || heading === previousHeading.current) return;
+      if (navigated && document.querySelector("dialog[open]")) return;
+      const heading = Array.from(main.querySelectorAll("h1")).find((item) => item.getClientRects().length);
+      if (!heading || (navigated && heading === previousHeading.current)) return;
       previousHeading.current = heading;
+      observer.disconnect();
+      if (!navigated) return;
       main.scrollTop = scrollRoute.current.top;
       heading.tabIndex = -1;
       heading.focus({ preventScroll: true });
@@ -78,14 +77,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         main.scrollTop = scrollRoute.current.top;
         scrollRoute.current.restoring = false;
       });
-      observer.disconnect();
     };
     const observer = new MutationObserver(focusPage);
-    observer.observe(document.body, {
+    observer.observe(navigated ? document.body : main, {
       childList: true,
       subtree: true,
       attributes: true,
-      attributeFilter: ["open"],
+      attributeFilter: ["open", "hidden"],
     });
     const frame = requestAnimationFrame(focusPage);
     return () => {
@@ -109,7 +107,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const hostOnly = remote && REMOTE_HOST_ROUTES.has(pathname);
   const hidePage = pathname === "/realtime" && isReady && !remote;
+  const fullWidthWorkspace = pathname === "/tensorboard" && !hostOnly && !showBarrier;
   const showNavigation = pathname !== "/setup" && (remote || pathname !== "/" || isReady);
+  const workspaceBottomPadding = showNavigation
+    ? "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+    : "pb-[calc(1rem+env(safe-area-inset-bottom))]";
 
   return (
     <div className="flex flex-1 min-h-0 overflow-hidden relative">
@@ -121,7 +123,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           id="main-content"
           ref={mainRef}
           tabIndex={-1}
-          className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip px-3 sm:px-5 lg:px-6 2xl:px-8 pt-4 outline-none flex flex-col ${showNavigation ? "pb-[calc(7rem+env(safe-area-inset-bottom))] lg:pb-4" : "pb-[calc(1rem+env(safe-area-inset-bottom))]"}`}
+          className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip [--workspace-gutter:0.75rem] sm:[--workspace-gutter:1.25rem] lg:[--workspace-gutter:1.5rem] 2xl:[--workspace-gutter:2rem] px-[var(--workspace-gutter)] pt-4 outline-none flex flex-col ${workspaceBottomPadding} ${fullWidthWorkspace ? "lg:pb-0" : showNavigation ? "lg:pb-4" : ""}`}
         >
           <div
             hidden={hidePage}
@@ -154,11 +156,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               <RealtimeWorkspace active={pathname === "/realtime"} />
             </PersistentWorkspace>
           )}
-          <footer className="mt-auto pt-6 pb-1 flex items-center justify-center gap-3 text-[11px] text-[var(--muted)]">
-            <span>Applio</span>
-            <span aria-hidden="true">·</span>
-            <SupportLink />
-          </footer>
+          {!fullWidthWorkspace && (
+            <footer className="mt-auto pt-6 pb-1 flex items-center justify-center gap-3 text-[11px] text-[var(--muted)]">
+              <span>Applio</span>
+              <span aria-hidden="true">·</span>
+              <SupportLink />
+            </footer>
+          )}
         </main>
         {showNavigation && <BottomNav />}
       </div>
