@@ -30,6 +30,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
   const [isReady, setIsReady] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const lastAudibleVolume = useRef(1);
   const [isLooping, setIsLooping] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [error, setError] = useState<string | null>(null);
@@ -94,17 +95,27 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
       ws?.play().catch(() => {
         if (current()) setIsPlaying(false);
       });
+    const container = containerRef.current;
+    const waveformColors = () => {
+      const palette = getComputedStyle(container);
+      return {
+        waveColor: palette.getPropertyValue("--muted").trim() || "#8e8e98",
+        progressColor: palette.getPropertyValue("--accent").trim() || "#ffffff",
+        cursorColor: palette.getPropertyValue("--heading").trim() || "#ffffff",
+      };
+    };
+    const themeObserver = new MutationObserver(() => {
+      if (current()) ws?.setOptions(waveformColors());
+    });
     try {
       ws = WaveSurfer.create({
-        container: containerRef.current,
-        waveColor: "rgba(255, 255, 255, 0.22)",
-        progressColor: "#ffffff",
-        cursorColor: "#ffffff",
+        container,
+        ...waveformColors(),
         cursorWidth: 2,
         barWidth: 2,
-        barGap: 3,
+        barGap: 2,
         barRadius: 2,
-        height: settings.current.compact ? 40 : 54,
+        height: settings.current.compact ? 44 : 64,
         normalize: true,
         url: downloadSrc,
         plugins: [
@@ -118,6 +129,8 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
         ],
       });
       wavesurferRef.current = ws;
+      // Theme changes repaint the canvas without replacing the media instance.
+      themeObserver.observe(document.documentElement, { attributeFilter: ["style"] });
       ws.on("ready", (length) => {
         if (!current() || !ws) return;
         setIsReady(true);
@@ -182,6 +195,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
       // destroy() can emit media events and outstanding loads can reject later.
       // Retired instances must never overwrite a newer source's state.
       disposed = true;
+      themeObserver.disconnect();
       if (wavesurferRef.current === ws) wavesurferRef.current = null;
       try {
         ws?.destroy();
@@ -199,7 +213,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
   }, [volume, isMuted, playbackRate]);
 
   useEffect(() => {
-    wavesurferRef.current?.setOptions({ height: compact ? 40 : 54 });
+    wavesurferRef.current?.setOptions({ height: compact ? 44 : 64 });
   }, [compact]);
 
   function play() {
@@ -222,14 +236,17 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
     setCurrentTime(target);
   }
   function handleScrubberKeyDown(event: KeyboardEvent) {
-    if (!isReady) return;
-    const step = event.shiftKey ? 10 : 5;
+    if (!isReady || event.altKey || event.ctrlKey || event.metaKey) return;
+    const step = event.shiftKey ? Math.min(10, duration / 5) : Math.min(5, duration / 10);
+    const position = wavesurferRef.current?.getCurrentTime() ?? currentTime;
     switch (event.key) {
       case "ArrowLeft":
-        seek(currentTime - step);
+      case "ArrowDown":
+        seek(position - step);
         break;
       case "ArrowRight":
-        seek(currentTime + step);
+      case "ArrowUp":
+        seek(position + step);
         break;
       case "Home":
         seek(0);
@@ -257,16 +274,13 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
   }
   function handleVolumeChange(event: ChangeEvent<HTMLInputElement>) {
     const next = Math.max(0, Math.min(1, Number(event.target.value)));
+    if (next > 0) lastAudibleVolume.current = next;
     setVolume(next);
     setIsMuted(next === 0);
   }
   function toggleMute() {
     setIsMuted(!isMuted);
-    if (isMuted && volume === 0) setVolume(0.5);
-  }
-  function cycleRate() {
-    const rates = [1, 1.25, 1.5, 2, 0.5, 0.75];
-    setPlaybackRate(rates[(rates.indexOf(playbackRate) + 1) % rates.length]);
+    if (isMuted && volume === 0) setVolume(lastAudibleVolume.current);
   }
   return {
     containerRef,
@@ -287,7 +301,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
     handleTrackSwitch,
     handleVolumeChange,
     toggleMute,
-    cycleRate,
+    setPlaybackRate,
     toggleLoop: () => setIsLooping(!isLooping),
     handleRestart: () => {
       seek(0);
