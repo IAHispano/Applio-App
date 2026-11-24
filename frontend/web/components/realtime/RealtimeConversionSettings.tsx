@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { EmbedderSelect, PitchMethodSelect, REALTIME_F0_METHODS } from "@/components/ui";
+import { EmbedderSelect, PitchMethodSelect, REALTIME_F0_METHODS } from "@/components/ui/PitchMethodSelect";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { useI18n } from "@/lib/i18n";
@@ -47,7 +47,7 @@ export default function RealtimeConversionSettings({
     setEmbedderCustom,
   } = controls;
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 @sm:grid-cols-2 @3xl:grid-cols-3 gap-4">
       <div>
         <SliderField
           id="rt-index-rate"

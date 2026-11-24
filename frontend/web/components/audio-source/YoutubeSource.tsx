@@ -33,7 +33,6 @@ export default function YoutubeSource({
           className="flex-1 min-w-0"
         />
         <Button
-          size="sm"
           onClick={source.start}
           disabled={disabled || source.active || !source.url.trim()}
           loading={source.active}

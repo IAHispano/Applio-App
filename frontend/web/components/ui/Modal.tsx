@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useId } from "react";
+import { type ReactNode, useId, useRef } from "react";
 import Dialog from "./Dialog";
 
 interface ModalProps {
@@ -29,6 +29,7 @@ export default function Modal({
   const generatedId = useId();
   const titleId = `modal-title-${generatedId}`;
   const descId = `modal-desc-${generatedId}`;
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const widthClass = {
     sm: "max-w-md",
@@ -42,6 +43,7 @@ export default function Modal({
     <Dialog
       isOpen={isOpen}
       onClose={onClose}
+      initialFocus={titleRef}
       aria-labelledby={titleId}
       aria-describedby={description ? descId : undefined}
       className="app-modal fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm modal-backdrop"
@@ -49,21 +51,26 @@ export default function Modal({
       <div
         className={`modal-panel w-full ${widthClass} max-h-[calc(100dvh-1.5rem)] overflow-y-auto overflow-x-hidden min-w-0 bg-[var(--panel)] text-[var(--text)] border ${
           danger ? "border-red-500/30 shadow-red-500/10" : "border-[var(--border)]"
-        } rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
+        } rounded-[var(--radius-card)] p-4 sm:p-6 shadow-2xl space-y-4 focus:outline-none`}
       >
-        <div className="flex items-start justify-between gap-3 pb-2">
+        <div className="flex items-start justify-between gap-3 pb-3 border-b border-[var(--border)]">
           <div className="flex items-center gap-2.5 min-w-0">
             {icon && (
-              <span aria-hidden="true" className="shrink-0">
+              <span aria-hidden="true" className="card-heading-mark">
                 {icon}
               </span>
             )}
             <div className="space-y-0.5 min-w-0">
-              <h2 id={titleId} className="text-lg font-semibold text-[var(--heading)] tracking-tight m-0">
+              <h2
+                id={titleId}
+                ref={titleRef}
+                tabIndex={-1}
+                className="text-lg font-semibold text-[var(--heading)] tracking-tight m-0"
+              >
                 {title}
               </h2>
               {description && (
-                <p id={descId} className="text-xs text-[var(--muted)] leading-relaxed m-0">
+                <p id={descId} className="field-help m-0">
                   {description}
                 </p>
               )}

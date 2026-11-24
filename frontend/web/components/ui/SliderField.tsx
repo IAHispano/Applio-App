@@ -1,5 +1,6 @@
 "use client";
 
+import { Minus, Plus } from "lucide-react";
 import type React from "react";
 import { memo, useEffect, useId, useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -18,6 +19,11 @@ export interface SliderFieldProps {
   description?: string;
   disabled?: boolean;
   className?: string;
+}
+
+function parseInput(text: string) {
+  const normalized = text.trim().replace(",", ".");
+  return normalized ? Number(normalized) : Number.NaN;
 }
 
 function SliderFieldInner({
@@ -53,26 +59,28 @@ function SliderFieldInner({
   const clampedValue = Math.min(Math.max(value, min), max);
   const percentage = max > min ? Math.max(0, Math.min(100, ((clampedValue - min) / (max - min)) * 100)) : 0;
 
-  const ariaValueText = formatValue ? formatValue(value) : `${value}${unit ? ` ${unit}` : ""}`;
+  const ariaValueText = formatValue ? formatValue(clampedValue) : `${clampedValue}${unit ? ` ${unit}` : ""}`;
+  const atMinimum = clampedValue === min;
+  const atMaximum = clampedValue === max;
 
   const commitValue = (valStr: string) => {
-    const parsed = Number.parseFloat(valStr);
-    if (Number.isNaN(parsed)) {
+    const parsed = parseInput(valStr);
+    if (!Number.isFinite(parsed)) {
       setInputText(String(value));
       return;
     }
     const clamped = Math.min(max, Math.max(min, parsed));
     const precision = step < 1 ? (step.toString().split(".")[1]?.length ?? 2) : 0;
     const rounded = Number(clamped.toFixed(precision));
-    onChange(rounded);
+    if (rounded !== value) onChange(rounded);
     setInputText(String(rounded));
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const text = e.target.value;
     setInputText(text);
-    const parsed = Number.parseFloat(text);
-    if (!Number.isNaN(parsed) && parsed >= min && parsed <= max) {
+    const parsed = parseInput(text);
+    if (Number.isFinite(parsed) && parsed >= min && parsed <= max && parsed !== value) {
       onChange(parsed);
     }
   };
@@ -82,73 +90,62 @@ function SliderFieldInner({
     commitValue(inputText);
   };
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      commitValue(inputText);
-      (e.target as HTMLInputElement).blur();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      const next = Math.min(max, Math.round((value + step) * 1e4) / 1e4);
-      onChange(next);
-      setInputText(String(next));
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = Math.max(min, Math.round((value - step) * 1e4) / 1e4);
-      onChange(next);
-      setInputText(String(next));
+  const adjustValue = (change: number) => {
+    const next = Math.min(max, Math.max(min, Math.round((clampedValue + change) * 1e4) / 1e4));
+    if (next !== value) onChange(next);
+    setInputText(String(next));
+  };
+
+  const handleInputKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.nativeEvent.isComposing) return;
+    switch (event.key) {
+      case "Enter":
+        event.preventDefault();
+        commitValue(inputText);
+        break;
+      case "ArrowUp":
+        event.preventDefault();
+        adjustValue(step);
+        break;
+      case "ArrowDown":
+        event.preventDefault();
+        adjustValue(-step);
+        break;
     }
-  };
-
-  const handleDecrement = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const next = Math.max(min, Math.round((value - step) * 1e4) / 1e4);
-    onChange(next);
-    setInputText(String(next));
-  };
-
-  const handleIncrement = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const next = Math.min(max, Math.round((value + step) * 1e4) / 1e4);
-    onChange(next);
-    setInputText(String(next));
   };
 
   return (
     <div className={`space-y-1.5 ${className}`}>
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
         <label
           htmlFor={id}
-          className="text-xs font-medium text-[var(--text)] m-0 select-none cursor-pointer flex-1 min-w-0 leading-relaxed"
+          className="text-xs font-medium text-[var(--text)] m-0 select-none cursor-pointer flex-1 min-w-24 wrap-anywhere leading-relaxed"
         >
           {label}
         </label>
 
-        {/* Manual numeric input box + unit */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <div className="relative flex items-center">
-            <input
-              type="text"
-              inputMode="decimal"
-              role="spinbutton"
-              aria-valuemin={min}
-              aria-valuemax={max}
-              aria-valuenow={clampedValue}
-              aria-valuetext={ariaValueText}
-              aria-label={t("{label} numeric value", { label })}
-              aria-describedby={description ? descId : undefined}
-              value={inputText}
-              disabled={disabled}
-              onFocus={() => setIsFocused(true)}
-              onChange={handleInputChange}
-              onBlur={handleInputBlur}
-              onKeyDown={handleInputKeyDown}
-              style={{ width: 64, padding: "2px 6px" }}
-              className="w-16 px-1.5 py-0.5 text-xs font-semibold text-center rounded-md bg-white/10 text-neutral-100 border border-white/15 hover:border-white/30 focus:outline-none transition-colors tabular-nums disabled:opacity-40"
-            />
-          </div>
-          {unit && <span className="text-[11px] text-neutral-400 select-none font-medium">{unit}</span>}
+          <input
+            type="text"
+            inputMode="decimal"
+            role="spinbutton"
+            aria-valuemin={min}
+            aria-valuemax={max}
+            aria-valuenow={clampedValue}
+            aria-valuetext={ariaValueText}
+            aria-label={t("{label} numeric value", { label })}
+            aria-describedby={description ? descId : undefined}
+            value={inputText}
+            disabled={disabled}
+            onFocus={() => setIsFocused(true)}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            className="slider-field-number text-xs font-semibold text-center tabular-nums disabled:opacity-40"
+          />
+          {unit && <span className="text-xs text-[var(--muted)] select-none">{unit}</span>}
           {defaultValueText && (
-            <span className="text-[10px] text-neutral-500 select-none hidden min-[480px]:inline">
+            <span className="text-xs text-[var(--muted)] select-none hidden min-[480px]:inline">
               ({defaultValueText})
             </span>
           )}
@@ -156,141 +153,47 @@ function SliderFieldInner({
       </div>
 
       <div className="flex items-center gap-2">
-        {/* Decrement fine-tune button */}
         <button
           type="button"
-          onClick={handleDecrement}
-          disabled={disabled || value <= min}
+          onClick={() => adjustValue(-step)}
+          disabled={disabled}
+          aria-disabled={disabled || atMinimum || undefined}
           aria-label={t("Decrease {label}", { label })}
           aria-controls={id}
           className="slider-step-btn"
-          style={{
-            width: 28,
-            height: 28,
-            minWidth: 28,
-            minHeight: 28,
-            maxWidth: 28,
-            maxHeight: 28,
-            padding: 0,
-            margin: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            borderRadius: 8,
-            background: "rgba(255, 255, 255, 0.08)",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            color: "#ffffff",
-            cursor: disabled || value <= min ? "not-allowed" : "pointer",
-            opacity: disabled || value <= min ? 0.35 : 1,
-            transform: "none",
-          }}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#ffffff"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className="shrink-0"
-            style={{
-              width: 14,
-              height: 14,
-              minWidth: 14,
-              minHeight: 14,
-              stroke: "#ffffff",
-              display: "block",
-            }}
-          >
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <Minus size={14} strokeWidth={2.5} aria-hidden="true" />
         </button>
 
-        {/* Range Slider */}
-        <div className="relative flex-1 flex items-center h-7">
-          <input
-            type="range"
-            id={id}
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            disabled={disabled}
-            onChange={(e) => {
-              const v = Number(e.target.value);
-              onChange(v);
-              setInputText(String(v));
-            }}
-            aria-label={label}
-            aria-valuemin={min}
-            aria-valuemax={max}
-            aria-valuenow={value}
-            aria-valuetext={ariaValueText}
-            aria-describedby={description ? descId : undefined}
-            style={{
-              background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${percentage}%, var(--slider-track) ${percentage}%, var(--slider-track) 100%)`,
-            }}
-            className="w-full h-1.5 rounded-full appearance-none cursor-pointer focus:outline-none"
-          />
-        </div>
+        <input
+          type="range"
+          id={id}
+          min={min}
+          max={max}
+          step={step}
+          value={clampedValue}
+          disabled={disabled}
+          onChange={(event) => {
+            const next = event.currentTarget.valueAsNumber;
+            onChange(next);
+            setInputText(String(next));
+          }}
+          aria-valuetext={ariaValueText}
+          aria-describedby={description ? descId : undefined}
+          style={{ "--range-fill": `${percentage}%` } as React.CSSProperties}
+          className="range-control flex-1 min-w-0"
+        />
 
-        {/* Increment fine-tune button */}
         <button
           type="button"
-          onClick={handleIncrement}
-          disabled={disabled || value >= max}
+          onClick={() => adjustValue(step)}
+          disabled={disabled}
+          aria-disabled={disabled || atMaximum || undefined}
           aria-label={t("Increase {label}", { label })}
           aria-controls={id}
           className="slider-step-btn"
-          style={{
-            width: 28,
-            height: 28,
-            minWidth: 28,
-            minHeight: 28,
-            maxWidth: 28,
-            maxHeight: 28,
-            padding: 0,
-            margin: 0,
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-            borderRadius: 8,
-            background: "rgba(255, 255, 255, 0.08)",
-            border: "1px solid rgba(255, 255, 255, 0.15)",
-            color: "#ffffff",
-            cursor: disabled || value >= max ? "not-allowed" : "pointer",
-            opacity: disabled || value >= max ? 0.35 : 1,
-            transform: "none",
-          }}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#ffffff"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-            className="shrink-0"
-            style={{
-              width: 14,
-              height: 14,
-              minWidth: 14,
-              minHeight: 14,
-              stroke: "#ffffff",
-              display: "block",
-            }}
-          >
-            <line x1="12" y1="5" x2="12" y2="19" />
-            <line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
+          <Plus size={14} strokeWidth={2.5} aria-hidden="true" />
         </button>
       </div>
 

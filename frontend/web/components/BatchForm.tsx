@@ -1,17 +1,15 @@
 "use client";
 
-import { ArrowRight, CheckCircle2, Layers, Search, StopCircle, Wand2, X } from "lucide-react";
-import Link from "next/link";
+import { ArrowRight, Layers, Search, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import BatchResults, { type BatchResult } from "@/components/BatchResults";
 import ConversionParameters, { type ConversionParameterValues } from "@/components/ConversionParameters";
-import { JobError, JobStage } from "@/components/JobStatus";
+import ConversionStatusCard from "@/components/ConversionStatusCard";
 import ModelPresetStatus from "@/components/ModelPresetStatus";
 import { Alert, Badge, Button, Card, CardHeader, SegmentedControl, ToggleField } from "@/components/ui";
 import CustomSelect from "@/components/ui/CustomSelect";
-import ProgressBar from "@/components/ui/ProgressBar";
 import SettingHelp from "@/components/ui/SettingHelp";
-import { apiSend, errMsg, fetchModels, fileBasename, stopJob, submitJob } from "@/lib/api";
+import { apiSend, errMsg, fetchModels, fileBasename, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset, saveModelPreset } from "@/lib/model-presets";
@@ -123,11 +121,12 @@ export default function BatchForm() {
   } = conversion.values;
   const [sid, setSid] = useWorkspaceState("BatchForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("batch");
-  const { job, error, setError } = useJob(jobId);
+  const { job: watchedJob, error, setError, stop } = useJob(jobId);
+  const job = watchedJob?.id === jobId ? watchedJob : null;
+  const awaitingJob = Boolean(jobId && !job && !error);
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
-  const active =
-    (!!jobId && job?.id !== jobId && !error) || job?.status === "running" || job?.status === "queued";
+  const active = awaitingJob || job?.status === "running" || job?.status === "queued";
   const batchResult = job?.result as unknown as BatchResult | undefined;
   const selectedFileCount = (sourceFiles?.length || 0) - excludedFiles.length;
 
@@ -352,18 +351,15 @@ export default function BatchForm() {
     }
   }
 
-  const disabledReason =
-    busy || active
-      ? t("Wait for the current conversion to finish.")
-      : !conversion.loaded
-        ? t("Loading model settings…")
-        : !selectedModels.length
-          ? t("Select a voice model.")
-          : !inputPath.trim() && !inputFolder.trim()
-            ? t("Provide an input folder or a single audio file.")
-            : !sourceFiles || !selectedFileCount
-              ? t("Review and select audio files before converting.")
-              : "";
+  const disabledReason = !conversion.loaded
+    ? t("Loading model settings…")
+    : !selectedModels.length
+      ? t("Select a voice model.")
+      : !inputPath.trim() && !inputFolder.trim()
+        ? t("Provide an input folder or a single audio file.")
+        : !sourceFiles || !selectedFileCount
+          ? t("Review and select audio files before converting.")
+          : "";
 
   return (
     <form onSubmit={onSubmit} className="card-stack">
@@ -419,24 +415,20 @@ export default function BatchForm() {
                 </button>
               )}
             </div>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() =>
-                setSelectedModels((current) => Array.from(new Set([...current, ...filteredModels])))
-              }
-              disabled={!filteredModels.length}
-            >
-              {t(modelQuery.trim() ? "Select matches" : "Select all")}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setSelectedModels([])}
-              disabled={!selectedModels.length}
-            >
-              {t("Clear")}
-            </Button>
+            <div className="action-row [--action-row-width:20rem] [--action-column:7rem]">
+              <Button
+                variant="ghost"
+                onClick={() =>
+                  setSelectedModels((current) => Array.from(new Set([...current, ...filteredModels])))
+                }
+                disabled={!filteredModels.length}
+              >
+                {t(modelQuery.trim() ? "Select matches" : "Select all")}
+              </Button>
+              <Button variant="ghost" onClick={() => setSelectedModels([])} disabled={!selectedModels.length}>
+                {t("Clear")}
+              </Button>
+            </div>
           </div>
           <div className="grid max-h-80 grid-cols-1 gap-3 overflow-y-auto pr-0.5 sm:grid-cols-2 2xl:grid-cols-3">
             {filteredModels.map((model) => {
@@ -556,7 +548,7 @@ export default function BatchForm() {
               />
               <SettingHelp text={t(SETTING_HELP.batchInput)} controlId={"batch-input-folder"} />
               {canBrowse && (
-                <Button size="xs" variant="ghost" onClick={() => chooseFolder("input")} className="mt-2">
+                <Button variant="ghost" onClick={() => chooseFolder("input")} className="mt-2">
                   {t("Browse")}
                 </Button>
               )}
@@ -581,7 +573,6 @@ export default function BatchForm() {
         </p>
         <div className="mt-4 space-y-3">
           <Button
-            size="sm"
             variant="ghost"
             loading={scanning}
             disabled={active || !(sourceMode === "file" ? inputPath.trim() : inputFolder.trim())}
@@ -600,7 +591,6 @@ export default function BatchForm() {
                   {t("{n} files selected", { n: selectedFileCount })}
                 </p>
                 <Button
-                  size="xs"
                   variant="ghost"
                   onClick={() =>
                     setExcludedFiles(excludedFiles.length ? [] : sourceFiles.map((file) => file.name))
@@ -661,7 +651,7 @@ export default function BatchForm() {
               />
               <SettingHelp text={t(SETTING_HELP.batchOutput)} controlId={"batch-output-folder"} />
               {canBrowse && (
-                <Button size="xs" variant="ghost" onClick={() => chooseFolder("output")} className="mt-2">
+                <Button variant="ghost" onClick={() => chooseFolder("output")} className="mt-2">
                   {t("Browse")}
                 </Button>
               )}
@@ -702,81 +692,18 @@ export default function BatchForm() {
         }
       />
 
-      {/* 3. Action & Batch Output Card */}
-      <Card>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <Button
-              type="submit"
-              disabled={Boolean(disabledReason)}
-              aria-describedby={disabledReason ? "batch-convert-help" : undefined}
-              icon={<Wand2 size={16} />}
-            >
-              {busy ? t("Converting Batch…") : t("Convert Batch")}
-            </Button>
-
-            {job && (job.status === "running" || job.status === "queued") && (
-              <Button
-                variant="danger"
-                onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}
-                icon={<StopCircle size={13} />}
-              >
-                {t("Cancel")}
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {job && (
-              <Badge
-                variant={
-                  job.status === "done"
-                    ? batchResult?.failed
-                      ? "warning"
-                      : "success"
-                    : job.status === "error"
-                      ? "danger"
-                      : "info"
-                }
-                dot
-              >
-                {job.status === "done"
-                  ? t(batchResult?.failed ? "Completed with errors" : "Completed")
-                  : job.status === "running"
-                    ? t("In Progress")
-                    : job.status === "error"
-                      ? t("Failed")
-                      : t("Queued")}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {disabledReason && (
-          <p id="batch-convert-help" className="field-help m-0" role="status" aria-live="polite">
-            {disabledReason}
-          </p>
-        )}
-
-        {/* Running State Live Progress Bar */}
-        {job && (job.status === "running" || job.status === "queued") && (
-          <div
-            className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-3 animate-in fade-in duration-200"
-            role="status"
-            aria-live="polite"
-          >
-            <div className="flex items-center justify-between text-xs text-neutral-300">
-              <span className="font-medium">{t("Batch Conversion in Progress…")}</span>
-              <span className="text-[var(--muted)]">
-                {t(job.status === "queued" ? "Queued" : "In Progress")}
-              </span>
-            </div>
-            <ProgressBar
-              progress={job.status === "running" ? job.progress : undefined}
-              label={t("Batch Conversion in Progress…")}
-              activity={<JobStage job={job} />}
-            />
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 text-[11px] text-neutral-400 pt-1 break-all">
+      <ConversionStatusCard
+        label={t("Convert Batch")}
+        disabledReason={disabledReason}
+        pending={busy ? "submitting" : awaitingJob ? "loading" : undefined}
+        job={job}
+        onStop={stop}
+        error={error}
+        failureMessage={t("Batch conversion failed.")}
+        partial={job?.status === "done" && Boolean(batchResult?.failed)}
+        progressDetails={
+          job && (
+            <div className="flex flex-col gap-1 text-xs text-[var(--muted)] break-all sm:flex-row sm:justify-between sm:gap-3">
               <span>
                 {t("Input:")} {String(job.params?.inputPath || job.params?.inputFolder || "")}
               </span>
@@ -784,61 +711,36 @@ export default function BatchForm() {
                 {t("Output:")} {batchResult?.outputFolder || String(job.params?.outputFolder || "")}
               </span>
             </div>
-          </div>
-        )}
-
-        {error && (
-          <Alert variant="error" className="animate-in fade-in duration-200">
-            {error}
-          </Alert>
-        )}
-
-        {job && job.status === "error" && !error && (
-          <JobError
-            message={job.error || t("Batch conversion failed.")}
-            details={job.errorDetails}
-            logs={job.logs}
-            jobId={job.id}
-            className="animate-in fade-in duration-200"
-          />
-        )}
-
-        {job && job.status === "done" && (
-          <div className="space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                <CheckCircle2 size={18} className="text-white" />
+          )
+        }
+      />
+      {job && (job.status === "done" || Boolean(batchResult?.items?.length)) && (
+        <Card as="section">
+          {job.status === "done" && (
+            <>
+              <CardHeader
+                title={t("Batch Conversion Complete")}
+                action={
+                  <Button
+                    variant="ghost"
+                    href={`/inference?model=${encodeURIComponent(String(job.params?.pthPath || ""))}`}
+                    iconAfter={<ArrowRight size={14} />}
+                  >
+                    {t("Test in Single Inference")}
+                  </Button>
+                }
+              />
+              <div className="rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3 space-y-1">
+                <span className="text-xs text-[var(--muted)] block">{t("Saved Output Directory")}</span>
+                <span className="text-xs text-[var(--text)] font-medium select-all block break-all">
+                  {batchResult?.outputFolder || String(job.params?.outputFolder || outputFolder)}
+                </span>
               </div>
-              <div>
-                <h3 className="text-base font-bold text-white m-0">{t("Batch Conversion Complete")}</h3>
-                <p className="text-xs text-neutral-400 m-0 mt-0.5">
-                  {batchResult?.failed
-                    ? t("Completed with errors")
-                    : t("All selected files and voice models have been processed.")}
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 rounded-xl bg-black/40 border border-white/5 space-y-1">
-              <span className="text-xs text-neutral-400 block">{t("Saved Output Directory")}</span>
-              <span className="text-xs text-neutral-200 font-medium select-all block break-all">
-                {batchResult?.outputFolder || String(job.params?.outputFolder || outputFolder)}
-              </span>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-1 flex-wrap">
-              <Link
-                href={`/inference?model=${encodeURIComponent(String(job.params?.pthPath || ""))}`}
-                className="cta h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5"
-              >
-                <span>{t("Test in Single Inference")}</span>
-                <ArrowRight size={14} />
-              </Link>
-            </div>
-          </div>
-        )}
-        {job && <BatchResults key={job.id} job={job} />}
-      </Card>
+            </>
+          )}
+          <BatchResults key={job.id} job={job} />
+        </Card>
+      )}
     </form>
   );
 }

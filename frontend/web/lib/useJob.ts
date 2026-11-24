@@ -12,14 +12,16 @@ const JOB_ID_PREFIX = "applio:job:";
 // silently, so nothing stale is ever resurrected.
 export function usePersistentJobId(key: string) {
   const storageKey = `${JOB_ID_PREFIX}${key}`;
-  const [jobId, setJobIdState] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
+  const [jobId, setJobIdState] = useState<string | null>(null);
+
+  // Static HTML and the initial client render both start without a saved job.
+  useEffect(() => {
     try {
-      return window.localStorage.getItem(storageKey);
+      setJobIdState(window.localStorage.getItem(storageKey));
     } catch {
-      return null;
+      /* storage unavailable */
     }
-  });
+  }, [storageKey]);
 
   useEffect(() => {
     if (!jobId) return;

@@ -2,8 +2,9 @@
 
 import { AlertTriangle, ArrowRight, BookOpen, Globe, MessageCircle } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import Link from "@/components/layout/IntentLink";
-import { NAV_SECTIONS, SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
+import { currentNavigation, NAV_SECTIONS, SETUP_OPTIONAL_ROUTES } from "@/components/layout/nav";
 import SupportLink from "@/components/SupportLink";
 import { REMOTE_HOST_ROUTES, useRemoteBridge } from "@/lib/bridge-mode";
 import { DOCS_URL, WEBSITE_URL } from "@/lib/ecosystem";
@@ -17,6 +18,19 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useI18n();
   const { isReady, loading } = useSetup();
   const { remote } = useRemoteBridge();
+  const navigation = useRef<HTMLElement>(null);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a route change updates aria-current
+  useEffect(() => {
+    const nav = navigation.current;
+    if (!nav?.clientHeight || nav.scrollHeight <= nav.clientHeight) return;
+    const current = nav.querySelector("[aria-current]");
+    if (!current) return;
+    const navTop = nav.getBoundingClientRect().top;
+    const navBottom = navTop + nav.clientHeight;
+    const item = current.getBoundingClientRect();
+    if (item.top < navTop) nav.scrollTop -= navTop - item.top;
+    else if (item.bottom > navBottom) nav.scrollTop += item.bottom - navBottom;
+  }, [pathname]);
   const sections = remote
     ? NAV_SECTIONS.map((section) => ({
         ...section,
@@ -30,8 +44,8 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
       <div className="px-3 pt-1 pb-1.5 mb-1 flex items-center justify-between shrink-0">
         <Link
           href={remote ? "/inference" : "/"}
-          onClick={onNavigate}
-          className="flex items-center gap-2.5 group rounded-lg focus-visible:outline-none min-w-0"
+          onNavigate={onNavigate}
+          className="flex items-center gap-2.5 group rounded-lg min-w-0"
           aria-label={t("Applio - Home")}
         >
           <span
@@ -65,7 +79,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           </p>
           <Link
             href="/setup"
-            onClick={onNavigate}
+            onNavigate={onNavigate}
             className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-medium text-amber-300 hover:text-amber-200 transition-colors"
           >
             <span>{t("Complete Setup")}</span>
@@ -76,7 +90,8 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
 
       {/* Grouped Navigation */}
       <nav
-        className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1 scrollbar-thin"
+        ref={navigation}
+        className="space-y-2 pr-1 lg:flex-1 lg:min-h-0 lg:overflow-y-auto scrollbar-thin"
         aria-label={t("Main Navigation")}
       >
         {sections.map((section, sIdx) => (
@@ -89,24 +104,22 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
             <ul className="space-y-0.5 list-none m-0 p-0">
               {section.items.map((item) => {
                 const Icon = item.icon;
-                const active = pathname === item.to;
+                const current = currentNavigation(pathname, item.to);
                 const itemNeedsSetup = !isReady && !loading && !SETUP_OPTIONAL_ROUTES.has(item.to);
 
                 return (
                   <li key={item.to}>
                     <Link
                       href={item.to}
-                      onClick={onNavigate}
-                      aria-current={active ? "page" : undefined}
+                      onNavigate={onNavigate}
+                      aria-current={current}
                       className={`nav-press flex items-center gap-2.5 px-3 py-2.5 lg:py-1.5 rounded-lg text-[13px] transition-colors duration-150 relative min-h-[44px] lg:min-h-8 ${
-                        active
+                        current
                           ? "bg-[var(--accent-soft)] text-[var(--accent)] font-semibold"
-                          : itemNeedsSetup
-                            ? "text-[var(--muted)] opacity-70 hover:opacity-100 hover:text-[var(--heading)] hover:bg-[var(--surface)]"
-                            : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"
+                          : "text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)]"
                       }`}
                     >
-                      {active && (
+                      {current && (
                         <span
                           key={item.to}
                           className="nav-pill absolute left-1 w-1 h-3.5 bg-[var(--accent)] rounded-full"
@@ -116,10 +129,10 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
                       <Icon
                         aria-hidden="true"
                         className={`w-4 h-4 shrink-0 transition-colors ${
-                          active ? "text-[var(--accent)]" : "text-[var(--muted)]"
+                          current ? "text-[var(--accent)]" : "text-[var(--muted)]"
                         }`}
                       />
-                      <span className="truncate">{t(item.label)}</span>
+                      <span className="min-w-0 wrap-anywhere">{t(item.label)}</span>
                       {item.badge ? (
                         <span className="ml-auto text-[10px] px-1.5 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--muted)] font-medium border border-[var(--border)]">
                           {t(item.badge)}
@@ -137,13 +150,13 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         ))}
       </nav>
-      <div className="shrink-0 mt-2 px-3 flex flex-col">
-        <div className="flex items-center gap-4 pt-2">
+      <div className="shrink-0 mt-2 px-3 pt-2 flex flex-col border-t border-[var(--border)]">
+        <div className="flex flex-wrap items-center gap-x-3">
           <a
             href={WEBSITE_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
+            className="inline-flex items-center gap-1.5 min-h-7 py-1 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
           >
             <Globe size={14} aria-hidden="true" />
             {t("Website")}
@@ -152,7 +165,7 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
             href={DOCS_URL}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
+            className="inline-flex items-center gap-1.5 min-h-7 py-1 text-xs text-[var(--muted)] hover:text-[var(--heading)] rounded-lg"
           >
             <BookOpen size={14} aria-hidden="true" />
             {t("Documentation")}
@@ -162,12 +175,12 @@ export function SidebarNavContent({ onNavigate }: { onNavigate?: () => void }) {
           href={DISCORD_SUPPORT_URL}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 py-2 text-xs text-[var(--muted)] hover:text-[var(--heading)] transition-colors rounded-lg"
+          className="inline-flex items-center gap-1.5 min-h-7 py-1 text-xs text-[var(--muted)] hover:text-[var(--heading)] transition-colors rounded-lg"
         >
           <MessageCircle size={14} aria-hidden="true" />
           {t("Discord support")}
         </a>
-        <SupportLink className="py-2" />
+        <SupportLink className="min-h-7 py-1" />
       </div>
     </>
   );

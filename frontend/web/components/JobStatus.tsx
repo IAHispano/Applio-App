@@ -23,17 +23,10 @@ export function JobBadge({ status, error }: { status: Job["status"]; error?: str
           ? "info"
           : "neutral";
 
+  const label = t(status === "running" ? "In Progress" : historyStateLabels[state]);
   return (
-    <Badge variant={variant} dot size="sm" aria-label={t("Status: {status}", { status })}>
-      {interrupted
-        ? t(historyStateLabels[state])
-        : status === "done"
-          ? t("Completed")
-          : status === "running"
-            ? t("In Progress")
-            : status === "error"
-              ? t("Failed")
-              : t("Queued")}
+    <Badge variant={variant} dot size="sm">
+      {label}
     </Badge>
   );
 }
@@ -45,9 +38,10 @@ export interface JobErrorProps {
   jobId?: string;
   className?: string;
   onDismiss?: () => void;
+  notice?: "stopped" | "interrupted";
 }
 
-export function JobError({ message, details, logs, jobId, className, onDismiss }: JobErrorProps) {
+export function JobError({ message, details, logs, jobId, className, onDismiss, notice }: JobErrorProps) {
   const { t } = useI18n();
   if (!message && !details && (!logs || logs.length === 0)) return null;
 
@@ -70,8 +64,8 @@ export function JobError({ message, details, logs, jobId, className, onDismiss }
 
   return (
     <Alert
-      variant="error"
-      title={t("Operation Failed")}
+      variant={notice === "stopped" ? "info" : notice === "interrupted" ? "warning" : "error"}
+      title={t(notice ? historyStateLabels[notice] : "Operation Failed")}
       details={diagnosticText}
       copyText={fullCopyText}
       className={className}
@@ -87,7 +81,6 @@ export function JobCancelButton({ jobId, onError }: { jobId: string; onError?: (
   return (
     <Button
       variant="danger"
-      size="xs"
       onClick={() => stopJob(jobId).catch((e) => onError?.(errMsg(e)))}
       aria-label={t("Cancel")}
       icon={<StopCircle size={13} />}

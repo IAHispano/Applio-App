@@ -1,63 +1,15 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
-import type React from "react";
 import { memo } from "react";
+import Button, { type ButtonProps } from "./Button";
 
-export interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Icon element to render inside the button */
+export interface IconButtonProps extends Omit<ButtonProps, "children" | "icon"> {
   icon: React.ReactNode;
-  /** Accessible label used for aria-label and browser tooltip */
   label: string;
-  /** Visual variant (default: "ghost") */
-  variant?: "ghost" | "default" | "danger";
-  /** Size variant: "sm" is 28x28px (h-7 w-7), "md" is 32x32px (h-8 w-8) */
-  size?: "sm" | "md";
-  /** Whether to render a spinning loader instead of the icon */
-  loading?: boolean;
 }
 
-function IconButtonInner({
-  icon,
-  label,
-  variant = "ghost",
-  size = "sm",
-  loading = false,
-  disabled = false,
-  className = "",
-  type = "button",
-  ...props
-}: IconButtonProps) {
-  const variantClass =
-    variant === "danger"
-      ? "danger border-red-500/30 text-red-400 hover:text-red-300"
-      : variant === "default"
-        ? ""
-        : "ghost text-neutral-300 hover:text-white";
-
-  const sizeClass = size === "md" ? "h-8 w-8 !min-w-8 !min-h-8" : "h-7 w-7";
-
-  return (
-    <button
-      type={type}
-      disabled={disabled || loading}
-      aria-busy={loading || undefined}
-      title={label}
-      aria-label={label}
-      className={`icon-btn rounded-lg ${variantClass} ${sizeClass} ${className}`}
-      style={{ padding: 0 }}
-      {...props}
-    >
-      {loading ? (
-        <Loader2 size={size === "md" ? 16 : 14} className="animate-spin shrink-0" aria-hidden="true" />
-      ) : (
-        <span aria-hidden="true" className="flex items-center justify-center">
-          {icon}
-        </span>
-      )}
-    </button>
-  );
+function IconButton({ icon, label, variant = "ghost", ...props }: IconButtonProps) {
+  return <Button variant={variant} icon={icon} title={label} aria-label={label} {...props} />;
 }
 
-const IconButton = memo(IconButtonInner);
-export default IconButton;
+export default memo(IconButton);

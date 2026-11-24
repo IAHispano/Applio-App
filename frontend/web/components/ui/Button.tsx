@@ -6,13 +6,10 @@ import Link from "@/components/layout/IntentLink";
 import { useI18n } from "@/lib/i18n";
 
 export type ButtonVariant = "primary" | "ghost" | "danger";
-export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
 export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick"> {
   /** Visual style variant */
   variant?: ButtonVariant;
-  /** Size preset: xs = h-8, sm = h-9, md = h-10, lg = h-11 */
-  size?: ButtonSize;
   /** Click handler (works for both `<button>` and `<a>` rendering) */
   onClick?: React.MouseEventHandler<HTMLElement>;
   /** Optional icon placed before children */
@@ -33,24 +30,16 @@ export interface ButtonProps extends Omit<React.ButtonHTMLAttributes<HTMLButtonE
   rel?: string;
 }
 
-const sizeClasses: Record<ButtonSize, string> = {
-  xs: "h-8 px-3 text-xs rounded-lg gap-1.5",
-  sm: "h-9 px-3.5 text-xs rounded-lg gap-1.5",
-  md: "h-10 px-4 text-sm rounded-xl gap-2",
-  lg: "h-11 px-5 text-sm rounded-xl gap-2",
-};
-
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "cta font-medium",
-  ghost: "ghost font-medium text-neutral-200 hover:text-white",
-  danger: "ghost font-medium text-red-400 hover:text-red-300 border-red-500/30",
+  primary: "cta",
+  ghost: "ghost",
+  danger: "danger",
 };
 
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {
       variant = "primary",
-      size = "lg",
       icon,
       iconAfter,
       loading = false,
@@ -62,6 +51,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       download,
       target,
       rel,
+      title,
       type = "button",
       onClick,
       ...rest
@@ -70,12 +60,14 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ) => {
     const { t } = useI18n();
     const isDisabled = disabled || loading;
+    const hasLabel = children != null && typeof children !== "boolean" && children !== "";
+    const tooltip = title ?? (typeof children === "string" ? children : undefined);
     const base =
-      "flex items-center justify-center cursor-pointer select-none transition-colors shrink-0 whitespace-nowrap no-underline max-w-full";
+      "app-button inline-flex items-center justify-center cursor-pointer select-none transition-colors min-w-0 no-underline max-w-full";
     const classes = [
       base,
       variantClasses[variant],
-      sizeClasses[size],
+      !hasLabel && (icon || iconAfter || loading) ? "app-button-icon-only" : "",
       block ? "w-full" : "",
       isDisabled ? "opacity-50 cursor-not-allowed" : "",
       className,
@@ -94,13 +86,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             <span className="sr-only">{t("Loading...")}</span>
           </>
         ) : icon ? (
-          <span className="shrink-0 flex items-center" aria-hidden="true">
+          <span className="app-button-icon" aria-hidden="true">
             {icon}
           </span>
         ) : null}
-        {children && <span className="truncate min-w-0">{children}</span>}
+        {hasLabel && <span className="action-label">{children}</span>}
         {iconAfter && (
-          <span className="shrink-0 flex items-center" aria-hidden="true">
+          <span className="app-button-icon" aria-hidden="true">
             {iconAfter}
           </span>
         )}
@@ -124,6 +116,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             tabIndex={isDisabled ? -1 : undefined}
             onClick={isDisabled ? (event) => event.preventDefault() : onClick}
             className={classes}
+            title={tooltip}
+            aria-label={rest["aria-label"]}
+            aria-describedby={rest["aria-describedby"]}
           >
             {content}
           </Link>
@@ -146,6 +141,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             onClick?.(e);
           }}
           className={classes}
+          title={tooltip}
+          aria-label={rest["aria-label"]}
+          aria-describedby={rest["aria-describedby"]}
         >
           {content}
         </a>
@@ -160,6 +158,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         aria-busy={loading || undefined}
         onClick={onClick}
         className={classes}
+        title={tooltip}
         {...rest}
       >
         {content}

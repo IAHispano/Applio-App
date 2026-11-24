@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import CustomSelect from "@/components/ui/CustomSelect";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
@@ -9,24 +10,20 @@ export default function SampleAudioSource({
   value,
   onSelect,
   onRefresh,
+  disabled,
   compact = false,
 }: {
   audios: string[];
   value: string;
   onSelect: (path: string) => void;
   onRefresh: () => Promise<void>;
+  disabled: boolean;
   compact?: boolean;
 }) {
   const { t } = useI18n();
-  const prefix = compact ? "picker" : "empty";
-  const selectId = compact ? "change-sample-audio-select" : "sample-audio-select";
+  const selectId = useId();
   return (
-    <div
-      id={`${prefix}-panel-samples`}
-      role="tabpanel"
-      aria-labelledby={`${prefix}-tab-samples`}
-      className={compact ? "space-y-2" : "space-y-2 py-1"}
-    >
+    <div className={compact ? "space-y-2" : "space-y-2 py-1"}>
       <label htmlFor={selectId} className="text-xs font-medium text-neutral-300">
         {t("Pick a sample audio from assets/audios")}
       </label>
@@ -36,6 +33,7 @@ export default function SampleAudioSource({
         <CustomSelect
           id={selectId}
           value={value}
+          disabled={disabled}
           onOpen={onRefresh}
           onChange={(event) => {
             if (event.target.value) onSelect(event.target.value);

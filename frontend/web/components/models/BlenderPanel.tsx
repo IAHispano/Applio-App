@@ -2,7 +2,7 @@
 import { Layers, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import JobPanel from "@/components/JobPanel";
-import { Alert, Badge, Button, Card, CardHeader, FileInput } from "@/components/ui";
+import { Alert, Badge, Button, Card, CardHeader, Disclosure, FileInput } from "@/components/ui";
 import ModelDropdown from "@/components/ui/ModelDropdown";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
@@ -76,7 +76,7 @@ export default function BlenderPanel() {
           {error}
         </Alert>
       )}
-      <div className="grid grid-cols-1 xl:grid-cols-2 card-grid">
+      <div className="grid grid-cols-1 lg:grid-cols-2 card-grid">
         {[
           { number: 1, path: p1, file: f1, setPath: setP1, setFile: setF1 },
           { number: 2, path: p2, file: f2, setPath: setP2, setFile: setF2 },
@@ -124,15 +124,12 @@ export default function BlenderPanel() {
                 onFileSelect={source.setFile}
               />
               {source.file && (
-                <Button variant="ghost" size="xs" onClick={() => source.setFile(null)}>
+                <Button variant="ghost" onClick={() => source.setFile(null)}>
                   {t("Clear file selection")}
                 </Button>
               )}
             </div>
-            <details className="rounded-lg border border-[var(--border)] px-3 py-2">
-              <summary className="cursor-pointer text-xs text-[var(--muted)]">
-                {t("Advanced Settings")}
-              </summary>
+            <Disclosure title={t("Advanced Settings")}>
               <div className="space-y-2 pt-3">
                 <label htmlFor={`blend-path-${source.number}`}>
                   {t(source.number === 1 ? "Path to first model" : "Path to second model")}
@@ -147,7 +144,7 @@ export default function BlenderPanel() {
                   }}
                 />
               </div>
-            </details>
+            </Disclosure>
           </Card>
         ))}
       </div>
@@ -157,7 +154,7 @@ export default function BlenderPanel() {
           title={t("Model Fusion & Blending")}
           description={t("Merge and interpolate weights between two compatible voice model checkpoints.")}
           action={
-            <Button variant="ghost" size="xs" icon={<RefreshCw size={13} />} onClick={() => setRatio(0.5)}>
+            <Button variant="ghost" icon={<RefreshCw size={13} />} onClick={() => setRatio(0.5)}>
               {t("Reset defaults")}
             </Button>
           }

@@ -204,7 +204,6 @@ export default function DatasetReview({
       >
         <div className="flex items-end gap-3 flex-wrap">
           <Button
-            size="sm"
             disabled={active || uploading || !datasetPath.trim()}
             icon={<Search size={15} />}
             onClick={() => void scan()}
@@ -213,7 +212,6 @@ export default function DatasetReview({
           </Button>
           {active && jobId && (
             <Button
-              size="sm"
               variant="ghost"
               icon={<Square size={14} />}
               onClick={() => void stopJob(jobId).catch((e) => setError(errMsg(e)))}
@@ -322,8 +320,9 @@ export default function DatasetReview({
                 placeholder={t("Search recordings…")}
                 className="flex-1 min-w-32 text-xs"
               />
+            </div>
+            <div className="action-row [--action-row-width:43rem] [--action-column:11rem]">
               <Button
-                size="xs"
                 variant="ghost"
                 disabled={active}
                 onClick={() =>
@@ -339,7 +338,6 @@ export default function DatasetReview({
                 {t("Exclude all flagged")}
               </Button>
               <Button
-                size="xs"
                 variant="ghost"
                 disabled={active}
                 onClick={() =>
@@ -351,7 +349,6 @@ export default function DatasetReview({
                 {t("Exclude duplicates")}
               </Button>
               <Button
-                size="xs"
                 variant="ghost"
                 disabled={active}
                 onClick={() => setIncluded(new Set(review.clips.filter((c) => !c.error).map((c) => c.id)))}
@@ -382,12 +379,7 @@ export default function DatasetReview({
                       className="min-w-0 flex-1"
                     />
                     {!clip.error && (
-                      <Button
-                        size="xs"
-                        variant="ghost"
-                        icon={<Play size={12} />}
-                        onClick={() => preview(clip)}
-                      >
+                      <Button variant="ghost" icon={<Play size={12} />} onClick={() => preview(clip)}>
                         {t("Listen")}
                       </Button>
                     )}
@@ -423,14 +415,14 @@ export default function DatasetReview({
                       <div key={key} className="flex items-center gap-1.5 flex-wrap text-[11px]">
                         <span className="text-[var(--muted)]">{t(label)}:</span>
                         {clip[key]?.slice(0, 8).map((section) => (
-                          <button
+                          <Button
+                            variant="ghost"
                             key={section.start}
                             type="button"
-                            className="ghost px-2 py-1 text-[11px]"
                             onClick={() => preview(clip, Math.max(0, section.start - 0.2))}
                           >
                             {sectionClock(section.start)}–{sectionClock(section.end)}
-                          </button>
+                          </Button>
                         ))}
                         {(clip[key]?.length || 0) > 8 && (
                           <details className="w-full !border-0 !bg-transparent !p-0">
@@ -439,14 +431,14 @@ export default function DatasetReview({
                             </summary>
                             <div className="flex gap-1.5 flex-wrap pt-2">
                               {clip[key]?.slice(8).map((section) => (
-                                <button
+                                <Button
+                                  variant="ghost"
                                   key={section.start}
                                   type="button"
-                                  className="ghost px-2 py-1 text-[11px]"
                                   onClick={() => preview(clip, Math.max(0, section.start - 0.2))}
                                 >
                                   {sectionClock(section.start)}–{sectionClock(section.end)}
-                                </button>
+                                </Button>
                               ))}
                             </div>
                           </details>
@@ -476,19 +468,14 @@ export default function DatasetReview({
               ))}
             </div>
             {pages > 1 && (
-              <div className="flex items-center justify-between">
-                <Button size="xs" variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>
+              <div className="pagination-actions mx-auto">
+                <Button variant="ghost" disabled={page === 0} onClick={() => setPage(page - 1)}>
                   {t("Previous")}
                 </Button>
                 <span className="field-help">
                   {page + 1} / {pages}
                 </span>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  disabled={page + 1 >= pages}
-                  onClick={() => setPage(page + 1)}
-                >
+                <Button variant="ghost" disabled={page + 1 >= pages} onClick={() => setPage(page + 1)}>
                   {t("Next")}
                 </Button>
               </div>
@@ -526,7 +513,6 @@ export default function DatasetReview({
                 )}
               </p>
               <Button
-                size="sm"
                 disabled={active || stale || included.size === 0}
                 icon={<FolderCheck size={15} />}
                 onClick={() => void prepare()}
@@ -537,7 +523,7 @@ export default function DatasetReview({
                 <Alert variant="success">
                   <div className="space-y-2">
                     <p className="m-0 text-xs break-all">{prepared}</p>
-                    <Button size="sm" icon={<Check size={14} />} onClick={() => onDatasetChange(prepared)}>
+                    <Button icon={<Check size={14} />} onClick={() => onDatasetChange(prepared)}>
                       {t("Use this dataset for training")}
                     </Button>
                   </div>

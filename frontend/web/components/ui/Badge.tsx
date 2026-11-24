@@ -20,8 +20,8 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<BadgeVariant, { badge: string; dot: string }> = {
   neutral: {
-    badge: "bg-white/10 text-neutral-300 border-white/10",
-    dot: "bg-neutral-400",
+    badge: "bg-[var(--input-bg)] text-[var(--text)] border-[var(--border)]",
+    dot: "bg-[var(--muted)]",
   },
   success: {
     badge: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
@@ -40,8 +40,8 @@ const variantStyles: Record<BadgeVariant, { badge: string; dot: string }> = {
     dot: "bg-sky-400",
   },
   outline: {
-    badge: "bg-transparent text-neutral-400 border-white/15",
-    dot: "bg-neutral-400",
+    badge: "bg-transparent text-[var(--muted)] border-[var(--border)]",
+    dot: "bg-[var(--muted)]",
   },
 };
 
@@ -58,11 +58,11 @@ function BadgeInner({
 
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border font-medium whitespace-nowrap select-none ${styles.badge} ${sizeClasses} ${className}`}
+      className={`inline-flex items-center gap-1.5 rounded-full border font-medium max-w-full ${styles.badge} ${sizeClasses} ${className}`}
       {...props}
     >
       {dot && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${styles.dot}`} aria-hidden="true" />}
-      <span>{children}</span>
+      <span className="min-w-0 wrap-anywhere">{children}</span>
     </span>
   );
 }

@@ -1,14 +1,15 @@
 "use client";
 
-import { AudioWaveform, Wand2 } from "lucide-react";
+import { AudioWaveform } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
-import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
+import ConversionStatusCard from "@/components/ConversionStatusCard";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
-import { Alert, Badge, Button, Card, CardHeader, EMBEDDER_MODELS } from "@/components/ui";
+import { Alert, Badge, Card, CardHeader } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
+import { EMBEDDER_MODELS } from "@/components/ui/PitchMethodSelect";
 import VoiceModelCard from "@/components/VoiceModelCard";
 import {
   apiSend,
@@ -288,17 +289,16 @@ export default function InferenceForm() {
   }
 
   const jobActive = job?.status === "queued" || job?.status === "running";
-  const isConverting = submitting || jobActive || Boolean(jobId && !job && !jobError);
+  const awaitingJob = Boolean(jobId && !job && !jobError);
+  const isConverting = submitting || jobActive || awaitingJob;
 
-  const disabledReason = isConverting
-    ? t("Wait for the current conversion to finish.")
-    : !conversion.loaded
-      ? t("Loading model settings…")
-      : !pthPath
-        ? t("Select a voice model.")
-        : !audioFile && !inputPath
-          ? t("Upload an audio file or select a sample from your library.")
-          : "";
+  const disabledReason = !conversion.loaded
+    ? t("Loading model settings…")
+    : !pthPath
+      ? t("Select a voice model.")
+      : !audioFile && !inputPath
+        ? t("Upload an audio file or select a sample from your library.")
+        : "";
 
   return (
     <form onSubmit={onSubmit} className="card-stack w-full max-w-[1920px] mx-auto">
@@ -376,101 +376,16 @@ export default function InferenceForm() {
         setters={conversion.setters}
       />
 
-      {/* Convert Action, Live Progress & WavePlayer Result Card */}
-      <Card>
-        {/* Action Header: Convert button & Status */}
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
-            <Button
-              type="submit"
-              disabled={Boolean(disabledReason)}
-              aria-describedby={disabledReason ? "infer-convert-help" : undefined}
-              icon={<Wand2 size={16} />}
-              className="w-full sm:w-auto"
-            >
-              {isConverting ? t("Converting Audio…") : t("Convert Audio")}
-            </Button>
-
-            {jobActive && (
-              <Button variant="danger" onClick={stop} className="w-full sm:w-auto">
-                {t("Stop Conversion")}
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2">
-            {job && (
-              <Badge
-                variant={
-                  job.status === "error" || missingOutput
-                    ? "danger"
-                    : job.status === "done"
-                      ? "success"
-                      : "info"
-                }
-                dot
-              >
-                {job.status === "error" || missingOutput
-                  ? t("Error")
-                  : job.status === "done"
-                    ? t("Completed")
-                    : job.status === "running"
-                      ? t("In Progress")
-                      : t("Queued")}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {disabledReason && (
-          <p id="infer-convert-help" className="field-help m-0" role="status" aria-live="polite">
-            {disabledReason}
-          </p>
-        )}
-
-        {/* Display measured progress only after the engine reports it. */}
-        {isConverting && (
-          <div className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2">
-            <div
-              className="flex items-center justify-between text-xs text-neutral-300"
-              role="status"
-              aria-live="polite"
-            >
-              <span className="font-medium">
-                {submitting ? (
-                  t("Submitting audio to AI voice model…")
-                ) : job ? (
-                  <JobStage job={job} />
-                ) : (
-                  t("Working…")
-                )}
-              </span>
-              <span className="text-neutral-400 capitalize">
-                {submitting ? t("Submitting…") : job?.status === "queued" ? t("Queued") : t("In Progress")}
-              </span>
-            </div>
-            <JobProgress
-              status={submitting ? "running" : (job?.status ?? "running")}
-              progress={!submitting && job?.status === "running" ? job.progress : undefined}
-            />
-          </div>
-        )}
-
-        {/* Submit or Runtime Error */}
-        {(submitError || (jobId && jobError)) && <Alert variant="error">{submitError || jobError}</Alert>}
-        {missingOutput && (
-          <Alert variant="error">{t("Inference finished but no output file was found.")}</Alert>
-        )}
-
-        {job && job.status === "error" && (
-          <JobError
-            message={job.error || t("Inference job failed.")}
-            details={job.errorDetails}
-            logs={job.logs}
-            jobId={job.id}
-          />
-        )}
-      </Card>
+      <ConversionStatusCard
+        label={t("Convert Audio")}
+        disabledReason={disabledReason}
+        pending={submitting ? "submitting" : awaitingJob ? "loading" : undefined}
+        job={job}
+        onStop={stop}
+        error={submitError || (jobId ? jobError : "")}
+        failureMessage={t("Inference job failed.")}
+        missingOutput={missingOutput ? t("Inference finished but no output file was found.") : undefined}
+      />
       {job && directAudioUrl && job.status === "done" && (
         <AudioWavePlayer
           key={job.id}

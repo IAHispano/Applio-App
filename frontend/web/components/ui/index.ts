@@ -1,9 +1,7 @@
 export { type AlertProps, type AlertVariant, default as Alert } from "@/components/ui/Alert";
-export { default as AudioDropzone } from "@/components/ui/AudioDropzone";
 export { type BadgeProps, type BadgeVariant, default as Badge } from "@/components/ui/Badge";
 export {
   type ButtonProps,
-  type ButtonSize,
   type ButtonVariant,
   default as Button,
 } from "@/components/ui/Button";
@@ -16,17 +14,7 @@ export { default as FileInput, type FileInputProps } from "@/components/ui/FileI
 export { default as FormField, type FormFieldProps } from "@/components/ui/FormField";
 export { default as IconButton, type IconButtonProps } from "@/components/ui/IconButton";
 export { default as Modal } from "@/components/ui/Modal";
-export { default as ModelDropdown } from "@/components/ui/ModelDropdown";
-export {
-  EMBEDDER_MODELS,
-  EmbedderSelect,
-  F0_METHODS,
-  PitchMethodSelect,
-  REALTIME_F0_METHODS,
-} from "@/components/ui/PitchMethodSelect";
 export { default as SegmentedControl } from "@/components/ui/SegmentedControl";
 export { default as SliderField } from "@/components/ui/SliderField";
-export { default as SourceTabs, type SourceTab } from "@/components/ui/SourceTabs";
 export { default as StatTile, type StatTileProps } from "@/components/ui/StatTile";
 export { default as ToggleField, type ToggleFieldProps } from "@/components/ui/ToggleField";
-export { default as VoiceModelField, type VoiceModelFieldProps } from "@/components/ui/VoiceModelField";

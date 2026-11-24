@@ -17,9 +17,8 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
-import { Badge, Button, Card, CardHeader, Disclosure } from "@/components/ui";
+import { Badge, Button, Card, CardHeader, Disclosure, EmptyState } from "@/components/ui";
 import { errMsg } from "@/lib/api";
 import { type BridgeState, type DesktopBridgeMode, desktopBridgeMode } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
@@ -65,14 +64,17 @@ export default function BridgeModeCard() {
     let disposed = false;
     setQr("");
     setCopied(false);
-    if (link)
-      void QRCode.toDataURL(link, { width: 240, margin: 3, errorCorrectionLevel: "M" })
-        .then((value) => {
-          if (!disposed) setQr(value);
-        })
-        .catch((e) => {
-          if (!disposed) setError(errMsg(e));
-        });
+    if (!link) return;
+    void import("qrcode")
+      .then(({ default: QRCode }) =>
+        QRCode.toDataURL(link, { width: 240, margin: 3, errorCorrectionLevel: "M" }),
+      )
+      .then((value) => {
+        if (!disposed) setQr(value);
+      })
+      .catch((e) => {
+        if (!disposed) setError(errMsg(e));
+      });
     return () => {
       disposed = true;
     };
@@ -104,8 +106,8 @@ export default function BridgeModeCard() {
   if (!available)
     return (
       <Card>
-        <CardHeader
-          icon={<Monitor size={20} />}
+        <EmptyState
+          icon={<Monitor size={24} />}
           title={t("Bridge Mode is unavailable.")}
           description={t("Open the desktop app to share this computer with your other devices.")}
         />
@@ -143,7 +145,6 @@ export default function BridgeModeCard() {
             </Badge>
             {(sharing || starting) && (
               <Button
-                size="sm"
                 variant="ghost"
                 icon={<Unplug size={14} />}
                 onClick={() => run((bridge) => bridge.stop())}
@@ -189,7 +190,6 @@ export default function BridgeModeCard() {
               </div>
             ) : (
               <Button
-                size="sm"
                 icon={<Link2 size={15} />}
                 loading={busy}
                 onClick={() => {
@@ -272,7 +272,6 @@ export default function BridgeModeCard() {
                     className="min-w-0 flex-1 text-xs"
                   />
                   <Button
-                    size="sm"
                     icon={copied ? <Check size={15} /> : <Copy size={15} />}
                     onClick={async () => {
                       setError("");
@@ -304,7 +303,6 @@ export default function BridgeModeCard() {
                 {t("Only devices you approve can connect")}
               </span>
               <Button
-                size="xs"
                 variant="ghost"
                 disabled={busy}
                 icon={<RefreshCw size={13} />}
@@ -344,9 +342,8 @@ export default function BridgeModeCard() {
                     <span aria-hidden="true"> </span>
                     {device.code.slice(4)}
                   </code>
-                  <div className="bridge-device-actions">
+                  <div className="action-row [--action-row-width:17rem] [--action-column:6.5rem]">
                     <Button
-                      size="sm"
                       disabled={busy}
                       icon={<Check size={15} />}
                       onClick={() => run((bridge) => bridge.approve(device.id))}
@@ -354,7 +351,6 @@ export default function BridgeModeCard() {
                       {t("Approve")}
                     </Button>
                     <Button
-                      size="sm"
                       variant="ghost"
                       disabled={busy}
                       icon={<X size={15} />}
@@ -390,7 +386,6 @@ export default function BridgeModeCard() {
                     </p>
                   </div>
                   <Button
-                    size="sm"
                     variant="ghost"
                     disabled={busy}
                     icon={<Unplug size={14} />}

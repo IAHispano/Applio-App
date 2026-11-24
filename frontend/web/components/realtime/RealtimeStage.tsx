@@ -8,6 +8,7 @@ export default function Stage({
   title,
   description,
   icon,
+  action,
   children,
   disabled = false,
 }: {
@@ -15,12 +16,13 @@ export default function Stage({
   title: string;
   description: string;
   icon: ReactNode;
+  action?: ReactNode;
   children: ReactNode;
   disabled?: boolean;
 }) {
   return (
     <Card as="section" aria-label={`${step}. ${title}`}>
-      <CardHeader step={step} title={title} description={description} icon={icon} />
+      <CardHeader step={step} title={title} description={description} icon={icon} action={action} />
       <fieldset disabled={disabled} className="min-w-0 border-0 m-0 p-0">
         {children}
       </fieldset>

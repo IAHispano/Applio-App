@@ -27,6 +27,7 @@ function SegmentedControlInner<T extends string>({
   tabPanels = false,
 }: SegmentedControlProps<T>) {
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const activeIndex = options.findIndex((option) => option.value === value);
   const move = (index: number) => {
     const nextIdx = (index + options.length) % options.length;
     onChange(options[nextIdx].value);
@@ -59,10 +60,15 @@ function SegmentedControlInner<T extends string>({
 
   return (
     // biome-ignore lint/a11y/useAriaPropsSupportedByRole: role is tablist|radiogroup, aria-label is valid on both
-    <div className="segmented max-w-full min-w-0 flex-wrap" role={listRole} aria-label={ariaLabel}>
+    <div
+      className="segmented max-w-full min-w-0"
+      style={{ width: `min(100%, calc(${options.length} * var(--segment-width, 9.5rem)))` }}
+      role={listRole}
+      aria-label={ariaLabel}
+    >
       {options.map((option, idx) => {
         const Icon = option.icon;
-        const active = option.value === value;
+        const active = idx === activeIndex;
         return (
           // biome-ignore lint/a11y/useAriaPropsSupportedByRole: tab branch uses aria-selected, radio branch uses aria-checked
           <button
@@ -72,17 +78,18 @@ function SegmentedControlInner<T extends string>({
               itemRefs.current[idx] = el;
             }}
             role={itemRole}
-            tabIndex={active ? 0 : -1}
+            tabIndex={idx === Math.max(0, activeIndex) ? 0 : -1}
             id={tabPanels ? `tab-${option.value}` : undefined}
             aria-controls={tabPanels ? `panel-${option.value}` : undefined}
             aria-selected={tabPanels ? active : undefined}
             aria-checked={!tabPanels ? active : undefined}
-            className={`segmented-item shrink-0 whitespace-nowrap ${active ? "is-active" : ""}`}
+            className={`segmented-item max-w-full min-w-0 ${active ? "is-active" : ""}`}
+            title={option.label}
             onClick={() => onChange(option.value)}
             onKeyDown={(e) => handleKeyDown(e, idx)}
           >
-            {Icon && <Icon size={14} aria-hidden="true" />}
-            {option.label}
+            {Icon && <Icon size={14} className="shrink-0" aria-hidden="true" />}
+            <span className="action-label">{option.label}</span>
           </button>
         );
       })}

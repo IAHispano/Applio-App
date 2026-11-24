@@ -3,6 +3,7 @@
 import { Check, ChevronDown, Mic2, Search, X } from "lucide-react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { type MenuPosition, positionFloatingMenu } from "@/lib/floating-menu";
 import { useI18n } from "@/lib/i18n";
 import { useDialogPortalTarget } from "./Dialog";
 
@@ -34,13 +35,6 @@ function modelFolder(path: string): string {
     return parts.slice(0, -1).join("/");
   }
   return "logs";
-}
-
-interface MenuPosition {
-  left: number;
-  width: number;
-  top?: number;
-  bottom?: number;
 }
 
 export default function ModelDropdown({
@@ -99,25 +93,7 @@ export default function ModelDropdown({
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
     if (!el || typeof window === "undefined") return;
-    const rect = el.getBoundingClientRect();
-    const gap = 6;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceBelow < 260 && rect.top > spaceBelow;
-    const width = Math.max(rect.width, 240);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-    if (openUp) {
-      setMenuPos({
-        left,
-        width,
-        bottom: Math.max(8, window.innerHeight - rect.top + gap),
-      });
-    } else {
-      setMenuPos({
-        left,
-        width,
-        top: Math.min(rect.bottom + gap, window.innerHeight - 120),
-      });
-    }
+    setMenuPos(positionFloatingMenu(el, 240, 144));
   }, []);
 
   const filteredModels = useMemo(() => {
@@ -249,6 +225,9 @@ export default function ModelDropdown({
     function handleReposition() {
       updatePosition();
     }
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", handleReposition);
+    viewport?.addEventListener("scroll", handleReposition);
     document.addEventListener("mousedown", handlePointerDown);
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("resize", handleReposition);
@@ -258,6 +237,8 @@ export default function ModelDropdown({
       document.removeEventListener("mousedown", handlePointerDown);
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", handleReposition);
+      viewport?.removeEventListener("resize", handleReposition);
+      viewport?.removeEventListener("scroll", handleReposition);
       document.removeEventListener("scroll", handleReposition, true);
     };
   }, [open, updatePosition]);
@@ -274,6 +255,7 @@ export default function ModelDropdown({
               zIndex: 9999,
               left: menuPos.left,
               width: menuPos.width,
+              maxHeight: menuPos.maxHeight,
               top: menuPos.top,
               bottom: menuPos.bottom,
               background: "var(--panel)",
@@ -321,7 +303,7 @@ export default function ModelDropdown({
               id={listId}
               role="listbox"
               aria-label={t("Voice models")}
-              className="max-h-64 overflow-y-auto py-1 grow"
+              className="min-h-0 max-h-64 overflow-y-auto py-1 grow"
             >
               {filteredModels.length === 0 ? (
                 <div

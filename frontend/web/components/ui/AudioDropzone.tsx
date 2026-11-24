@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, Mic, Music, SquarePlay, UploadCloud } from "lucide-react";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useId, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import MicrophoneSource from "@/components/audio-source/MicrophoneSource";
 import SampleAudioSource from "@/components/audio-source/SampleAudioSource";
@@ -11,7 +11,8 @@ import YoutubeSource from "@/components/audio-source/YoutubeSource";
 import { fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { usePreviewUrl } from "@/lib/usePreviewUrl";
-import SourceTabs, { type SourceTab } from "./SourceTabs";
+import Button from "./Button";
+import SourceTabs, { type SourceTab, SourceTabPanel } from "./SourceTabs";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;
@@ -50,6 +51,9 @@ function AudioDropzoneInner({
   const [tab, setTab] = useState<DropzoneTab>("upload");
   const [isDragging, setIsDragging] = useState(false);
   const [showSourcePicker, setShowSourcePicker] = useState(false);
+  const sourceId = useId();
+  const changeSourceRef = useRef<HTMLButtonElement | null>(null);
+  const pendingFocus = useRef<"change-source" | "current-tab" | null>(null);
 
   const [localSampleAudios, setLocalSampleAudios] = useState<string[]>(sampleAudios);
 
@@ -111,6 +115,17 @@ function AudioDropzoneInner({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const hasAudio = !!audioFile || !!inputPath;
+  const activeTab = tab === "youtube" && !youtube ? "upload" : tab;
+
+  useEffect(() => {
+    if (pendingFocus.current === "change-source" && hasAudio && !showSourcePicker) {
+      changeSourceRef.current?.focus({ preventScroll: true });
+      pendingFocus.current = null;
+    } else if (pendingFocus.current === "current-tab" && !hasAudio) {
+      document.getElementById(`${sourceId}-tab-${activeTab}`)?.focus({ preventScroll: true });
+      pendingFocus.current = null;
+    }
+  }, [activeTab, hasAudio, showSourcePicker, sourceId]);
 
   const previewSrc = usePreviewUrl(audioFile, inputPath) || "";
 
@@ -147,6 +162,7 @@ function AudioDropzoneInner({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (file) {
+      if (!hasAudio || showSourcePicker) pendingFocus.current = "change-source";
       onFileSelect(file);
       onPathSelect("");
       resetYoutube();
@@ -155,6 +171,7 @@ function AudioDropzoneInner({
   };
 
   const clearAudio = () => {
+    pendingFocus.current = "current-tab";
     onFileSelect(null);
     onPathSelect("");
     setShowSourcePicker(false);
@@ -163,6 +180,7 @@ function AudioDropzoneInner({
   };
 
   function handleSampleSelect(path: string) {
+    pendingFocus.current = "change-source";
     resetYoutube();
     onPathSelect(path);
     onFileSelect(null);
@@ -184,26 +202,25 @@ function AudioDropzoneInner({
       />
 
       {/* When audio is active, show the modern WaveSurfer player preview */}
-      {hasAudio ? (
+      {hasAudio && (
         <div className="space-y-2.5">
-          <div className="flex items-center justify-between gap-2 text-xs text-neutral-400 px-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-neutral-400 px-1">
             <span className="flex items-center gap-1.5 font-medium text-neutral-300 min-w-0">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
               <span className="truncate">{t("Audio Source Preview")}</span>
             </span>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 min-w-0">
               {audioFile && <span className="text-neutral-400">{formatBytes(audioFile.size)}</span>}
-              <button
-                type="button"
+              <Button
+                ref={changeSourceRef}
+                variant="ghost"
                 onClick={toggleSourcePicker}
-                className="text-xs text-white/80 hover:text-white flex items-center gap-1 transition-colors cursor-pointer"
+                aria-expanded={showSourcePicker}
+                aria-controls={showSourcePicker ? sourceId : undefined}
+                iconAfter={<ChevronDown className={showSourcePicker ? "rotate-180" : ""} />}
               >
-                <span>{showSourcePicker ? t("Hide selector") : t("Change source")}</span>
-                <ChevronDown
-                  size={13}
-                  className={`transition-transform duration-200 ${showSourcePicker ? "rotate-180" : ""}`}
-                />
-              </button>
+                {showSourcePicker ? t("Hide selector") : t("Change source")}
+              </Button>
             </div>
           </div>
 
@@ -215,73 +232,49 @@ function AudioDropzoneInner({
             onRemove={clearAudio}
             onReplace={() => fileInputRef.current?.click()}
           />
-
-          {/* Quick source selector when toggled */}
-          {showSourcePicker && (
-            <div className="p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200">
-              <SourceTabs
-                tabs={sourceTabs}
-                active={tab}
-                onSelect={selectTab}
-                idPrefix="picker"
-                label={t("Audio source selection")}
-              />
-
-              {tab === "upload" && (
-                <div id="picker-panel-upload" role="tabpanel" aria-labelledby="picker-tab-upload">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full py-6 px-4 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.05] text-center cursor-pointer transition-all"
-                  >
-                    <p className="text-xs font-medium text-white m-0">
-                      {t("Click to choose a new audio file or drag & drop here")}
-                    </p>
-                  </button>
-                </div>
-              )}
-
-              {tab === "samples" && (
-                <SampleAudioSource
-                  audios={localSampleAudios}
-                  value={inputPath}
-                  onSelect={handleSampleSelect}
-                  onRefresh={refreshSampleAudios}
-                  compact={true}
-                />
-              )}
-
-              {youtube && tab === "youtube" && (
-                <div id="picker-panel-youtube" role="tabpanel" aria-labelledby="picker-tab-youtube">
-                  <YoutubeSource source={youtubeSource} idSuffix="change" disabled={disabled} />
-                </div>
-              )}
-
-              {tab === "mic" && (
-                <MicrophoneSource microphone={microphone} disabled={disabled} compact={true} />
-              )}
-            </div>
-          )}
         </div>
-      ) : (
-        /* When no audio is selected, render tab switcher and picker contents */
-        <div className="space-y-3">
-          {/* Tab Switcher: Upload / Samples / Mic */}
-          <div className="flex items-center justify-between gap-2 max-w-full">
-            <SourceTabs
-              tabs={sourceTabs.map((item) =>
-                item.id === "upload" ? { ...item, label: t("Upload / Drag & Drop") } : item,
-              )}
-              active={tab}
-              onSelect={selectTab}
-              idPrefix="empty"
-              label={t("Audio source selection")}
-              className="min-w-0"
-            />
-          </div>
+      )}
 
-          {tab === "upload" && (
-            <div id="empty-panel-upload" role="tabpanel" aria-labelledby="empty-tab-upload">
+      {(!hasAudio || showSourcePicker) && (
+        <div
+          id={sourceId}
+          className={
+            hasAudio
+              ? "p-3 bg-neutral-900/60 border border-white/10 rounded-2xl space-y-3 transition-all animate-in fade-in duration-200"
+              : "space-y-3"
+          }
+        >
+          <SourceTabs
+            tabs={
+              hasAudio
+                ? sourceTabs
+                : sourceTabs.map((item) =>
+                    item.id === "upload" ? { ...item, label: t("Upload / Drag & Drop") } : item,
+                  )
+            }
+            active={activeTab}
+            onSelect={selectTab}
+            idPrefix={sourceId}
+            label={t("Audio source selection")}
+          />
+
+          <SourceTabPanel idPrefix={sourceId} tab="upload" active={activeTab} focusable={disabled}>
+            {hasAudio ? (
+              <button
+                type="button"
+                onDragOver={handleDragOver}
+                onDragEnter={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={disabled}
+                className="w-full py-6 px-4 rounded-xl border border-dashed border-white/20 hover:border-white/40 bg-white/[0.02] hover:bg-white/[0.05] text-center cursor-pointer transition-all whitespace-normal"
+              >
+                <p className="text-xs font-medium text-white m-0">
+                  {t("Click to choose a new audio file or drag & drop here")}
+                </p>
+              </button>
+            ) : (
               <button
                 type="button"
                 onDragOver={handleDragOver}
@@ -318,26 +311,34 @@ function AudioDropzoneInner({
                   ))}
                 </div>
               </button>
-            </div>
-          )}
+            )}
+          </SourceTabPanel>
 
-          {tab === "samples" && (
+          <SourceTabPanel
+            idPrefix={sourceId}
+            tab="samples"
+            active={activeTab}
+            focusable={!localSampleAudios.length || disabled}
+          >
             <SampleAudioSource
               audios={localSampleAudios}
               value={inputPath}
               onSelect={handleSampleSelect}
               onRefresh={refreshSampleAudios}
-              compact={false}
+              compact={hasAudio}
+              disabled={disabled}
             />
+          </SourceTabPanel>
+
+          {youtube && (
+            <SourceTabPanel idPrefix={sourceId} tab="youtube" active={activeTab} focusable={disabled}>
+              <YoutubeSource source={youtubeSource} idSuffix={sourceId} disabled={disabled} />
+            </SourceTabPanel>
           )}
 
-          {youtube && tab === "youtube" && (
-            <div id="empty-panel-youtube" role="tabpanel" aria-labelledby="empty-tab-youtube">
-              <YoutubeSource source={youtubeSource} idSuffix="empty" disabled={disabled} />
-            </div>
-          )}
-
-          {tab === "mic" && <MicrophoneSource microphone={microphone} disabled={disabled} compact={false} />}
+          <SourceTabPanel idPrefix={sourceId} tab="mic" active={activeTab} focusable={disabled}>
+            <MicrophoneSource microphone={microphone} disabled={disabled} compact={hasAudio} />
+          </SourceTabPanel>
         </div>
       )}
     </div>

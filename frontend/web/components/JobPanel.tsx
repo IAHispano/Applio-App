@@ -120,9 +120,9 @@ export function JobPanelContent({
             alt={`Analysis plot result for job ${job.id}`}
             className="w-full h-auto rounded-xl border border-white/10"
           />
-          <div className="flex items-center justify-between pt-1">
-            <span className="text-xs text-neutral-400">({fileBasename(out)})</span>
-            <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+          <div className="form-action-row pt-1">
+            <span className="field-help m-0 wrap-anywhere">({fileBasename(out)})</span>
+            <Button href={outputUrl(out)} download icon={<Download size={13} />}>
               {t("Download image")}
             </Button>
           </div>
@@ -130,23 +130,22 @@ export function JobPanelContent({
       )}
 
       {out && !isAudioFile(out) && !isImageFile(out) && (
-        <div className="flex items-center justify-between p-3 rounded-xl bg-black/30 border border-white/5">
-          <span className="text-xs text-neutral-300 font-medium truncate">{fileBasename(out)}</span>
-          <Button href={outputUrl(out)} download size="sm" icon={<Download size={13} />}>
+        <div className="form-action-row p-3 rounded-xl bg-black/30 border border-white/5">
+          <span className="text-xs text-neutral-300 font-medium min-w-0 wrap-anywhere">
+            {fileBasename(out)}
+          </span>
+          <Button href={outputUrl(out)} download icon={<Download size={13} />}>
             {t("Download")}
           </Button>
         </div>
       )}
 
       {sidecars.map((s) => (
-        <div
-          key={s.label}
-          className="flex items-center justify-between p-2.5 rounded-xl bg-black/30 border border-white/5"
-        >
-          <span className="text-xs text-neutral-300">
+        <div key={s.label} className="form-action-row p-3 rounded-xl bg-black/30 border border-white/5">
+          <span className="text-xs text-neutral-300 min-w-0 wrap-anywhere">
             {s.label}: {fileBasename(s.file)}
           </span>
-          <Button href={outputUrl(s.file)} download variant="ghost" size="xs" icon={<Download size={12} />}>
+          <Button href={outputUrl(s.file)} download variant="ghost" icon={<Download size={12} />}>
             {t("Download")}
           </Button>
         </div>

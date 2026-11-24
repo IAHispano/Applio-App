@@ -1,13 +1,13 @@
 "use client";
 
-import { ArrowRight, Copy, Download, RefreshCw } from "lucide-react";
+import { Activity, ArrowRight, Copy, Download, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JobDetails from "@/components/JobDetails";
 import { JobBadge, JobCancelButton, JobProgress } from "@/components/JobStatus";
 import PageHeader from "@/components/layout/PageHeader";
 import SetupLogLine from "@/components/setup/SetupLogLine";
-import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import { Alert, Badge, Button, Card, Disclosure, EmptyState, StatTile } from "@/components/ui";
 import { apiGet, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { duration, historyState, historyStateLabels, jobContext } from "@/lib/job-history";
@@ -101,7 +101,6 @@ export default function JobsPage() {
         description={t("Track progress, inspect settings and results, and revisit previous work.")}
       >
         <Button
-          size="sm"
           variant="ghost"
           icon={<RefreshCw size={14} />}
           loading={refreshing}
@@ -124,12 +123,13 @@ export default function JobsPage() {
         <StatTile label={t("Stopped")} value={jobs.filter((job) => historyState(job) === "stopped").length} />
       </div>
       {loading ? (
-        <Card>{t("Loading activity…")}</Card>
+        <Card role="status">{t("Loading activity…")}</Card>
       ) : filtered.length === 0 ? (
         <Card>
-          <p className="m-0 text-sm text-[var(--muted)]">
-            {t(jobs.length ? "No jobs match these filters." : "No jobs yet.")}
-          </p>
+          <EmptyState
+            icon={<Activity size={22} />}
+            title={t(jobs.length ? "No jobs match these filters." : "No jobs yet.")}
+          />
         </Card>
       ) : (
         <ul className="list-none m-0 p-0 card-stack">
@@ -142,9 +142,11 @@ export default function JobsPage() {
                 <Card className="space-y-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
-                      <Link href={jobHref(job.id)} className="font-semibold text-sm hover:underline">
-                        {t(job.label || job.type)}
-                      </Link>
+                      <h2 className="card-heading m-0">
+                        <Link href={jobHref(job.id)} className="hover:underline wrap-anywhere">
+                          {t(job.label || job.type)}
+                        </Link>
+                      </h2>
                       <p className="m-0 mt-1 text-xs text-[var(--muted)]">
                         {new Date(job.createdAt).toLocaleString()} · {t("Elapsed")}:{" "}
                         {duration(job.createdAt, job.finishedAt || now)}
@@ -162,7 +164,7 @@ export default function JobsPage() {
                     </div>
                   </div>
                   {jobContext(job).length > 0 && (
-                    <dl className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <dl className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm bg-[var(--input-bg)] border border-[var(--border)] rounded-lg p-3">
                       {jobContext(job).map(([label, value]) => (
                         <div key={label} className="min-w-0">
                           <dt className="text-[var(--muted)] mb-1">{t(label)}</dt>
@@ -196,14 +198,13 @@ export default function JobsPage() {
                       {duration(job.startedAt, job.finishedAt || now)}
                     </p>
                   )}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="ghost" size="xs" href={jobHref(job.id)} icon={<ArrowRight size={13} />}>
+                  <div className="action-row [--action-row-width:40rem]">
+                    <Button variant="ghost" href={jobHref(job.id)} icon={<ArrowRight size={13} />}>
                       {t("Open activity")}
                     </Button>
                     {job.status === "done" && job.outputFile && (
                       <Button
                         variant="ghost"
-                        size="xs"
                         href={outputUrl(job.outputFile)}
                         download
                         icon={<Download size={13} />}
@@ -213,7 +214,6 @@ export default function JobsPage() {
                     )}
                     <Button
                       variant="ghost"
-                      size="xs"
                       icon={<Copy size={13} />}
                       onClick={() => {
                         void navigator.clipboard
@@ -224,10 +224,7 @@ export default function JobsPage() {
                       {t("Copy job details")}
                     </Button>
                   </div>
-                  <details className="">
-                    <summary className="cursor-pointer text-xs text-[var(--muted)] hover:text-[var(--text)]">
-                      {t("Settings, results and recent logs")}
-                    </summary>
+                  <Disclosure title={t("Settings, results and recent logs")}>
                     <div className="mt-4 space-y-4">
                       <JobDetails job={job} />
                       {job.logs.length > 0 && (
@@ -243,7 +240,7 @@ export default function JobsPage() {
                         </section>
                       )}
                     </div>
-                  </details>
+                  </Disclosure>
                 </Card>
               </li>
             );

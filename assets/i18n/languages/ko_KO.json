@@ -1179,6 +1179,7 @@
   "Record directly with microphone": "마이크로 직접 녹음",
   "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.": "'화면 녹화'로 문제를 기록하거나, 문제가 난 페이지와 오류가 보이도록 스크린샷을 찍어 주세요.",
   "Recording": "녹음",
+  "Record your converted voice and find a stable buffer size.": "변환된 음성을 녹음하고 안정적인 버퍼 크기를 찾으세요.",
   "Recording & Calibration": "녹음 및 보정",
   "Recording in progress…": "녹음 진행 중…",
   "Recording is outside the reviewed folder.": "녹음이 검토된 폴더 외부에 있습니다.",

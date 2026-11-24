@@ -380,15 +380,14 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
 
   return (
     <div className="space-y-4 animate-in fade-in duration-200">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <span className="text-xs text-neutral-400 font-medium">{t("Waveform")}</span>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="xs" onClick={() => applyZoom(1)} disabled={!isReady}>
+        <div className="action-row">
+          <Button variant="ghost" onClick={() => applyZoom(1)} disabled={!isReady}>
             {t("Reset Zoom")}
           </Button>
           <Button
             variant="ghost"
-            size="xs"
             onClick={downloadSpectrogram}
             disabled={!isReady}
             icon={<Download size={13} />}

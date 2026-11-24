@@ -58,17 +58,16 @@ export default function BatchResults({ job }: { job: Job }) {
             </div>
             {item.error && <p className="text-xs text-[var(--danger-text)] m-0 break-words">{item.error}</p>}
             {item.status === "done" && (
-              <div className="flex gap-3 items-center flex-wrap">
+              <div className="form-action-row">
                 {/* biome-ignore lint/a11y/useMediaCaption: User-generated voice conversion has no transcript available. */}
                 <audio
                   controls
                   preload="none"
-                  className="h-9 max-w-full"
+                  className="h-[var(--action-height)] w-full min-w-0"
                   aria-label={`${item.input} — ${fileBasename(item.model)}`}
                   src={`/api/inference/batch/${encodeURIComponent(job.id)}/outputs/${currentPage * 20 + index}`}
                 />
                 <Button
-                  size="sm"
                   variant="ghost"
                   href={`/api/inference/batch/${encodeURIComponent(job.id)}/outputs/${currentPage * 20 + index}`}
                   download={fileBasename(item.input)}
@@ -82,20 +81,14 @@ export default function BatchResults({ job }: { job: Job }) {
         ))}
       </div>
       {pages > 1 && (
-        <div className="flex justify-end gap-2 items-center">
-          <Button
-            size="xs"
-            variant="ghost"
-            disabled={currentPage === 0}
-            onClick={() => setPage(currentPage - 1)}
-          >
+        <div className="pagination-actions ms-auto">
+          <Button variant="ghost" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)}>
             {t("Previous")}
           </Button>
           <span className="field-help">
             {currentPage + 1} / {pages}
           </span>
           <Button
-            size="xs"
             variant="ghost"
             disabled={currentPage === pages - 1}
             onClick={() => setPage(currentPage + 1)}

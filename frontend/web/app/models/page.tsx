@@ -15,7 +15,6 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PageHeader from "@/components/layout/PageHeader";
@@ -380,7 +379,8 @@ export default function ModelsPage() {
         description={t(
           "Manage your voice model collection, inspect checkpoint metadata, and blend or download weights.",
         )}
-      >
+      />
+      <div className="flex min-w-0 [--segment-width:13.5rem] [--segment-column:12.5rem]">
         <SegmentedControl
           value={section}
           onChange={setSection}
@@ -394,7 +394,7 @@ export default function ModelsPage() {
             { value: "export", label: t("Export"), icon: FileDown },
           ]}
         />
-      </PageHeader>
+      </div>
 
       {error && (
         <div
@@ -409,62 +409,65 @@ export default function ModelsPage() {
       {/* 1. MODEL LIBRARY VIEW */}
       {section === "library" && (
         <div id="panel-library" role="tabpanel" aria-labelledby="tab-library" className="space-y-4">
-          {/* Controls bar: Search, Refresh, Download CTA */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-            <div className="flex items-center w-full sm:flex-1 sm:min-w-0 sm:max-w-md 2xl:max-w-lg px-1">
-              <Search
-                size={15}
-                className="text-neutral-500 shrink-0 mr-2 pointer-events-none"
-                aria-hidden="true"
-              />
-              <input
-                type="text"
-                placeholder={t("Search models by name or folder…")}
-                aria-label={t("Search models by name or folder")}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="bg-transparent border-0 py-2 px-0 text-sm text-white placeholder:text-neutral-600 focus:outline-none w-full"
-              />
-              {search && (
-                <IconButton icon={<X size={14} />} label={t("Clear search")} onClick={() => setSearch("")} />
-              )}
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
-              <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer select-none mr-1">
-                <input
-                  type="checkbox"
-                  checked={allFilteredSelected}
-                  ref={(el) => {
-                    if (el) el.indeterminate = !allFilteredSelected && selectedCount > 0;
-                  }}
-                  onChange={toggleSelectAllFiltered}
-                  disabled={filteredModels.length === 0}
-                  aria-label={t("Select all models")}
+          <div className="grid gap-3 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3">
+            <div className="grid items-center gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="relative flex min-w-0 flex-1 items-center gap-2">
+                  <Search
+                    size={15}
+                    className="pointer-events-none absolute start-3 text-[var(--muted)]"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="text"
+                    placeholder={t("Search models by name or folder…")}
+                    aria-label={t("Search models by name or folder")}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="min-w-0 w-full ps-9!"
+                  />
+                  {search && (
+                    <IconButton
+                      icon={<X size={14} />}
+                      label={t("Clear search")}
+                      onClick={() => setSearch("")}
+                    />
+                  )}
+                </div>
+                <label className="flex items-center gap-2 text-xs text-neutral-400 cursor-pointer select-none shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={allFilteredSelected}
+                    ref={(el) => {
+                      if (el) el.indeterminate = !allFilteredSelected && selectedCount > 0;
+                    }}
+                    onChange={toggleSelectAllFiltered}
+                    disabled={filteredModels.length === 0}
+                    aria-label={t("Select all models")}
+                  />
+                  <span>{t("All")}</span>
+                </label>
+              </div>
+              <div className="flex min-w-0 items-center justify-end gap-2">
+                <Button onClick={() => setSection("download")} icon={<Download />}>
+                  {t("Get Models")}
+                </Button>
+                <IconButton
+                  label={t("Refresh models and indexes")}
+                  onClick={loadLibrary}
+                  disabled={loading}
+                  icon={<RefreshCw className={loading ? "animate-spin" : undefined} />}
                 />
-                <span>{t("All")}</span>
-              </label>
-              <Button
-                variant="ghost"
-                onClick={loadLibrary}
-                disabled={loading}
-                icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
-              >
-                {t("Refresh models and indexes")}
-              </Button>
-
-              <Button onClick={() => setSection("download")} icon={<Download size={14} />}>
-                {t("Get Models")}
-              </Button>
-
-              {selectedCount > 0 && (
-                <span className="flex items-center gap-2 pl-2 ml-1" role="status" aria-live="polite">
-                  <span className="text-xs text-neutral-200 font-medium tabular-nums whitespace-nowrap">
-                    {selectedCount} {t("selected")}
-                  </span>
+              </div>
+            </div>
+            {selectedCount > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--border)] pt-3">
+                <span className="text-xs text-[var(--text)] font-medium tabular-nums" role="status">
+                  {selectedCount} {t("selected")}
+                </span>
+                <div className="flex min-w-0 max-w-full items-center gap-2">
                   <Button
                     variant="danger"
-                    size="xs"
                     onClick={() => setDeleteTargets(models.filter((m) => selected.has(m.id)))}
                     icon={<Trash2 size={13} />}
                   >
@@ -475,9 +478,9 @@ export default function ModelsPage() {
                     label={t("Clear selection")}
                     onClick={() => setSelected(new Set())}
                   />
-                </span>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Model Cards Grid */}
@@ -494,15 +497,13 @@ export default function ModelsPage() {
                       )
                 }
                 action={
-                  <div className="flex justify-center gap-3">
+                  <div className="action-row mx-auto">
                     <Button onClick={() => setSection("download")} icon={<Download size={16} />}>
                       {t("Download a Model")}
                     </Button>
-                    <Link href="/train" className="inline-flex">
-                      <button type="button" className="ghost">
-                        {t("Train New Model")}
-                      </button>
-                    </Link>
+                    <Button href="/train" variant="ghost">
+                      {t("Train New Model")}
+                    </Button>
                   </div>
                 }
               />
@@ -519,13 +520,13 @@ export default function ModelsPage() {
                   <div
                     key={group.key}
                     onClick={() => toggleGroup(group)}
-                    className={`card m-0 h-full transition-all flex flex-col justify-between cursor-pointer ${
-                      isSelected ? "border-white/30 bg-white/[0.05]" : "hover:border-white/20"
+                    className={`card m-0 min-w-0 h-full transition-colors flex flex-col gap-4 cursor-pointer ${
+                      isSelected ? "!border-[var(--focus-border)]" : "hover:!border-[var(--focus-border)]"
                     }`}
                   >
                     <div>
                       {/* Header: Select, Title & Folder */}
-                      <div className="flex items-start gap-2 mb-2">
+                      <div className="flex min-w-0 items-center gap-2 mb-3">
                         <input
                           type="checkbox"
                           checked={isSelected}
@@ -535,7 +536,7 @@ export default function ModelsPage() {
                           onChange={() => toggleGroup(group)}
                           onClick={(e) => e.stopPropagation()}
                           aria-label={`${t("Select model")} ${group.title}`}
-                          className="mt-1 shrink-0 cursor-pointer"
+                          className="m-0 shrink-0 cursor-pointer"
                         />
                         <h3
                           className="font-semibold text-white text-base truncate m-0 flex-1 min-w-0"
@@ -578,7 +579,7 @@ export default function ModelsPage() {
                       )}
 
                       {/* Stats & Index status */}
-                      <div className="space-y-1.5 text-xs text-neutral-400 my-3">
+                      <div className="grid gap-1.5 text-xs text-[var(--muted)] mt-3">
                         <div className="flex justify-between">
                           <span>{t("Weights (.pth):")}</span>
                           <span className="text-neutral-200 tabular-nums">
@@ -609,21 +610,16 @@ export default function ModelsPage() {
                     {/* Actions Footer (clicks here don't toggle selection) */}
                     {/* biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: bubbling guard only, no interaction */}
                     <div
-                      className="flex items-center justify-between gap-2 mt-2"
+                      className="model-card-actions mt-auto border-t border-[var(--border)]"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Button
-                        size="xs"
-                        onClick={() => openInInference(current)}
-                        icon={<Sparkles size={13} />}
-                      >
-                        {t("Use")}
-                      </Button>
+                      <div className="action-row [--action-column:5.5rem]">
+                        <Button onClick={() => openInInference(current)} icon={<Sparkles size={13} />}>
+                          {t("Use")}
+                        </Button>
 
-                      <div className="flex items-center gap-1">
                         <Button
                           variant="ghost"
-                          size="xs"
                           onClick={() => openInspect(current)}
                           title={t("View checkpoint metadata")}
                           aria-label={`${t("Inspect model metadata for")} ${current.name}`}
@@ -631,13 +627,13 @@ export default function ModelsPage() {
                         >
                           {t("Inspect")}
                         </Button>
-                        <IconButton
-                          variant="danger"
-                          icon={<Trash2 size={13} aria-hidden="true" />}
-                          label={`${t("Delete checkpoint")} ${current.name}`}
-                          onClick={() => setDeleteTargets([current])}
-                        />
                       </div>
+                      <IconButton
+                        variant="danger"
+                        icon={<Trash2 size={13} aria-hidden="true" />}
+                        label={`${t("Delete checkpoint")} ${current.name}`}
+                        onClick={() => setDeleteTargets([current])}
+                      />
                     </div>
                   </div>
                 );
@@ -672,25 +668,25 @@ export default function ModelsPage() {
                 "Enter any repository-relative or absolute path to a .pth checkpoint to read its architecture and training parameters.",
               )}
             />
-            <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+            <div className="grid max-w-xl gap-2">
               <label htmlFor="custom-pth-input" className="sr-only">
                 {t("Path to .pth checkpoint")}
               </label>
-              <div className="flex-1 min-w-0">
+              <div className="form-action-row">
                 <input
                   id="custom-pth-input"
                   type="text"
                   value={customPth}
                   onChange={(e) => setCustomPth(e.target.value)}
                   placeholder="logs/my-model/my-model.pth"
-                  className="w-full h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
+                  className="min-w-0 h-[var(--action-height)]"
                   aria-describedby={`${"custom-pth-input"}-help`}
                 />
-                <SettingHelp text={t(SETTING_HELP.modelInspect)} controlId={"custom-pth-input"} />
+                <Button onClick={inspectCustom} icon={<Info size={16} />}>
+                  {t("Inspect File")}
+                </Button>
               </div>
-              <Button onClick={inspectCustom} icon={<Info size={16} />}>
-                {t("Inspect File")}
-              </Button>
+              <SettingHelp text={t(SETTING_HELP.modelInspect)} controlId="custom-pth-input" />
             </div>
           </Card>
           <ModelInfoCard
@@ -713,7 +709,6 @@ export default function ModelsPage() {
               action={
                 <Button
                   variant="ghost"
-                  size="sm"
                   onClick={loadExports}
                   disabled={expLoading}
                   icon={<RefreshCw size={14} className={expLoading ? "animate-spin" : ""} />}
@@ -758,7 +753,7 @@ export default function ModelsPage() {
                 </CustomSelect>
               </div>
             </div>
-            <div className="row mt-4">
+            <div className="action-row mt-4">
               <Button variant="ghost" onClick={() => downloadExport(expModel)} disabled={!expModel}>
                 {t("Download .pth")}
               </Button>
@@ -846,7 +841,7 @@ export default function ModelsPage() {
             );
           })()}
 
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="modal-footer mt-4">
           <Button variant="ghost" onClick={() => setInspectModal(null)}>
             {t("Cancel")}
           </Button>
@@ -893,7 +888,7 @@ export default function ModelsPage() {
             {t("from disk? This will remove its .pth and .index files.")}
           </p>
         )}
-        <div className="flex justify-end gap-2 mt-4">
+        <div className="modal-footer mt-4">
           <Button variant="ghost" onClick={() => setDeleteTargets([])} disabled={deleting}>
             {t("Cancel")}
           </Button>

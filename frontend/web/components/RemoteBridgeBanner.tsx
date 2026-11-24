@@ -2,6 +2,7 @@
 
 import { LogOut, Smartphone } from "lucide-react";
 import { useState } from "react";
+import Button from "@/components/ui/Button";
 import { useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 
@@ -33,9 +34,9 @@ export default function RemoteBridgeBanner() {
             )}
           </div>
         </div>
-        <button
-          type="button"
-          className="ghost px-2.5 py-2 text-[11px] flex items-center gap-1.5 shrink-0"
+        <Button
+          variant="ghost"
+          icon={<LogOut />}
           disabled={disconnecting}
           aria-busy={disconnecting}
           onClick={async () => {
@@ -56,9 +57,8 @@ export default function RemoteBridgeBanner() {
             }
           }}
         >
-          <LogOut size={13} aria-hidden="true" />
           {t(disconnecting ? "Disconnecting…" : "Disconnect")}
-        </button>
+        </Button>
         {error && (
           <p role="alert" className="w-full m-0 text-red-400">
             {error}

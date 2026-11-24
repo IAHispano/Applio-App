@@ -143,7 +143,6 @@ export default function TrainingUpload({
       )}
       {error && <Alert variant="error">{error}</Alert>}
       <Button
-        size="sm"
         loading={busy}
         disabled={disabled || !ready}
         icon={<Upload size={14} />}

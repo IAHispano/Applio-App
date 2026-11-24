@@ -1,14 +1,13 @@
 "use client";
 
-import { FileText, Type, Upload, Wand2 } from "lucide-react";
+import { FileText, Type, Upload } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import ConversionParameters from "@/components/ConversionParameters";
-import { JobError, JobProgress, JobStage } from "@/components/JobStatus";
+import ConversionStatusCard from "@/components/ConversionStatusCard";
 import {
   Alert,
   Badge,
-  Button,
   Card,
   CardHeader,
   CustomSelect,
@@ -28,7 +27,6 @@ import {
   onModelsChanged,
   outputUrl,
   postForm,
-  stopJob,
 } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
@@ -73,8 +71,11 @@ export default function TtsForm() {
   const primedRef = useRef("");
   const [sid, setSid] = useWorkspaceState("TtsForm:components:sid", 0);
   const [jobId, setJobId] = usePersistentJobId("tts");
-  const { job, error, setError } = useJob(jobId);
+  const { job: watchedJob, error, setError, stop } = useJob(jobId);
+  const job = watchedJob?.id === jobId ? watchedJob : null;
+  const awaitingJob = Boolean(jobId && !job && !error);
   const [busy, setBusy] = useState(false);
+  const [voicesError, setVoicesError] = useState("");
 
   const speakers = useSpeakers(pthPath);
 
@@ -150,7 +151,7 @@ export default function TtsForm() {
         setVoices(v.voices);
         if (v.voices[0]) setVoice((current) => current || v.voices[0].shortName);
       })
-      .catch((e) => setError(errMsg(e)));
+      .catch((e) => setVoicesError(errMsg(e)));
     loadModels(false);
   }, []);
 
@@ -169,6 +170,7 @@ export default function TtsForm() {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (busy || awaitingJob || job?.status === "queued" || job?.status === "running") return;
     if (!conversion.loaded) {
       setError(t("Loading model settings…"));
       return;
@@ -200,129 +202,130 @@ export default function TtsForm() {
     }
   }
 
-  const disabledReason =
-    busy || job?.status === "running" || job?.status === "queued"
-      ? t("Wait for the current conversion to finish.")
-      : !conversion.loaded
-        ? t("Loading model settings…")
-        : !pthPath
-          ? t("Select a voice model.")
-          : !text.trim() && !file
-            ? t("Enter text or upload a .txt file.")
-            : "";
+  const disabledReason = !conversion.loaded
+    ? t("Loading model settings…")
+    : !pthPath
+      ? t("Select a voice model.")
+      : !text.trim() && !file
+        ? t("Enter text or upload a .txt file.")
+        : "";
+  const resultModel = job?.params?.pthPath;
 
   return (
     <div className="space-y-4">
-      {error && (
-        <Alert variant="error" onDismiss={() => setError("")}>
-          {error}
-        </Alert>
-      )}
-
       <form onSubmit={onSubmit} className="card-stack">
-        {/* Card 1: Speech Synthesis Source */}
-        <Card as="section" className="space-y-4">
-          <CardHeader
-            icon={<FileText size={18} className="text-white" />}
-            title={t("Speech Synthesis Source")}
-            step={1}
-            description={t("Enter text or upload a text file to synthesize speech before voice conversion.")}
-            action={
-              <Badge variant="neutral" size="sm">
-                {voices.length} {t("voices available")}
-              </Badge>
-            }
-          />
-
-          <div className="space-y-3">
-            <SegmentedControl
-              value={textSource}
-              onChange={(v) => {
-                setTextSource(v);
-                if (v === "write") setFile(null);
-                else setText("");
-              }}
-              ariaLabel={t("Text source")}
-              options={[
-                { value: "write", label: t("Write text"), icon: Type },
-                { value: "upload", label: t("Upload file"), icon: Upload },
-              ]}
+        <div className="grid grid-cols-1 xl:grid-cols-2 card-grid">
+          {/* Card 1: Speech Synthesis Source */}
+          <Card as="section" className="space-y-4">
+            <CardHeader
+              icon={<FileText size={18} className="text-white" />}
+              title={t("Speech Synthesis Source")}
+              step={1}
+              description={t(
+                "Enter text or upload a text file to synthesize speech before voice conversion.",
+              )}
+              action={
+                <Badge variant="neutral" size="sm">
+                  {voices.length} {t("voices available")}
+                </Badge>
+              }
             />
-            {textSource === "write" ? (
-              <FormField
-                label={t("Text to Synthesize")}
-                htmlFor="tts-text-input"
-                description={t(SETTING_HELP.ttsText)}
-              >
-                <textarea
-                  id="tts-text-input"
-                  rows={3}
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder={t("Hello, this is Applio.")}
-                  className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 text-[var(--text)]"
-                  aria-describedby={`${"tts-text-input"}-desc`}
-                />
-              </FormField>
-            ) : (
-              <FormField
-                label={t("Text file")}
-                htmlFor="tts-file-input"
-                description={t(SETTING_HELP.textFile)}
-              >
-                <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
-              </FormField>
+            {voicesError && (
+              <Alert variant="error" onDismiss={() => setVoicesError("")}>
+                {voicesError}
+              </Alert>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
-                <CustomSelect
-                  id="tts-voice-select"
-                  value={voice}
-                  onChange={(e) => setVoice(e.target.value)}
-                  className="w-full mt-1"
-                  searchable
-                  description={t(SETTING_HELP.ttsVoice)}
-                  options={voices.map((v) => ({
-                    value: v.shortName,
-                    label: `${v.friendlyName} (${v.gender})`,
-                  }))}
-                />
-              </FormField>
+            <div className="space-y-3">
+              <SegmentedControl
+                value={textSource}
+                onChange={(v) => {
+                  setTextSource(v);
+                  if (v === "write") setFile(null);
+                  else setText("");
+                }}
+                ariaLabel={t("Text source")}
+                options={[
+                  { value: "write", label: t("Write text"), icon: Type },
+                  { value: "upload", label: t("Upload file"), icon: Upload },
+                ]}
+              />
+              {textSource === "write" ? (
+                <FormField
+                  label={t("Text to Synthesize")}
+                  htmlFor="tts-text-input"
+                  description={t(SETTING_HELP.ttsText)}
+                >
+                  <textarea
+                    id="tts-text-input"
+                    rows={5}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    placeholder={t("Hello, this is Applio.")}
+                    className="w-full resize-y rounded-xl border border-[var(--border)] bg-[var(--input-bg)] px-3.5 py-3 text-[var(--text)]"
+                    aria-describedby={`${"tts-text-input"}-desc`}
+                  />
+                </FormField>
+              ) : (
+                <FormField
+                  label={t("Text file")}
+                  htmlFor="tts-file-input"
+                  description={t(SETTING_HELP.textFile)}
+                >
+                  <FileInput id="tts-file-input" accept=".txt" onFileSelect={setFile} />
+                </FormField>
+              )}
 
-              <div>
-                <SliderField
-                  id="tts-speaking-rate"
-                  label={t("TTS Speed")}
-                  value={rate}
-                  min={-100}
-                  max={100}
-                  step={1}
-                  unit="%"
-                  onChange={setRate}
-                  description={t(SETTING_HELP.ttsSpeed)}
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                <FormField label={t("TTS Voices")} htmlFor="tts-voice-select">
+                  <CustomSelect
+                    id="tts-voice-select"
+                    value={voice}
+                    onChange={(e) => setVoice(e.target.value)}
+                    className="w-full mt-1"
+                    searchable
+                    description={t(SETTING_HELP.ttsVoice)}
+                    options={voices.map((v) => ({
+                      value: v.shortName,
+                      label: `${v.friendlyName} (${v.gender})`,
+                    }))}
+                  />
+                </FormField>
+
+                <div>
+                  <SliderField
+                    id="tts-speaking-rate"
+                    label={t("TTS Speed")}
+                    value={rate}
+                    min={-100}
+                    max={100}
+                    step={1}
+                    unit="%"
+                    onChange={setRate}
+                    description={t(SETTING_HELP.ttsSpeed)}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
 
-        <VoiceModelCard
-          step={2}
-          models={models}
-          selectedModel={pthPath}
-          indexes={indexes}
-          indexPath={indexPath}
-          indexSelectId="tts-index-file"
-          onSelect={(selected) => handleModelSelect(selected, indexes)}
-          onUnload={handleUnloadModel}
-          onRefresh={loadModels}
-          onOpen={() => loadModels(false)}
-          onIndexChange={setIndexPath}
-          speakers={speakers}
-          sid={sid}
-          onSpeakerChange={setSid}
-        />
+          <VoiceModelCard
+            step={2}
+            models={models}
+            selectedModel={pthPath}
+            indexes={indexes}
+            indexPath={indexPath}
+            indexSelectId="tts-index-file"
+            onSelect={(selected) => handleModelSelect(selected, indexes)}
+            onUnload={handleUnloadModel}
+            onRefresh={loadModels}
+            onOpen={() => loadModels(false)}
+            onIndexChange={setIndexPath}
+            speakers={speakers}
+            sid={sid}
+            onSpeakerChange={setSid}
+          />
+        </div>
 
         <ConversionParameters
           step={3}
@@ -334,96 +337,29 @@ export default function TtsForm() {
           onReset={conversion.reset}
         />
 
-        {/* Card 4: Action & Output Card */}
-        <Card as="section" className="space-y-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-3">
-              <Button
-                type="submit"
-                disabled={Boolean(disabledReason)}
-                aria-describedby={disabledReason ? "tts-convert-help" : undefined}
-                icon={<Wand2 size={16} />}
-              >
-                {busy ? t("Submitting…") : t("Convert Speech")}
-              </Button>
-
-              {job && (job.status === "running" || job.status === "queued") && (
-                <Button variant="danger" onClick={() => stopJob(job.id).catch((e) => setError(errMsg(e)))}>
-                  {t("Cancel")}
-                </Button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              {job && (
-                <Badge
-                  variant={
-                    job.status === "done"
-                      ? "success"
-                      : job.status === "error"
-                        ? "danger"
-                        : job.status === "running"
-                          ? "info"
-                          : "neutral"
-                  }
-                  dot
-                >
-                  {job.status === "done"
-                    ? t("Completed")
-                    : job.status === "running"
-                      ? t("In Progress")
-                      : job.status === "error"
-                        ? t("Failed")
-                        : t("Queued")}
-                </Badge>
-              )}
-            </div>
-          </div>
-
-          {disabledReason && (
-            <p id="tts-convert-help" className="field-help m-0" role="status" aria-live="polite">
-              {disabledReason}
-            </p>
-          )}
-
-          {/* Conversion In Progress Live Progress Bar */}
-          {(busy || (job && (job.status === "running" || job.status === "queued"))) && (
-            <div
-              className="p-4 bg-white/[0.03] border border-white/10 rounded-2xl space-y-2 animate-in fade-in duration-200"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-center justify-between text-xs text-neutral-300">
-                <span className="font-medium">
-                  {busy ? t("Submitting…") : job ? <JobStage job={job} /> : t("Working…")}
-                </span>
-                <span className="text-neutral-400 capitalize">
-                  {busy ? t("Submitting…") : job?.status === "queued" ? t("Queued") : t("In Progress")}
-                </span>
-              </div>
-              <JobProgress
-                status={busy ? "running" : (job?.status ?? "running")}
-                progress={!busy && job?.status === "running" ? job.progress : undefined}
-              />
-            </div>
-          )}
-
-          {error && <Alert variant="error">{error}</Alert>}
-
-          {job && job.status === "error" && !error && (
-            <JobError
-              message={job.error || t("Speech conversion failed.")}
-              details={job.errorDetails}
-              logs={job.logs}
-              jobId={job.id}
-            />
-          )}
-        </Card>
+        <ConversionStatusCard
+          label={t("Convert Speech")}
+          disabledReason={disabledReason}
+          pending={busy ? "submitting" : awaitingJob ? "loading" : undefined}
+          job={job}
+          onStop={stop}
+          error={error}
+          onDismissError={() => setError("")}
+          failureMessage={t("Speech conversion failed.")}
+          missingOutput={
+            job?.status === "done" && !job.outputFile
+              ? t("TTS finished but no output file was found.")
+              : undefined
+          }
+        />
         {job?.outputFile && job.status === "done" && (
           <AudioWavePlayer
+            key={job.id}
             src={outputUrl(job.outputFile)}
             resultLabel={t("Synthesized Speech Output")}
-            title={fileBasename(pthPath || "speech").replace(/\.(pth|onnx)$/i, "")}
+            title={fileBasename(
+              typeof resultModel === "string" && resultModel ? resultModel : "speech",
+            ).replace(/\.(pth|onnx)$/i, "")}
             filename={fileBasename(job.outputFile)}
           />
         )}

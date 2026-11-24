@@ -15,7 +15,8 @@ import RealtimeVoiceCleanup from "@/components/realtime/RealtimeVoiceCleanup";
 import type { RealtimeAudioSession } from "@/components/realtime/types";
 import { useRealtimeAudioRouting } from "@/components/realtime/useRealtimeAudioRouting";
 import { useRealtimeCalibration } from "@/components/realtime/useRealtimeCalibration";
-import { Badge, Button, Disclosure, EMBEDDER_MODELS, REALTIME_F0_METHODS } from "@/components/ui";
+import { Badge, Button, Disclosure } from "@/components/ui";
+import { EMBEDDER_MODELS, REALTIME_F0_METHODS } from "@/components/ui/PitchMethodSelect";
 import SliderField from "@/components/ui/SliderField";
 import VoiceModelCard from "@/components/VoiceModelCard";
 import { apiGet, apiSend, errMsg, fetchModels } from "@/lib/api";
@@ -1190,12 +1191,13 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
         description={t(
           "Stream low-latency live microphone audio through voice conversion models in real time.",
         )}
-      >
-        <Badge variant={engine?.running ? "success" : "neutral"} dot>
-          {engine?.running ? t("active") : t("stopped")}
-        </Badge>
-      </PageHeader>
-      <p className="text-xs text-neutral-400" role="status" aria-live="polite">
+        status={
+          <Badge variant={engine?.running ? "success" : "neutral"} dot>
+            {engine?.running ? t("active") : t("stopped")}
+          </Badge>
+        }
+      />
+      <p className="field-help m-0" role="status" aria-live="polite">
         {applyingSettings || applyingAudio ? t("Applying settings…") : t("Settings apply while streaming.")}
       </p>
       {msg && (
@@ -1204,213 +1206,219 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
         </p>
       )}
 
-      <fieldset disabled={calibrating} className="min-w-0 border-0 m-0 p-0">
-        <VoiceModelCard
-          step={1}
-          models={models}
-          selectedModel={model}
-          indexes={indexes}
-          indexPath={index}
-          indexSelectId="rt-index-file"
-          onSelect={handleModelSelect}
-          onUnload={handleUnloadModel}
-          onRefresh={loadModels}
-          onIndexChange={setIndex}
-          speakers={speakers}
-          sid={sid}
-          onSpeakerChange={(value) => {
-            setSid(value);
-            if (streaming) changeConfig("sid", value);
-          }}
-        />
-      </fieldset>
-
-      <RealtimeDevices
-        controls={{ calibrating, inDev, setInDev, inputs, outDev, setOutDev, outputs, enumDevices }}
-      />
-
-      <Stage
-        disabled={calibrating}
-        step={3}
-        title={t("Tune & Go Live")}
-        description={t("Shape the voice, then start streaming from your microphone.")}
-        icon={<Play size={18} className="text-white" />}
-      >
-        <div>
-          <SliderField
-            id="rt-pitch"
-            label={t("Pitch")}
-            value={pitch}
-            min={-24}
-            max={24}
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,0.83fr)_minmax(0,1.17fr)] card-grid items-start">
+        <fieldset disabled={calibrating} className="min-w-0 border-0 m-0 p-0">
+          <VoiceModelCard
             step={1}
-            unit="st"
-            onChange={(v) => {
-              setPitch(v);
-              if (streaming) changeConfigDebounced("f0_up_key", v);
-            }}
-            description={t(SETTING_HELP.pitch)}
-          />
-        </div>
-        <Disclosure
-          title={t("Advanced Settings")}
-          icon={<Gauge size={16} />}
-          description={t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")}
-        >
-          <RealtimeConversionSettings
-            controls={{
-              indexRate,
-              setIndexRate,
-              streaming,
-              changeConfigDebounced,
-              protect,
-              setProtect,
-              volumeEnvelope,
-              setVolumeEnvelope,
-              f0Method,
-              setF0Method,
-              embedder,
-              setEmbedder,
-              embedderCustom,
-              setEmbedderCustom,
+            models={models}
+            selectedModel={model}
+            indexes={indexes}
+            indexPath={index}
+            indexSelectId="rt-index-file"
+            onSelect={handleModelSelect}
+            onUnload={handleUnloadModel}
+            onRefresh={loadModels}
+            onIndexChange={setIndex}
+            speakers={speakers}
+            sid={sid}
+            onSpeakerChange={(value) => {
+              setSid(value);
+              if (streaming) changeConfig("sid", value);
             }}
           />
-          <RealtimeVoiceCleanup
-            controls={{
-              autotune,
-              setAutotune,
-              streaming,
-              changeConfig,
-              proposedPitch,
-              setProposedPitch,
-              autotuneStrength,
-              setAutotuneStrength,
-              changeConfigDebounced,
-              proposedPitchThreshold,
-              setProposedPitchThreshold,
-            }}
-          />
-          <RealtimeFormantSettings
-            controls={{
-              formantShifting,
-              setFormantShifting,
-              streaming,
-              changeConfig,
-              formantQfrency,
-              setFormantQfrency,
-              changeConfigDebounced,
-              formantTimbre,
-              setFormantTimbre,
-            }}
-          />
-          <RealtimeAudioSettings
-            controls={{
-              decoderFp16,
-              setDecoderFp16,
-              streaming,
-              changeConfig,
-              voiceFocus,
-              selectVoiceFocus,
-              voiceFocusUnsupported,
-              voiceFocusError,
-              chunkMs,
-              setChunkMs,
-              setAutoChunk,
-              autoChunk,
-              crossfade,
-              setCrossfade,
-              changeConfigDebounced,
-              extraSize,
-              setExtraSize,
-              silent,
-              setSilent,
-              inGain,
-              setInGain,
-              outGain,
-              setOutGain,
-              vad,
-              setVad,
-            }}
-          />
-          <RealtimeMonitorSettings
-            controls={{
-              monitorSelf,
-              setMonitorSelf,
-              monitorVolume,
-              setMonitorVolume,
-              streaming,
-              connecting,
-              outLevel,
-              passthrough,
-              setPassthrough,
-              passthroughHotkey,
-              setPassthroughHotkey,
-              hotkeyAvailable,
-            }}
-          />
-        </Disclosure>
-        <div className="space-y-4 pt-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            {!streaming ? (
-              <Button
-                onClick={startStream}
-                disabled={connecting || !devicesSelected}
-                icon={<Play size={16} />}
-              >
-                {connecting ? t("Preparing…") : t("Start Streaming")}
-              </Button>
-            ) : (
-              <Button
-                variant="ghost"
-                onClick={() => stopStream()}
-                icon={<Square size={16} className="text-white" />}
-              >
-                {t("Stop Streaming")}
-              </Button>
-            )}
-            {!streaming && !devicesSelected && (
-              <span className="text-xs text-neutral-400">
-                {t("Select input and output devices before starting realtime.")}
-              </span>
-            )}
-            <Badge variant={streaming ? "success" : "neutral"} dot>
-              {streaming ? t("live") : connecting ? t("connecting…") : t("idle")}
-            </Badge>
-            {msg && (
-              <span className="text-xs text-neutral-400" role="status">
-                {msg}
-              </span>
-            )}
-          </div>
+        </fieldset>
 
-          {!streaming && (
-            <p className="text-xs text-neutral-400 m-0">
-              {t(
-                "While streaming, the GPU is reserved for realtime. Other jobs (inference, TTS, training, separation) wait until you stop.",
+        <div className="@container min-w-0 card-stack">
+          <RealtimeDevices
+            controls={{ calibrating, inDev, setInDev, inputs, outDev, setOutDev, outputs, enumDevices }}
+          />
+
+          <Stage
+            disabled={calibrating}
+            step={3}
+            title={t("Tune & Go Live")}
+            description={t("Shape the voice, then start streaming from your microphone.")}
+            icon={<Play size={18} className="text-white" />}
+          >
+            <div>
+              <SliderField
+                id="rt-pitch"
+                label={t("Pitch")}
+                value={pitch}
+                min={-24}
+                max={24}
+                step={1}
+                unit="st"
+                onChange={(v) => {
+                  setPitch(v);
+                  if (streaming) changeConfigDebounced("f0_up_key", v);
+                }}
+                description={t(SETTING_HELP.pitch)}
+              />
+            </div>
+            <Disclosure
+              title={t("Advanced Settings")}
+              icon={<Gauge size={16} />}
+              description={t(
+                "Fine-tune pitch shifting, index feature retrieval, and audio envelope response.",
               )}
-            </p>
-          )}
+            >
+              <RealtimeConversionSettings
+                controls={{
+                  indexRate,
+                  setIndexRate,
+                  streaming,
+                  changeConfigDebounced,
+                  protect,
+                  setProtect,
+                  volumeEnvelope,
+                  setVolumeEnvelope,
+                  f0Method,
+                  setF0Method,
+                  embedder,
+                  setEmbedder,
+                  embedderCustom,
+                  setEmbedderCustom,
+                }}
+              />
+              <RealtimeVoiceCleanup
+                controls={{
+                  autotune,
+                  setAutotune,
+                  streaming,
+                  changeConfig,
+                  proposedPitch,
+                  setProposedPitch,
+                  autotuneStrength,
+                  setAutotuneStrength,
+                  changeConfigDebounced,
+                  proposedPitchThreshold,
+                  setProposedPitchThreshold,
+                }}
+              />
+              <RealtimeFormantSettings
+                controls={{
+                  formantShifting,
+                  setFormantShifting,
+                  streaming,
+                  changeConfig,
+                  formantQfrency,
+                  setFormantQfrency,
+                  changeConfigDebounced,
+                  formantTimbre,
+                  setFormantTimbre,
+                }}
+              />
+              <RealtimeAudioSettings
+                controls={{
+                  decoderFp16,
+                  setDecoderFp16,
+                  streaming,
+                  changeConfig,
+                  voiceFocus,
+                  selectVoiceFocus,
+                  voiceFocusUnsupported,
+                  voiceFocusError,
+                  chunkMs,
+                  setChunkMs,
+                  setAutoChunk,
+                  autoChunk,
+                  crossfade,
+                  setCrossfade,
+                  changeConfigDebounced,
+                  extraSize,
+                  setExtraSize,
+                  silent,
+                  setSilent,
+                  inGain,
+                  setInGain,
+                  outGain,
+                  setOutGain,
+                  vad,
+                  setVad,
+                }}
+              />
+              <RealtimeMonitorSettings
+                controls={{
+                  monitorSelf,
+                  setMonitorSelf,
+                  monitorVolume,
+                  setMonitorVolume,
+                  streaming,
+                  connecting,
+                  outLevel,
+                  passthrough,
+                  setPassthrough,
+                  passthroughHotkey,
+                  setPassthroughHotkey,
+                  hotkeyAvailable,
+                }}
+              />
+            </Disclosure>
+            <div className="space-y-4 pt-3">
+              <div className="flex items-center gap-3 flex-wrap">
+                {!streaming ? (
+                  <Button
+                    onClick={startStream}
+                    disabled={connecting || !devicesSelected}
+                    icon={<Play size={16} />}
+                  >
+                    {connecting ? t("Preparing…") : t("Start Streaming")}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    onClick={() => stopStream()}
+                    icon={<Square size={16} className="text-white" />}
+                  >
+                    {t("Stop Streaming")}
+                  </Button>
+                )}
+                {!streaming && !devicesSelected && (
+                  <span className="text-xs text-neutral-400">
+                    {t("Select input and output devices before starting realtime.")}
+                  </span>
+                )}
+                <Badge variant={streaming ? "success" : "neutral"} dot>
+                  {streaming ? t("live") : connecting ? t("connecting…") : t("idle")}
+                </Badge>
+                {msg && (
+                  <span className="text-xs text-neutral-400" role="status">
+                    {msg}
+                  </span>
+                )}
+              </div>
 
-          {streaming && active && (
-            <RealtimeDiagnostics
-              latency={latency}
-              roundTrip={roundTrip}
-              input={inputLevel}
-              silentThreshold={silent}
-              chunkMs={calibrating ? calibrationCurrent : chunkMs}
-              autoChunk={calibrating ? false : autoChunk}
-              diagnostics={{
-                ...diagnostics,
-                estimatedMs:
-                  diagnostics.estimatedMs +
-                  (formantShifting && formantQfrency >= 0.0625 && formantTimbre !== 1 && !passthrough
-                    ? 64
-                    : 0),
-              }}
-            />
-          )}
+              {!streaming && (
+                <p className="text-xs text-neutral-400 m-0">
+                  {t(
+                    "While streaming, the GPU is reserved for realtime. Other jobs (inference, TTS, training, separation) wait until you stop.",
+                  )}
+                </p>
+              )}
+
+              {streaming && active && (
+                <RealtimeDiagnostics
+                  latency={latency}
+                  roundTrip={roundTrip}
+                  input={inputLevel}
+                  silentThreshold={silent}
+                  chunkMs={calibrating ? calibrationCurrent : chunkMs}
+                  autoChunk={calibrating ? false : autoChunk}
+                  diagnostics={{
+                    ...diagnostics,
+                    estimatedMs:
+                      diagnostics.estimatedMs +
+                      (formantShifting && formantQfrency >= 0.0625 && formantTimbre !== 1 && !passthrough
+                        ? 64
+                        : 0),
+                  }}
+                />
+              )}
+            </div>
+          </Stage>
         </div>
-      </Stage>
+      </div>
       <RealtimeTools
         controls={{
           realtimeToolsOpen,

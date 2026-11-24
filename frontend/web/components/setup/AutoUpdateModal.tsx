@@ -179,19 +179,19 @@ export default function AutoUpdateModal() {
       aria-labelledby="update-modal-title"
       className="fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-5 bg-black/80 backdrop-blur-xl"
     >
-      <div className="w-full max-w-xl max-h-[90dvh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] p-5 sm:p-6 space-y-5 shadow-2xl">
-        <div className="flex items-start justify-between gap-3">
+      <div className="w-full max-w-2xl max-h-[90dvh] overflow-y-auto rounded-2xl border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] p-5 sm:p-6 space-y-5 shadow-2xl">
+        <div className="flex items-start justify-between gap-3 border-b border-[var(--border)] pb-4">
           <div className="space-y-2">
             <h2 id="update-modal-title" className="flex items-center gap-2 text-lg font-semibold m-0">
               <Sparkles size={20} aria-hidden="true" />
               {t("Applio Update Available")}
             </h2>
-            <p className="text-xs text-[var(--muted)] m-0">
+            <p className="field-help m-0">
               {t("Current:")} {displayVersion(version.local)} · {t("Latest:")}{" "}
               {displayVersion(version.latest)}
             </p>
           </div>
-          <IconButton size="md" icon={<X size={16} />} label={t("Close")} onClick={close} />
+          <IconButton icon={<X size={16} />} label={t("Close")} onClick={close} />
         </div>
         <p className="text-sm leading-relaxed m-0">
           {t(
@@ -216,12 +216,11 @@ export default function AutoUpdateModal() {
             {error}
           </p>
         )}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-          <Button variant="ghost" size="md" onClick={close}>
+        <div className="modal-footer [--action-column:16rem]">
+          <Button variant="ghost" onClick={close}>
             {downloading ? t("Hide") : t("Remind me with the next update")}
           </Button>
           <Button
-            size="md"
             loading={downloading}
             onClick={() => void (ready ? installUpdate() : startUpdate())}
             icon={ready ? <RefreshCw size={14} /> : <ArrowDownCircle size={14} />}
@@ -229,9 +228,7 @@ export default function AutoUpdateModal() {
             {ready ? t("Restart and Update") : t("Update")}
           </Button>
         </div>
-        <p className="text-xs text-[var(--muted)] m-0">
-          {t("You can update anytime from Settings → Version & Updates.")}
-        </p>
+        <p className="field-help m-0">{t("You can update anytime from Settings → Version & Updates.")}</p>
       </div>
     </Dialog>
   );

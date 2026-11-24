@@ -4,6 +4,7 @@ import { AlertCircle, AlertTriangle, Check, CheckCircle2, ChevronDown, Copy, Inf
 import type React from "react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import Button from "./Button";
 
 export type AlertVariant = "error" | "warning" | "info" | "success";
 
@@ -148,28 +149,24 @@ function AlertInner({
           </details>
         )}
       </div>
-      <div className="flex items-center gap-1 shrink-0 -mr-1 -mt-0.5">
+      <div className="flex flex-wrap items-center gap-2">
         {hasCopy && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={handleCopy}
-            className="text-neutral-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/5 transition-colors flex items-center gap-1 text-[11px]"
             aria-label={t("Copy error details to clipboard")}
             title={t("Copy error details to clipboard")}
-          >
-            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-            <span className="text-[10px] hidden sm:inline">{copied ? t("Copied") : t("Copy")}</span>
-          </button>
+            icon={copied ? <Check /> : <Copy />}
+          />
         )}
         {onDismiss && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
             onClick={onDismiss}
-            className="text-neutral-400 hover:text-white shrink-0 p-1 rounded hover:bg-white/5 transition-colors"
             aria-label={t("Dismiss alert")}
-          >
-            <X size={14} />
-          </button>
+            title={t("Dismiss alert")}
+            icon={<X />}
+          />
         )}
       </div>
     </div>

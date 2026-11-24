@@ -58,11 +58,11 @@ export default function RealtimeCalibration({
       </p>
       <div className="flex gap-2 items-center flex-wrap">
         {running ? (
-          <Button size="sm" variant="ghost" icon={<Square size={14} />} onClick={onCancel}>
+          <Button variant="ghost" icon={<Square size={14} />} onClick={onCancel}>
             {t("Cancel calibration")}
           </Button>
         ) : (
-          <Button size="sm" disabled={!streaming || disabled} icon={<Gauge size={15} />} onClick={onStart}>
+          <Button disabled={!streaming || disabled} icon={<Gauge size={15} />} onClick={onStart}>
             {t(results.length ? "Run calibration again" : "Calibrate hardware")}
           </Button>
         )}
@@ -140,7 +140,6 @@ export default function RealtimeCalibration({
                     )}
                   </p>
                   <Button
-                    size="sm"
                     disabled={disabled}
                     icon={<Check size={14} />}
                     onClick={() => onApply(recommendation.chunkMs)}

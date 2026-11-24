@@ -143,7 +143,6 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
           {isRunning && (
             <Button
               variant="danger"
-              size="xs"
               onClick={handleCancel}
               aria-label={t("Cancel extraction")}
               icon={<StopCircle size={13} />}
@@ -153,25 +152,13 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
           )}
 
           {curveFile && (
-            <Button
-              href={outputUrl(curveFile)}
-              download
-              variant="ghost"
-              size="xs"
-              icon={<FileText size={13} />}
-            >
+            <Button href={outputUrl(curveFile)} download variant="ghost" icon={<FileText size={13} />}>
               {t("Download CSV")}
             </Button>
           )}
 
           {plotUrl && (
-            <Button
-              href={outputUrl(plotUrl)}
-              download
-              variant="ghost"
-              size="xs"
-              icon={<Download size={13} />}
-            >
+            <Button href={outputUrl(plotUrl)} download variant="ghost" icon={<Download size={13} />}>
               {t("Download Plot")}
             </Button>
           )}
@@ -211,7 +198,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
               jobId={job?.id}
             />
             <div className="flex justify-center">
-              <Button variant="ghost" size="xs" onClick={handleManualRefresh}>
+              <Button variant="ghost" onClick={handleManualRefresh}>
                 {t("Retry Extraction")}
               </Button>
             </div>

@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
-import { Card, CardHeader, CustomSelect } from "@/components/ui";
+import { Card, CardHeader, CustomSelect, FileInput } from "@/components/ui";
 import { fetchModels } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
@@ -80,13 +80,14 @@ export default function ExtraPage() {
         <div className="grid2">
           <div>
             <label htmlFor="extra-audio-file">{t("Upload local audio file")}</label>
-            <input
+            <FileInput
+              key={audio?.name ?? "empty"}
+              placeholder={audio?.name}
               id="extra-audio-file"
-              type="file"
               accept=".wav,.mp3,.flac,.ogg,.opus,.m4a,.mp4,.aac,.alac,.wma,.aiff,.webm,.ac3"
-              onChange={(e) => {
-                setAudio(e.target.files?.[0] || null);
-                if (e.target.files?.[0]) setInputPath("");
+              onFileSelect={(file) => {
+                setAudio(file);
+                if (file) setInputPath("");
               }}
             />
           </div>
@@ -117,9 +118,7 @@ export default function ExtraPage() {
         {/* Audio Preview Player */}
         {previewUrl && (
           <div className="mt-4">
-            <span className="text-xs text-neutral-400 block mb-1 font-medium">
-              {t("Source Audio Preview:")}
-            </span>
+            <span className="field-help block mb-1 font-medium">{t("Source Audio Preview:")}</span>
             <AudioWavePlayer src={previewUrl} title={audio?.name || inputPath} showAnalyzerLink={false} />
           </div>
         )}

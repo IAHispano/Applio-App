@@ -3,6 +3,7 @@
 import { ArrowRight, Check, CheckCircle2, Copy, RefreshCw, Terminal, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { JobStage } from "@/components/JobStatus";
+import PageHeader from "@/components/layout/PageHeader";
 import SetupLogLine from "@/components/setup/SetupLogLine";
 import { useAcceptedTerms } from "@/components/setup/TermsModal";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure } from "@/components/ui";
@@ -245,38 +246,30 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   }, [job?.status, job?.stage, logsText]);
 
   return (
-    <div className="w-full min-h-full flex flex-col items-center justify-center p-4 sm:p-6 max-w-2xl mx-auto">
-      <div className="w-full space-y-6 sm:space-y-8">
-        <header className="space-y-4">
-          <p className="m-0 flex items-center gap-2 text-xs font-medium text-[var(--muted)]">
-            <span className="font-bold tracking-wide text-[var(--heading)]">Applio</span>
-            <span aria-hidden="true">/</span>
-            {t("Setup")}
-          </p>
-          <div className="space-y-3">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[var(--heading)] m-0">
-              {job?.status === "done" ? t("Applio is Ready") : t("Welcome to Applio")}
-            </h1>
-            <p className="text-sm text-[var(--muted)] max-w-lg leading-relaxed m-0">
-              {job?.status === "done"
-                ? t("Your environment, voice conversion engine, and acoustic models are prepared.")
-                : t(
-                    "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.",
-                  )}
-            </p>
-          </div>
-        </header>
+    <div className="w-full max-w-3xl mx-auto py-3 sm:py-6">
+      <div className="page-stack">
+        <PageHeader
+          guide={false}
+          title={job?.status === "done" ? t("Applio is Ready") : t("Welcome to Applio")}
+          description={
+            job?.status === "done"
+              ? t("Your environment, voice conversion engine, and acoustic models are prepared.")
+              : t(
+                  "We’ll prepare everything you need to start creating with your voice. Setup runs automatically.",
+                )
+          }
+        />
 
         {/* Progress Bar Card */}
-        <Card as="section" className="w-full !p-4 sm:!p-6 space-y-5">
-          <div className="flex items-center justify-between text-xs text-neutral-300">
+        <Card as="section" className="w-full space-y-5">
+          <div className="flex flex-wrap gap-2 items-center justify-between text-sm text-[var(--text)]">
             <span className="font-medium flex items-center gap-2">
               {error ? (
                 <XCircle size={16} className="text-red-400" />
               ) : job?.status === "done" ? (
                 <CheckCircle2 size={16} className="text-white" />
               ) : (
-                <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+                <span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse" />
               )}
               <span>
                 {job?.status === "done"
@@ -395,7 +388,7 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
             <div className="space-y-2">
               <p className="m-0 leading-relaxed text-xs">{error}</p>
               <div className="flex items-center gap-2 pt-1">
-                <Button size="xs" onClick={retry} icon={<RefreshCw size={13} />}>
+                <Button onClick={retry} icon={<RefreshCw size={13} />}>
                   {t("Retry Automated Setup")}
                 </Button>
               </div>
@@ -448,7 +441,6 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
                 )}
                 <Button
                   variant="ghost"
-                  size="xs"
                   onClick={handleCopyLogs}
                   disabled={!displayLogs.length}
                   title={t("Copy logs to clipboard")}
@@ -495,10 +487,9 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
         {job?.status === "done" && (
           <div className="flex justify-end pt-1 animate-in fade-in duration-300">
             <Button
-              size="md"
               onClick={() => void finishSetup()}
               disabled={restarting || (!desktop && countdown === null && !!error)}
-              className="w-full sm:w-auto shadow-xl px-6"
+              className="w-full sm:w-auto"
               iconAfter={<ArrowRight size={16} />}
             >
               {restarting

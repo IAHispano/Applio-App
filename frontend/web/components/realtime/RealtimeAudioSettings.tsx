@@ -126,7 +126,7 @@ export default function RealtimeAudioSettings({ controls }: { controls: Realtime
           </p>
         ) : null}
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 @sm:grid-cols-2 @4xl:grid-cols-4 gap-4">
         <div>
           <SliderField
             id="rt-chunk-ms"

@@ -17,13 +17,12 @@ import {
   StopCircle,
   Terminal,
 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { JobError, JobStage } from "@/components/JobStatus";
 import LogProgress from "@/components/LogProgress";
 import { eventText, parseConsoleEvents, splitLogFragments } from "@/components/train/consoleEvents";
-import { Alert, Badge, Button, Card, StatTile } from "@/components/ui";
+import { Alert, Badge, Button, Card, SegmentedControl, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -312,7 +311,6 @@ export default function TrainingConsole({
           {(job?.status === "running" || job?.status === "queued") && (
             <Button
               variant="danger"
-              size="sm"
               onClick={handleStop}
               aria-label={t("Stop training job")}
               icon={<StopCircle size={14} />}
@@ -323,7 +321,6 @@ export default function TrainingConsole({
 
           <Button
             variant="ghost"
-            size="sm"
             onClick={() => setCollapsed(!collapsed)}
             aria-label={collapsed ? t("Expand console") : t("Collapse console")}
             icon={collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -469,9 +466,8 @@ export default function TrainingConsole({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-1">
+          <div className="action-row [--action-column:11rem]">
             <Button
-              size="md"
               onClick={() =>
                 router.push(`/inference?model=${encodeURIComponent(`logs/${modelName}/${modelName}.pth`)}`)
               }
@@ -479,13 +475,9 @@ export default function TrainingConsole({
             >
               {t("Test in Inference")}
             </Button>
-            <Link
-              href="/models"
-              className="ghost h-9 px-4 rounded-xl text-xs font-medium flex items-center gap-1.5 text-neutral-300 hover:text-white"
-            >
-              <Layers size={14} />
-              <span>{t("View in Models Library")}</span>
-            </Link>
+            <Button href="/models" variant="ghost" icon={<Layers />}>
+              {t("View in Models Library")}
+            </Button>
           </div>
         </div>
       )}
@@ -505,33 +497,23 @@ export default function TrainingConsole({
 
             <div className="flex items-center gap-2 flex-wrap">
               {/* Level Filter Pills */}
-              <div className="flex items-center bg-black/40 p-0.5 rounded-lg border border-white/5 text-[11px]">
-                {(["all", "epochs", "checkpoints", "errors"] as LogLevel[]).map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    className={`px-2 py-0.5 rounded-md capitalize transition-colors ${
-                      level === lvl
-                        ? "bg-white/10 text-white font-medium"
-                        : "text-neutral-400 hover:text-neutral-200"
-                    }`}
-                    onClick={() => setLevel(lvl)}
-                  >
-                    {lvl === "all"
-                      ? t("All")
-                      : lvl === "epochs"
-                        ? t("Epochs")
-                        : lvl === "checkpoints"
-                          ? t("Saves")
-                          : t("Errors")}
-                  </button>
-                ))}
-              </div>
+              <SegmentedControl<LogLevel>
+                value={level}
+                onChange={setLevel}
+                ariaLabel={t("Activity Log")}
+                options={[
+                  { value: "all", label: t("All") },
+                  { value: "epochs", label: t("Epochs") },
+                  { value: "checkpoints", label: t("Saves") },
+                  { value: "errors", label: t("Errors") },
+                ]}
+              />
 
               <div className="relative flex items-center gap-1.5 px-1">
                 <Search size={12} className="text-neutral-500 shrink-0" aria-hidden="true" />
                 <input
                   type="text"
+                  aria-label={t("Filter logs…")}
                   placeholder={t("Filter logs…")}
                   value={filterText}
                   onChange={(e) => setFilterText(e.target.value)}
@@ -540,22 +522,18 @@ export default function TrainingConsole({
               </div>
 
               {/* Auto scroll toggle */}
-              <button
-                type="button"
-                className={`ghost h-7 px-2 text-[11px] rounded-lg flex items-center gap-1 ${
-                  autoScroll ? "text-white" : "text-neutral-400"
-                }`}
+              <Button
+                variant="ghost"
                 onClick={() => setAutoScroll(!autoScroll)}
+                aria-pressed={autoScroll}
                 title={t("Toggle auto-scroll")}
               >
-                <span>{t("Auto-scroll")}</span>
-                <div className={`w-1.5 h-1.5 rounded-full ${autoScroll ? "bg-white" : "bg-neutral-600"}`} />
-              </button>
+                {t("Auto-scroll")}
+              </Button>
 
               {/* Copy logs */}
               <Button
                 variant="ghost"
-                size="xs"
                 onClick={copyAllLogs}
                 aria-label={t("Copy logs")}
                 icon={copied ? <Check size={12} className="text-white" /> : <Copy size={12} />}

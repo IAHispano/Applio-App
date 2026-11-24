@@ -74,6 +74,7 @@ export default function RealtimeTools({ controls }: { controls: RealtimeToolsPro
   return (
     <Disclosure
       title={t("Recording & Calibration")}
+      description={t("Record your converted voice and find a stable buffer size.")}
       icon={<Disc size={16} />}
       open={realtimeToolsOpen}
       onToggle={setRealtimeToolsOpen}

@@ -15,7 +15,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "@/components/layout/IntentLink";
 import { Button, Dialog } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
@@ -55,16 +55,17 @@ export default function TermsModal() {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [agreed, setAgreed] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     // The informational guide is readable before consent; operational pages still require it.
     setOpen(pathname !== "/your-data" && !hasAcceptedTerms() && loaded);
   }, [loaded, pathname]);
 
-  const handleScroll = () => {
+  const updateReadingProgress = useCallback(() => {
     const el = scrollRef.current;
-    if (!el) return;
+    // The closed native dialog has no layout until showModal() runs.
+    if (!el?.clientHeight) return;
 
     const maxScroll = el.scrollHeight - el.clientHeight;
     if (maxScroll <= 0) {
@@ -79,18 +80,28 @@ export default function TermsModal() {
 
     // Considered read if scrolled within 40px of bottom or >= 98%
     const isAtBottom = maxScroll - current < 40 || progress >= 98;
-    if (isAtBottom && !scrolledToBottom) {
-      setScrolledToBottom(true);
-    }
-  };
+    if (isAtBottom) setScrolledToBottom(true);
+  }, []);
+
+  useEffect(() => {
+    const region = scrollRef.current;
+    if (!open || pathname === "/your-data" || !region) return;
+    const observer = new ResizeObserver(updateReadingProgress);
+    observer.observe(region);
+    return () => observer.disconnect();
+  }, [open, pathname, updateReadingProgress]);
 
   const scrollToBottom = () => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    // The jump button disappears when the document reaches the end.
+    el.focus({ preventScroll: true });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    el.scrollTo({ top: el.scrollHeight, behavior: reduceMotion ? "instant" : "smooth" });
   };
 
   const handleAccept = () => {
+    if (!agreed || !scrolledToBottom) return;
     try {
       localStorage.setItem(TERMS_STORAGE_KEY, "true");
       localStorage.setItem(TERMS_DATE_KEY, new Date().toISOString());
@@ -106,33 +117,38 @@ export default function TermsModal() {
   return (
     <Dialog
       isOpen={open}
+      initialFocus={scrollRef}
       aria-labelledby="terms-modal-title"
+      aria-describedby="terms-modal-description"
       className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-3xl max-h-[92vh] flex flex-col rounded-2xl border border-white/15 bg-[#121212]/95 backdrop-blur-2xl shadow-2xl overflow-hidden">
+      <div className="relative w-full max-w-3xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2.5rem)] flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)] backdrop-blur-2xl shadow-2xl overflow-x-hidden overflow-y-auto">
         {/* Top ambient highlight line */}
         <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
 
-        <div className="p-5 sm:p-6 bg-white/[0.02] flex items-center justify-between gap-4">
+        <div className="p-3 sm:p-6 bg-[var(--surface)] flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-white/[0.08] border border-white/15 flex items-center justify-center text-white shrink-0 shadow-inner">
-              <FileText className="w-5 h-5 text-white" />
+            <div className="w-11 h-11 rounded-xl bg-[var(--accent-soft)] border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0 shadow-inner">
+              <FileText className="w-5 h-5 text-[var(--heading)]" />
             </div>
             <div className="space-y-0.5 min-w-0">
               <div className="flex items-center gap-2">
-                <h2 id="terms-modal-title" className="text-lg font-bold text-white tracking-tight m-0">
+                <h2
+                  id="terms-modal-title"
+                  className="text-lg font-bold text-[var(--heading)] tracking-tight m-0"
+                >
                   {t("Terms of Use")}
                 </h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-white/15 text-neutral-300">
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-[var(--border)] text-[var(--text)]">
                   Applio
                 </span>
               </div>
-              <p className="text-xs text-neutral-400 m-0 truncate">
+              <p id="terms-modal-description" className="text-xs text-[var(--muted)] m-0">
                 {t("Please review and accept our official terms before using Applio.")}
               </p>
               <Link
                 href="/your-data"
-                className="inline-block mt-2 text-xs text-white underline underline-offset-4"
+                className="inline-block mt-2 text-xs text-[var(--heading)] underline underline-offset-4"
               >
                 {t("Your data & privacy")}
               </Link>
@@ -141,10 +157,10 @@ export default function TermsModal() {
 
           {/* Reading progress indicator in header */}
           <div className="hidden sm:flex flex-col items-end gap-1 shrink-0 select-none">
-            <span className="text-[11px] text-neutral-400">
+            <span className="text-[11px] text-[var(--muted)]">
               {scrolledToBottom ? (
-                <span className="text-white font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                <span className="text-[var(--heading)] font-semibold flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--heading)]" />
                   {t("Document Read")}
                 </span>
               ) : (
@@ -165,7 +181,7 @@ export default function TermsModal() {
         </div>
 
         {/* Slim reading progress bar for mobile / full width */}
-        <div className="sm:hidden w-full h-1 bg-white/10 overflow-hidden">
+        <div className="sm:hidden w-full h-1 bg-white/10 overflow-hidden shrink-0">
           <div
             className={`h-full transition-all duration-150 ${
               scrolledToBottom ? "bg-emerald-400" : "bg-white"
@@ -175,21 +191,21 @@ export default function TermsModal() {
         </div>
 
         {/* Scrollable Terms Content - Verbatim from TERMS_OF_USE.md */}
-        <div className="relative flex-1 overflow-hidden flex flex-col min-h-0">
+        <div className="relative flex-1 overflow-hidden flex flex-col min-h-16">
           <section
             ref={scrollRef}
             // biome-ignore lint/a11y/noNoninteractiveTabindex: This labeled scroll region must be keyboard-scrollable.
             tabIndex={0}
-            onScroll={handleScroll}
+            onScroll={updateReadingProgress}
             aria-label={t("Terms of Use document")}
-            className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6 text-xs sm:text-sm text-neutral-300 leading-relaxed font-sans focus:outline-none scrollbar-thin"
+            className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6 text-xs sm:text-sm text-[var(--text)] leading-relaxed font-sans focus-visible:-outline-offset-2 focus-visible:outline-white scrollbar-thin"
           >
             {/* Top Important Banner */}
-            <div className="p-4 rounded-xl border border-white/15 bg-white/[0.04] text-neutral-200 flex items-start gap-3.5 shadow-sm">
-              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-white" />
+            <div className="p-4 rounded-xl border border-[var(--border)] bg-white/[0.04] text-neutral-200 flex items-start gap-3.5 shadow-sm">
+              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-[var(--heading)]" />
               <div className="space-y-0.5">
-                <h3 className="text-xs font-semibold text-white m-0">{t("Important Notice")}</h3>
-                <p className="text-xs text-neutral-300 m-0 leading-normal">
+                <h3 className="text-xs font-semibold text-[var(--heading)] m-0">{t("Important Notice")}</h3>
+                <p className="text-xs text-[var(--text)] m-0 leading-normal">
                   {t(
                     "Applio is an open-source audio research and voice transformation tool. Responsible, ethical, and legal use is strictly required.",
                   )}
@@ -198,16 +214,16 @@ export default function TermsModal() {
             </div>
 
             {/* Section 1: Responsibilities of the User */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
+              <div className="flex items-center gap-2 text-[var(--heading)]">
+                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
                   <UserCheck className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
                   {t("Responsibilities of the User")}
                 </h3>
               </div>
-              <p className="text-xs text-neutral-400 m-0">
+              <p className="text-xs text-[var(--muted)] m-0">
                 {t("By using Applio, you agree to the following responsibilities:")}
               </p>
 
@@ -217,7 +233,7 @@ export default function TermsModal() {
                   <h4 className="text-xs font-semibold text-neutral-200 m-0">
                     1. {t("Respect Intellectual Property and Privacy Rights")}
                   </h4>
-                  <ul className="list-disc pl-4 space-y-1 text-xs text-neutral-400">
+                  <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--muted)]">
                     <li>
                       {t(
                         "Ensure that any audio or material processed through Applio is either owned by you or used with explicit permission from the rightful owner.",
@@ -236,7 +252,7 @@ export default function TermsModal() {
                   <h4 className="text-xs font-semibold text-neutral-200 m-0">
                     2. {t("Avoid Harmful or Unethical Use")}
                   </h4>
-                  <ul className="list-disc pl-4 space-y-1 text-xs text-neutral-400">
+                  <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--muted)]">
                     <li>
                       {t(
                         "Do not use Applio to create or distribute content that harms, defames, or infringes upon the rights of others.",
@@ -255,7 +271,7 @@ export default function TermsModal() {
                   <h4 className="text-xs font-semibold text-neutral-200 m-0">
                     3. {t("Adhere to Local Laws and Regulations")}
                   </h4>
-                  <p className="text-xs text-neutral-400 m-0 leading-relaxed">
+                  <p className="text-xs text-[var(--muted)] m-0 leading-relaxed">
                     {t(
                       "Familiarize yourself with and comply with the laws and regulations governing the use of AI, voice transformation tools, and generated content in your jurisdiction.",
                     )}
@@ -265,16 +281,16 @@ export default function TermsModal() {
             </div>
 
             {/* Section 2: Disclaimer of Liability */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
+              <div className="flex items-center gap-2 text-[var(--heading)]">
+                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
                   <Shield className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
                   {t("Disclaimer of Liability")}
                 </h3>
               </div>
-              <p className="text-xs text-neutral-400 m-0">
+              <p className="text-xs text-[var(--muted)] m-0">
                 {t(
                   "Applio and its contributors disclaim all liability for any misuse or unintended consequences arising from the use of this tool.",
                 )}
@@ -282,24 +298,28 @@ export default function TermsModal() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                 <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-white block">{t("No Warranty")}</strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <strong className="text-xs font-semibold text-[var(--heading)] block">
+                    {t("No Warranty")}
+                  </strong>
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t('Applio is provided "as is" without any warranty, express or implied.')}
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-white block">
+                  <strong className="text-xs font-semibold text-[var(--heading)] block">
                     {t("User Responsibility")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t(
                       "You bear full responsibility for how you choose to use Applio and any outcomes resulting from that use.",
                     )}
                   </p>
                 </div>
                 <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-white block">{t("No Endorsement")}</strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <strong className="text-xs font-semibold text-[var(--heading)] block">
+                    {t("No Endorsement")}
+                  </strong>
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t(
                       "Applio does not endorse or support any activities or content created with this tool that result in harm, illegal activity, or unethical practices.",
                     )}
@@ -309,23 +329,23 @@ export default function TermsModal() {
             </div>
 
             {/* Section 3: Permitted Use Cases */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
               <div className="flex items-center gap-2 text-neutral-200">
-                <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-white/10 border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
                   {t("Permitted Use Cases")}
                 </h3>
               </div>
-              <p className="text-xs text-neutral-400 m-0">{t("Applio is designed for:")}</p>
+              <p className="text-xs text-[var(--muted)] m-0">{t("Applio is designed for:")}</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                 <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
                   <strong className="text-xs font-semibold text-neutral-200 block">
                     {t("Personal Projects")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Experimentation and creative endeavors for personal enrichment.")}
                   </p>
                 </div>
@@ -333,7 +353,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-neutral-200 block">
                     {t("Academic Research")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Advancing scientific understanding and education.")}
                   </p>
                 </div>
@@ -341,7 +361,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-neutral-200 block">
                     {t("Investigative Purposes")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Analyzing data in lawful and ethical contexts.")}
                   </p>
                 </div>
@@ -349,7 +369,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-neutral-200 block">
                     {t("Commercial Use")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t(
                       "Creating content for commercial purposes, provided that appropriate rights and permissions are obtained and all legal and ethical standards are adhered to.",
                     )}
@@ -359,16 +379,16 @@ export default function TermsModal() {
             </div>
 
             {/* Section 4: Prohibited Activities */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
               <div className="flex items-center gap-2 text-neutral-200">
-                <div className="w-6 h-6 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center text-white shrink-0">
+                <div className="w-6 h-6 rounded-lg bg-white/10 border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0">
                   <Ban className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
                   {t("Prohibited Activities")}
                 </h3>
               </div>
-              <p className="text-xs text-neutral-400 m-0">
+              <p className="text-xs text-[var(--muted)] m-0">
                 {t("The following uses are explicitly prohibited:")}
               </p>
 
@@ -377,7 +397,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-red-300 block">
                     {t("Harmful Applications")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Generating audio to defame, harm, or manipulate others.")}
                   </p>
                 </div>
@@ -385,7 +405,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-red-300 block">
                     {t("Unauthorized Distribution")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Sharing content that violates copyrights or the rights of others.")}
                   </p>
                 </div>
@@ -393,7 +413,7 @@ export default function TermsModal() {
                   <strong className="text-xs font-semibold text-red-300 block">
                     {t("Deceptive Practices")}
                   </strong>
-                  <p className="text-[11px] text-neutral-400 m-0 leading-normal">
+                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
                     {t("Creating content intended to deceive or defraud others.")}
                   </p>
                 </div>
@@ -401,14 +421,16 @@ export default function TermsModal() {
             </div>
 
             {/* Section 5: Training Data */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-2 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-2">
+              <div className="flex items-center gap-2 text-[var(--heading)]">
+                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
                   <Database className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">{t("Training Data")}</h3>
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
+                  {t("Training Data")}
+                </h3>
               </div>
-              <p className="text-xs text-neutral-300 m-0 leading-relaxed pl-1">
+              <p className="text-sm text-[var(--text)] m-0 leading-relaxed">
                 {t(
                   "All official models distributed by Applio have been trained under publicly available datasets such as",
                 )}{" "}
@@ -416,7 +438,7 @@ export default function TermsModal() {
                   href="https://huggingface.co/datasets/IAHispano/Applio-Dataset"
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-white font-medium underline underline-offset-2 hover:text-neutral-300"
+                  className="inline-flex items-center gap-1 text-[var(--heading)] font-medium underline underline-offset-2 hover:text-[var(--text)]"
                 >
                   <span>VCTK</span>
                   <ExternalLink className="w-3 h-3 inline" />
@@ -429,42 +451,44 @@ export default function TermsModal() {
             </div>
 
             {/* Section 6: Amendments */}
-            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 sm:p-5 space-y-2 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-white">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-white shrink-0">
+            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-2">
+              <div className="flex items-center gap-2 text-[var(--heading)]">
+                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
                   <FileClock className="w-3.5 h-3.5" />
                 </div>
-                <h3 className="text-sm font-bold text-white tracking-tight m-0">{t("Amendments")}</h3>
+                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
+                  {t("Amendments")}
+                </h3>
               </div>
-              <p className="text-xs text-neutral-300 m-0 leading-relaxed pl-1">
+              <p className="text-sm text-[var(--text)] m-0 leading-relaxed">
                 {t(
                   "Applio reserves the right to modify these terms at any time. Continued use of the tool signifies your acceptance of any updated terms.",
                 )}
               </p>
             </div>
 
-            <div className="pt-2 text-[11px] text-neutral-500 text-center italic">
+            <div className="pt-2 text-[11px] text-[var(--muted)] text-center italic">
               {t("End of document. Continued use of Applio constitutes full acceptance of these terms.")}
             </div>
           </section>
 
           {/* Quick jump to bottom floating button when not at bottom */}
           {!scrolledToBottom && (
-            <button
-              type="button"
-              onClick={scrollToBottom}
-              aria-label={t("Scroll to bottom")}
-              className="absolute bottom-4 right-5 py-1.5 px-3 rounded-full bg-neutral-900/90 border border-white/20 text-neutral-200 hover:text-white hover:bg-neutral-800 shadow-xl backdrop-blur flex items-center gap-1.5 text-xs transition-colors"
-              style={{ transform: "none" }}
-            >
-              <span>{t("Scroll down")}</span>
-              <ArrowDown className="w-3.5 h-3.5 text-neutral-400 animate-bounce" />
-            </button>
+            <div className="absolute bottom-4 end-4 rounded-[var(--radius-button)] bg-[var(--panel)]">
+              <Button
+                variant="ghost"
+                onClick={scrollToBottom}
+                aria-label={t("Scroll to bottom")}
+                iconAfter={<ArrowDown />}
+              >
+                {t("Scroll down")}
+              </Button>
+            </div>
           )}
         </div>
 
         {/* Modal Footer with Agreement Controls */}
-        <div className="p-4 sm:p-5 bg-black/50 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="p-3 sm:p-5 bg-[var(--surface)] border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
             <label
               className={`flex items-center gap-3 select-none text-xs transition-opacity ${
@@ -475,23 +499,26 @@ export default function TermsModal() {
                 type="checkbox"
                 checked={agreed}
                 disabled={!scrolledToBottom}
+                aria-describedby="terms-reading-status"
                 onChange={(e) => setAgreed(e.target.checked)}
                 className="w-4 h-4 rounded border-white/20 accent-white bg-white/5 disabled:cursor-not-allowed cursor-pointer"
               />
               <span className="font-medium">{t("I have read and agree to the Applio Terms of Use")}</span>
             </label>
 
-            {!scrolledToBottom ? (
-              <span className="text-[11px] font-medium text-neutral-400 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3 shrink-0 text-neutral-400" />
-                {t("Scroll to the bottom to unlock")}
-              </span>
-            ) : (
-              <span className="text-[11px] font-medium text-white flex items-center gap-1">
-                <CheckCircle2 className="w-3 h-3 shrink-0 text-white" />
-                {t("Unlocked")}
-              </span>
-            )}
+            <span id="terms-reading-status" role="status" className="text-[11px] font-medium">
+              {scrolledToBottom ? (
+                <span className="text-[var(--heading)] flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 shrink-0 text-[var(--heading)]" aria-hidden="true" />
+                  {t("Unlocked")}
+                </span>
+              ) : (
+                <span className="text-[var(--muted)] flex items-center gap-1">
+                  <AlertTriangle className="w-3 h-3 shrink-0 text-[var(--muted)]" aria-hidden="true" />
+                  {t("Scroll to the bottom to unlock")}
+                </span>
+              )}
+            </span>
           </div>
 
           <Button

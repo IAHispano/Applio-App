@@ -558,12 +558,7 @@ export default function TrainPage() {
               title={t("Manual Training Setup")}
               description={t("Run steps 1–4 in order. Each step opens a dialog with its settings.")}
               action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => loadDatasets(true)}
-                  icon={<RefreshCw size={14} />}
-                >
+                <Button variant="ghost" onClick={() => loadDatasets(true)} icon={<RefreshCw size={14} />}>
                   {t("Refresh Datasets")}
                 </Button>
               }
@@ -580,23 +575,25 @@ export default function TrainPage() {
                           <Check size={14} strokeWidth={3} />
                         </span>
                       ) : (
-                        <span className="w-7 h-7 rounded-full bg-white text-black text-xs font-bold flex items-center justify-center leading-none tabular-nums">
+                        <span className="w-7 h-7 rounded-full bg-[var(--accent-soft)] text-[var(--accent)] text-xs font-bold flex items-center justify-center leading-none tabular-nums">
                           {i + 1}
                         </span>
                       )}
                     </div>
-                    <div className="flex-1 min-w-0 rounded-xl border border-white/10 bg-black/20 p-4 transition-colors hover:border-white/25">
+                    <div className="flex-1 min-w-0 rounded-lg border border-[var(--border)] bg-[var(--input-bg)] p-4">
                       <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
                         <span className="w-8 h-8 rounded-lg bg-white/10 border border-white/10 flex items-center justify-center shrink-0">
                           <StepIcon size={16} className="text-white" />
                         </span>
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0 flex-[1_1_12rem]">
                           <div className="flex items-center gap-2 min-w-0">
-                            <p className="text-sm font-bold text-white m-0 truncate">{s.title}</p>
+                            <p className="text-sm font-semibold text-[var(--heading)] m-0 wrap-anywhere">
+                              {s.title}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-neutral-400 m-0 truncate">{s.desc}</p>
+                          <p className="field-help m-0 wrap-anywhere">{s.desc}</p>
                         </div>
-                        <Button size="sm" onClick={() => setActiveModal(s.key)} icon={<Play size={13} />}>
+                        <Button onClick={() => setActiveModal(s.key)} icon={<Play size={13} />}>
                           {s.action}
                         </Button>
                       </div>

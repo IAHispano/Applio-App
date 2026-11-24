@@ -1,14 +1,14 @@
 "use client";
 
 import { Loader2, Music, RefreshCw } from "lucide-react";
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import ModelPresetStatus from "@/components/ModelPresetStatus";
 import type { ModelMetadata } from "@/components/models/ModelInfoCard";
-import { Alert, Badge, Card, CardHeader, VoiceModelField } from "@/components/ui";
+import { Alert, Badge, Card, CardHeader } from "@/components/ui";
+import Button from "@/components/ui/Button";
 import CustomSelect from "@/components/ui/CustomSelect";
 import IconButton from "@/components/ui/IconButton";
-import type { VoiceModelFieldProps } from "@/components/ui/VoiceModelField";
+import VoiceModelField, { type VoiceModelFieldProps } from "@/components/ui/VoiceModelField";
 import { apiGet, cachedModelInspection, errMsg, fileBasename, inspectModel } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { loadModelPresets } from "@/lib/model-presets";
@@ -189,7 +189,7 @@ export default function VoiceModelCard({
 
           {inspectError && !inspectLoading && <Alert variant="warning">{inspectError}</Alert>}
 
-          <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5 [&>div]:min-w-0">
+          <dl className="grid grid-cols-2 wrap-anywhere gap-x-3 gap-y-1.5 text-xs text-neutral-400 bg-black/30 p-2.5 rounded-xl border border-white/5 [&>div]:min-w-0">
             <div>
               <dt>{t("Weights")}</dt>
               <dd className="text-white font-medium">
@@ -298,9 +298,9 @@ export default function VoiceModelCard({
               : t("Pick a voice model above — its index file is paired automatically.")}
           </p>
           {models.length === 0 && (
-            <Link href="/models" className="ghost-link">
+            <Button href="/models" variant="ghost">
               {t("Go to Download")}
-            </Link>
+            </Button>
           )}
         </div>
       )}

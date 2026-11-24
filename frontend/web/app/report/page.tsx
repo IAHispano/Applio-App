@@ -95,73 +95,79 @@ export default function ReportPage() {
         </Alert>
       )}
 
-      <Card>
-        <CardHeader
-          icon={<MessageCircle size={18} />}
-          title={t("Get help on Discord")}
-          description={t(
-            "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.",
-            { channel: "#applio-app-testers" },
-          )}
-        />
-        <Button href={DISCORD_SUPPORT_URL} target="_blank" icon={<ExternalLink size={16} />}>
-          {t("Join our Discord")}
-        </Button>
-      </Card>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] card-grid items-start">
+        {/* Guide Card */}
+        <Card>
+          <CardHeader
+            icon={<Bug size={18} />}
+            title={t("How to Report an Issue on GitHub")}
+            description={t(
+              "Help us reproduce your issue: include clear steps, relevant settings, and a screenshot or short video.",
+            )}
+          />
+          <ol className="list-decimal space-y-2 text-sm text-[var(--muted)] m-0 ps-5 leading-relaxed marker:text-[var(--heading)]">
+            <li>
+              {t(
+                "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Write the exact steps and settings, what you expected, what happened instead, and how often it happens.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Click 'Open GitHub Issue' to open the guided bug form with your system diagnostics already filled in. Complete every required field.",
+              )}
+            </li>
+            <li>
+              {t(
+                "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.",
+              )}
+            </li>
+          </ol>
 
-      {/* Guide Card */}
-      <Card>
-        <CardHeader
-          icon={<Bug size={18} />}
-          title={t("How to Report an Issue on GitHub")}
-          description={t(
-            "Help us reproduce your issue: include clear steps, relevant settings, and a screenshot or short video.",
-          )}
-        />
-        <ol className="space-y-2 text-xs text-neutral-300 m-0 pl-4 leading-relaxed">
-          <li>
-            {t(
-              "Record the problem with 'Record Screen', or take a screenshot showing the affected page and any error.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Write the exact steps and settings, what you expected, what happened instead, and how often it happens.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Click 'Open GitHub Issue' to open the guided bug form with your system diagnostics already filled in. Complete every required field.",
-            )}
-          </li>
-          <li>
-            {t(
-              "Attach a screenshot or video directly to the GitHub report. Download recorded clips below first; they are not attached automatically.",
-            )}
-          </li>
-        </ol>
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <Button
-            variant={recording ? "ghost" : "primary"}
-            onClick={toggleRecord}
-            icon={<Video size={16} className={recording ? "animate-pulse" : undefined} />}
-          >
-            {recording ? t("Stop Recording") : t("Record Screen")}
-          </Button>
-          {info && (
+          <div className="action-row pt-3 [--action-column:12rem]">
             <Button
-              href={issueReportUrl(info)}
-              target="_blank"
-              variant="ghost"
-              icon={<ExternalLink size={16} className="text-white" />}
+              variant={recording ? "ghost" : "primary"}
+              onClick={toggleRecord}
+              icon={<Video size={16} className={recording ? "animate-pulse" : undefined} />}
             >
-              {t("Open GitHub Issue")}
+              {recording ? t("Stop Recording") : t("Record Screen")}
             </Button>
-          )}
-        </div>
-      </Card>
+            {info && (
+              <Button
+                href={issueReportUrl(info)}
+                target="_blank"
+                variant="ghost"
+                icon={<ExternalLink size={16} />}
+              >
+                {t("Open GitHub Issue")}
+              </Button>
+            )}
+          </div>
+        </Card>
 
+        <Card>
+          <CardHeader
+            icon={<MessageCircle size={18} />}
+            title={t("Get help on Discord")}
+            description={t(
+              "Join our Discord and share your issue in {channel}, our dedicated Applio App testing channel.",
+              { channel: "#applio-app-testers" },
+            )}
+          />
+          <Button
+            variant="ghost"
+            href={DISCORD_SUPPORT_URL}
+            target="_blank"
+            icon={<ExternalLink size={16} />}
+          >
+            {t("Join our Discord")}
+          </Button>
+        </Card>
+      </div>
       {clip && (
         <Card>
           {/* biome-ignore lint/a11y/useMediaCaption: user-recorded screen capture has no caption track */}
@@ -185,7 +191,6 @@ export default function ReportPage() {
             info && (
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => {
                   const text = formatDiagnostics(info);
                   navigator.clipboard.writeText(text);

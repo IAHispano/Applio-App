@@ -223,7 +223,6 @@ export default function ModelInfoCard({
               </div>
               <Button
                 variant="ghost"
-                size="xs"
                 onClick={() => copyHash(metadata.model_hash || "")}
                 aria-label={t("Copy model hash")}
                 icon={copied ? <Check size={13} className="text-white" /> : <Copy size={13} />}
@@ -234,7 +233,7 @@ export default function ModelInfoCard({
           )}
 
           {/* Action Bar */}
-          <div className="flex items-center justify-end gap-3">
+          <div className={`action-row ms-auto ${onClose ? "" : "[--action-row-width:13rem]"}`}>
             {onClose && (
               <Button variant="ghost" onClick={onClose}>
                 {t("Close")}

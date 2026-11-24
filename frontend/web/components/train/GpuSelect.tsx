@@ -4,8 +4,10 @@ import { Check, ChevronDown, Cpu, Search, X } from "lucide-react";
 import type React from "react";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import Button from "@/components/ui/Button";
 import { useDialogPortalTarget } from "@/components/ui/Dialog";
 import SettingHelp from "@/components/ui/SettingHelp";
+import { type MenuPosition, positionFloatingMenu } from "@/lib/floating-menu";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 
@@ -23,13 +25,6 @@ export interface GpuSelectProps {
   devices: GpuDevice[];
   disabled?: boolean;
   className?: string;
-}
-
-interface MenuPosition {
-  left: number;
-  width: number;
-  top?: number;
-  bottom?: number;
 }
 
 export default function GpuSelect({
@@ -72,26 +67,7 @@ export default function GpuSelect({
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
     if (!el || typeof window === "undefined") return;
-    const rect = el.getBoundingClientRect();
-    const gap = 4;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceBelow < 260 && rect.top > spaceBelow;
-    const width = Math.max(rect.width, 240);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-
-    if (openUp) {
-      setMenuPos({
-        left,
-        width,
-        bottom: Math.max(8, window.innerHeight - rect.top + gap),
-      });
-    } else {
-      setMenuPos({
-        left,
-        width,
-        top: Math.min(rect.bottom + gap, window.innerHeight - 80),
-      });
-    }
+    setMenuPos(positionFloatingMenu(el, 240, 180));
   }, []);
 
   const handleOpen = () => {
@@ -121,6 +97,9 @@ export default function GpuSelect({
       updatePosition();
     };
 
+    const viewport = window.visualViewport;
+    viewport?.addEventListener("resize", handleScrollOrResize);
+    viewport?.addEventListener("scroll", handleScrollOrResize);
     window.addEventListener("mousedown", handleOutside);
     window.addEventListener("scroll", handleScrollOrResize, true);
     window.addEventListener("resize", handleScrollOrResize);
@@ -130,13 +109,15 @@ export default function GpuSelect({
       window.removeEventListener("mousedown", handleOutside);
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
+      viewport?.removeEventListener("resize", handleScrollOrResize);
+      viewport?.removeEventListener("scroll", handleScrollOrResize);
     };
   }, [open, updatePosition]);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) return;
-    if (e.key === "Escape") {
+    if (open && e.key === "Escape") {
       e.preventDefault();
       e.stopPropagation();
       handleClose();
@@ -299,10 +280,11 @@ export default function GpuSelect({
               position: "fixed",
               left: menuPos.left,
               width: menuPos.width,
+              maxHeight: menuPos.maxHeight,
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
               ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
-            className="menu-pop z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-hidden backdrop-blur-xl select-none"
+            className="menu-pop z-[99999] bg-[#121212] border border-white/15 rounded-xl shadow-2xl overflow-y-auto backdrop-blur-xl select-none"
           >
             {/* Search */}
             <div className="flex items-center gap-2 px-3.5 py-2">
@@ -330,26 +312,15 @@ export default function GpuSelect({
 
             {/* Header when multiple GPUs available */}
             {devices.length > 1 && (
-              <div className="flex items-center justify-between px-3.5 py-2 text-[11px] text-neutral-400">
-                <span className="font-semibold uppercase tracking-wider text-[10px] text-neutral-500">
-                  {t("Select GPUs")}
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={selectAllGpus}
-                    className="text-[11px] text-neutral-400 hover:text-white transition-colors bg-transparent border-0 p-0 cursor-pointer"
-                  >
+              <div className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2">
+                <span className="text-sm font-semibold text-[var(--muted)]">{t("Select GPUs")}</span>
+                <div className="action-row [--action-column:6rem]">
+                  <Button variant="ghost" onClick={selectAllGpus}>
                     {t("Select all")}
-                  </button>
-                  <span className="text-white/20">|</span>
-                  <button
-                    type="button"
-                    onClick={selectCpu}
-                    className="text-[11px] text-neutral-400 hover:text-white transition-colors bg-transparent border-0 p-0 cursor-pointer"
-                  >
+                  </Button>
+                  <Button variant="ghost" onClick={selectCpu}>
                     {t("CPU only")}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}

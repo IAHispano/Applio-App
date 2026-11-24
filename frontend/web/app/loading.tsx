@@ -10,10 +10,10 @@ export default function Loading() {
     <div
       role="status"
       aria-live="polite"
-      className="h-full w-full min-h-[160px] flex items-center justify-center p-6 text-neutral-400 select-none"
+      className="h-full w-full min-h-[160px] flex items-center justify-center gap-2 p-6 text-sm text-[var(--muted)]"
     >
-      <Loader2 className="w-6 h-6 animate-spin text-white/50" />
-      <span className="sr-only">{t("Loading…")}</span>
+      <Loader2 className="size-4 animate-spin motion-reduce:animate-none" />
+      <span>{t("Loading…")}</span>
     </div>
   );
 }

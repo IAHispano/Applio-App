@@ -90,7 +90,7 @@ export default function DownloadPanel() {
           )}
         />
 
-        <div className="flex flex-col sm:flex-row gap-3 max-w-xl">
+        <div className="form-action-row max-w-xl">
           <label htmlFor="dl-link-input" className="sr-only">
             {t("Model Link")}
           </label>
@@ -100,7 +100,7 @@ export default function DownloadPanel() {
             value={link}
             onChange={(e) => setLink(e.target.value)}
             placeholder={t("Model link (Drive, HuggingFace, direct zip)…")}
-            className="flex-1 h-10 px-3 text-sm rounded-xl bg-white/5 border border-white/10"
+            className="min-w-0 h-[var(--action-height)]"
           />
           <Button onClick={downloadLink} icon={<Download size={16} />}>
             {t("Download")}
@@ -118,16 +118,11 @@ export default function DownloadPanel() {
           description={t("Upload local .pth, .index, or .onnx files directly into your models directory.")}
         />
 
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 max-w-xl">
+        <div className="form-action-row max-w-xl">
           <label htmlFor="dl-file-input" className="sr-only">
             {t("Upload model file")}
           </label>
-          <FileInput
-            id="dl-file-input"
-            accept=".pth,.index,.onnx"
-            onFileSelect={setDropFile}
-            className="flex-1"
-          />
+          <FileInput id="dl-file-input" accept=".pth,.index,.onnx" onFileSelect={setDropFile} />
           <Button
             variant="ghost"
             onClick={drop}

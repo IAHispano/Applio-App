@@ -148,7 +148,6 @@ export default function ImportModelDialog({ isOpen, onClose, onImported }: Impor
             {t("Import model")}
           </h2>
           <Button
-            size="xs"
             variant="ghost"
             icon={<X size={14} />}
             onClick={running ? stop : onClose}
@@ -306,12 +305,11 @@ export default function ImportModelDialog({ isOpen, onClose, onImported }: Impor
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {!running && (
-          <div className="flex justify-end gap-2 pt-2">
-            <Button size="sm" variant="ghost" onClick={onClose}>
+          <div className="modal-footer">
+            <Button variant="ghost" onClick={onClose}>
               {t("Cancel")}
             </Button>
             <Button
-              size="sm"
               onClick={submit}
               icon={<Plus size={14} />}
               disabled={

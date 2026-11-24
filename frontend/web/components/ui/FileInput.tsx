@@ -3,8 +3,8 @@
 import { Upload, X } from "lucide-react";
 import type React from "react";
 import { useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
+import Button from "./Button";
 
 export interface FileInputProps {
   id?: string;
@@ -77,6 +77,7 @@ export default function FileInput({
     triggerRef.current?.focus();
   };
 
+  const chooseLabel = buttonText || (multiple ? t("Choose files") : t("Choose file"));
   let labelText = placeholder ?? t("No file chosen");
   if (selectedNames.length === 1) {
     labelText = selectedNames[0];
@@ -86,7 +87,7 @@ export default function FileInput({
 
   return (
     <div
-      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-xl border border-white/10 bg-[var(--input-bg,#121212)] transition-colors hover:border-white/20 min-w-0 ${
+      className={`flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--input-bg)] transition-colors hover:border-[var(--focus-border)] min-w-0 ${
         disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : ""
       } ${className}`}
     >
@@ -106,10 +107,10 @@ export default function FileInput({
       <Button
         ref={triggerRef}
         type="button"
-        size="sm"
         variant="ghost"
         disabled={disabled}
         aria-label={ariaLabel}
+        title={chooseLabel}
         aria-labelledby={!ariaLabel && labelId ? `${labelId} ${statusId}-button` : undefined}
         aria-describedby={[descriptionId, statusId].filter(Boolean).join(" ")}
         aria-invalid={invalid}
@@ -117,9 +118,7 @@ export default function FileInput({
         icon={<Upload size={13} className="text-neutral-300" />}
         className="shrink-0"
       >
-        <span id={`${statusId}-button`}>
-          {buttonText || (multiple ? t("Choose files") : t("Choose file"))}
-        </span>
+        <span id={`${statusId}-button`}>{chooseLabel}</span>
       </Button>
 
       <span
@@ -135,15 +134,13 @@ export default function FileInput({
       </span>
 
       {selectedNames.length > 0 && !disabled && (
-        <button
-          type="button"
+        <Button
+          variant="ghost"
           onClick={handleClear}
           title={t("Clear file selection")}
           aria-label={t("Clear file selection")}
-          className="p-1 min-w-7 min-h-7 rounded-md text-neutral-400 hover:text-white hover:bg-white/10 transition-colors shrink-0 cursor-pointer"
-        >
-          <X size={13} />
-        </button>
+          icon={<X />}
+        />
       )}
     </div>
   );

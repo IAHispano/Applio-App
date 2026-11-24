@@ -13,26 +13,25 @@ import {
   Flame,
   HardDrive,
   Layers,
-  Radio,
   RefreshCw,
   Volume2,
-  Wand2,
   XCircle,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type React from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import Loading from "@/app/loading";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobPanelContent } from "@/components/JobPanel";
 import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
-import FirstRunSetup from "@/components/setup/FirstRunSetup";
+import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
 import {
   apiGet,
   apiSend,
-  displayVersion,
   errMsg,
   fetchModels,
   fileBasename,
@@ -43,24 +42,20 @@ import {
 import { type TFn, useI18n } from "@/lib/i18n";
 import { jobHref } from "@/lib/job-url";
 import { useRealtimeGpuReserved } from "@/lib/realtime-presence";
+import { type DiagnosticInfo, diagnosticRuntime } from "@/lib/report";
 import { useSetup } from "@/lib/setup";
 import { useJob } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
+
+const FirstRunSetup = dynamic(() => import("@/components/setup/FirstRunSetup"), {
+  ssr: false,
+  loading: Loading,
+});
 
 interface ModelsSummary {
   models: string[];
   indexes: string[];
   audios: string[];
-}
-
-interface SystemInfo {
-  version: string;
-  platform: string;
-  node?: string;
-  runtime?: string;
-  python: string;
-  cpus: number;
-  totalMemGB: number;
 }
 
 interface LibraryModel {
@@ -86,15 +81,6 @@ interface LastConversion {
   index?: string;
 }
 
-interface VersionInfo {
-  local?: string | null;
-  latest?: string | null;
-  status?: string | null;
-  isOutdated?: boolean;
-  versionsBehind?: number;
-  isDev?: boolean;
-}
-
 function ActionCard({
   href,
   icon,
@@ -107,16 +93,16 @@ function ActionCard({
   description: string;
 }) {
   return (
-    <Link
-      href={href}
-      className="group flex flex-row sm:flex-col gap-4 rounded-xl border border-[var(--border)] bg-[var(--panel)] p-5 hover:border-[var(--focus-border)] hover:bg-[var(--surface)] transition-colors"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
+    <Link href={href} className="card flex min-w-0 items-start gap-3 hover:!border-[var(--focus-border)]">
+      <span
+        aria-hidden="true"
+        className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--accent-soft)] text-[var(--accent)]"
+      >
         {icon}
       </span>
-      <div className="space-y-1.5">
-        <h3 className="text-base font-semibold text-[var(--heading)] m-0">{title}</h3>
-        <p className="text-sm text-[var(--muted)] m-0 leading-relaxed">{description}</p>
+      <div className="min-w-0 space-y-1">
+        <h3 className="text-base font-semibold text-[var(--heading)] m-0 wrap-anywhere">{title}</h3>
+        <p className="field-help m-0">{description}</p>
       </div>
     </Link>
   );
@@ -143,7 +129,7 @@ function timeAgo(iso: string, t: TFn): string {
   return new Date(iso).toLocaleDateString();
 }
 
-function HeroStat({
+function DashboardStat({
   href,
   icon,
   label,
@@ -157,18 +143,14 @@ function HeroStat({
   subtext?: React.ReactNode;
 }) {
   return (
-    <Link
-      href={href}
-      className="group flex h-full items-center gap-3 rounded-xl px-2 py-1.5 -mx-2 hover:bg-[var(--surface)] transition-colors min-w-0"
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)]">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="text-xl font-semibold text-[var(--heading)] m-0 leading-tight tabular-nums">{value}</p>
-        <p className="text-xs text-[var(--muted)] m-0 mt-0.5 truncate">{label}</p>
-        {subtext && <p className="text-[11px] text-[var(--muted)] m-0 mt-0.5 truncate">{subtext}</p>}
-      </div>
+    <Link href={href} className="block min-w-0 rounded-lg">
+      <StatTile
+        label={label}
+        value={<span className="text-xl leading-tight">{value}</span>}
+        subtext={subtext}
+        icon={<span aria-hidden="true">{icon}</span>}
+        className="h-full transition-colors hover:!border-[var(--focus-border)] [&_p]:whitespace-normal [&_p]:wrap-anywhere"
+      />
     </Link>
   );
 }
@@ -178,7 +160,7 @@ export default function Home() {
   const { t } = useI18n();
   const { status, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
   const [modelsData, setModelsData] = useWorkspaceState<ModelsSummary | null>("page:app:modelsData", null);
-  const [sysInfo, setSysInfo] = useWorkspaceState<SystemInfo | null>("page:app:sysInfo", null);
+  const [sysInfo, setSysInfo] = useWorkspaceState<DiagnosticInfo | null>("page:app:sysInfo", null);
   const [library, setLibrary] = useWorkspaceState<LibraryModel[] | null>("page:app:library", null);
   const [jobs, setJobs] = useWorkspaceState<Job[] | null>("page:app:jobs", null);
   const [storage, setStorage] = useWorkspaceState<StorageSummary | null>("page:app:storage", null);
@@ -186,7 +168,6 @@ export default function Home() {
     "page:app:lastConversion",
     null,
   );
-  const [versionInfo, setVersionInfo] = useWorkspaceState<VersionInfo | null>("page:app:versionInfo", null);
   const [showDetails, setShowDetails] = useWorkspaceState("page:app:showDetails", false);
   const realtimeLive = useRealtimeGpuReserved();
   const [error, setError] = useState("");
@@ -225,12 +206,10 @@ export default function Home() {
           // Optional sections remain usable when another service is unavailable.
         }
       };
-      // Online release checks must not hold up local dashboard content or Refresh.
-      void load<VersionInfo>("/api/settings/version-check", setVersionInfo);
       await Promise.all([
         refreshSetup(force),
         load<ModelsSummary>("/api/models", setModelsData),
-        load<SystemInfo>("/api/report/info", setSysInfo),
+        load<DiagnosticInfo>("/api/report/info", setSysInfo),
         load<{ models: LibraryModel[] }>("/api/models/library", (value) => setLibrary(value.models)),
         load<{ jobs: Job[] }>("/api/jobs/activity", (value) => setJobs(value.jobs)),
         load<{ stats: StorageSummary }>("/api/settings/storage", (value) => setStorage(value.stats)),
@@ -254,16 +233,7 @@ export default function Home() {
       ]);
       if (!controller.signal.aborted) setRefreshing(false);
     },
-    [
-      refreshSetup,
-      setSysInfo,
-      setVersionInfo,
-      setModelsData,
-      setLibrary,
-      setJobs,
-      setStorage,
-      setLastConversion,
-    ],
+    [refreshSetup, setSysInfo, setModelsData, setLibrary, setJobs, setStorage, setLastConversion],
   );
 
   useEffect(() => {
@@ -341,9 +311,6 @@ export default function Home() {
   const recentModels = library?.slice(0, 4) ?? [];
   const recentJobs = [...(jobs ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
   const activeJobs = (jobs ?? []).filter((job) => job.status === "running" || job.status === "queued").length;
-  const updateAvailable =
-    versionInfo && !versionInfo.isDev && versionInfo.status === "behind" && versionInfo.latest;
-  const currentVersion = displayVersion(sysInfo?.version || versionInfo?.local);
 
   if (!status) {
     const combinedError = error || setupError;
@@ -352,7 +319,7 @@ export default function Home() {
         <div className="h-full w-full min-h-[300px] flex flex-col items-center justify-center p-6">
           <div className="max-w-md w-full space-y-4 text-center">
             <Alert variant="error">{combinedError}</Alert>
-            <div className="flex items-center justify-center gap-2 flex-wrap">
+            <div className="action-row mx-auto">
               <Button onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
                 {t("Retry Connection")}
               </Button>
@@ -368,26 +335,29 @@ export default function Home() {
       );
     }
     return (
-      <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack animate-pulse">
-        <div className="h-52 sm:h-56 rounded-xl border border-white/5 bg-white/[0.02]" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-40 rounded-xl border border-white/5 bg-white/[0.02]" />
+      <div className="w-full max-w-[1920px] mx-auto page-stack">
+        <div aria-hidden="true" className="page-stack animate-pulse">
+          <div className="h-8 w-56 max-w-full rounded-lg bg-[var(--surface)]" />
+          <div className="h-9 w-64 max-w-full rounded-lg bg-[var(--surface)]" />
+          <div className="grid grid-cols-2 xl:grid-cols-4 card-grid">
+            {[0, 1, 2, 3].map((item) => (
+              <div
+                key={item}
+                className="h-20 rounded-lg border border-[var(--border)] bg-[var(--input-bg)]"
+              />
+            ))}
+          </div>
         </div>
         {(stuck || !setupLoading) && (
-          <div className="flex flex-col items-center gap-2 pt-4 animate-none">
+          <div className="flex flex-col items-center gap-2 pt-4">
             <p className="text-xs text-[var(--muted)] m-0 text-center">
               {t("Still checking engine status… the first torch import can take a few minutes.")}
             </p>
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              <Button size="sm" variant="ghost" onClick={() => refresh(true)} icon={<RefreshCw size={13} />}>
+            <div className="action-row">
+              <Button variant="ghost" onClick={() => refresh(true)} icon={<RefreshCw size={13} />}>
                 {t("Retry Check")}
               </Button>
-              <Button size="sm" href="/setup">
-                {t("Go to Setup")}
-              </Button>
+              <Button href="/setup">{t("Go to Setup")}</Button>
             </div>
           </div>
         )}
@@ -407,74 +377,37 @@ export default function Home() {
   }
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto flex flex-col page-stack">
-      <section className="home-hero relative overflow-hidden rounded-xl border border-[var(--border)] p-5 sm:p-7">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
-            <Badge variant={status?.ready ? "success" : "neutral"} dot>
-              {t(status?.ready ? "Ready" : "Checking engine status…")}
-            </Badge>
-            {currentVersion && <span className="text-xs text-[var(--muted)]">Applio {currentVersion}</span>}
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            loading={refreshing}
-            onClick={() => refresh(true)}
-            icon={<RefreshCw size={14} />}
-          >
-            {t("Refresh")}
-          </Button>
-        </div>
-        <div className="pt-5">
-          <div className="space-y-5">
-            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight leading-tight text-[var(--heading)] m-0">
-              {t("Your voice workspace")}
-            </h1>
-            <p className="text-base text-[var(--muted)] leading-relaxed m-0">
-              {t("High-performance AI voice cloning, real-time conversion, and model training.")}
-            </p>
-            <div className="flex flex-wrap items-center gap-3 pt-1">
-              <Button href="/inference" icon={<Wand2 size={18} />}>
-                {t("Convert Audio")}
-              </Button>
-              <Button href="/realtime" variant="ghost" icon={<Radio size={18} />}>
-                {t("Realtime")}
-              </Button>
-            </div>
-          </div>
-        </div>
-        <div className="mt-6 pt-5 grid grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-3">
-          <HeroStat
-            href="/models"
-            icon={<Database size={16} />}
-            label={t("Voice Models")}
-            value={modelsData ? modelCount : "—"}
-          />
-          <HeroStat
-            href="/extra"
-            icon={<FileAudio size={16} />}
-            label={t("Audio files")}
-            value={modelsData ? audioCount : "—"}
-          />
-          <HeroStat
-            href="/jobs"
-            icon={<Activity size={16} />}
-            label={t("Active jobs")}
-            value={jobs ? activeJobs : "—"}
-            subtext={
-              realtimeLive ? t("Realtime streaming") : activeJobs > 0 ? t("Processing now") : t("Idle")
-            }
-          />
-          <HeroStat
-            href="/settings"
-            icon={<HardDrive size={16} />}
-            label={t("Storage used")}
-            value={storage ? formatBytes(storage.totalBytes) : "—"}
-            subtext={storage ? `${storage.totalFiles} ${t("files")}` : undefined}
-          />
-        </div>
-      </section>
+    <div className="w-full max-w-[1920px] mx-auto page-stack">
+      <PageHeader title={t("Your voice workspace")} guide={false} />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 card-grid">
+        <DashboardStat
+          href="/models"
+          icon={<Database size={16} />}
+          label={t("Voice Models")}
+          value={modelsData ? modelCount : "—"}
+        />
+        <DashboardStat
+          href="/extra"
+          icon={<FileAudio size={16} />}
+          label={t("Audio files")}
+          value={modelsData ? audioCount : "—"}
+        />
+        <DashboardStat
+          href="/jobs"
+          icon={<Activity size={16} />}
+          label={t("Active jobs")}
+          value={jobs ? activeJobs : "—"}
+          subtext={realtimeLive ? t("Realtime streaming") : activeJobs > 0 ? t("Processing now") : t("Idle")}
+        />
+        <DashboardStat
+          href="/settings"
+          icon={<HardDrive size={16} />}
+          label={t("Storage used")}
+          value={storage ? formatBytes(storage.totalBytes) : "—"}
+          subtext={storage ? `${storage.totalFiles} ${t("files")}` : undefined}
+        />
+      </div>
 
       {(error || setupError) && (
         <Alert variant="error">
@@ -482,7 +415,6 @@ export default function Home() {
             <span>{error || setupError}</span>
             {setupError && (
               <Button
-                size="sm"
                 variant="ghost"
                 loading={setupLoading}
                 onClick={() => refresh(true)}
@@ -495,27 +427,8 @@ export default function Home() {
         </Alert>
       )}
 
-      {/* Update banner */}
-      {updateAvailable && (
-        <Alert
-          variant="warning"
-          title={t("Update available")}
-          icon={<Download size={16} className="shrink-0" />}
-        >
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <span>
-              {displayVersion(versionInfo.latest)}
-              {versionInfo.versionsBehind ? ` (${versionInfo.versionsBehind} ${t("updates behind")})` : ""}
-            </span>
-            <Button size="sm" variant="ghost" onClick={() => router.push("/settings")}>
-              {t("View update")}
-            </Button>
-          </div>
-        </Alert>
-      )}
-
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-[var(--heading)] m-0">{t("Quick Actions")}</h2>
+        <CardHeader title={t("Quick Actions")} />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
           <ActionCard
             href="/train"
@@ -545,20 +458,18 @@ export default function Home() {
       </section>
 
       {lastConversion && (
-        <Card className="!mb-0 !space-y-0 !p-5 sm:!p-6">
+        <Card as="section">
           <CardHeader
-            border={false}
             title={t("Latest output")}
             icon={<FileAudio size={17} />}
             description={`${t(lastConversion.label || "Audio")} · ${timeAgo(lastConversion.createdAt, t)}`}
             action={
-              <div className="flex items-center gap-1.5">
-                <Button size="xs" variant="ghost" href={jobHref(lastConversion.jobId)}>
+              <>
+                <Button variant="ghost" href={jobHref(lastConversion.jobId)}>
                   {t("Open job")}
                 </Button>
                 {lastConversion.model && (
                   <Button
-                    size="xs"
                     variant="ghost"
                     href={`/inference?${new URLSearchParams({
                       model: lastConversion.model,
@@ -568,89 +479,77 @@ export default function Home() {
                     {t("Convert again")}
                   </Button>
                 )}
-              </div>
+              </>
             }
           />
-          <div className="pt-1">
-            <AudioWavePlayer
-              src={outputUrl(lastConversion.outputFile)}
-              filename={fileBasename(lastConversion.outputFile)}
-              showAnalyzerLink={false}
-              compact
-            />
-          </div>
+          <AudioWavePlayer
+            src={outputUrl(lastConversion.outputFile)}
+            filename={fileBasename(lastConversion.outputFile)}
+            showAnalyzerLink={false}
+            compact
+          />
         </Card>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 card-grid">
-        <Card className="lg:col-span-2 !mb-0 !space-y-0 !p-0 overflow-hidden">
-          <div className="p-5 sm:p-6 space-y-4">
-            <CardHeader
-              border={false}
-              title={t("Recent Models")}
-              description={t("Latest voices in your library.")}
-              action={
-                <Link
-                  href="/models"
-                  className="text-xs text-[var(--muted)] hover:text-[var(--heading)] inline-flex items-center gap-1.5"
-                >
-                  {t("View all")}
-                </Link>
-              }
-            />
-            {library === null ? (
-              <p className="text-sm text-[var(--muted)] m-0">
-                {refreshing ? t("Loading models…") : t("Service unavailable")}
-              </p>
-            ) : recentModels.length ? (
-              <ul className="m-0 p-0 list-none">
-                {recentModels.map((model) => (
-                  <li key={model.pthPath}>
-                    <Link
-                      href={`/inference?${new URLSearchParams({ model: model.pthPath, ...(model.indexPath ? { index: model.indexPath } : {}) })}`}
-                      className="flex items-center gap-3 py-3 px-2 -mx-2 rounded-lg hover:bg-[var(--surface)] transition-colors group"
-                    >
-                      <span className="flex items-center justify-center w-10 h-10 shrink-0 rounded-xl bg-[var(--surface)]">
-                        <Volume2 size={18} className="text-[var(--muted)]" />
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[var(--heading)] m-0 truncate">
-                          {model.name}
-                        </p>
-                        <p className="text-xs text-[var(--muted)] m-0 mt-1 truncate" title={model.pthPath}>
-                          {fileBasename(model.pthPath)}
-                          {model.pthSize ? ` · ${formatBytes(model.pthSize)}` : ""}
-                          {model.indexPath ? ` · ${t("Index paired")}` : ""}
-                        </p>
-                      </div>
-                      <span className="text-[11px] text-[var(--muted)] shrink-0">
-                        {timeAgo(model.modifiedAt, t)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="rounded-xl border border-dashed border-[var(--border)] p-6 text-center space-y-4">
-                <Database size={24} className="mx-auto text-[var(--muted)]" />
-                <p className="text-sm text-[var(--muted)] m-0">{t("Your models will appear here.")}</p>
-                <Button size="sm" onClick={() => router.push("/models")} icon={<Download size={14} />}>
-                  {t("Download a Model")}
-                </Button>
-              </div>
-            )}
-          </div>
+        <Card as="section" className="min-w-0 lg:col-span-2">
+          <CardHeader
+            title={t("Recent Models")}
+            icon={<Database size={17} />}
+            action={
+              <Button href="/models" variant="ghost">
+                {t("View all")}
+              </Button>
+            }
+          />
+          {library === null ? (
+            <p className="text-sm text-[var(--muted)] m-0">
+              {refreshing ? t("Loading models…") : t("Service unavailable")}
+            </p>
+          ) : recentModels.length ? (
+            <ul className="m-0 p-0 list-none">
+              {recentModels.map((model) => (
+                <li key={model.pthPath}>
+                  <Link
+                    href={`/inference?${new URLSearchParams({ model: model.pthPath, ...(model.indexPath ? { index: model.indexPath } : {}) })}`}
+                    className="flex items-center gap-3 py-2.5 px-2 -mx-2 rounded-lg hover:bg-[var(--input-bg)] transition-colors"
+                  >
+                    <span className="flex items-center justify-center size-9 shrink-0 rounded-lg bg-[var(--input-bg)]">
+                      <Volume2 size={17} className="text-[var(--muted)]" aria-hidden="true" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-[var(--heading)] m-0 truncate">{model.name}</p>
+                      <p className="text-xs text-[var(--muted)] m-0 mt-1 truncate" title={model.pthPath}>
+                        {fileBasename(model.pthPath)}
+                        {model.pthSize ? ` · ${formatBytes(model.pthSize)}` : ""}
+                        {model.indexPath ? ` · ${t("Index paired")}` : ""}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-[var(--muted)] shrink-0">
+                      {timeAgo(model.modifiedAt, t)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-lg border border-dashed border-[var(--border)] p-5 text-center space-y-3">
+              <p className="text-sm text-[var(--muted)] m-0">{t("Your models will appear here.")}</p>
+              <Button onClick={() => router.push("/models")} icon={<Download size={14} />}>
+                {t("Download a Model")}
+              </Button>
+            </div>
+          )}
         </Card>
 
-        <Card className="!mb-0 !p-5 sm:!p-6">
+        <Card as="section" className="min-w-0">
           <CardHeader
-            border={false}
             title={t("Recent activity")}
             icon={<Clock3 size={17} />}
             action={
-              <Link href="/jobs" className="text-xs text-[var(--muted)] hover:text-[var(--heading)]">
+              <Button href="/jobs" variant="ghost">
                 {t("View all")}
-              </Link>
+              </Button>
             }
           />
           {jobs === null ? (
@@ -663,7 +562,7 @@ export default function Home() {
                 <li key={job.id}>
                   <Link
                     href={jobHref(job.id)}
-                    className="block py-3 space-y-2 rounded-lg hover:bg-[var(--surface)] px-2 -mx-2 transition-colors"
+                    className="block py-2.5 space-y-2 rounded-lg hover:bg-[var(--input-bg)] px-2 -mx-2 transition-colors"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-medium text-[var(--heading)] truncate m-0">
@@ -685,123 +584,107 @@ export default function Home() {
               ))}
             </ul>
           ) : (
-            <div className="py-5 space-y-3">
-              <p className="text-sm font-medium text-[var(--heading)] m-0">{t("No jobs yet.")}</p>
-              <p className="text-xs leading-relaxed text-[var(--muted)] m-0">
-                {t("Track progress, inspect settings and results, and revisit previous work.")}
-              </p>
-              <Link
-                href="/jobs"
-                className="inline-flex items-center gap-2 text-xs text-[var(--heading)] mt-2"
-              >
-                {t("Job history")}
-              </Link>
-            </div>
+            <p className="text-sm text-[var(--muted)] m-0">{t("No jobs yet.")}</p>
           )}
         </Card>
       </div>
 
-      {/* Diagnostics */}
-      <section className="rounded-xl border border-white/10 bg-white/[0.02] overflow-hidden">
-        <div className="flex items-center justify-between p-4 flex-wrap gap-2">
-          <div className="flex items-center gap-2.5">
-            <Activity size={16} className="text-white" />
-            <h2 className="text-sm font-semibold text-neutral-200 m-0">{t("System Diagnostics")}</h2>
-            <Badge variant={!status ? "neutral" : passedChecks === totalChecks ? "success" : "warning"}>
-              {status ? `${passedChecks}/${totalChecks} ${t("passed")}` : t("Checking…")}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={prerequisites}
-              disabled={!status?.ready || prereqRunning}
-              title={t("Download base voice models and checkpoints (hubert, rmvpe, vocoders)")}
-              icon={<Download size={13} />}
-            >
-              {prereqRunning
-                ? t("Downloading…")
-                : prereqJob?.status === "done"
-                  ? t("Downloaded")
-                  : t("Prerequisites")}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => refresh(true)}
-              title={t("Re-run diagnostic checks")}
-              icon={<RefreshCw size={13} />}
-            >
-              {t("Re-check")}
-            </Button>
-            <Button
-              size="xs"
-              variant="ghost"
-              onClick={() => setShowDetails(!showDetails)}
-              aria-expanded={showDetails}
-              aria-controls="home-diagnostics-details"
-              iconAfter={showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-            >
-              {showDetails ? t("Hide Details") : t("Show Details")}
-            </Button>
-          </div>
-        </div>
-
-        {showDetails && sysInfo && (
-          <div className="px-4 pb-4 grid grid-cols-2 xl:grid-cols-4 gap-3">
-            <StatTile label={t("App Version")} value={displayVersion(sysInfo.version) || "—"} />
-            <StatTile label={t("Platform")} value={sysInfo.platform} />
-            <StatTile label={t("Engine Runtimes")} value={`Node ${sysInfo.node}`} subtext={sysInfo.python} />
-            <StatTile
-              label={t("Compute Resources")}
-              value={t("{count} CPU cores", { count: sysInfo.cpus })}
-              subtext={`${sysInfo.totalMemGB} GB RAM`}
-            />
-          </div>
-        )}
+      <Card as="section">
+        <CardHeader
+          icon={<Activity size={17} />}
+          title={t("System Diagnostics")}
+          action={
+            <>
+              <Badge variant={passedChecks === totalChecks ? "success" : "warning"}>
+                {`${passedChecks}/${totalChecks} ${t("passed")}`}
+              </Badge>
+              <Button
+                variant="ghost"
+                onClick={prerequisites}
+                disabled={prereqRunning}
+                title={t("Download base voice models and checkpoints (hubert, rmvpe, vocoders)")}
+                icon={<Download size={14} />}
+              >
+                {prereqRunning
+                  ? t("Downloading…")
+                  : prereqJob?.status === "done"
+                    ? t("Downloaded")
+                    : t("Prerequisites")}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => refresh(true)}
+                title={t("Re-run diagnostic checks")}
+                icon={<RefreshCw size={14} />}
+              >
+                {t("Re-check")}
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setShowDetails(!showDetails)}
+                aria-expanded={showDetails}
+                aria-controls={showDetails ? "home-diagnostics-details" : undefined}
+                iconAfter={showDetails ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              >
+                {showDetails ? t("Hide Details") : t("Show Details")}
+              </Button>
+            </>
+          }
+        />
 
         {showDetails && (
-          <div
-            id="home-diagnostics-details"
-            className="p-4 bg-black/20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 gap-2.5"
-          >
-            {status?.checks.map((c) => {
-              const isOk = c.status === "ok";
-              const isWarn = c.status === "warn";
-              return (
-                <div
-                  key={c.id}
-                  className="flex items-start gap-2 p-2.5 rounded-lg border border-white/5 bg-white/[0.01]"
-                >
-                  <div className="mt-0.5 shrink-0">
-                    {isOk ? (
-                      <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                    ) : isWarn ? (
-                      <AlertCircle className="w-3.5 h-3.5 text-neutral-300" />
-                    ) : (
-                      <XCircle className="w-3.5 h-3.5 text-neutral-400" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-medium text-neutral-200 truncate">{c.label}</span>
-                      <Badge variant={isOk ? "success" : isWarn ? "warning" : "danger"}>{c.status}</Badge>
+          <div id="home-diagnostics-details" className="card-stack">
+            {sysInfo && (
+              <div className="grid grid-cols-2 xl:grid-cols-4 card-grid">
+                <StatTile label={t("Platform")} value={sysInfo.platform} />
+                <StatTile
+                  label={t("Engine Runtimes")}
+                  value={diagnosticRuntime(sysInfo)}
+                  subtext={sysInfo.python}
+                />
+                <StatTile
+                  label={t("Compute Resources")}
+                  value={t("{count} CPU cores", { count: sysInfo.cpus })}
+                  subtext={t("{count} GB RAM", { count: sysInfo.totalMemGB })}
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5">
+              {status?.checks.map((c) => {
+                const isOk = c.status === "ok";
+                const isWarn = c.status === "warn";
+                return (
+                  <div
+                    key={c.id}
+                    className="flex items-start gap-2 p-2.5 rounded-lg border border-[var(--border)] bg-[var(--input-bg)]"
+                  >
+                    <div className="mt-0.5 shrink-0" aria-hidden="true">
+                      {isOk ? (
+                        <CheckCircle2 className="size-3.5 text-[var(--ok)]" />
+                      ) : isWarn ? (
+                        <AlertCircle className="size-3.5 text-[var(--warn)]" />
+                      ) : (
+                        <XCircle className="size-3.5 text-[var(--err)]" />
+                      )}
                     </div>
-                    <p className="text-[10px] text-neutral-500 mt-0.5 truncate m-0">{c.detail}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center justify-between gap-1">
+                        <span className="text-xs font-medium text-[var(--heading)] wrap-anywhere">
+                          {c.label}
+                        </span>
+                        <Badge variant={isOk ? "success" : isWarn ? "warning" : "danger"}>{c.status}</Badge>
+                      </div>
+                      <p className="text-[11px] text-[var(--muted)] mt-0.5 m-0 wrap-anywhere">{c.detail}</p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {jobId && (
-          <div className="px-4 pb-4">
-            <JobPanelContent jobId={jobId} activity={activity} embedded />
-          </div>
-        )}
-      </section>
+        {jobId && <JobPanelContent jobId={jobId} activity={activity} embedded />}
+      </Card>
     </div>
   );
 }

@@ -28,9 +28,17 @@ export default function RealtimeDevices({ controls }: { controls: RealtimeDevice
       step={2}
       title={t("Audio Devices")}
       description={t("Select your input and output devices.")}
+      action={
+        <IconButton
+          label={t("Refresh audio devices")}
+          icon={<RefreshCw size={14} />}
+          disabled={calibrating}
+          onClick={() => void enumDevices()}
+        />
+      }
       icon={<ListMusic size={18} className="text-white" />}
     >
-      <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-4">
+      <div className="grid grid-cols-1 @sm:grid-cols-2 gap-4">
         <FormField label={t("Input Device")} htmlFor="rt-in-dev" required>
           <CustomSelect
             id="rt-in-dev"
@@ -67,14 +75,6 @@ export default function RealtimeDevices({ controls }: { controls: RealtimeDevice
             ))}
           </CustomSelect>
         </FormField>
-        <div className="flex items-start sm:pt-[30px]">
-          <IconButton
-            label={t("Refresh audio devices")}
-            icon={<RefreshCw size={14} />}
-            size="md"
-            onClick={() => void enumDevices()}
-          />
-        </div>
       </div>
       <p className="text-xs text-neutral-400">
         {t(

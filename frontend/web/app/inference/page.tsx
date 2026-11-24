@@ -1,13 +1,16 @@
 "use client";
 
 import { Layers, Music } from "lucide-react";
-import BatchForm from "@/components/BatchForm";
+import dynamic from "next/dynamic";
+import Loading from "@/app/loading";
 import InferenceForm from "@/components/InferenceForm";
 import PageHeader from "@/components/layout/PageHeader";
 import PersistentWorkspace from "@/components/layout/PersistentWorkspace";
 import SegmentedControl from "@/components/ui/SegmentedControl";
 import { useI18n } from "@/lib/i18n";
 import { useWorkspaceState } from "@/lib/workspace-state";
+
+const BatchForm = dynamic(() => import("@/components/BatchForm"), { ssr: false, loading: Loading });
 
 export default function InferencePage() {
   const [mode, setMode] = useWorkspaceState<"single" | "batch">("page:inference:mode", "single");
@@ -18,7 +21,8 @@ export default function InferencePage() {
       <PageHeader
         title={t("Convert Audio")}
         description={t("Convert audio files using trained voice models with single and batch processing.")}
-      >
+      />
+      <div className="flex min-w-0">
         <SegmentedControl
           value={mode}
           onChange={setMode}
@@ -29,7 +33,7 @@ export default function InferencePage() {
             { value: "batch", label: t("Batch"), icon: Layers },
           ]}
         />
-      </PageHeader>
+      </div>
       <PersistentWorkspace active={mode === "single"}>
         <div id="panel-single" role="tabpanel" aria-labelledby="tab-single">
           <InferenceForm />

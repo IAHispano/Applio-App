@@ -31,7 +31,7 @@ export default function ProgressBar({ progress, label, showValue = true, activit
       ) : (
         <>
           <div
-            className="w-full h-2 bg-white/10 rounded-full overflow-hidden"
+            className="w-full h-2 bg-[var(--slider-track)] rounded-full overflow-hidden"
             role="progressbar"
             aria-label={label ?? t("Job progress")}
             aria-valuemin={0}
@@ -39,11 +39,11 @@ export default function ProgressBar({ progress, label, showValue = true, activit
             aria-valuenow={percent}
           >
             <div
-              className="h-full bg-white rounded-full transition-all duration-300"
+              className="h-full bg-[var(--accent)] rounded-full transition-all duration-300"
               style={{ width: `${percent}%` }}
             />
           </div>
-          {showValue && <p className="text-[11px] text-neutral-400 m-0 tabular-nums">{percent}%</p>}
+          {showValue && <p className="text-[11px] text-[var(--muted)] m-0 tabular-nums">{percent}%</p>}
         </>
       )}
     </div>

@@ -1,15 +1,12 @@
 "use client";
 
 import { AlertTriangle, ArrowRight, RefreshCw, Settings, Sparkles } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Badge, Button, Card } from "@/components/ui";
+import { Button, Card } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 import { useSetup } from "@/lib/setup";
 
 export default function SetupBarrier() {
   const { t } = useI18n();
-  const router = useRouter();
   const { status, loading, refresh } = useSetup();
 
   const failedChecks = status?.checks.filter((c) => c.status !== "ok") || [];
@@ -22,12 +19,7 @@ export default function SetupBarrier() {
             <AlertTriangle size={28} />
           </div>
           <div className="space-y-1">
-            <Badge variant="warning" dot size="sm" className="mx-auto mb-2">
-              {t("Setup Required")}
-            </Badge>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white m-0">
-              {t("Setup Required")}
-            </h2>
+            <h1 className="title text-2xl text-[var(--heading)] m-0">{t("Setup Required")}</h1>
             <p className="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto leading-relaxed m-0 mt-1">
               {t(
                 "Applio's core engine packages and Python environment are not ready yet. Please complete the initial setup to use this feature.",
@@ -49,7 +41,7 @@ export default function SetupBarrier() {
                 >
                   <span className="text-amber-400 font-bold shrink-0">!</span>
                   <div className="min-w-0">
-                    <p className="font-medium text-white m-0 truncate">{chk.label}</p>
+                    <p className="font-medium text-[var(--heading)] m-0 wrap-anywhere">{chk.label}</p>
                     <p className="text-[11px] text-neutral-400 m-0 break-all">{chk.detail}</p>
                   </div>
                 </div>
@@ -58,33 +50,23 @@ export default function SetupBarrier() {
           </div>
         )}
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-3">
-          <Button
-            size="md"
-            onClick={() => router.push("/setup")}
-            icon={<Sparkles size={16} />}
-            iconAfter={<ArrowRight size={14} />}
-            className="w-full sm:w-auto"
-          >
+        <div className="action-row mx-auto [--action-row-width:36rem]">
+          <Button href="/setup" icon={<Sparkles size={16} />} iconAfter={<ArrowRight size={14} />}>
             {t("Go to Setup")}
           </Button>
 
           <Button
             variant="ghost"
-            size="md"
             onClick={() => refresh(true)}
             disabled={loading}
             icon={<RefreshCw size={14} className={loading ? "animate-spin" : ""} />}
-            className="w-full sm:w-auto"
           >
             {loading ? t("Checking engine status…") : t("Retry Check")}
           </Button>
 
-          <Link href="/settings" className="w-full sm:w-auto">
-            <Button variant="ghost" size="md" icon={<Settings size={14} />} className="w-full">
-              {t("Settings")}
-            </Button>
-          </Link>
+          <Button href="/settings" variant="ghost" icon={<Settings size={14} />}>
+            {t("Settings")}
+          </Button>
         </div>
       </Card>
     </div>

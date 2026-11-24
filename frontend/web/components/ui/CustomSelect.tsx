@@ -3,6 +3,7 @@
 import { Check, ChevronDown, Search } from "lucide-react";
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { type MenuPosition, positionFloatingMenu } from "@/lib/floating-menu";
 import { useI18n } from "@/lib/i18n";
 import { PITCH_METHOD_HELP } from "@/lib/setting-help";
 import { useDialogPortalTarget } from "./Dialog";
@@ -49,12 +50,8 @@ export interface CustomSelectProps {
   required?: boolean;
 }
 
-interface MenuPosition {
-  left: number;
-  width: number;
-  top?: number;
-  bottom?: number;
-}
+const INITIAL_ROW_BUDGET = 60;
+const LOAD_MORE_ROWS = 120;
 
 export default function CustomSelect({
   id: propId,
@@ -153,10 +150,13 @@ export default function CustomSelect({
   const [search, setSearch] = useState("");
   const [mounted, setMounted] = useState(false);
   const [menuPos, setMenuPos] = useState<MenuPosition | null>(null);
-  const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [highlightedValue, setHighlightedValue] = useState<string | null>(null);
+  const revealHighlight = useRef(true);
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const activeOptionRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -184,10 +184,7 @@ export default function CustomSelect({
   // thousands of options is cheap, mounting thousands of rows is not. Only
   // the rows inside the scroll window exist in the DOM; more load as you
   // scroll. Small lists render fully with no headers.
-  const GROUP_MODE_THRESHOLD = 60;
-  const INITIAL_ROW_BUDGET = 60;
-  const LOAD_MORE_ROWS = 120;
-  const groupedMode = filteredOptions.length > GROUP_MODE_THRESHOLD;
+  const groupedMode = filteredOptions.length > INITIAL_ROW_BUDGET;
 
   const letterOf = (label: string) => {
     const first = (label.trim()[0] || "#").toUpperCase();
@@ -195,18 +192,20 @@ export default function CustomSelect({
   };
 
   const [visibleCount, setVisibleCount] = useState(INITIAL_ROW_BUDGET);
-  // biome-ignore lint/correctness/useExhaustiveDependencies: reset scroll window whenever the query changes
-  useEffect(() => {
-    setVisibleCount(INITIAL_ROW_BUDGET);
-  }, [search]);
-
   const visibleSlice = groupedMode ? filteredOptions.slice(0, visibleCount) : [];
   const remainingRows = groupedMode ? filteredOptions.length - visibleSlice.length : 0;
 
-  // Keyboard navigation + Enter always follow the actually rendered rows.
+  // An option keeps its identity when a refresh inserts or reorders values.
   const navRows = groupedMode ? visibleSlice : filteredOptions;
-  const activeOptionId =
-    highlightedIndex >= 0 && highlightedIndex < navRows.length ? `${id}-opt-${highlightedIndex}` : undefined;
+  const requestedIndex = navRows.findIndex((option) => option.value === highlightedValue && !option.disabled);
+  const highlightedIndex =
+    requestedIndex >= 0 ? requestedIndex : navRows.findIndex((option) => !option.disabled);
+  const activeOptionId = highlightedIndex >= 0 ? `${id}-opt-${highlightedIndex}` : undefined;
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rerun after the active row or menu geometry changes
+  useEffect(() => {
+    if (open && revealHighlight.current) activeOptionRef.current?.scrollIntoView({ block: "nearest" });
+  }, [open, search, activeOptionId, menuPos?.maxHeight]);
 
   function showMoreRows() {
     setVisibleCount((c) => c + LOAD_MORE_ROWS);
@@ -226,27 +225,8 @@ export default function CustomSelect({
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
     if (!el || typeof window === "undefined") return;
-    const rect = el.getBoundingClientRect();
-    const gap = 4;
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const openUp = spaceBelow < 220 && rect.top > spaceBelow;
-    const width = Math.max(rect.width, 160);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 8));
-
-    if (openUp) {
-      setMenuPos({
-        left,
-        width,
-        bottom: Math.max(8, window.innerHeight - rect.top + gap),
-      });
-    } else {
-      setMenuPos({
-        left,
-        width,
-        top: Math.min(rect.bottom + gap, window.innerHeight - 80),
-      });
-    }
-  }, []);
+    setMenuPos(positionFloatingMenu(el, 160, isSearchable ? 120 : 56));
+  }, [isSearchable]);
 
   // Open / Close handler
   const handleOpen = () => {
@@ -255,26 +235,28 @@ export default function CustomSelect({
     setOpen(true);
     setSearch("");
     setVisibleCount(INITIAL_ROW_BUDGET);
-    const freshRows = groupedMode ? filteredOptions.slice(0, INITIAL_ROW_BUDGET) : filteredOptions;
-    const curIdx = freshRows.findIndex((o) => o.value === selectedValue && !o.disabled);
-    setHighlightedIndex(curIdx >= 0 ? curIdx : freshRows.findIndex((option) => !option.disabled));
+    revealHighlight.current = true;
+    setHighlightedValue(selectedValue);
     onOpen?.();
   };
 
-  const handleClose = useCallback(() => {
+  const dismiss = useCallback(() => {
     setOpen(false);
     setSearch("");
-    setHighlightedIndex(-1);
-    triggerRef.current?.focus();
+    setHighlightedValue(null);
   }, []);
+
+  const handleClose = () => {
+    dismiss();
+    triggerRef.current?.focus({ preventScroll: true });
+  };
 
   // Selection handler
   const handleSelect = (val: string) => {
     if (controlledValue === undefined) {
       setInternalValue(val);
     }
-    setOpen(false);
-    setSearch("");
+    handleClose();
 
     // Notify onChange listeners with synthetic event
     const evt: CustomSelectChangeEvent = {
@@ -283,34 +265,40 @@ export default function CustomSelect({
     };
     onChange?.(evt);
     onValueChange?.(val);
-    triggerRef.current?.focus();
   };
 
-  // Click outside listener
+  useEffect(() => {
+    if (disabled) dismiss();
+  }, [disabled, dismiss]);
+
   useEffect(() => {
     if (!open) return;
-    const handleOutside = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) {
-        return;
-      }
-      setOpen(false);
-      setSearch("");
+    const handleOutside = (event: Event) => {
+      if (!(event.target instanceof Node)) return;
+      if (!triggerRef.current?.contains(event.target) && !menuRef.current?.contains(event.target)) dismiss();
     };
-    const handleScrollOrResize = () => {
+    const handleScrollOrResize = (event: Event) => {
+      if (event.target instanceof Node && menuRef.current?.contains(event.target)) return;
       updatePosition();
     };
 
-    window.addEventListener("mousedown", handleOutside);
+    const viewport = window.visualViewport;
+    window.addEventListener("pointerdown", handleOutside);
+    window.addEventListener("focusin", handleOutside);
     window.addEventListener("scroll", handleScrollOrResize, true);
     window.addEventListener("resize", handleScrollOrResize);
+    viewport?.addEventListener("resize", handleScrollOrResize);
+    viewport?.addEventListener("scroll", handleScrollOrResize);
 
     return () => {
-      window.removeEventListener("mousedown", handleOutside);
+      window.removeEventListener("pointerdown", handleOutside);
+      window.removeEventListener("focusin", handleOutside);
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
+      viewport?.removeEventListener("resize", handleScrollOrResize);
+      viewport?.removeEventListener("scroll", handleScrollOrResize);
     };
-  }, [open, updatePosition]);
+  }, [open, dismiss, updatePosition]);
 
   // An explicit aria-label would override an external <label htmlFor>
   // (verified in Chromium: the visible label drops out of the accessible
@@ -333,14 +321,14 @@ export default function CustomSelect({
   // Focus search input when opened
   useEffect(() => {
     if (open && isSearchable) {
-      const timer = setTimeout(() => searchInputRef.current?.focus(), 0);
+      const timer = setTimeout(() => searchInputRef.current?.focus({ preventScroll: true }), 0);
       return () => clearTimeout(timer);
     }
   }, [open, isSearchable]);
 
   // Keyboard navigation
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (disabled) return;
+    if (disabled || e.nativeEvent.isComposing) return;
 
     if (!open) {
       if (e.key === "Enter" || e.key === " " || e.key === "ArrowDown" || e.key === "ArrowUp") {
@@ -365,11 +353,11 @@ export default function CustomSelect({
       moveHighlight(-1);
     } else if ((e.key === "Home" || e.key === "End") && e.target !== searchInputRef.current) {
       e.preventDefault();
-      const indices = filteredOptions
-        .map((option, index) => (option.disabled ? -1 : index))
-        .filter((index) => index >= 0);
-      const next = e.key === "Home" ? indices[0] : indices.at(-1);
-      if (next !== undefined) revealOption(next);
+      const next =
+        e.key === "Home"
+          ? filteredOptions.findIndex((option) => !option.disabled)
+          : filteredOptions.findLastIndex((option) => !option.disabled);
+      if (next >= 0) revealOption(next);
     } else if (e.key === "Enter" || (!isSearchable && e.key === " ")) {
       e.preventDefault();
       if (highlightedIndex >= 0 && highlightedIndex < navRows.length) {
@@ -381,7 +369,14 @@ export default function CustomSelect({
 
   function revealOption(index: number) {
     if (groupedMode && index >= visibleCount) setVisibleCount(index + LOAD_MORE_ROWS);
-    setHighlightedIndex(index);
+    revealHighlight.current = true;
+    setHighlightedValue(filteredOptions[index].value);
+  }
+
+  function highlightFromPointer(option: CustomSelectOption) {
+    if (option.disabled) return;
+    revealHighlight.current = false;
+    setHighlightedValue(option.value);
   }
   function moveHighlight(direction: number) {
     if (!filteredOptions.length) return;
@@ -465,19 +460,26 @@ export default function CustomSelect({
               position: "fixed",
               left: menuPos.left,
               width: menuPos.width,
+              maxHeight: menuPos.maxHeight,
               ...(menuPos.top !== undefined ? { top: menuPos.top } : {}),
               ...(menuPos.bottom !== undefined ? { bottom: menuPos.bottom } : {}),
             }}
-            className="menu-pop z-[99999] bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden select-none"
+            className="menu-pop z-[99999] bg-[var(--panel)] text-[var(--text)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden select-none flex flex-col"
           >
             {isSearchable && (
-              <div className="flex items-center gap-2 px-3.5 py-2">
+              <div className="flex shrink-0 items-center gap-2 px-3.5 py-2">
                 <Search size={13} className="text-[var(--muted)] shrink-0" aria-hidden="true" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => {
+                    setSearch(e.target.value);
+                    setVisibleCount(INITIAL_ROW_BUDGET);
+                    if (listRef.current) listRef.current.scrollTop = 0;
+                    revealHighlight.current = true;
+                    setHighlightedValue(null);
+                  }}
                   onKeyDown={handleKeyDown}
                   role="combobox"
                   aria-label={searchPlaceholder}
@@ -493,10 +495,11 @@ export default function CustomSelect({
 
             {/* Options List */}
             <div
+              ref={listRef}
               id={menuId}
               role="listbox"
               aria-label={placeholder}
-              className="max-h-64 overflow-y-auto scrollbar-thin py-1"
+              className="min-h-0 max-h-64 overflow-y-auto scrollbar-thin py-1"
               onScroll={(e) => {
                 const el = e.currentTarget;
                 if (el.scrollTop + el.clientHeight >= el.scrollHeight - 120 && remainingRows > 0) {
@@ -529,13 +532,17 @@ export default function CustomSelect({
                       return (
                         <div key={`${opt.value}-${idx}`}>
                           {header && (
-                            <div className="sticky top-0 z-10 bg-[var(--panel)] px-3.5 py-1 text-[10px] font-semibold tracking-wider text-[var(--muted)] uppercase select-none">
+                            <div
+                              aria-hidden="true"
+                              className="sticky top-0 z-10 bg-[var(--panel)] px-3.5 py-1 text-[10px] font-semibold tracking-wider text-[var(--muted)] uppercase select-none"
+                            >
                               {header}
                             </div>
                           )}
                           <button
                             type="button"
                             role="option"
+                            ref={highlightedIndex === idx ? activeOptionRef : undefined}
                             id={`${id}-opt-${idx}`}
                             tabIndex={-1}
                             aria-selected={isSelected}
@@ -544,8 +551,8 @@ export default function CustomSelect({
                             aria-posinset={idx + 1}
                             disabled={opt.disabled}
                             onClick={() => !opt.disabled && handleSelect(opt.value)}
-                            onMouseEnter={() => setHighlightedIndex(idx)}
-                            className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
+                            onMouseEnter={() => highlightFromPointer(opt)}
+                            className={`menu-option w-full px-3.5 py-2 text-xs scroll-mt-6 flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
                               isSelected ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
                             } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}
                           >
@@ -583,13 +590,14 @@ export default function CustomSelect({
                       key={`${opt.value}-${opt.label}`}
                       type="button"
                       role="option"
+                      ref={highlightedIndex === idx ? activeOptionRef : undefined}
                       id={`${id}-opt-${idx}`}
                       tabIndex={-1}
                       aria-selected={isSelected}
                       data-active={highlightedIndex === idx || undefined}
                       disabled={opt.disabled}
                       onClick={() => !opt.disabled && handleSelect(opt.value)}
-                      onMouseEnter={() => setHighlightedIndex(idx)}
+                      onMouseEnter={() => highlightFromPointer(opt)}
                       className={`menu-option w-full px-3.5 py-2 text-xs flex items-center justify-between text-left cursor-pointer border-0 rounded-none bg-transparent ${
                         isSelected ? "text-white font-bold" : "text-neutral-400 hover:text-neutral-200"
                       } ${opt.disabled ? "opacity-35 cursor-not-allowed" : ""}`}

@@ -113,6 +113,11 @@ export const NAV_SECTIONS: NavSection[] = [
 
 export const MENU: NavEntry[] = NAV_SECTIONS.flatMap((s) => s.items);
 
+export function currentNavigation(pathname: string, href: string): "page" | "location" | undefined {
+  if (pathname === href) return "page";
+  if (href === "/jobs" && pathname.startsWith("/jobs/")) return "location";
+}
+
 // These host pages remain usable before engine dependencies are installed.
 export const SETUP_OPTIONAL_ROUTES = new Set([
   "/",

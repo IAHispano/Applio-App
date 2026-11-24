@@ -54,7 +54,6 @@ function CopyButton({ value, onError }: { value: string; onError: (message: stri
   }, [copied]);
   return (
     <Button
-      size="xs"
       variant="ghost"
       icon={copied ? <Check size={13} /> : <Copy size={13} />}
       onClick={() => {
@@ -188,22 +187,15 @@ export default function ApiAccessPage() {
         description={t("Connect apps and automate audio workflows")}
         guide={false}
       >
-        <Button
-          onClick={() => setView("api-docs")}
-          icon={<BookOpen size={14} />}
-          variant="ghost"
-          size="sm"
-          className="page-header-action"
-        >
-          {t("Documentation")}
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="page-header-action"
-          icon={<RefreshCw size={14} />}
-          onClick={() => void refresh()}
-        >
+        <Badge variant={status?.enabled ? "success" : "neutral"} dot>
+          {t(status ? (status.enabled ? "Ready" : "Disabled") : "Loading…")}
+        </Badge>
+        <Badge>
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck size={12} /> {t("Local access only")}
+          </span>
+        </Badge>
+        <Button variant="ghost" icon={<RefreshCw size={14} />} onClick={() => void refresh()}>
           {t("Refresh")}
         </Button>
       </PageHeader>
@@ -212,57 +204,39 @@ export default function ApiAccessPage() {
           {error}
         </Alert>
       )}
-      <Card className="api-hero">
-        <div className="api-hero-copy">
-          <span className="api-eyebrow">
-            <Code2 size={15} /> APPLIO / API
-          </span>
-          <h2 className="text-2xl sm:text-3xl font-semibold m-0">
-            {t("Your voice engine. Your workflows.")}
-          </h2>
-          <p className="text-sm text-[var(--muted)] max-w-xl m-0 leading-relaxed">
-            {t("Use the OpenAI SDK for speech and the job API for longer workflows.")}
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={status?.enabled ? "success" : "neutral"} dot>
-              {t(status ? (status.enabled ? "Ready" : "Disabled") : "Loading…")}
-            </Badge>
-            <Badge>
-              <span className="inline-flex items-center gap-1.5">
-                <ShieldCheck size={12} /> {t("Local access only")}
-              </span>
-            </Badge>
-          </div>
-        </div>
-        <div className="api-address">
-          <div className="flex justify-between items-center gap-3">
-            <span className="field-label m-0">{t("Base URL")}</span>
-            <CopyButton value={`${base}/v1`} onError={setError} />
-          </div>
-          <code>{base}/v1</code>
-          <span className="field-help">
-            {t("Keep Applio running. API keys and Bridge access are separate.")}
-          </span>
-        </div>
-      </Card>
+      <div className="flex min-w-0">
+        <SegmentedControl
+          value={view}
+          onChange={setView}
+          ariaLabel={t("API & Workflows")}
+          tabPanels
+          options={[
+            { value: "api-start", label: t("Quick start"), icon: Code2 },
+            { value: "api-docs", label: t("API reference"), icon: BookOpen },
+            { value: "api-activity", label: t("Recent API jobs"), icon: Activity },
+          ]}
+        />
+      </div>
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
         <StatTile label={t("API jobs")} value={status?.total ?? "—"} icon={<Terminal size={15} />} />
         <StatTile label={t("Completed")} value={status?.completed ?? "—"} icon={<Check size={15} />} />
         <StatTile label={t("Active jobs")} value={status?.active ?? "—"} icon={<Activity size={15} />} />
         <StatTile label={t("Models")} value={status?.models.length ?? "—"} icon={<Code2 size={15} />} />
       </div>
-      <SegmentedControl
-        value={view}
-        onChange={setView}
-        ariaLabel={t("API & Workflows")}
-        tabPanels
-        options={[
-          { value: "api-start", label: t("Quick start"), icon: Code2 },
-          { value: "api-docs", label: t("API reference"), icon: BookOpen },
-          { value: "api-activity", label: t("Recent API jobs"), icon: Activity },
-        ]}
-      />
       <div id="panel-api-start" role="tabpanel" aria-labelledby="tab-api-start" hidden={view !== "api-start"}>
+        <Card className="mb-4">
+          <CardHeader
+            title={t("Base URL")}
+            icon={<Code2 size={16} />}
+            action={<CopyButton value={`${base}/v1`} onError={setError} />}
+          />
+          <code className="block rounded-lg bg-[var(--input-bg)] border border-[var(--border)] px-3 py-2 text-sm wrap-anywhere">
+            {base}/v1
+          </code>
+          <p className="field-help m-0">
+            {t("Keep Applio running. API keys and Bridge access are separate.")}
+          </p>
+        </Card>
         <div className="api-setup-grid">
           <div className="space-y-4 min-w-0">
             <Card className="space-y-4">
@@ -304,9 +278,8 @@ export default function ApiAccessPage() {
                   }}
                 />
               </div>
-              <div className="flex gap-2 flex-wrap">
+              <div className="action-row [--action-row-width:40rem]">
                 <Button
-                  size="sm"
                   loading={busy}
                   disabled={!status}
                   onClick={() => void changeKey()}
@@ -314,17 +287,11 @@ export default function ApiAccessPage() {
                 >
                   {t(status?.enabled ? "Rotate API key" : "Create API key")}
                 </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={!key || busy}
-                  onClick={() => void testConnection()}
-                >
+                <Button variant="ghost" disabled={!key || busy} onClick={() => void testConnection()}>
                   {t("Test connection")}
                 </Button>
                 {status?.enabled && (
                   <Button
-                    size="sm"
                     variant="danger"
                     disabled={busy}
                     icon={<Trash2 size={14} />}
@@ -479,7 +446,7 @@ export default function ApiAccessPage() {
             <div className="api-jobs-empty">
               <Activity size={26} aria-hidden="true" />
               <p className="text-sm m-0">{t(status ? "No API jobs yet" : "Loading…")}</p>
-              <Button size="sm" variant="ghost" onClick={() => setView("api-start")}>
+              <Button variant="ghost" onClick={() => setView("api-start")}>
                 {t("Quick start")}
                 <ArrowRight size={14} />
               </Button>

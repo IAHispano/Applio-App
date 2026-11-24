@@ -1,15 +1,10 @@
 "use client";
 
 import { Activity, Sliders, Sparkles } from "lucide-react";
-import {
-  Card,
-  CardHeader,
-  Disclosure,
-  EmbedderSelect,
-  PitchMethodSelect,
-  ToggleField,
-} from "@/components/ui";
+import { Card, CardHeader, Disclosure, ToggleField } from "@/components/ui";
+import Button from "@/components/ui/Button";
 import CustomSelect from "@/components/ui/CustomSelect";
+import { EmbedderSelect, PitchMethodSelect } from "@/components/ui/PitchMethodSelect";
 import SettingHelp from "@/components/ui/SettingHelp";
 import SliderField from "@/components/ui/SliderField";
 import { useI18n } from "@/lib/i18n";
@@ -375,12 +370,23 @@ export default function ConversionParameters({
           )}
         </Disclosure>
 
-        <Disclosure title={t("Audio cleanup")} icon={<Sparkles size={15} />}>
+        <Disclosure
+          title={t("Audio cleanup")}
+          description={
+            cleanupStage === "output"
+              ? t("Cleans the converted speech before export. Leave Off for already-clean TTS.")
+              : t(
+                  "Cleans the source audio before voice conversion. Leave Off for singing unless tested on your audio.",
+                )
+          }
+          icon={<Sparkles size={15} />}
+        >
           <label htmlFor={`${idPrefix}-cleanup-mode`} className="text-xs text-neutral-300">
             {t("Noise reduction")}
           </label>
           <CustomSelect
             id={`${idPrefix}-cleanup-mode`}
+            searchable={false}
             value={values.cleanupMode}
             onChange={(event) =>
               setters.cleanupMode(event.target.value as ConversionParameterValues["cleanupMode"])
@@ -404,13 +410,6 @@ export default function ConversionParameters({
               description={t("Higher values remove more noise and can change the voice. Start with 12 dB.")}
             />
           )}
-          <p className="text-xs text-neutral-400">
-            {cleanupStage === "output"
-              ? t("Cleans the converted speech before export. Leave Off for already-clean TTS.")
-              : t(
-                  "Cleans the source audio before voice conversion. Leave Off for singing unless tested on your audio.",
-                )}
-          </p>
           {values.cleanupMode === "speech" && (
             <p className="text-xs text-neutral-400">
               {t(
@@ -435,15 +434,11 @@ export default function ConversionParameters({
             : t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")
         }
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {targetSelect}
-            <button
-              type="button"
-              onClick={onReset}
-              className="text-xs text-neutral-400 hover:text-white transition-colors cursor-pointer"
-            >
+            <Button variant="ghost" onClick={onReset}>
               {t("Reset defaults")}
-            </button>
+            </Button>
           </div>
         }
       />

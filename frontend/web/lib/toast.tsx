@@ -1,9 +1,9 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import DownloadPreview from "@/components/DownloadPreview";
+import Button from "@/components/ui/Button";
 import { translate, useI18n } from "@/lib/i18n";
 
 export type ToastKind = "info" | "success" | "error";
@@ -210,34 +210,19 @@ export default function Toaster() {
     };
   }, [dismiss]);
   const action = (item: Toast, value: ToastAction) => {
-    const className =
-      "inline-flex rounded text-xs font-medium underline underline-offset-4 hover:opacity-80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4";
     const clicked = () => {
       value.onClick?.();
       dismiss(item.id);
     };
-    if (value.href?.startsWith("/"))
-      return (
-        <Link href={value.href} onClick={clicked} className={className}>
-          {value.label}
-        </Link>
-      );
-    if (value.href)
-      return (
-        <a
-          href={value.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={clicked}
-          className={className}
-        >
-          {value.label}
-        </a>
-      );
     return (
-      <button type="button" onClick={clicked} className={className}>
+      <Button
+        variant="ghost"
+        href={value.href}
+        target={value.href && !value.href.startsWith("/") ? "_blank" : undefined}
+        onClick={clicked}
+      >
         {value.label}
-      </button>
+      </Button>
     );
   };
   if (!items.length && !downloadPreview) return null;
@@ -283,20 +268,19 @@ export default function Toaster() {
                   {item.text}
                 </p>
                 {(item.action || item.secondaryAction) && (
-                  <div className="flex flex-wrap gap-4 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {item.action && action(item, item.action)}
                     {item.secondaryAction && action(item, item.secondaryAction)}
                   </div>
                 )}
               </div>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={() => dismiss(item.id)}
                 aria-label={t("Dismiss notification")}
-                className="shrink-0 -mr-1 -mt-1 p-2 rounded-md text-[var(--muted)] hover:text-[var(--heading)] hover:bg-[var(--surface)] focus-visible:outline focus-visible:outline-2"
-              >
-                <X size={14} aria-hidden="true" />
-              </button>
+                title={t("Dismiss notification")}
+                icon={<X />}
+              />
             </div>
           );
         })}

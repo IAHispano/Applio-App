@@ -264,7 +264,6 @@ export default function ApiReference({ base }: { base: string }) {
                   ]}
                 />
                 <Button
-                  size="xs"
                   variant="ghost"
                   icon={copied ? <Check size={12} /> : <Copy size={12} />}
                   onClick={() => {

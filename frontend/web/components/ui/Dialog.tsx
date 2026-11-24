@@ -1,6 +1,14 @@
 "use client";
 
-import { createContext, type DialogHTMLAttributes, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  type DialogHTMLAttributes,
+  type RefObject,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 const PortalTarget = createContext<HTMLElement | null>(null);
@@ -15,27 +23,37 @@ export function useDialogPortalTarget() {
 interface DialogProps extends Omit<DialogHTMLAttributes<HTMLDialogElement>, "open" | "onClose" | "onCancel"> {
   isOpen: boolean;
   onClose?: () => void;
+  initialFocus?: RefObject<HTMLElement | null>;
 }
 
 /** Native modal behavior makes the background inert and supports stacked dialogs. */
-export default function Dialog({ isOpen, onClose, children, className = "", ...props }: DialogProps) {
+export default function Dialog({
+  isOpen,
+  onClose,
+  initialFocus,
+  children,
+  className = "",
+  ...props
+}: DialogProps) {
   const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
+  const backdropPress = useRef(false);
   useEffect(() => {
     if (!isOpen || !dialog) return;
     const previous = document.activeElement;
+    dialog.showModal();
     if (openDialogs++ === 0) {
       bodyOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
     }
-    dialog.showModal();
-    dialog.focus({ preventScroll: true });
+    initialFocus?.current?.focus({ preventScroll: true });
     return () => {
+      backdropPress.current = false;
       if (dialog.open) dialog.close();
       if (--openDialogs === 0) document.body.style.overflow = bodyOverflow;
       if (previous instanceof HTMLElement && previous.isConnected && !previous.closest("dialog:not([open])"))
         previous.focus({ preventScroll: true });
     };
-  }, [dialog, isOpen]);
+  }, [dialog, isOpen, initialFocus]);
 
   if (!isOpen || typeof document === "undefined") return null;
   return createPortal(
@@ -43,31 +61,39 @@ export default function Dialog({ isOpen, onClose, children, className = "", ...p
       {...props}
       ref={setDialog}
       aria-modal="true"
-      tabIndex={-1}
       className={`app-dialog ${className}`}
       onKeyDown={(event) => {
         props.onKeyDown?.(event);
         if (event.defaultPrevented || event.key !== "Tab") return;
+        const modal = event.currentTarget;
+        // React bubbles events through portals, including separately opened dialogs.
+        if (!modal.contains(event.target as Node)) return;
         const controls = Array.from(
-          event.currentTarget.querySelectorAll<HTMLElement>(
-            "a[href], button, input, select, textarea, summary, [tabindex]",
+          modal.querySelectorAll<HTMLElement>(
+            "a[href], button, input, select, textarea, summary, iframe, audio[controls], video[controls], [tabindex]",
           ),
         ).filter(
           (element) =>
-            element.tabIndex >= 0 && !element.matches(":disabled") && element.getClientRects().length > 0,
+            element.tabIndex >= 0 &&
+            !element.matches(":disabled") &&
+            !element.closest("[inert]") &&
+            element.getClientRects().length > 0 &&
+            getComputedStyle(element).visibility === "visible",
         );
-        const first = controls[0];
-        const last = controls[controls.length - 1];
+        const boundary = event.shiftKey ? controls[0] : controls.at(-1);
+        const opposite = event.shiftKey ? controls.at(-1) : controls[0];
         const active = document.activeElement;
-        if (!first) {
+        const pastBoundary = event.shiftKey
+          ? Node.DOCUMENT_POSITION_PRECEDING
+          : Node.DOCUMENT_POSITION_FOLLOWING;
+        if (
+          !boundary ||
+          active === modal ||
+          active === boundary ||
+          (active && boundary.compareDocumentPosition(active) & pastBoundary)
+        ) {
           event.preventDefault();
-          event.currentTarget.focus();
-        } else if (event.shiftKey && (active === first || active === event.currentTarget)) {
-          event.preventDefault();
-          last.focus();
-        } else if (!event.shiftKey && (active === last || active === event.currentTarget)) {
-          event.preventDefault();
-          first.focus();
+          (opposite || modal).focus();
         }
       }}
       onCancel={(event) => {
@@ -75,8 +101,19 @@ export default function Dialog({ isOpen, onClose, children, className = "", ...p
         event.stopPropagation();
         onClose?.();
       }}
+      onPointerDown={(event) => {
+        props.onPointerDown?.(event);
+        backdropPress.current = !event.defaultPrevented && event.target === event.currentTarget;
+      }}
+      onPointerUp={(event) => {
+        props.onPointerUp?.(event);
+        if (event.target !== event.currentTarget || event.defaultPrevented) backdropPress.current = false;
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose?.();
+        props.onClick?.(event);
+        const startedOnBackdrop = backdropPress.current;
+        backdropPress.current = false;
+        if (startedOnBackdrop && event.target === event.currentTarget && !event.defaultPrevented) onClose?.();
       }}
     >
       <PortalTarget.Provider value={dialog}>{children}</PortalTarget.Provider>

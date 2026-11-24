@@ -157,6 +157,9 @@ const SETTINGS_SECTIONS = [
   { value: "settings-application", label: "Application", icon: Power },
 ] as const;
 type SettingsSection = (typeof SETTINGS_SECTIONS)[number]["value"];
+const PANEL_CLASS = "card-stack rounded-xl";
+const CONTROL_GRID = "grid grid-cols-1 gap-4 sm:grid-cols-2";
+const INSET_CONTROL = "rounded-lg border border-[var(--border)] bg-[var(--input-bg)] p-3";
 
 interface AppConfig {
   logs_dir?: string;
@@ -554,10 +557,15 @@ export default function SettingsPage() {
     };
   }, [activeSection, catalogFonts.length, setCatalogFonts]);
   const fontOptions = useMemo(() => [...BASE_FONT_OPTIONS, ...catalogFonts], [catalogFonts]);
+  const pageTitle = t("Settings");
+  const pageDescription = t(
+    "Configure application preferences, audio engine settings, precision, and language.",
+  );
 
   if (!cfg)
     return (
       <div className="w-full max-w-[1280px] mx-auto page-stack">
+        <PageHeader title={pageTitle} description={pageDescription} />
         <Card>
           <p className="field-help m-0" role="status">
             {t("Loading settings…")}
@@ -643,10 +651,7 @@ export default function SettingsPage() {
 
   return (
     <div className="w-full max-w-[1280px] mx-auto page-stack">
-      <PageHeader
-        title={t("Settings")}
-        description={t("Configure application preferences, audio engine settings, precision, and language.")}
-      >
+      <PageHeader title={pageTitle} description={pageDescription}>
         {(saving || saved) && (
           <span
             className="inline-flex items-center gap-1.5 text-xs text-[var(--muted)]"
@@ -685,7 +690,7 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-general"
         hidden={activeSection !== "settings-general"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className={PANEL_CLASS}
       >
         {activeSection === "settings-general" && (
           <Card>
@@ -695,9 +700,10 @@ export default function SettingsPage() {
               description={t("Configure search filter visibility, Discord Rich Presence, and UI locale.")}
             />
 
-            <div className="space-y-3.5">
+            <div className={CONTROL_GRID}>
               <ToggleField
                 id="settings-filter-checkbox"
+                className={INSET_CONTROL}
                 label={t("Model & index filter box")}
                 checked={!!cfg.model_index_filter}
                 onChange={(v) => {
@@ -709,11 +715,12 @@ export default function SettingsPage() {
 
               <ToggleField
                 id="settings-discord-checkbox"
+                className={INSET_CONTROL}
                 label={t("Discord Rich Presence")}
                 checked={!!cfg.discord_presence}
                 badge={
                   presenceRunning !== null && (
-                    <span className="text-xs text-neutral-400" role="status">
+                    <span className="text-xs text-[var(--muted)]" role="status">
                       ({presenceRunning ? t("running") : t("stopped")})
                     </span>
                   )
@@ -725,34 +732,29 @@ export default function SettingsPage() {
                 description={t(SETTING_HELP.discord)}
               />
 
-              <div className="max-w-md 2xl:max-w-lg pt-1">
-                <FormField
-                  label={`${t("Interface Language")} (${langs.length} ${t("available")})`}
-                  htmlFor="settings-lang"
+              <FormField label={t("Interface Language")} htmlFor="settings-lang">
+                <CustomSelect
+                  id="settings-lang"
+                  value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
+                  searchable
+                  searchPlaceholder={t("Search languages…")}
+                  onChange={(e) => {
+                    const nextLang = !e.target.value
+                      ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
+                      : { override: true, selected_lang: e.target.value };
+                    setCfg({ ...cfg, lang: nextLang });
+                    save({ lang: nextLang });
+                  }}
+                  description={t(SETTING_HELP.language)}
                 >
-                  <CustomSelect
-                    id="settings-lang"
-                    value={cfg.lang?.override ? cfg.lang.selected_lang : ""}
-                    searchable
-                    searchPlaceholder={t("Search languages…")}
-                    onChange={(e) => {
-                      const nextLang = !e.target.value
-                        ? { override: false, selected_lang: cfg.lang?.selected_lang || "en_US" }
-                        : { override: true, selected_lang: e.target.value };
-                      setCfg({ ...cfg, lang: nextLang });
-                      save({ lang: nextLang });
-                    }}
-                    description={t(SETTING_HELP.language)}
-                  >
-                    <option value="">{t("Language automatically detected…")}</option>
-                    {langs.map((l) => (
-                      <option key={l.code} value={l.code}>
-                        {l.name} ({l.code})
-                      </option>
-                    ))}
-                  </CustomSelect>
-                </FormField>
-              </div>
+                  <option value="">{t("Language automatically detected…")}</option>
+                  {langs.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.name} ({l.code})
+                    </option>
+                  ))}
+                </CustomSelect>
+              </FormField>
             </div>
           </Card>
         )}
@@ -763,7 +765,7 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-appearance"
         hidden={activeSection !== "settings-appearance"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className={PANEL_CLASS}
       >
         {activeSection === "settings-appearance" && (
           <Card>
@@ -777,7 +779,7 @@ export default function SettingsPage() {
 
             <fieldset
               aria-label={t("Theme selection")}
-              className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-0 p-0 m-0"
+              className="grid grid-cols-2 gap-3 sm:grid-cols-4 min-w-0 border-0 p-0 m-0"
             >
               {allThemes.map((opt) => {
                 const isSelected = selectedThemeFile === opt.id;
@@ -786,7 +788,7 @@ export default function SettingsPage() {
                     key={opt.id || "default"}
                     type="button"
                     onClick={() => handleSelectTheme(opt.id)}
-                    className={`group relative flex flex-col p-3 rounded-xl text-left transition-all duration-150 cursor-pointer !shadow-none ${
+                    className={`flex flex-col min-w-0 p-2.5 rounded-lg text-left transition-colors cursor-pointer !shadow-none ${
                       isSelected
                         ? "border border-[var(--accent)] !bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]"
                         : "border border-[var(--border)] hover:border-[var(--accent)] !bg-[var(--input-bg)]"
@@ -796,7 +798,7 @@ export default function SettingsPage() {
                   >
                     <div
                       aria-hidden="true"
-                      className="w-full h-20 rounded-lg mb-3 p-2 flex gap-2 overflow-hidden border border-black/10"
+                      className="w-full h-14 sm:h-16 rounded-md mb-2 p-1.5 flex gap-1.5 overflow-hidden border border-black/10"
                       style={{ backgroundColor: opt.bg }}
                     >
                       <span
@@ -832,24 +834,15 @@ export default function SettingsPage() {
                       </span>
                     </div>
 
-                    {/* Theme text info */}
-                    <div className="flex flex-wrap items-center justify-between gap-1 w-full">
-                      <span
-                        className={`text-xs tracking-tight truncate ${
-                          isSelected
-                            ? "font-bold text-[var(--heading)]"
-                            : "font-medium text-[var(--muted)] group-hover:text-[var(--heading)]"
-                        }`}
-                      >
+                    <div className="flex items-start justify-between gap-1 w-full">
+                      <span className="text-xs font-semibold text-[var(--heading)] min-w-0 [overflow-wrap:anywhere]">
                         {t(opt.name)}
                       </span>
                       {isSelected && (
-                        <span className="text-[10px] font-bold text-[var(--accent,#ffffff)] shrink-0">
-                          {t("Active")}
-                        </span>
+                        <Check size={14} className="text-[var(--accent)] shrink-0" aria-hidden="true" />
                       )}
                     </div>
-                    <span className="text-[11px] text-[var(--muted)] truncate mt-0.5 w-full">
+                    <span className="text-[11px] text-[var(--muted)] mt-0.5 w-full [overflow-wrap:anywhere]">
                       {t(opt.subtitle)}
                     </span>
                   </button>
@@ -857,23 +850,21 @@ export default function SettingsPage() {
               })}
             </fieldset>
 
-            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-              <div className="space-y-1.5">
-                <label htmlFor="theme-font">{t("Interface font")}</label>
+            <div className={CONTROL_GRID}>
+              <FormField label={t("Interface font")} htmlFor="theme-font">
                 <CustomSelect
                   id="theme-font"
                   value={selectedFontId}
                   onValueChange={handleSelectFont}
-                  className="w-64 max-w-full"
                   options={fontOptions.map((o) => ({
                     value: o.id,
                     label: o.id === "" ? t(o.label) : o.label,
                   }))}
                   description={t(SETTING_HELP.font)}
                 />
-              </div>
+              </FormField>
               <p
-                className="text-sm text-[var(--muted)] m-0 pb-2 break-words min-w-0"
+                className={`${INSET_CONTROL} min-w-0 m-0 text-[var(--text)] text-sm break-words self-center`}
                 style={
                   selectedFontFamilies.length > 0 ? { fontFamily: fontCss(selectedFontFamilies) } : undefined
                 }
@@ -890,7 +881,7 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-audio"
         hidden={activeSection !== "settings-audio"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className={PANEL_CLASS}
       >
         {activeSection === "settings-audio" && (
           <>
@@ -903,7 +894,7 @@ export default function SettingsPage() {
                 )}
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+              <div className={CONTROL_GRID}>
                 <FormField
                   label={t("Model Author Name")}
                   htmlFor="settings-model-author"
@@ -961,6 +952,7 @@ export default function SettingsPage() {
               <div className="space-y-4">
                 <ToggleField
                   id="settings-rmvpe-enabled"
+                  className={INSET_CONTROL}
                   label={t("Enable High Register")}
                   checked={!!cfg.rmvpe_high_register?.enabled}
                   onChange={(v) => {
@@ -975,7 +967,7 @@ export default function SettingsPage() {
                   description={t(SETTING_HELP.highRegister)}
                 />
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl">
+                <div className={CONTROL_GRID}>
                   <FormField label={t("Mode")} htmlFor="settings-rmvpe-mode">
                     <CustomSelect
                       id="settings-rmvpe-mode"
@@ -1029,65 +1021,49 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-storage"
         hidden={activeSection !== "settings-storage"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className="card-grid grid grid-cols-1 lg:grid-cols-2 rounded-xl"
       >
         {activeSection === "settings-storage" && (
-          <Card>
-            <CardHeader
-              icon={<HardDrive size={18} />}
-              title={t("Disk & Cache Storage")}
-              description={t(
-                "Choose where training data is stored, and manage temporary audio outputs, cached files, and upload storage to free up disk space.",
-              )}
-            />
-
-            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] gap-6 items-start">
-              <div className="space-y-3">
-                <FormField
-                  label={t("Training Data Folder")}
-                  htmlFor="settings-logs-dir"
-                  description={t(SETTING_HELP.storage)}
-                >
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <input
-                      id="settings-logs-dir"
-                      type="text"
-                      value={logsDirInput ?? ""}
-                      onChange={(e) => setLogsDirInput(e.target.value)}
-                      placeholder={defaultLogsDir}
-                      readOnly={canPickFolder}
-                      className="min-w-0 flex-1"
+          <>
+            <Card className="min-w-0">
+              <CardHeader
+                icon={<FolderOpen size={18} />}
+                title={t("Training Data Folder")}
+                description={<span id="settings-logs-dir-description">{t(SETTING_HELP.storage)}</span>}
+              />
+              <div className="grid gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <input
+                    id="settings-logs-dir"
+                    type="text"
+                    value={logsDirInput ?? ""}
+                    onChange={(e) => setLogsDirInput(e.target.value)}
+                    placeholder={defaultLogsDir}
+                    readOnly={canPickFolder}
+                    className="min-w-0 flex-1"
+                    disabled={savingLogsDir || pickingFolder}
+                    aria-label={t("Training Data Folder")}
+                    aria-describedby="settings-logs-dir-description settings-logs-dir-help"
+                  />
+                  {canPickFolder && (
+                    <Button
+                      variant="ghost"
+                      icon={<FolderOpen size={14} />}
+                      onClick={chooseLogsFolder}
                       disabled={savingLogsDir || pickingFolder}
-                      aria-describedby="settings-logs-dir-help"
-                    />
-                    {canPickFolder && (
-                      <Button
-                        size="md"
-                        variant="ghost"
-                        icon={<FolderOpen size={14} />}
-                        onClick={chooseLogsFolder}
-                        disabled={savingLogsDir || pickingFolder}
-                      >
-                        {t("Choose Folder")}
-                      </Button>
-                    )}
-                  </div>
-                </FormField>
-                <p
-                  id="settings-logs-dir-help"
-                  className="text-xs text-neutral-400 m-0"
-                  role="status"
-                  aria-live="polite"
-                >
+                    >
+                      {t("Choose Folder")}
+                    </Button>
+                  )}
+                </div>
+                <p id="settings-logs-dir-help" className="field-help m-0" role="status" aria-live="polite">
                   {logsDirMessage ||
                     ((cfg.logs_dir || defaultLogsDir) !== activeLogsDir
                       ? t("Restart Applio to move your files.")
                       : t("Files move automatically after restarting Applio."))}
                 </p>
-                <div className="flex gap-2">
+                <div className="action-row">
                   <Button
-                    size="md"
-                    variant="ghost"
                     onClick={saveLogsDir}
                     disabled={
                       savingLogsDir || pickingFolder || (logsDirInput ?? "").trim() === (cfg.logs_dir || "")
@@ -1096,7 +1072,6 @@ export default function SettingsPage() {
                     {savingLogsDir ? t("Saving…") : t("Save Folder")}
                   </Button>
                   <Button
-                    size="md"
                     variant="ghost"
                     disabled={savingLogsDir || pickingFolder || !logsDirInput}
                     onClick={() => {
@@ -1108,12 +1083,14 @@ export default function SettingsPage() {
                   </Button>
                 </div>
               </div>
+            </Card>
 
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--input-bg)] p-4 space-y-4 min-w-0">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-sm font-semibold text-[var(--heading)]">{t("temporary files")}</span>
+            <Card className="min-w-0">
+              <CardHeader
+                icon={<HardDrive size={18} />}
+                title={t("Disk & Cache Storage")}
+                action={
                   <Button
-                    size="xs"
                     variant="ghost"
                     onClick={fetchStorage}
                     disabled={storageLoading || cleaning}
@@ -1121,52 +1098,53 @@ export default function SettingsPage() {
                   >
                     {t("Refresh")}
                   </Button>
-                </div>
-                {storageError && <Alert variant="error">{storageError}</Alert>}
-                {storageStats ? (
-                  <>
-                    <p className="text-2xl font-semibold tabular-nums text-[var(--heading)] m-0">
+                }
+              />
+              {storageError && <Alert variant="error">{storageError}</Alert>}
+              {storageStats ? (
+                <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <p className="field-help m-0">{t("Storage used")}</p>
+                    <p className="text-xl font-semibold tabular-nums text-[var(--heading)] m-0">
                       {(storageStats.totalBytes / (1024 * 1024)).toFixed(1)}{" "}
                       <span className="text-sm text-[var(--muted)]">MB</span>
                     </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <StatTile
-                        label={t("uploads")}
-                        value={`${(storageStats.uploadsBytes / (1024 * 1024)).toFixed(1)} MB`}
-                        subtext={`${storageStats.uploadsCount} ${t("temporary files")}`}
-                      />
-                      <StatTile
-                        label={t("temporary outputs")}
-                        value={`${(storageStats.outputsBytes / (1024 * 1024)).toFixed(1)} MB`}
-                        subtext={`${storageStats.outputsCount} ${t("temporary files")}`}
-                      />
-                    </div>
-                  </>
-                ) : (
-                  !storageError && (
-                    <p role="status" className="field-help m-0">
-                      {t("Calculating disk usage…")}
-                    </p>
-                  )
-                )}
-                {cleanMsg && (
-                  <p className="text-xs text-emerald-400 m-0" role="status">
-                    {cleanMsg}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatTile
+                      label={t("uploads")}
+                      value={`${(storageStats.uploadsBytes / (1024 * 1024)).toFixed(1)} MB`}
+                      subtext={`${storageStats.uploadsCount} ${t("temporary files")}`}
+                    />
+                    <StatTile
+                      label={t("temporary outputs")}
+                      value={`${(storageStats.outputsBytes / (1024 * 1024)).toFixed(1)} MB`}
+                      subtext={`${storageStats.outputsCount} ${t("temporary files")}`}
+                    />
+                  </div>
+                </>
+              ) : (
+                !storageError && (
+                  <p role="status" className="field-help m-0">
+                    {t("Calculating disk usage…")}
                   </p>
-                )}
-                <Button
-                  size="md"
-                  variant="ghost"
-                  onClick={handleCleanStorage}
-                  disabled={cleaning || storageLoading || !storageStats || storageStats.totalFiles === 0}
-                  icon={<Trash2 size={14} />}
-                  className="w-full"
-                >
-                  {cleaning ? t("Cleaning…") : t("Clean Temporary Files")}
-                </Button>
-              </div>
-            </div>
-          </Card>
+                )
+              )}
+              {cleanMsg && (
+                <p className="text-xs text-emerald-400 m-0" role="status">
+                  {cleanMsg}
+                </p>
+              )}
+              <Button
+                variant="danger"
+                onClick={handleCleanStorage}
+                disabled={cleaning || storageLoading || !storageStats || storageStats.totalFiles === 0}
+                icon={<Trash2 size={14} />}
+              >
+                {cleaning ? t("Cleaning…") : t("Clean Temporary Files")}
+              </Button>
+            </Card>
+          </>
         )}
       </section>
 
@@ -1175,40 +1153,29 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-updates"
         hidden={activeSection !== "settings-updates"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className={PANEL_CLASS}
       >
         {activeSection === "settings-updates" && (
           <Card>
             <CardHeader
               icon={<RefreshCw size={18} />}
-              title={
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-white m-0">{t("Version & Updates")}</h2>
-                  <Badge variant="neutral">{displayVersion(localVer || ver?.local || cfg.version)}</Badge>
-                </div>
-              }
+              title={t("Version & Updates")}
               description={t("Check for official Applio updates and apply package releases.")}
               action={
-                <div className="flex items-center gap-2">
+                <>
                   {(updaterState?.status === "available" ||
                     ((!updaterState || updaterState.status === "dev-mode") && ver?.status === "behind")) && (
-                    <Button size="md" onClick={() => window.dispatchEvent(new Event("applio:show-update"))}>
+                    <Button onClick={() => window.dispatchEvent(new Event("applio:show-update"))}>
                       {t("Update")}
                     </Button>
                   )}
                   {updaterState?.status === "downloaded" && (
-                    <Button
-                      size="md"
-                      onClick={installUpdate}
-                      loading={installingUpdate}
-                      icon={<RefreshCw size={14} />}
-                    >
+                    <Button onClick={installUpdate} loading={installingUpdate} icon={<RefreshCw size={14} />}>
                       {t("Restart and Update")}
                     </Button>
                   )}
 
                   <Button
-                    size="md"
                     variant="ghost"
                     onClick={checkVersion}
                     disabled={
@@ -1219,13 +1186,13 @@ export default function SettingsPage() {
                     icon={
                       <RefreshCw
                         size={14}
-                        className={`text-white ${updaterState?.status === "checking" ? "animate-spin" : ""}`}
+                        className={updaterState?.status === "checking" ? "animate-spin" : undefined}
                       />
                     }
                   >
                     {updaterState?.status === "checking" ? t("Checking…") : t("Check for Updates")}
                   </Button>
-                </div>
+                </>
               }
             />
 
@@ -1303,7 +1270,7 @@ export default function SettingsPage() {
         role="tabpanel"
         aria-labelledby="tab-settings-application"
         hidden={activeSection !== "settings-application"}
-        className="space-y-5 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className={PANEL_CLASS}
       >
         {activeSection === "settings-application" && (
           <>
@@ -1312,29 +1279,17 @@ export default function SettingsPage() {
                 icon={<Power size={18} />}
                 title={t("Restart API")}
                 description={t("Restarts the backend API service to apply system changes.")}
+                action={
+                  <Button variant="ghost" onClick={restartApi} loading={restarting} disabled={quitting}>
+                    {restarting ? t("Restarting…") : t("Restart API")}
+                  </Button>
+                }
               />
-
-              <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  {restartMsg && (
-                    <span className="text-xs text-neutral-300" role="status" aria-live="polite">
-                      {restartMsg}
-                    </span>
-                  )}
-                </div>
-
-                <Button
-                  size="md"
-                  variant="ghost"
-                  onClick={restartApi}
-                  loading={restarting}
-                  disabled={quitting}
-                  icon={<Power size={14} className="text-white" />}
-                  className="w-full sm:w-auto"
-                >
-                  {restarting ? t("Restarting…") : t("Restart API")}
-                </Button>
-              </div>
+              {restartMsg && (
+                <p className="field-help m-0" role="status">
+                  {restartMsg}
+                </p>
+              )}
             </Card>
 
             {canQuit && (
@@ -1342,28 +1297,15 @@ export default function SettingsPage() {
                 <CardHeader
                   icon={<LogOut size={18} />}
                   title={t("Quit Applio")}
-                  description={t("Fully exits Applio, including the tray icon and the background services.")}
+                  description={t(
+                    "Closing the window keeps Applio running in the system tray. Choose Quit Applio to exit completely.",
+                  )}
+                  action={
+                    <Button variant="ghost" onClick={quitApplio} loading={quitting} disabled={restarting}>
+                      {quitting ? t("Quitting Applio…") : t("Quit Applio")}
+                    </Button>
+                  }
                 />
-
-                <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <p className="text-xs text-[var(--muted)] m-0 leading-relaxed">
-                    {t(
-                      "Closing the window keeps Applio running in the system tray. Choose Quit Applio to exit completely.",
-                    )}
-                  </p>
-
-                  <Button
-                    size="md"
-                    variant="ghost"
-                    onClick={quitApplio}
-                    loading={quitting}
-                    disabled={restarting}
-                    icon={<LogOut size={14} className="text-white" />}
-                    className="w-full sm:w-auto"
-                  >
-                    {quitting ? t("Quitting Applio…") : t("Quit Applio")}
-                  </Button>
-                </div>
               </Card>
             )}
           </>

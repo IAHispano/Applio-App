@@ -25,6 +25,7 @@ import {
   CardHeader,
   CustomSelect,
   Disclosure,
+  IconButton,
   SliderField,
   ToggleField,
 } from "@/components/ui";
@@ -412,7 +413,7 @@ export default function UvrPage() {
         )}
       />
 
-      <div className="grid grid-cols-1 gap-5 items-start">
+      <div className="grid grid-cols-1 xl:grid-cols-2 card-grid items-start">
         <Card className="min-w-0">
           <CardHeader
             icon={<FileAudio size={18} />}
@@ -420,25 +421,12 @@ export default function UvrPage() {
             title={t("Source & Model")}
             description={t("Pick the song to split and the separation engine to use.")}
             action={
-              <div className="flex items-center gap-2">
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => setImportOpen(true)}
-                  icon={<Plus size={12} />}
-                >
-                  {t("Import model")}
-                </Button>
-                <Button
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => void loadModels()}
-                  disabled={modelsLoading}
-                  icon={<RefreshCw size={12} className={modelsLoading ? "animate-spin" : ""} />}
-                >
-                  {t("Reload models")}
-                </Button>
-              </div>
+              <IconButton
+                label={t("Reload models")}
+                onClick={() => void loadModels()}
+                disabled={modelsLoading}
+                icon={<RefreshCw className={modelsLoading ? "animate-spin" : undefined} />}
+              />
             }
           />
 
@@ -503,6 +491,11 @@ export default function UvrPage() {
                   {t("Models download on first use and are reused for offline separation.")}
                 </p>
               )}
+              <div className="flex justify-end border-t border-[var(--border)] pt-3">
+                <Button variant="ghost" onClick={() => setImportOpen(true)} icon={<Plus />}>
+                  {t("Import model")}
+                </Button>
+              </div>
             </div>
           </div>
         </Card>
@@ -583,7 +576,6 @@ export default function UvrPage() {
               <div className="flex items-center justify-between gap-3">
                 {arch && <Badge>{arch}</Badge>}
                 <Button
-                  size="xs"
                   variant="ghost"
                   disabled={!arch}
                   icon={<RotateCcw size={13} />}
@@ -881,7 +873,7 @@ export default function UvrPage() {
                   )}
               </div>
             </Disclosure>
-            <div className="space-y-3 pt-4">
+            <div className="space-y-3 pt-4 border-t border-[var(--border)]">
               {error && (
                 <Alert variant="error" onDismiss={() => setError("")}>
                   {error}
@@ -933,7 +925,6 @@ export default function UvrPage() {
                       href={s.url}
                       download
                       variant="ghost"
-                      size="xs"
                       icon={<Download size={13} />}
                       aria-label={`${t("Download")} ${t(s.label)}`}
                     >
