@@ -531,6 +531,11 @@ async fn proxy(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{
+        job_routes,
+        jobs::{JobStore, JobType},
+        scheduler::Scheduler,
+    };
     use tower::ServiceExt;
 
     #[test]
@@ -636,5 +641,91 @@ mod tests {
                 .status(),
             StatusCode::UNAUTHORIZED
         );
+    }
+
+    #[tokio::test]
+    async fn approved_activity_poll_skips_unchanged_history_and_keeps_lifecycle_updates() {
+        let root = tempfile::tempdir().unwrap();
+        let jobs = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = jobs.create(JobType::Train, json!({})).unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let api_port = listener.local_addr().unwrap().port();
+        let stop = CancellationToken::new();
+        let api_stop = stop.clone();
+        let api = job_routes::router(jobs.clone(), Scheduler::default());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, api)
+                .with_graceful_shutdown(api_stop.cancelled_owned())
+                .await
+                .unwrap();
+        });
+        let gateway = Gateway::new(
+            api_port,
+            api_port,
+            None,
+            Arc::new(|| ("en_US".into(), json!({}))),
+            Arc::new(|_| {}),
+            CancellationToken::new(),
+        )
+        .unwrap();
+        gateway.set_origin("https://bridge.example").unwrap();
+        let invite = gateway.sessions.new_invite().unwrap();
+        let (credential, device) = gateway.sessions.request(&invite.token, "test").unwrap();
+        gateway.sessions.approve(&device.id).unwrap();
+        let app = gateway.router();
+        let poll = |tag: Option<String>| {
+            let mut request = Request::builder()
+                .uri("/api/jobs/activity")
+                .header(header::HOST, "bridge.example")
+                .header(header::COOKIE, format!("{COOKIE}={credential}"));
+            if let Some(tag) = tag {
+                request = request.header(header::IF_NONE_MATCH, tag);
+            }
+            app.clone().oneshot(request.body(Body::empty()).unwrap())
+        };
+        let first = poll(None).await.unwrap();
+        assert_eq!(first.status(), StatusCode::OK);
+        let tag = first.headers()[header::ETAG].to_str().unwrap().to_owned();
+        let first = axum::body::to_bytes(first.into_body(), 8192).await.unwrap();
+        let first: Value = serde_json::from_slice(&first).unwrap();
+        assert_eq!(first["jobs"][0]["status"], "queued");
+
+        jobs.log(&job.id, "Work that only affects job details");
+        let unchanged = poll(Some(format!("\"other,tag\", W/{tag}"))).await.unwrap();
+        assert_eq!(unchanged.status(), StatusCode::NOT_MODIFIED);
+        assert_eq!(unchanged.headers()[header::ETAG], tag);
+        assert_eq!(unchanged.headers()[header::CACHE_CONTROL], "no-store");
+        let bytes = axum::body::to_bytes(unchanged.into_body(), 8192)
+            .await
+            .unwrap();
+        assert!(bytes.is_empty());
+
+        jobs.running(&job.id);
+        jobs.progress(&job.id, 37.0);
+        let running = poll(Some(tag)).await.unwrap();
+        assert_eq!(running.status(), StatusCode::OK);
+        let tag = running.headers()[header::ETAG].to_str().unwrap().to_owned();
+        let running = axum::body::to_bytes(running.into_body(), 8192)
+            .await
+            .unwrap();
+        let running: Value = serde_json::from_slice(&running).unwrap();
+        assert_eq!(running["jobs"][0]["status"], "running");
+        assert_eq!(running["jobs"][0]["progress"], 37);
+        jobs.done(&job.id, json!({}), None);
+        let done = poll(Some(tag)).await.unwrap();
+        assert_eq!(done.status(), StatusCode::OK);
+        let tag = done.headers()[header::ETAG].to_str().unwrap().to_owned();
+        let done = axum::body::to_bytes(done.into_body(), 8192).await.unwrap();
+        let done: Value = serde_json::from_slice(&done).unwrap();
+        assert_eq!(done["jobs"][0]["status"], "done");
+
+        gateway.sessions.revoke(&device.id);
+        assert_eq!(
+            poll(Some(tag)).await.unwrap().status(),
+            StatusCode::UNAUTHORIZED
+        );
+        stop.cancel();
+        server.await.unwrap();
+        jobs.seal().await;
     }
 }

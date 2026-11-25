@@ -20,6 +20,7 @@ use axum::{
 };
 use serde_json::{json, Value};
 use std::{
+    collections::HashSet,
     path::{Path, PathBuf},
     sync::Arc,
 };
@@ -58,8 +59,11 @@ fn source_files(path: &Path, single: bool) -> Result<Vec<PathBuf>> {
     let mut files = Vec::new();
     for entry in std::fs::read_dir(path)? {
         let entry = entry?;
-        if entry.file_type()?.is_file() && supported(&entry.path()) {
-            files.push(entry.path());
+        if entry.file_type()?.is_file() {
+            let path = entry.path();
+            if supported(&path) {
+                files.push(path);
+            }
         }
     }
     files.sort();
@@ -97,8 +101,9 @@ fn list(value: &Value, key: &str, errors: &mut ValidationErrors) -> Vec<String> 
         }
     }
 }
-fn normalize(value: &Value) -> Result<Value, ValidationErrors> {
-    let mut params = infer_params::batch_base(value)?;
+fn normalize(value: &Value) -> Result<(Value, Value), ValidationErrors> {
+    let conversion = infer_params::batch_base(value)?;
+    let mut params = conversion.clone();
     let mut errors = ValidationErrors::default();
     for (key, default) in [
         ("mode", "files"),
@@ -190,7 +195,7 @@ fn normalize(value: &Value) -> Result<Value, ValidationErrors> {
     }
     params["models"] = json!(models);
     if errors.field_errors.is_empty() {
-        Ok(params)
+        Ok((params, conversion))
     } else {
         Err(errors)
     }
@@ -207,19 +212,55 @@ async fn preview(
         return Err(errors.into());
     }
     let single = !file.trim().is_empty();
-    let files = source_files(
-        &engine
-            .runtime
-            .resolve_user_path(if single { &file } else { &folder })?,
-        single,
-    )?;
-    let files: Result<Vec<_>> = files.iter().map(|file| Ok(json!({"name":file.file_name().unwrap().to_string_lossy(), "bytes":file.metadata()?.len()}))).collect();
-    Ok(Json(json!({"files":files?})))
+    let source = engine
+        .runtime
+        .resolve_user_path(if single { &file } else { &folder })?;
+    let files = tokio::task::spawn_blocking(move || {
+        source_files(&source, single)?
+            .into_iter()
+            .map(|file| {
+                Ok(json!({"name": file.file_name().unwrap().to_string_lossy(), "bytes": file.metadata()?.len()}))
+            })
+            .collect::<Result<Vec<_>>>()
+    })
+    .await
+    .map_err(Error::internal)??;
+    Ok(Json(json!({"files":files})))
 }
+
+fn select_files(files: &mut Vec<PathBuf>, params: &Value) -> Result<(), Error> {
+    let filenames = |key: &str| {
+        params[key].as_array().map(|names| {
+            names
+                .iter()
+                .filter_map(Value::as_str)
+                .collect::<HashSet<_>>()
+        })
+    };
+    let excluded = filenames("excludedFiles").unwrap_or_default();
+    let selected = filenames("selectedFiles");
+    files.retain(|file| {
+        let name = file.file_name().and_then(|name| name.to_str());
+        !name.is_some_and(|name| excluded.contains(name))
+            && selected
+                .as_ref()
+                .is_none_or(|names| name.is_some_and(|name| names.contains(name)))
+    });
+    if selected.is_some_and(|names| names.len() != files.len()) {
+        return Err(Error::input(
+            "Selected input files changed. Review audio files again.",
+        ));
+    }
+    if files.is_empty() {
+        return Err(Error::input("No supported audio files found"));
+    }
+    Ok(())
+}
+
 async fn start(State(engine): State<Arc<NativeEngine>>, request: Request) -> Accepted {
     let input = uploads::parse(request, &engine.runtime.uploads, &[]).await?;
     ready(&engine).await?;
-    let params = normalize(&input.body)?;
+    let (params, conversion) = normalize(&input.body)?;
     let single = params["mode"] == "models";
     let source = engine.runtime.resolve_user_path(&string(
         &params,
@@ -228,41 +269,20 @@ async fn start(State(engine): State<Arc<NativeEngine>>, request: Request) -> Acc
     let output = engine
         .runtime
         .resolve_user_path(&string(&params, "outputFolder"))?;
-    let mut files = source_files(&source, single)?;
-    files.retain(|file| {
-        !params["excludedFiles"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|name| name.as_str() == file.file_name().and_then(|s| s.to_str()))
-    });
-    if let Some(selected) = params["selectedFiles"].as_array() {
-        if selected.iter().any(|name| {
-            !files
-                .iter()
-                .any(|file| name.as_str() == file.file_name().and_then(|s| s.to_str()))
-        }) {
-            return Err(Error::input(
-                "Selected input files changed. Review audio files again.",
-            ));
-        }
-        files.retain(|file| {
-            selected
-                .iter()
-                .any(|name| name.as_str() == file.file_name().and_then(|s| s.to_str()))
-        });
-    }
-    if files.is_empty() {
-        return Err(Error::input("No supported audio files found"));
-    }
-    let models = if params["mode"] == "files" {
+    let mut files = tokio::task::spawn_blocking(move || source_files(&source, single))
+        .await
+        .map_err(Error::internal)??;
+    select_files(&mut files, &params)?;
+    let files_mode = params["mode"] == "files";
+    let continue_on_error = params["continueOnError"] != false;
+    let models = if files_mode {
         vec![json!({"pthPath":params["pthPath"],"indexPath":params["indexPath"],"overrides":{}})]
     } else {
         params["models"].as_array().unwrap().clone()
     };
-    let mut resolved = Vec::new();
+    let mut resolved = Vec::with_capacity(models.len());
     for model in &models {
-        let mut selected = params.clone();
+        let mut selected = conversion.clone();
         crate::engine_runtime::merge(&mut selected, model["overrides"].clone());
         selected["pthPath"] = model["pthPath"].clone();
         selected["indexPath"] = model["indexPath"].clone();
@@ -272,14 +292,23 @@ async fn start(State(engine): State<Arc<NativeEngine>>, request: Request) -> Acc
     tokio::fs::create_dir_all(&output)
         .await
         .map_err(anyhow::Error::from)?;
-    let saved = params.clone();
     let job = engine
         .start_job(
             JobType::BatchInference,
-            saved,
+            params,
             Some(Resource::Gpu),
             move |engine, job, token| {
-                run(engine, job, token, params, files, models, resolved, output)
+                run(
+                    engine,
+                    job,
+                    token,
+                    files_mode,
+                    continue_on_error,
+                    files,
+                    models,
+                    resolved,
+                    output,
+                )
             },
         )
         .await
@@ -291,7 +320,8 @@ async fn run(
     engine: Arc<NativeEngine>,
     job: Job,
     token: CancellationToken,
-    params: Value,
+    files_mode: bool,
+    continue_on_error: bool,
     inputs: Vec<PathBuf>,
     models: Vec<Value>,
     resolved: Vec<Value>,
@@ -300,16 +330,20 @@ async fn run(
     let output = output.join(format!("batch_{}", &job.id[..8]));
     let total = models.len() * inputs.len();
     let (mut done, mut failed) = (0, 0);
-    let mut items: Vec<Value> = Vec::new();
-    let snapshot = |done: usize, failed: usize, items: &Vec<Value>| json!({"files":done,"failed":failed,"total":total,"models":models.len(),"items":items,"outputFolder":output});
-    engine.jobs.result(&job.id, snapshot(done, failed, &items));
+    engine.jobs.result(
+        &job.id,
+        json!({
+            "files": 0, "failed": 0, "total": total, "models": models.len(),
+            "items": [], "outputFolder": output,
+        }),
+    );
     for (number, selected) in resolved.iter().enumerate() {
         let model = &models[number];
         let stem = Path::new(model["pthPath"].as_str().unwrap())
             .file_stem()
             .unwrap_or_default()
             .to_string_lossy();
-        let directory = if params["mode"] == "files" {
+        let directory = if files_mode {
             output.clone()
         } else {
             output.join(format!("{}_{stem}", number + 1))
@@ -321,8 +355,10 @@ async fn run(
             }
             let name = input.file_name().unwrap().to_string_lossy();
             let wav = directory.join(format!("{name}_output.wav"));
-            items.push(json!({"input":name,"model":model["pthPath"],"status":"running"}));
-            engine.jobs.result(&job.id, snapshot(done, failed, &items));
+            let mut item = json!({"input":name,"model":model["pthPath"],"status":"running"});
+            engine.jobs.update_result(&job.id, |result| {
+                result["items"].as_array_mut().unwrap().push(item.clone());
+            });
             engine.jobs.stage(
                 &job.id,
                 "Converting audio…",
@@ -350,12 +386,12 @@ async fn run(
             if token.is_cancelled() {
                 bail!("Stopped by user");
             }
-            let item = items.last_mut().unwrap();
-            match conversion {
+            let error = match conversion {
                 Ok(file) => {
                     item["status"] = json!("done");
                     item["output"] = json!(file);
                     done += 1;
+                    None
                 }
                 Err(error) => {
                     item["status"] = json!("error");
@@ -364,13 +400,18 @@ async fn run(
                     engine
                         .jobs
                         .log(&job.id, &format!("Failed: {name} -> {stem}: {error}"));
-                    engine.jobs.result(&job.id, snapshot(done, failed, &items));
-                    if params["continueOnError"] == false {
-                        return Err(error);
-                    }
+                    Some(error)
                 }
+            };
+            engine.jobs.update_result(&job.id, |result| {
+                let items = result["items"].as_array_mut().unwrap();
+                *items.last_mut().unwrap() = item;
+                result["files"] = json!(done);
+                result["failed"] = json!(failed);
+            });
+            if let Some(error) = error.filter(|_| !continue_on_error) {
+                return Err(error);
             }
-            engine.jobs.result(&job.id, snapshot(done, failed, &items));
             engine
                 .jobs
                 .progress(&job.id, ((done + failed) * 100) as f64 / total as f64);
@@ -381,7 +422,10 @@ async fn run(
         bail!("Batch conversion failed for every file. Check the individual results.");
     }
     Ok(JobResult::new(
-        snapshot(done, failed, &items),
+        engine
+            .jobs
+            .result_snapshot(&job.id)
+            .context("Batch result unavailable")?,
         Some(engine.runtime.repo_relative(&output)),
     ))
 }
@@ -391,26 +435,10 @@ async fn download(
     request: Request,
 ) -> Result<Response, Error> {
     let missing = || Error(StatusCode::NOT_FOUND, json!({"error":"Output not found"}));
-    let job = engine
-        .jobs
-        .get(&id)
-        .filter(|job| job.kind == JobType::BatchInference)
-        .ok_or_else(missing)?;
     let index: usize = index.parse().map_err(|_| missing())?;
-    let result = job
-        .result
-        .context("Output not found")
-        .map_err(|_| missing())?;
-    let item = result["items"].get(index).ok_or_else(missing)?;
-    if item["status"] != "done" {
-        return Err(missing());
-    }
-    let root = tokio::fs::canonicalize(string(&result, "outputFolder"))
-        .await
-        .map_err(|_| missing())?;
-    let file = tokio::fs::canonicalize(string(item, "output"))
-        .await
-        .map_err(|_| missing())?;
+    let (root, file) = engine.jobs.batch_output(&id, index).ok_or_else(missing)?;
+    let root = tokio::fs::canonicalize(root).await.map_err(|_| missing())?;
+    let file = tokio::fs::canonicalize(file).await.map_err(|_| missing())?;
     if !file.starts_with(root) || !file.is_file() {
         return Err(missing());
     }
@@ -424,4 +452,47 @@ async fn download(
         .headers_mut()
         .insert(header::CONTENT_DISPOSITION, disposition);
     Ok(response)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn batch_selection_preserves_order_and_rejects_removed_files() {
+        let source = ["voice-a.wav", "voice-b.wav", "voice-c.wav"].map(PathBuf::from);
+        let mut files = source.to_vec();
+        assert!(select_files(
+            &mut files,
+            &json!({"excludedFiles":["voice-b.wav"],"selectedFiles":["voice-c.wav","voice-a.wav","voice-c.wav"]}),
+        ).is_ok());
+        assert_eq!(files, [source[0].clone(), source[2].clone()]);
+
+        for file in ["voice-b.wav", "moved.wav"] {
+            let error = select_files(
+                &mut source.to_vec(),
+                &json!({"excludedFiles":["voice-b.wav"],"selectedFiles":[file]}),
+            )
+            .unwrap_err();
+            assert_eq!(
+                error.1["error"],
+                "Selected input files changed. Review audio files again."
+            );
+        }
+    }
+
+    #[test]
+    fn batch_worker_parameters_omit_file_selection_and_keep_conversion_defaults() {
+        let input = json!({
+            "inputFolder": "inputs",
+            "outputFolder": "outputs",
+            "pthPath": "logs/voice.pth",
+            "selectedFiles": ["voice.wav"],
+            "pitch": -3,
+        });
+        let (batch, conversion) = normalize(&input).unwrap();
+        assert_eq!(batch["selectedFiles"], input["selectedFiles"]);
+        assert!(conversion.get("selectedFiles").is_none());
+        assert_eq!(conversion, infer_params::inference(&input).unwrap());
+    }
 }

@@ -68,7 +68,6 @@ fn walk(
     for entry in std::fs::read_dir(root)? {
         let entry = entry?;
         let kind = entry.file_type()?;
-        let path = entry.path();
         if kind.is_dir() {
             if !audio_directories
                 || !entry
@@ -76,18 +75,24 @@ fn walk(
                     .to_string_lossy()
                     .starts_with(".applio-review-")
             {
-                walk(&path, extensions, audio_directories, found)?;
+                walk(&entry.path(), extensions, audio_directories, found)?;
             }
-        } else if kind.is_file()
-            && path
+        } else if kind.is_file() && !has_audio {
+            let name = entry.file_name();
+            let supported = Path::new(&name)
                 .extension()
                 .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extensions.contains(&extension.to_lowercase().as_str()))
-        {
-            if audio_directories {
-                has_audio = true;
-            } else {
-                found.push(path);
+                .is_some_and(|extension| {
+                    extensions
+                        .iter()
+                        .any(|supported| extension.eq_ignore_ascii_case(supported))
+                });
+            if supported {
+                if audio_directories {
+                    has_audio = true;
+                } else {
+                    found.push(root.join(name));
+                }
             }
         }
     }
@@ -587,15 +592,7 @@ fn progress(engine: &NativeEngine, id: &str, line: &str, total: u64) {
     } else {
         epoch as f64 / total.max(1) as f64 * 100.0
     };
-    let percent = percent.round().clamp(0.0, 99.0);
-    if engine
-        .jobs
-        .get(id)
-        .and_then(|job| job.progress)
-        .is_none_or(|current| percent > current.into())
-    {
-        engine.jobs.progress(id, percent);
-    }
+    engine.jobs.advance_progress(id, percent.clamp(0.0, 99.0));
 }
 async fn step(
     engine: &NativeEngine,
@@ -853,23 +850,20 @@ async fn stop(State(state): State<Arc<Training>>, request: Request) -> Result<Js
         ));
     }
     let mut stopped = 0;
-    for job in state
-        .engine
-        .jobs
-        .list()
-        .into_iter()
-        .filter(|job| job.kind == JobType::Train && job.active())
-    {
-        if (!id.is_empty() && job.id == id)
-            || (id.is_empty()
-                && job
-                    .params
+    let jobs = &state.engine.jobs;
+    let ids = jobs.active_ids(|job| {
+        job.kind == JobType::Train
+            && if id.is_empty() {
+                job.params
                     .as_ref()
-                    .is_some_and(|params| params["modelName"] == model))
-        {
-            state.engine.jobs.log(&job.id, "Stopped by user.");
-            stopped += usize::from(state.engine.jobs.cancel(&job.id, "Stopped by user"));
-        }
+                    .is_some_and(|params| params["modelName"] == model)
+            } else {
+                job.id == id
+            }
+    });
+    for active_id in ids {
+        jobs.log(&active_id, "Stopped by user.");
+        stopped += usize::from(jobs.cancel(&active_id, "Stopped by user"));
     }
     // Native jobs own their process trees; stale, unowned PIDs from old config
     // files must never be used to terminate another application's process.

@@ -52,7 +52,7 @@ fn entries(directory: &Path, outputs: bool) -> std::io::Result<Vec<(PathBuf, fs:
         if name == ".gitkeep" || outputs && !output(&name) {
             continue;
         }
-        if let Ok(metadata) = entry.path().symlink_metadata() {
+        if let Ok(metadata) = entry.metadata() {
             if metadata.is_file() {
                 files.push((entry.path(), metadata));
             }
@@ -118,7 +118,7 @@ pub fn clean(engine: &NativeEngine, options: Options) -> CleanResult {
     };
     {
         let _uploads = crate::uploads::active_uploads();
-        revision = engine.jobs.revision();
+        revision = engine.jobs.active_revision();
         refresh(&mut protected, &mut active_since);
     }
     for (outputs, enabled, directory) in [
@@ -139,31 +139,7 @@ pub fn clean(engine: &NativeEngine, options: Options) -> CleanResult {
             }
         };
         for (file, metadata) in files {
-            // Admission and in-flight multipart staging use the same short
-            // storage gate. Refresh job protection if work started after the
-            // directory scan, before removing any temporary file.
-            let uploads = crate::uploads::active_uploads();
-            if uploads.contains(&file) {
-                continue;
-            }
-            let current = engine.jobs.revision();
-            if current != revision {
-                refresh(&mut protected, &mut active_since);
-                revision = current;
-            }
-            let canonical = std::fs::canonicalize(&file).unwrap_or_else(|_| file.clone());
-            if protected
-                .iter()
-                .any(|path| canonical == *path || canonical.starts_with(path) && path.is_dir())
-            {
-                continue;
-            }
             let modified = metadata.modified().unwrap_or(now);
-            if active_since
-                .is_some_and(|at| modified >= at.checked_sub(Duration::from_secs(30)).unwrap_or(at))
-            {
-                continue;
-            }
             if options.max_age_ms > 0.0
                 && now
                     .duration_since(modified)
@@ -173,6 +149,34 @@ pub fn clean(engine: &NativeEngine, options: Options) -> CleanResult {
                     < options.max_age_ms
             {
                 continue;
+            }
+            // Admission and in-flight multipart staging use the same short
+            // storage gate. Refresh job protection if work started after the
+            // directory scan, before removing any temporary file.
+            let uploads = crate::uploads::active_uploads();
+            if uploads.contains(&file) {
+                continue;
+            }
+            let current = engine.jobs.active_revision();
+            if current != revision {
+                refresh(&mut protected, &mut active_since);
+                revision = current;
+            }
+            if active_since
+                .is_some_and(|at| modified >= at.checked_sub(Duration::from_secs(30)).unwrap_or(at))
+            {
+                continue;
+            }
+            if !protected.is_empty() {
+                let canonical = std::fs::canonicalize(&file).unwrap_or_else(|_| file.clone());
+                if protected.contains(&canonical)
+                    || canonical
+                        .ancestors()
+                        .skip(1)
+                        .any(|parent| protected.contains(parent) && parent.is_dir())
+                {
+                    continue;
+                }
             }
             match fs::remove_file(&file) {
                 Ok(()) => {
@@ -187,10 +191,85 @@ pub fn clean(engine: &NativeEngine, options: Options) -> CleanResult {
         }
     }
     let _uploads = crate::uploads::active_uploads();
-    if engine.jobs.active_params().is_empty() {
+    if !engine.jobs.has_active_jobs() {
         for file in ["infer_pid.txt", "extract_pid.txt"] {
             let _ = fs::remove_file(runtime.data.join("assets").join(file));
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{engine::RuntimeReadiness, jobs::JobType, ApiConfig};
+    use serde_json::json;
+    use std::{fs::FileTimes, sync::Arc};
+
+    #[tokio::test]
+    async fn cleanup_preserves_active_files_and_directory_contents() {
+        let root = tempfile::tempdir().unwrap();
+        let code = root.path().join("code");
+        fs::create_dir_all(code.join("backend/applio/rvc/configs")).unwrap();
+        fs::write(code.join("backend/applio/rvc/configs/config.py"), "").unwrap();
+        fs::create_dir_all(code.join("assets")).unwrap();
+        fs::write(code.join("assets/config_template.json"), "{}").unwrap();
+        let runtime = EngineRuntime::with_environment(
+            &ApiConfig {
+                code_root: code,
+                data_root: root.path().join("data"),
+                config_dir: root.path().join("config"),
+            },
+            None,
+            [
+                ("OUTPUTS_DIR".into(), "outputs".into()),
+                ("UPLOADS_DIR".into(), "uploads".into()),
+            ]
+            .into(),
+        )
+        .unwrap();
+        let engine = NativeEngine::open(
+            runtime.clone(),
+            Arc::new(RuntimeReadiness::new(runtime, true)),
+        )
+        .unwrap();
+        let protected = engine.runtime.uploads.join("pending.wav");
+        let recent = engine.runtime.uploads.join("recent.wav");
+        let disposable = engine.runtime.uploads.join("old.wav");
+        let output = engine.runtime.outputs.join("web_output_batch.wav");
+        let old = SystemTime::now() - Duration::from_secs(3600);
+        for path in [&protected, &disposable, &output] {
+            fs::File::create(path)
+                .unwrap()
+                .set_times(FileTimes::new().set_modified(old))
+                .unwrap();
+        }
+        fs::write(&recent, "recent").unwrap();
+        let job = engine
+            .jobs
+            .create(
+                JobType::BatchInference,
+                json!({
+                    "inputPath": protected,
+                    "outputFolder": engine.runtime.outputs,
+                }),
+            )
+            .unwrap();
+        let options = || Options {
+            max_age_ms: 0.0,
+            uploads: true,
+            outputs: true,
+        };
+        let cleaned = clean(&engine, options());
+        assert_eq!(cleaned.deleted_files, 1);
+        assert!(cleaned.errors.is_empty());
+        assert!(protected.is_file() && output.is_file() && recent.is_file());
+        assert!(!disposable.exists());
+
+        engine.jobs.done(&job.id, json!({}), None);
+        let cleaned = clean(&engine, options());
+        assert_eq!(cleaned.deleted_files, 3);
+        assert!(!protected.exists() && !output.exists() && !recent.exists());
+        engine.jobs.seal().await;
+    }
 }
