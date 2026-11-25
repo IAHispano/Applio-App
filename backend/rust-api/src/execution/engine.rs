@@ -25,6 +25,7 @@ pub trait Readiness: Send + Sync {
     fn require(
         &self,
         allow_missing_pretrains: bool,
+        scheduler: Scheduler,
         cancelled: CancellationToken,
     ) -> BoxFuture<'_, Result<()>>;
 }
@@ -42,17 +43,24 @@ impl RuntimeReadiness {
     }
 }
 
-// Setup and request admission share one probe per runtime, including concurrent
-// callers. A successful check lasts as long as Electron's setup cache; failed
-// checks expire quickly so fixing an environment does not require a restart.
+// Setup and request admission share one probe, including concurrent callers.
 #[derive(Default)]
 pub(crate) struct PackageProbe {
     cached: tokio::sync::Mutex<Option<PackageCheck>>,
 }
+pub(crate) enum ProbeGpu<'a> {
+    Schedule(&'a Scheduler),
+    Reserved,
+}
+#[derive(Clone)]
+pub(crate) struct ProbeResult {
+    pub output: crate::process::ProcessOutput,
+    pub full: bool,
+}
 struct PackageCheck {
     spec: crate::process::CommandSpec,
     at: tokio::time::Instant,
-    output: crate::process::ProcessOutput,
+    result: ProbeResult,
 }
 impl PackageProbe {
     pub(crate) async fn invalidate(&self) {
@@ -61,41 +69,72 @@ impl PackageProbe {
     pub(crate) async fn run(
         &self,
         spec: &crate::process::CommandSpec,
+        gpu: ProbeGpu<'_>,
         cancelled: &CancellationToken,
-    ) -> Result<crate::process::ProcessOutput> {
+    ) -> Result<ProbeResult> {
         let mut cache = tokio::select! {
             biased;
             _ = cancelled.cancelled() => bail!("Engine check cancelled"),
             cache = self.cached.lock() => cache,
         };
-        if let Some(check) = &*cache {
-            let ttl = if check.output.success { 3600 } else { 5 };
-            if check.spec == *spec && check.at.elapsed() < Duration::from_secs(ttl) {
-                return Ok(check.output.clone());
-            }
+        let cached = cache.as_ref().filter(|check| {
+            let ttl = if check.result.output.success { 3600 } else { 5 };
+            check.spec == *spec && check.at.elapsed() < Duration::from_secs(ttl)
+        });
+        if let Some(check) = cached.filter(|check| check.result.full) {
+            return Ok(check.result.clone());
         }
-        let output = tokio::time::timeout(
-            Duration::from_secs(180),
-            ManagedProcess::run(spec, cancelled, |_, _| {}),
-        )
-        .await
-        .context("Python engine dependency check timed out")??;
+
+        let lease = match gpu {
+            ProbeGpu::Schedule(scheduler) => scheduler.try_gpu("engine-readiness"),
+            ProbeGpu::Reserved => None,
+        };
+        let full = lease.is_some() || matches!(gpu, ProbeGpu::Reserved);
+        let imports_only;
+        let command = if full {
+            spec
+        } else {
+            if let Some(check) = cached {
+                return Ok(check.result.clone());
+            }
+            imports_only = {
+                let mut command = spec.clone();
+                command
+                    .env
+                    .insert("APPLIO_PROBE_SKIP_GPU".into(), "1".into());
+                command
+            };
+            &imports_only
+        };
+        let stop = cancelled.child_token();
+        let probe = ManagedProcess::run(command, &stop, |_, _| {});
+        tokio::pin!(probe);
+        let output = match tokio::time::timeout(Duration::from_secs(180), &mut probe).await {
+            Ok(output) => output?,
+            Err(error) => {
+                stop.cancel();
+                let _ = probe.await;
+                return Err(error).context("Python engine dependency check timed out");
+            }
+        };
         // Cancellation must never become a cached environment failure.
         if cancelled.is_cancelled() {
             bail!("Engine check cancelled");
         }
+        let result = ProbeResult { output, full };
         *cache = Some(PackageCheck {
             spec: spec.clone(),
             at: tokio::time::Instant::now(),
-            output: output.clone(),
+            result: result.clone(),
         });
-        Ok(output)
+        Ok(result)
     }
 }
 impl Readiness for RuntimeReadiness {
     fn require(
         &self,
         allow_missing_pretrains: bool,
+        scheduler: Scheduler,
         cancelled: CancellationToken,
     ) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
@@ -103,29 +142,16 @@ impl Readiness for RuntimeReadiness {
                 return Ok(());
             }
             let spec = self.runtime.python_command(["-c", ENGINE_PROBE])?;
-            let output = self.runtime.package_probe.run(&spec, &cancelled).await?;
-            if let Err(error) = output.ensure_success() {
+            let result = self
+                .runtime
+                .package_probe
+                .run(&spec, ProbeGpu::Schedule(&scheduler), &cancelled)
+                .await?;
+            if let Err(error) = result.output.ensure_success() {
                 bail!("Engine environment is not ready ({error}). Please complete Applio setup first.");
             }
             if !allow_missing_pretrains {
-                let mut missing = 0;
-                for (vocoder, rates) in [
-                    ("hifi-gan", &[32, 40, 48][..]),
-                    ("refinegan", &[24, 32][..]),
-                ] {
-                    for rate in rates {
-                        for side in ["G", "D"] {
-                            let path = self.runtime.data.join(format!(
-                                "rvc/models/pretraineds/{vocoder}/f0{side}{rate}k.pth"
-                            ));
-                            if !std::fs::metadata(path)
-                                .is_ok_and(|metadata| metadata.is_file() && metadata.len() > 0)
-                            {
-                                missing += 1;
-                            }
-                        }
-                    }
-                }
+                let missing = self.runtime.missing_default_pretrains();
                 if missing > 0 {
                     bail!("Engine environment is not ready ({missing} missing default training pretrains). Please complete Applio setup first.");
                 }
@@ -229,7 +255,11 @@ impl NativeEngine {
             bail!("Applio is shutting down");
         }
         self.readiness
-            .require(allow_missing_pretrains, self.cancellation.clone())
+            .require(
+                allow_missing_pretrains,
+                self.scheduler.clone(),
+                self.cancellation.clone(),
+            )
             .await
     }
 
@@ -261,7 +291,7 @@ impl NativeEngine {
             engine: self.clone(),
             _gpu: None,
         };
-        if !self.jobs.active_params().is_empty() {
+        if self.jobs.has_active_jobs() {
             bail!("Stop active jobs before updating engine code.");
         }
         guard._gpu =
@@ -469,7 +499,7 @@ import torch, uvicorn, librosa
 version = getattr(torch, '__version__', '')
 legacy = broken = False
 gpu = ''
-if torch.cuda.is_available() and os.environ.get('APPLIO_PROBE_SKIP_GPU') != '1':
+if os.environ.get('APPLIO_PROBE_SKIP_GPU') != '1' and torch.cuda.is_available():
     try:
         for index in range(torch.cuda.device_count()):
             gpu = torch.cuda.get_device_name(index)
@@ -483,3 +513,81 @@ if (legacy or broken) and not version.startswith('2.7.'):
     raise RuntimeError(f'torch {version} is incompatible with older GPU {gpu}; run Install/Repair for PyTorch 2.7.1 (cu126)')
 print(f'OK|{version}')
 "#;
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+    use crate::process::CommandSpec;
+
+    #[tokio::test]
+    async fn package_checks_reuse_full_result_and_defer_gpu_tests_during_realtime() {
+        let root = tempfile::tempdir().unwrap();
+        let mut command = CommandSpec::new("sh", root.path()).args([
+            "-c",
+            "printf '%s\\n' \"$APPLIO_PROBE_SKIP_GPU\" >> probes; printf 'OK|%s\\n' \"$APPLIO_PROBE_SKIP_GPU\"",
+        ]);
+        command
+            .env
+            .insert("APPLIO_PROBE_SKIP_GPU".into(), "0".into());
+        let cache = PackageProbe::default();
+        let scheduler = Scheduler::default();
+        let cancelled = CancellationToken::new();
+        let realtime = scheduler.begin_realtime().unwrap();
+        for _ in 0..2 {
+            let result = cache
+                .run(&command, ProbeGpu::Schedule(&scheduler), &cancelled)
+                .await
+                .unwrap();
+            assert!(!result.full);
+            assert_eq!(result.output.stdout.trim(), "OK|1");
+        }
+        drop(realtime);
+
+        let full = cache
+            .run(&command, ProbeGpu::Schedule(&scheduler), &cancelled)
+            .await
+            .unwrap();
+        assert!(full.full);
+        assert_eq!(full.output.stdout.trim(), "OK|0");
+        let realtime = scheduler.begin_realtime().unwrap();
+        let cached = cache
+            .run(&command, ProbeGpu::Schedule(&scheduler), &cancelled)
+            .await
+            .unwrap();
+        assert!(cached.full);
+        assert_eq!(cached.output.stdout, full.output.stdout);
+        assert_eq!(
+            std::fs::read_to_string(root.path().join("probes")).unwrap(),
+            "1\n0\n"
+        );
+        drop(realtime);
+    }
+
+    #[tokio::test]
+    async fn completed_gpu_failure_remains_visible_during_other_work() {
+        let root = tempfile::tempdir().unwrap();
+        let mut command = CommandSpec::new("sh", root.path()).args([
+            "-c",
+            "if [ \"$APPLIO_PROBE_SKIP_GPU\" = '1' ]; then exit 0; fi; exit 7",
+        ]);
+        command
+            .env
+            .insert("APPLIO_PROBE_SKIP_GPU".into(), "0".into());
+        let cache = PackageProbe::default();
+        let scheduler = Scheduler::default();
+        let cancelled = CancellationToken::new();
+        let gpu = scheduler.try_gpu("installer").unwrap();
+        let full = cache
+            .run(&command, ProbeGpu::Reserved, &cancelled)
+            .await
+            .unwrap();
+        assert!(full.full);
+        assert_eq!(full.output.code, Some(7));
+        let cached = cache
+            .run(&command, ProbeGpu::Schedule(&scheduler), &cancelled)
+            .await
+            .unwrap();
+        assert_eq!(cached.output.code, Some(7));
+        drop(gpu);
+    }
+}

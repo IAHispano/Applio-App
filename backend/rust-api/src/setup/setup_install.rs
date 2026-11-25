@@ -1228,7 +1228,7 @@ pub(crate) async fn install(
     .await?;
     engine.jobs.stage(id, "Verifying installation…", None, None);
     engine.runtime.package_probe.invalidate().await;
-    let final_status = setup_routes::compute(engine, Some(python), true, token).await?;
+    let (final_status, _) = setup_routes::compute(engine, Some(python), true, token).await?;
     for check in final_status["checks"]
         .as_array()
         .context("Invalid setup verification")?
@@ -1250,7 +1250,7 @@ pub(crate) async fn install(
     let stopped = engine.cancellation_token();
     engine.spawn_background(async move {tokio::select!{_=stopped.cancelled()=>{},_=tokio::time::sleep(Duration::from_millis(500))=>restart.cancel()}}).await?;
     Ok(JobResult::new(
-        json!({"message":"Setup complete — Applio is ready.","ready":true}),
+        json!({"message":"Setup complete — Applio is ready.","ready":true,"instanceId":engine.instance_id}),
         None,
     ))
 }

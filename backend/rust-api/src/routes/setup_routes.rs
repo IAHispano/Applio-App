@@ -1,5 +1,5 @@
 use crate::{
-    engine::{JobResult, NativeEngine},
+    engine::{JobResult, NativeEngine, ProbeGpu},
     jobs::JobType,
     process::{CommandSpec, ManagedProcess},
     processing_routes::{accepted, Accepted, Error},
@@ -29,7 +29,15 @@ pub(crate) struct Setup {
     pub engine: Arc<NativeEngine>,
     active: tokio::sync::Mutex<Option<String>>,
     revision: AtomicU64,
-    cache: tokio::sync::Mutex<Option<(u64, Instant, Value)>>,
+    cache: tokio::sync::Mutex<Option<CachedStatus>>,
+}
+
+struct CachedStatus {
+    revision: u64,
+    completed: Instant,
+    ttl: Duration,
+    forced: bool,
+    report: Value,
 }
 pub fn router(engine: Arc<NativeEngine>) -> Router {
     Router::new()
@@ -64,46 +72,44 @@ async fn status(
     State(state): State<Arc<Setup>>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<Json<Value>, Error> {
+    let requested = Instant::now();
+    let force = query.get("refresh").is_some_and(|v| v == "1");
     let mut cache = state.cache.lock().await;
     let revision = state.revision.load(Ordering::SeqCst);
-    if query.get("refresh").is_none_or(|v| v != "1") {
-        if let Some((stamp, at, value)) = &*cache {
-            if *stamp == revision && at.elapsed() < Duration::from_secs(3600) {
-                return Ok(Json(value.clone()));
-            }
+    if let Some(cached) = cache.as_ref().filter(|cached| cached.revision == revision) {
+        let reusable = if force {
+            // Tabs refreshing together can use the same completed forced check.
+            cached.forced && cached.completed > requested
+        } else {
+            cached.completed.elapsed() < cached.ttl
+        };
+        if reusable {
+            return Ok(Json(cached.report.clone()));
         }
     }
-    if query.get("refresh").is_some_and(|v| v == "1") {
+    if force {
         state.engine.runtime.package_probe.invalidate().await;
         state.engine.runtime.toolchain.invalidate();
     }
     let token = state.engine.cancellation_token();
-    let value = compute(&state.engine, None, false, &token)
+    let (report, full_probe) = compute(&state.engine, None, false, &token)
         .await
         .map_err(Error::internal)?;
     if revision == state.revision.load(Ordering::SeqCst) {
-        *cache = Some((revision, Instant::now(), value.clone()));
+        let seconds = if full_probe && report["ready"] == true {
+            3600
+        } else {
+            5
+        };
+        *cache = Some(CachedStatus {
+            revision,
+            completed: Instant::now(),
+            ttl: Duration::from_secs(seconds),
+            forced: force,
+            report: report.clone(),
+        });
     }
-    Ok(Json(value))
-}
-pub(crate) fn missing_pretrains(engine: &NativeEngine) -> Vec<PathBuf> {
-    let mut missing = Vec::new();
-    for (vocoder, rates) in [
-        ("hifi-gan", &[32, 40, 48][..]),
-        ("refinegan", &[24, 32][..]),
-    ] {
-        for rate in rates {
-            for side in ["G", "D"] {
-                let path = engine.runtime.data.join(format!(
-                    "rvc/models/pretraineds/{vocoder}/f0{side}{rate}k.pth"
-                ));
-                if !std::fs::metadata(&path).is_ok_and(|m| m.is_file() && m.len() > 0) {
-                    missing.push(path);
-                }
-            }
-        }
-    }
-    missing
+    Ok(Json(report))
 }
 pub(crate) async fn run_check(
     spec: &CommandSpec,
@@ -145,7 +151,7 @@ pub(crate) async fn compute(
     python: Option<Python>,
     owns_gpu: bool,
     token: &CancellationToken,
-) -> Result<Value> {
+) -> Result<(Value, bool)> {
     if engine.no_env() {
         let checks = [
             ("rust", "Rust API"),
@@ -156,9 +162,10 @@ pub(crate) async fn compute(
             ("models", "Voice models"),
         ]
         .map(|(id, label)| Check::new(id, label, "ok", "checks bypassed with --no-env"));
-        return Ok(
+        return Ok((
             json!({"ready":true,"checks":checks,"python":["no-env"],"checkedAt":crate::jobs::timestamp()}),
-        );
+            true,
+        ));
     }
     let runtime = &engine.runtime;
     let mut checks = vec![Check::new("rust", "Rust API", "ok", "native runtime ready")];
@@ -192,18 +199,20 @@ pub(crate) async fn compute(
             .map(|p| format!("{} ({})", p.version, p.source))
             .unwrap_or_else(|| "no suitable Python found".into()),
     ));
-    let (packages, detail) = if let Some(python) = &python {
-        let mut spec = python.command(runtime, ["-c", crate::engine::ENGINE_PROBE])?;
-        if !owns_gpu && (engine.scheduler.gpu_busy() || engine.scheduler.status().realtime) {
-            spec.env.insert("APPLIO_PROBE_SKIP_GPU".into(), "1".into());
-        }
-        match runtime.package_probe.run(&spec, token).await {
-            Ok(output) if output.success && output.stdout.contains("OK|") => {
-                (true, output.stdout.trim().to_owned())
+    let (packages, detail, full_probe) = if let Some(python) = &python {
+        let spec = python.command(runtime, ["-c", crate::engine::ENGINE_PROBE])?;
+        let gpu = if owns_gpu {
+            ProbeGpu::Reserved
+        } else {
+            ProbeGpu::Schedule(&engine.scheduler)
+        };
+        match runtime.package_probe.run(&spec, gpu, token).await {
+            Ok(probe) if probe.output.success && probe.output.stdout.contains("OK|") => {
+                (true, probe.output.stdout.trim().to_owned(), probe.full)
             }
-            Ok(output) => (
+            Ok(probe) => (
                 false,
-                format!("{}{}", output.stderr, output.stdout)
+                format!("{}{}", probe.output.stderr, probe.output.stdout)
                     .chars()
                     .rev()
                     .take(500)
@@ -211,11 +220,12 @@ pub(crate) async fn compute(
                     .chars()
                     .rev()
                     .collect(),
+                probe.full,
             ),
-            Err(error) => (false, error.to_string()),
+            Err(error) => (false, error.to_string(), false),
         }
     } else {
-        (false, "needs Python first".into())
+        (false, "needs Python first".into(), false)
     };
     checks.push(Check::new(
         "engine",
@@ -259,7 +269,7 @@ pub(crate) async fn compute(
         "ok",
         "Use the Models tab to manage voice models.",
     ));
-    let missing = missing_pretrains(engine).len();
+    let missing = runtime.missing_default_pretrains();
     checks.push(Check::new(
         "pretraineds",
         "Default training pretrains",
@@ -316,9 +326,10 @@ pub(crate) async fn compute(
     let ready = checks.iter().all(|check| {
         check.status == "ok" || matches!(check.id.as_str(), "ffmpeg" | "models" | "rocm")
     });
-    Ok(
+    Ok((
         json!({"ready":ready,"checks":checks,"python":python.map(|p|p.cmd),"checkedAt":crate::jobs::timestamp()}),
-    )
+        full_probe,
+    ))
 }
 async fn install(State(state): State<Arc<Setup>>) -> Accepted {
     let mut active = state.active.lock().await;

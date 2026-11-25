@@ -150,18 +150,16 @@ pub fn read_object(path: &Path) -> Result<Value> {
     Ok(value)
 }
 pub fn merge(base: &mut Value, patch: Value) {
-    if let (Some(base), Some(patch)) = (base.as_object_mut(), patch.as_object()) {
-        for (key, value) in patch {
-            if ["__proto__", "constructor", "prototype"].contains(&key.as_str()) {
-                continue;
+    match (base, patch) {
+        (Value::Object(base), Value::Object(patch)) => {
+            for (key, value) in patch {
+                if ["__proto__", "constructor", "prototype"].contains(&key.as_str()) {
+                    continue;
+                }
+                merge(base.entry(key).or_insert(Value::Null), value);
             }
-            merge(
-                base.entry(key.clone()).or_insert(Value::Null),
-                value.clone(),
-            );
         }
-    } else {
-        *base = patch;
+        (base, patch) => *base = patch,
     }
 }
 
@@ -414,6 +412,25 @@ impl EngineRuntime {
             bail!("File not found: {}", path.display());
         }
         Ok(path)
+    }
+
+    pub(crate) fn missing_default_pretrains(&self) -> usize {
+        let root = self.data.join("rvc/models/pretraineds");
+        [
+            ("hifi-gan", &[32, 40, 48][..]),
+            ("refinegan", &[24, 32][..]),
+        ]
+        .into_iter()
+        .flat_map(|(vocoder, rates)| {
+            rates.iter().flat_map(move |rate| {
+                ["G", "D"].map(|side| format!("{vocoder}/f0{side}{rate}k.pth"))
+            })
+        })
+        .filter(|file| {
+            !std::fs::metadata(root.join(file))
+                .is_ok_and(|metadata| metadata.is_file() && metadata.len() > 0)
+        })
+        .count()
     }
     pub fn repo_relative(&self, target: &Path) -> String {
         let target = if target.is_absolute() {

@@ -232,8 +232,11 @@ async fn language(
     let runtime = &state.engine.runtime;
     let config = runtime.config.load().map_err(Error::internal)?;
     let available = locale::available(&runtime.code, &runtime.data);
-    let before_setup = state.engine.require_ready(false).await.is_err();
-    let code = if before_setup || config["lang"]["override"] != true {
+    let override_language = config["lang"]["override"] == true;
+    // Automatic language selection is also used during setup. Keep it off the
+    // Python dependency probe so the setup interface can translate immediately.
+    let before_setup = override_language && state.engine.require_ready(false).await.is_err();
+    let code = if before_setup || !override_language {
         let code = locale::resolve(
             [
                 query
@@ -248,9 +251,7 @@ async fn language(
             ],
             &available,
         );
-        if config["lang"]["selected_lang"] != code
-            || before_setup && config["lang"]["override"] == true
-        {
+        if config["lang"]["selected_lang"] != code || before_setup {
             let _ = runtime
                 .config
                 .update(json!({"lang":{"override":false,"selected_lang":code}}));
@@ -330,4 +331,97 @@ async fn clean(State(state): State<Arc<Settings>>, request: Request) -> Result<J
         .await
         .map_err(Error::internal)?;
     Ok(Json(json!({"ok":true,"result":result})))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{engine::Readiness, engine_runtime::EngineRuntime, ApiConfig};
+    use axum::{body::Body, http::Request};
+    use futures_util::future::BoxFuture;
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+    use tokio_util::sync::CancellationToken;
+    use tower::ServiceExt;
+
+    #[derive(Default)]
+    struct Probe {
+        ready: AtomicBool,
+        calls: AtomicUsize,
+    }
+
+    impl Readiness for Probe {
+        fn require(
+            &self,
+            _: bool,
+            _: crate::scheduler::Scheduler,
+            _: CancellationToken,
+        ) -> BoxFuture<'_, Result<()>> {
+            self.calls.fetch_add(1, Ordering::Relaxed);
+            let ready = self.ready.load(Ordering::Relaxed);
+            Box::pin(async move {
+                if !ready {
+                    bail!("Setup required");
+                }
+                Ok(())
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn automatic_language_is_available_without_an_engine_probe() {
+        let root = tempfile::tempdir().unwrap();
+        let code = root.path();
+        std::fs::create_dir_all(code.join("assets/i18n/languages")).unwrap();
+        std::fs::create_dir_all(code.join("backend/applio/rvc/configs")).unwrap();
+        for (path, content) in [
+            ("assets/config_template.json", "{}"),
+            ("assets/i18n/languages/en_US.json", "{}"),
+            ("assets/i18n/languages/es_ES.json", r#"{"Hello":"Hola"}"#),
+            ("backend/applio/rvc/configs/config.py", ""),
+        ] {
+            std::fs::write(code.join(path), content).unwrap();
+        }
+        let runtime = EngineRuntime::open(&ApiConfig {
+            code_root: code.into(),
+            data_root: code.join("data"),
+            config_dir: code.join("config"),
+        })
+        .unwrap();
+        let probe = Arc::new(Probe::default());
+        let engine = NativeEngine::open(runtime, probe.clone()).unwrap();
+        let app = router(engine.clone());
+        let get_language = || async {
+            let request = Request::builder()
+                .uri("/api/settings/language?clientLang=es-ES")
+                .body(Body::empty())
+                .unwrap();
+            let response = app.clone().oneshot(request).await.unwrap();
+            assert_eq!(response.status(), StatusCode::OK);
+            let body = axum::body::to_bytes(response.into_body(), 1024)
+                .await
+                .unwrap();
+            serde_json::from_slice::<Value>(&body).unwrap()
+        };
+
+        assert_eq!(
+            get_language().await,
+            json!({"code":"es_ES","dict":{"Hello":"Hola"}})
+        );
+        assert_eq!(probe.calls.load(Ordering::Relaxed), 0);
+
+        engine
+            .runtime
+            .config
+            .update(json!({"lang":{"override":true,"selected_lang":"en_US"}}))
+            .unwrap();
+        probe.ready.store(true, Ordering::Relaxed);
+        assert_eq!(get_language().await["code"], "en_US");
+        probe.ready.store(false, Ordering::Relaxed);
+        assert_eq!(get_language().await["code"], "es_ES");
+        assert_eq!(probe.calls.load(Ordering::Relaxed), 2);
+        assert_eq!(
+            engine.runtime.config.load().unwrap()["lang"]["override"],
+            false
+        );
+    }
 }

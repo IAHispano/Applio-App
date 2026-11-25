@@ -8,16 +8,33 @@ export async function restartApiAndWait(): Promise<void> {
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || "Could not restart API.");
   if (typeof body.instanceId !== "string") throw new Error("API restart could not be verified.");
+  await waitForApiGeneration(body.instanceId, undefined, deadline);
+}
+
+export async function waitForApiGeneration(
+  previousInstance: string,
+  signal?: AbortSignal,
+  deadline = Date.now() + 45000,
+): Promise<void> {
   while (Date.now() < deadline) {
+    if (signal?.aborted) throw signal.reason;
+    const request = new AbortController();
+    const abort = () => request.abort();
+    const timeout = setTimeout(abort, 2000);
+    signal?.addEventListener("abort", abort, { once: true });
     try {
-      const health = await fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(2000) });
+      const health = await fetch("/api/health", { cache: "no-store", signal: request.signal });
       if (health.ok) {
         const status = await health.json();
-        if (status.ok && typeof status.instanceId === "string" && status.instanceId !== body.instanceId)
+        if (status.ok && typeof status.instanceId === "string" && status.instanceId !== previousInstance)
           return;
       }
     } catch {
       // Connections can briefly fail while the old generation is draining.
+      if (signal?.aborted) throw signal.reason;
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", abort);
     }
     await new Promise((resolve) => setTimeout(resolve, 300));
   }

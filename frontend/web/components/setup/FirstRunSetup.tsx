@@ -8,9 +8,10 @@ import SetupLogLine from "@/components/setup/SetupLogLine";
 import { useAcceptedTerms } from "@/components/setup/TermsModal";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
-import { apiGet, apiSend, errMsg, type Job, pollJob } from "@/lib/api";
+import { apiSend, errMsg, type Job, pollJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { type SetupStatus, useSetup } from "@/lib/setup";
+import { waitForApiGeneration } from "@/lib/settings-actions";
+import { useSetup } from "@/lib/setup";
 import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
 import { toast } from "@/lib/toast";
 import { cleanJobLogs } from "@/lib/useJob";
@@ -68,6 +69,8 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   const [desktop, setDesktop] = useState(false);
   const [restarting, setRestarting] = useState(false);
   const completionStarted = useRef(false);
+  const launchRequest = useRef<AbortController | null>(null);
+  const installedInstance = job?.result?.instanceId;
 
   const autoStartedRef = useRef(false);
   const logsRef = useRef<HTMLDivElement | null>(null);
@@ -98,46 +101,25 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   // Poll setup job progress
   useEffect(() => {
     if (!jobId) return;
-    let active = true;
-
-    const stop = pollJob(
+    return pollJob(
       jobId,
       (nextJob) => {
         setJob(nextJob);
         if (nextJob.status === "done") {
-          // The installer verifies readiness before completing. Restart desktop
-          // before doing another check with its inherited, pre-install environment.
-          if (setupBridge()?.restartAfterSetup) {
-            setCountdown(2);
-            return;
-          }
-          // Verify final status before starting the launch countdown.
-          apiGet<SetupStatus>("/api/setup/status?refresh=1", { force: true })
-            .then((status) => {
-              if (!active) return;
-              if (status.ready) setCountdown(2);
-              else setError(t("Setup finished, but some required checks are incomplete."));
-            })
-            .catch(() => {
-              if (active) setCountdown(2);
-            });
+          // The installer has verified readiness and is restarting the API.
+          setCountdown(2);
         } else if (nextJob.status === "error") {
           setError(nextJob.error || t("Setup failed. Please check the console log below."));
         }
       },
       1000,
     );
-
-    return () => {
-      active = false;
-      stop();
-    };
   }, [jobId, t]);
 
   // Cleaned and filtered logs list. cleanJobLogs also splits \r-glued tqdm
   // redraws and collapses same-bar progress updates in place, so a long
   // "Downloading all files: 64%|…" download stays 1 live line, not 1 per step.
-  const processedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
+  const processedLogs = useMemo(() => (logsOpen ? cleanJobLogs(job?.logs) : []), [job?.logs, logsOpen]);
   // Merge word-wrapped installer output (uv splits `Downloading X` / `(size)`
   // across lines) so each download renders as one tidy row.
   const displayLogs = useMemo(() => mergeSetupLines(processedLogs), [processedLogs]);
@@ -145,6 +127,8 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
   useEffect(() => {
     if (error) setLogsOpen(true);
   }, [error]);
+
+  useEffect(() => () => launchRequest.current?.abort(), []);
 
   // Scroll only the console, keeping the welcome and progress in view.
   // biome-ignore lint/correctness/useExhaustiveDependencies: scroll when logs length changes
@@ -174,21 +158,29 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
     completionStarted.current = true;
     setCountdown(null);
     const restart = setupBridge()?.restartAfterSetup;
-    if (!restart) {
-      await refreshSetup(true);
-      onComplete();
-      return;
-    }
     setRestarting(true);
     setError("");
     try {
-      await restart(jobId);
+      if (restart) {
+        await restart(jobId);
+        return;
+      }
+      const request = new AbortController();
+      launchRequest.current = request;
+      if (typeof installedInstance === "string") {
+        await waitForApiGeneration(installedInstance, request.signal);
+      }
+      const status = await refreshSetup(true);
+      if (request.signal.aborted) return;
+      if (!status?.ready) throw new Error("Setup finished, but some required checks are incomplete.");
+      onComplete();
     } catch (err) {
+      if (launchRequest.current?.signal.aborted) return;
       completionStarted.current = false;
       setRestarting(false);
-      setError(errMsg(err));
+      setError(t(errMsg(err)));
     }
-  }, [jobId, job?.status, onComplete, refreshSetup]);
+  }, [jobId, job?.status, installedInstance, onComplete, refreshSetup, t]);
 
   // Countdown to restart desktop or launch the browser UI.
   useEffect(() => {
@@ -488,12 +480,12 @@ export default function FirstRunSetup({ onComplete }: FirstRunSetupProps) {
           <div className="flex justify-end pt-1 animate-in fade-in duration-300">
             <Button
               onClick={() => void finishSetup()}
-              disabled={restarting || (!desktop && countdown === null && !!error)}
+              disabled={restarting}
               className="w-full sm:w-auto"
               iconAfter={<ArrowRight size={16} />}
             >
               {restarting
-                ? t("Restarting Applio…")
+                ? t(desktop ? "Restarting Applio…" : "Checking engine status…")
                 : countdown !== null
                   ? t(desktop ? "Restarting Applio (%ss)…" : "Entering Applio (%ss)…").replace(
                       "%s",
