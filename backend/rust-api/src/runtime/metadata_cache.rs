@@ -12,13 +12,13 @@ use std::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-struct Stamp {
+pub(super) struct Stamp {
     size: u64,
     modified: Option<SystemTime>,
     created: Option<SystemTime>,
     changed: Option<(i64, i64)>,
 }
-fn stamp(path: &Path) -> Result<Option<Stamp>> {
+pub(super) fn stamp(path: &Path) -> Result<Option<Stamp>> {
     let metadata = match std::fs::metadata(path) {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),

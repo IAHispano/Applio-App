@@ -1,8 +1,8 @@
 //! Read a consistent language selection and dictionary for a desktop operation.
 use serde_json::Value;
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
-pub fn load(code: &Path, config: &Path) -> (String, Value) {
+pub fn load(code: &Path, config: &Path) -> (String, Arc<Value>) {
     let settings = std::fs::read(config.join("config.json"))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
@@ -19,6 +19,6 @@ pub fn load(code: &Path, config: &Path) -> (String, Value) {
         })
         .unwrap_or("en_US")
         .to_owned();
-    let dictionary = applio_api::locale::dictionary(code, code, &language);
+    let dictionary = applio_api::locale::shared_dictionary(code, code, &language);
     (language, dictionary)
 }

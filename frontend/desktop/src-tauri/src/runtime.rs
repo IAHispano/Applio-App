@@ -111,7 +111,10 @@ impl Host {
                 web_port: 3000,
                 api_port: 8000,
                 font_path: Some(paths.code.join("assets/fonts/Syne-Variable.ttf")),
-                language: Arc::new(move || crate::language::load(&code, &config)),
+                language: Arc::new(move || {
+                    let (language, dictionary) = crate::language::load(&code, &config);
+                    (language, dictionary.as_ref().clone())
+                }),
                 on_request: Arc::new(move |device| {
                     use tauri_plugin_notification::NotificationExt;
                     let (_, dictionary) =

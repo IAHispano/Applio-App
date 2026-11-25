@@ -1,11 +1,57 @@
 use crate::{focus, AppState};
 use serde_json::Value;
+use std::time::Instant;
 use tauri::{
     menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     AppHandle, Emitter, Manager,
 };
 use tauri_plugin_opener::OpenerExt;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RealtimeSnapshot {
+    pub(crate) streaming: bool,
+    connecting: bool,
+    model_name: Option<String>,
+    muted: bool,
+    monitor: bool,
+    timings: Option<[u32; 2]>,
+}
+
+impl RealtimeSnapshot {
+    pub(crate) fn from_report(value: &Value) -> Option<Self> {
+        let streaming = value["streaming"].as_bool()?;
+        let model = value["model"].as_str().filter(|name| name.len() <= 4096)?;
+        let milliseconds = |key: &str| {
+            value[key]
+                .as_f64()
+                .filter(|v| (0.0..=120000.0).contains(v))
+                .map(|v| v.round_ties_even() as u32)
+        };
+        // Compare exactly the values the menu displays, including integer timings.
+        let timings = [milliseconds("processingMs")?, milliseconds("roundTripMs")?];
+        let muted = value["muted"].as_bool()?;
+        let monitor = value["monitor"].as_bool()?;
+        Some(Self {
+            streaming,
+            connecting: value["connecting"].as_bool()?,
+            model_name: (!model.is_empty())
+                .then(|| model.rsplit(['/', '\\']).next().unwrap_or(model).to_owned()),
+            muted: streaming && muted,
+            monitor: streaming && monitor,
+            timings: streaming.then_some(timings),
+        })
+    }
+}
+
+pub(crate) fn fresh_realtime(
+    state: &Option<(RealtimeSnapshot, Instant)>,
+) -> Option<&RealtimeSnapshot> {
+    state
+        .as_ref()
+        .filter(|(_, at)| at.elapsed().as_secs() < 10)
+        .map(|(snapshot, _)| snapshot)
+}
 
 fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     let menu = Menu::new(app)?;
@@ -20,13 +66,10 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
     };
     // Native menu creation can enter the platform event loop. Do not hold the
     // state lock while constructing it or block incoming realtime heartbeats.
-    let realtime = state.realtime.lock().unwrap().clone();
-    let snapshot = realtime
-        .as_ref()
-        .filter(|(_, at)| at.elapsed().as_secs() < 10)
-        .map(|(value, _)| value);
-    let active = snapshot.is_some_and(|v| v["streaming"] == true);
-    let connecting = snapshot.is_some_and(|v| v["connecting"] == true);
+    let realtime = fresh_realtime(&state.realtime.lock().unwrap()).cloned();
+    let snapshot = realtime.as_ref();
+    let active = snapshot.is_some_and(|value| value.streaming);
+    let connecting = snapshot.is_some_and(|value| value.connecting);
     let available = state.ready.load(std::sync::atomic::Ordering::SeqCst);
     let status = if !available {
         "Service unavailable"
@@ -63,11 +106,7 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
 
     let realtime_menu = Submenu::with_id(app, "realtime-menu", translate("Realtime"), true)?;
     realtime_menu.append(&item("realtime-status", status, false)?)?;
-    if let Some(model) = snapshot
-        .and_then(|snapshot| snapshot["model"].as_str())
-        .filter(|model| !model.is_empty())
-    {
-        let name = model.rsplit(['/', '\\']).next().unwrap_or(model);
+    if let Some(name) = snapshot.and_then(|value| value.model_name.as_deref()) {
         realtime_menu.append(&MenuItem::with_id(
             app,
             "realtime-model",
@@ -76,20 +115,18 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
             None::<&str>,
         )?)?;
     }
-    if active {
-        for (id, key, field) in [
-            ("realtime-processing", "Processing", "processingMs"),
-            ("realtime-roundtrip", "Round trip", "roundTripMs"),
+    if let Some([processing, round_trip]) = snapshot.and_then(|value| value.timings) {
+        for (id, key, milliseconds) in [
+            ("realtime-processing", "Processing", processing),
+            ("realtime-roundtrip", "Round trip", round_trip),
         ] {
-            if let Some(milliseconds) = snapshot.and_then(|snapshot| snapshot[field].as_f64()) {
-                realtime_menu.append(&MenuItem::with_id(
-                    app,
-                    id,
-                    format!("{}: {:.0} ms", translate(key), milliseconds),
-                    false,
-                    None::<&str>,
-                )?)?;
-            }
+            realtime_menu.append(&MenuItem::with_id(
+                app,
+                id,
+                format!("{}: {milliseconds} ms", translate(key)),
+                false,
+                None::<&str>,
+            )?)?;
         }
     }
     realtime_menu.append(&separator()?)?;
@@ -106,8 +143,8 @@ fn menu(app: &AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "Passthrough",
         active && !connecting,
     )?)?;
-    let muted = active && snapshot.is_some_and(|snapshot| snapshot["muted"] == true);
-    let monitor = active && snapshot.is_some_and(|snapshot| snapshot["monitor"] == true);
+    let muted = snapshot.is_some_and(|value| value.muted);
+    let monitor = snapshot.is_some_and(|value| value.monitor);
     realtime_menu.append(&check(
         if muted { "rt:unmute" } else { "rt:mute" },
         "Mute microphone",
@@ -260,4 +297,60 @@ pub fn create(app: &AppHandle) -> tauri::Result<()> {
         .tray_ready
         .store(true, std::sync::atomic::Ordering::SeqCst);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+    use std::time::Duration;
+
+    #[test]
+    fn realtime_menu_snapshot_tracks_displayed_timings_and_controls() {
+        let mut report = json!({
+            "streaming": true, "connecting": false, "model": "logs/voice.pth",
+            "muted": false, "monitor": false, "processingMs": 12.1, "roundTripMs": 19.8,
+        });
+        let original = RealtimeSnapshot::from_report(&report).unwrap();
+        assert_eq!(original.model_name.as_deref(), Some("voice.pth"));
+        assert_eq!(original.timings, Some([12, 20]));
+        report["processingMs"] = json!(12.5);
+        report["roundTripMs"] = json!(20.4);
+        assert_eq!(
+            RealtimeSnapshot::from_report(&report),
+            Some(original.clone())
+        );
+        report["processingMs"] = json!(12.51);
+        assert_ne!(
+            RealtimeSnapshot::from_report(&report),
+            Some(original.clone())
+        );
+        report["processingMs"] = json!(12.0);
+        report["muted"] = json!(true);
+        assert_ne!(RealtimeSnapshot::from_report(&report), Some(original));
+
+        report["streaming"] = json!(false);
+        let stopped = RealtimeSnapshot::from_report(&report).unwrap();
+        report["processingMs"] = json!(257.0);
+        report["muted"] = json!(false);
+        assert_eq!(RealtimeSnapshot::from_report(&report), Some(stopped));
+        report["roundTripMs"] = json!(120001);
+        assert!(RealtimeSnapshot::from_report(&report).is_none());
+    }
+
+    #[test]
+    fn expired_realtime_reports_are_unavailable_to_the_menu_and_hotkey() {
+        let snapshot = RealtimeSnapshot {
+            streaming: true,
+            connecting: false,
+            model_name: None,
+            muted: false,
+            monitor: false,
+            timings: Some([12, 20]),
+        };
+        let fresh = Some((snapshot.clone(), Instant::now()));
+        assert_eq!(fresh_realtime(&fresh), Some(&snapshot));
+        let expired = Some((snapshot, Instant::now() - Duration::from_secs(11)));
+        assert!(fresh_realtime(&expired).is_none());
+    }
 }

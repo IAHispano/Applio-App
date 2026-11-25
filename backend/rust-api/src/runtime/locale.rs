@@ -1,6 +1,10 @@
 //! UI language negotiation shared by settings and first-run preferences.
+use super::metadata_cache::{stamp, Stamp};
 use serde_json::{json, Value};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+};
 pub fn system() -> String {
     ["APPLIO_LOCALE", "LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"]
         .into_iter()
@@ -71,7 +75,14 @@ pub fn resolve<'a>(candidates: impl IntoIterator<Item = &'a str>, available: &[S
     }
     "en_US".into()
 }
-pub fn dictionary(code: &Path, data: &Path, language: &str) -> Value {
+struct Dictionary {
+    path: PathBuf,
+    stamp: Stamp,
+    value: Arc<Value>,
+}
+
+pub fn shared_dictionary(code: &Path, data: &Path, language: &str) -> Arc<Value> {
+    static LAST_DICTIONARY: Mutex<Option<Dictionary>> = Mutex::new(None);
     let dir = directory(code, data);
     let path = dir.join(format!("{language}.json"));
     let path = if path.is_file() {
@@ -79,9 +90,67 @@ pub fn dictionary(code: &Path, data: &Path, language: &str) -> Value {
     } else {
         dir.join("en_US.json")
     };
-    std::fs::read(path)
+    let before = stamp(&path).ok().flatten();
+    let mut cached = LAST_DICTIONARY.lock().unwrap();
+    if let Some(entry) = cached
+        .as_ref()
+        .filter(|entry| entry.path == path && Some(&entry.stamp) == before.as_ref())
+    {
+        return entry.value.clone();
+    }
+    let Some(value) = std::fs::read(&path)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
         .filter(Value::is_object)
-        .unwrap_or_else(|| json!({}))
+    else {
+        return Arc::new(json!({}));
+    };
+    let value = Arc::new(value);
+    if let Some(stamp) =
+        before.filter(|before| stamp(&path).ok().flatten().as_ref() == Some(before))
+    {
+        *cached = Some(Dictionary {
+            path,
+            stamp,
+            value: value.clone(),
+        });
+    }
+    value
+}
+
+pub fn dictionary(code: &Path, data: &Path, language: &str) -> Value {
+    shared_dictionary(code, data, language).as_ref().clone()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::{
+        fs,
+        time::{Duration, UNIX_EPOCH},
+    };
+
+    #[test]
+    fn dictionary_handles_replaced_and_missing_translation_files() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("assets/i18n/languages");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("en_US.json"), r#"{"Title":"English"}"#).unwrap();
+        let spanish = dir.join("es_ES.json");
+        fs::write(&spanish, r#"{"Title":"Hola"}"#).unwrap();
+        let get = || shared_dictionary(root.path(), root.path(), "es_ES");
+        let original = get();
+        assert_eq!(original["Title"], "Hola");
+        fs::write(&spanish, r#"{"Title":"Olas"}"#).unwrap();
+        fs::OpenOptions::new()
+            .write(true)
+            .open(&spanish)
+            .unwrap()
+            .set_modified(UNIX_EPOCH + Duration::from_secs(1_000_000_000))
+            .unwrap();
+        assert_eq!(get()["Title"], "Olas");
+        assert_eq!(original["Title"], "Hola");
+        fs::remove_file(spanish).unwrap();
+        assert_eq!(get()["Title"], "English");
+    }
 }
