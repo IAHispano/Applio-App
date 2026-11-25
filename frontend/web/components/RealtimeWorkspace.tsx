@@ -548,20 +548,12 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       if (openingEpoch !== streamEpochRef.current) throw new Error("Stream start cancelled");
       const ctx = new AudioContext({ sampleRate: 48000, latencyHint: "interactive" });
       openingContext = ctx;
-      const inputBlob = new Blob([INPUT_WORKLET], { type: "application/javascript" });
-      const inputBlobUrl = URL.createObjectURL(inputBlob);
+      const worklets = new Blob([INPUT_WORKLET, "\n", PLAYBACK_WORKLET], { type: "application/javascript" });
+      const workletUrl = URL.createObjectURL(worklets);
       try {
-        await ctx.audioWorklet.addModule(inputBlobUrl);
+        await ctx.audioWorklet.addModule(workletUrl);
       } finally {
-        URL.revokeObjectURL(inputBlobUrl);
-      }
-
-      const playbackBlob = new Blob([PLAYBACK_WORKLET], { type: "application/javascript" });
-      const playbackBlobUrl = URL.createObjectURL(playbackBlob);
-      try {
-        await ctx.audioWorklet.addModule(playbackBlobUrl);
-      } finally {
-        URL.revokeObjectURL(playbackBlobUrl);
+        URL.revokeObjectURL(workletUrl);
       }
       const src = ctx.createMediaStreamSource(stream);
       const inNode = new AudioWorkletNode(ctx, "input-processor");
