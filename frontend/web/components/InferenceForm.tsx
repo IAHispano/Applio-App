@@ -25,7 +25,7 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { getModelPreset } from "@/lib/model-presets";
 import { useConversionParameters } from "@/lib/useConversionParameters";
-import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { usePersistentJob } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
@@ -39,10 +39,6 @@ export default function InferenceForm() {
   const [indexes, setIndexes] = useWorkspaceState<string[]>(
     "InferenceForm:components:indexes",
     () => cachedModels()?.indexes ?? [],
-  );
-  const [sampleAudios, setSampleAudios] = useWorkspaceState<string[]>(
-    "InferenceForm:components:sampleAudios",
-    [],
   );
   const [loadError, setLoadError] = useState("");
 
@@ -83,9 +79,8 @@ export default function InferenceForm() {
   const { embedderModel: setEmbedderModel } = conversion.setters;
 
   // Job submission & status
-  const [jobId, setJobId] = usePersistentJobId("inference");
-  const { job: watchedJob, error: jobError, stop } = useJob(jobId);
-  const job = watchedJob?.id === jobId ? watchedJob : null;
+  const { jobId, setJobId, activity } = usePersistentJob("inference");
+  const { job, error: jobError, stop } = activity;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
 
@@ -103,19 +98,18 @@ export default function InferenceForm() {
     if (!speakers.includes(sid)) setSid(0);
   }, [speakers, sid, setSid]);
 
-  // Load models, indexes and sample audios
+  // Load models and indexes
   const loadAvailableModels = useCallback(
     (force = true) => {
       fetchModels(force)
         .then((m) => {
           setModels(m.models);
           setIndexes(m.indexes);
-          setSampleAudios(m.audios);
           setLoadError("");
         })
         .catch((e) => setLoadError(errMsg(e)));
     },
-    [setSampleAudios, setIndexes, setModels],
+    [setIndexes, setModels],
   );
 
   // Preselect the first model when nothing is chosen yet. Kept out of
@@ -130,7 +124,6 @@ export default function InferenceForm() {
     const unsubscribe = onModelsChanged((models) => {
       setModels(models.models);
       setIndexes(models.indexes);
-      setSampleAudios(models.audios);
     });
     loadAvailableModels(false);
     const onFocus = () => loadAvailableModels(false);
@@ -139,7 +132,7 @@ export default function InferenceForm() {
       unsubscribe();
       window.removeEventListener("focus", onFocus);
     };
-  }, [loadAvailableModels, setSampleAudios, setIndexes, setModels]);
+  }, [loadAvailableModels, setIndexes, setModels]);
 
   // Pre-select model from URL params if available (e.g. from Models library)
   useEffect(() => {
@@ -356,10 +349,8 @@ export default function InferenceForm() {
             <AudioDropzone
               audioFile={audioFile}
               inputPath={inputPath}
-              sampleAudios={sampleAudios}
               onFileSelect={setAudioFile}
               onPathSelect={setInputPath}
-              onRefreshAudios={() => loadAvailableModels(true)}
               disabled={isConverting}
               youtube
             />

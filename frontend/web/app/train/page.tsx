@@ -17,7 +17,7 @@ import SegmentedControl from "@/components/ui/SegmentedControl";
 import { apiGet, apiSend, errMsg, submitJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
-import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { usePersistentJob } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 type TrainMode = "auto" | "manual";
@@ -73,8 +73,7 @@ export default function TrainPage() {
     if (v !== "RefineGAN" && sampleRate === "24000") setSampleRate("40000");
   }
 
-  const [jobId, setJobId] = usePersistentJobId("train");
-  const trainingActivity = useJob(jobId);
+  const { jobId, setJobId, activity: trainingActivity } = usePersistentJob("train");
   const trainingJob = trainingActivity.job;
   const activeTraining =
     trainingActivity.isActive || Boolean(jobId && trainingJob?.id !== jobId && !trainingActivity.error);
@@ -731,7 +730,13 @@ export default function TrainPage() {
         }}
       />
 
-      <TrainingConsole jobId={jobId} modelName={modelName} totalEpochs={totalEpoch} onStop={stop} />
+      <TrainingConsole
+        jobId={jobId}
+        activity={trainingActivity}
+        modelName={modelName}
+        totalEpochs={totalEpoch}
+        onStop={stop}
+      />
     </div>
   );
 }

@@ -35,10 +35,9 @@ export function displayVersion(v?: string | null): string {
   return c ? `v${c}` : "";
 }
 
-export interface ModelLists {
+interface ModelLists {
   models: string[];
   indexes: string[];
-  audios: string[];
 }
 
 export type JobStatus = "queued" | "running" | "done" | "error";
@@ -67,6 +66,21 @@ export interface Job {
 interface ApiErrorBody {
   error?: string;
   details?: unknown;
+}
+
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly details?: string,
+  ) {
+    super(message);
+  }
+}
+
+export function isMissingJob(error: unknown): boolean {
+  // A relay or proxy can also return 404 while the job store is unreachable.
+  return error instanceof ApiError && error.status === 404 && error.message === "Job not found";
 }
 
 // The API answers validation failures with a structured body
@@ -128,13 +142,8 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   const response = await fetch(path, init);
   const body = (await response.json().catch(() => ({}))) as ApiErrorBody;
   if (!response.ok) {
-    const errorMsg = body.error || `${init.method || "GET"} ${path} failed (${response.status})`;
-    const err = new Error(errorMsg);
-    const details = formatDetails(body.details);
-    if (details) {
-      (err as Error & { details?: string }).details = details;
-    }
-    throw err;
+    const errorMsg = body?.error || `${init.method || "GET"} ${path} failed (${response.status})`;
+    throw new ApiError(errorMsg, response.status, formatDetails(body?.details));
   }
   return body as T;
 }
@@ -229,7 +238,13 @@ export function postForm<T>(path: string, fd: FormData): Promise<T> {
 
 let modelSnapshot: ModelLists | undefined;
 const modelListeners = new Set<(models: ModelLists) => void>();
+const samplesPath = "/api/models/audios";
 export const cachedModels = () => modelSnapshot;
+export const cachedSampleAudios = () => peekApiCache<{ audios: string[] }>(samplesPath)?.audios;
+
+export async function fetchSampleAudios(force = false): Promise<string[]> {
+  return (await apiGet<{ audios: string[] }>(samplesPath, { force })).audios;
+}
 export function onModelsChanged(listener: (models: ModelLists) => void) {
   modelListeners.add(listener);
   if (modelSnapshot) listener(modelSnapshot);
@@ -238,12 +253,20 @@ export function onModelsChanged(listener: (models: ModelLists) => void) {
   };
 }
 export async function fetchModels(force = false): Promise<ModelLists> {
-  const models = await apiGet<ModelLists>("/api/models", { force });
+  const path = "/api/models/voices";
+  const models = await apiGet<ModelLists>(path, { force });
+  // A response started before cache invalidation must not replace the snapshot.
+  if (peekApiCache<ModelLists>(path) !== models) return modelSnapshot ?? models;
   if (modelSnapshot !== models) {
     modelSnapshot = models;
     for (const listener of modelListeners) listener(models);
   }
   return models;
+}
+
+export function refreshObservedModels() {
+  clearApiCache("/api/models");
+  if (modelListeners.size) void fetchModels().catch(() => {});
 }
 
 export async function submitJob(path: string, body: unknown): Promise<{ jobId: string }> {
@@ -255,15 +278,21 @@ export async function submitInference(fd: FormData): Promise<{ jobId: string }> 
   return postForm("/api/inference", fd);
 }
 
-export async function fetchJob(id: string, signal?: AbortSignal): Promise<{ job: Job }> {
-  return apiGet(`/api/jobs/${encodeURIComponent(id)}`, { signal });
+export async function fetchJob(id: string, signal?: AbortSignal, batchPage?: number): Promise<{ job: Job }> {
+  const query = batchPage === undefined ? "" : `?batchPage=${batchPage}`;
+  return apiGet(`/api/jobs/${encodeURIComponent(id)}${query}`, { signal });
 }
 
 export async function stopJob(id: string): Promise<void> {
   await apiSend(`/api/jobs/${id}/stop`, "POST");
 }
 
-export function pollJob(id: string, onUpdate: (job: Job) => void, intervalMs = 500): () => void {
+export function pollJob(
+  id: string,
+  onUpdate: (job: Job) => void,
+  intervalMs = 500,
+  options?: { batchPage?: number; onError?: (error: unknown) => void },
+): () => void {
   const controller = new AbortController();
   const deadline = Date.now() + 12 * 60 * 60 * 1000;
   let timer: ReturnType<typeof setTimeout>;
@@ -273,12 +302,16 @@ export function pollJob(id: string, onUpdate: (job: Job) => void, intervalMs = 5
   };
   const tick = async () => {
     try {
-      const { job } = await fetchJob(id, controller.signal);
+      const { job } = await fetchJob(id, controller.signal, options?.batchPage);
       if (controller.signal.aborted) return;
-      onUpdate(job);
-      if (isJobFinished(job)) stop();
-    } catch {
-      /* keep polling through transient proxy restarts */
+      if (job?.id === id) {
+        onUpdate(job);
+        if (isJobFinished(job)) stop();
+      }
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      options?.onError?.(error);
+      if (options?.onError && isMissingJob(error)) stop();
     }
     // Schedule after the response so slow requests never accumulate.
     if (Date.now() >= deadline) stop();
@@ -293,11 +326,20 @@ function isJobFinished(job: Job): boolean {
 }
 
 // One transport at a time: stream while healthy, poll if absent or stalled.
-export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (error: unknown) => void) {
-  const controller = new AbortController();
+export type JobView = "full" | "batch";
+
+export function watchJob(
+  id: string,
+  onUpdate: (job: Job) => void,
+  onError: (error: unknown) => void,
+  view: JobView = "full",
+) {
+  const batchPage = view === "batch" ? 0 : undefined;
   let source: EventSource | null = null;
   let timer: ReturnType<typeof setTimeout>;
   let stopPolling: (() => void) | undefined;
+  let stopped = false;
+  let hasSnapshot = false;
   const closeStream = () => {
     clearTimeout(timer);
     source?.close();
@@ -305,7 +347,21 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
   };
   const fallback = (intervalMs = 500) => {
     closeStream();
-    if (!controller.signal.aborted && !stopPolling) stopPolling = pollJob(id, onUpdate, intervalMs);
+    if (stopped || stopPolling) return;
+    stopPolling = pollJob(
+      id,
+      (job) => {
+        hasSnapshot = true;
+        onUpdate(job);
+      },
+      intervalMs,
+      {
+        batchPage,
+        onError: (error) => {
+          if (!hasSnapshot || isMissingJob(error)) onError(error);
+        },
+      },
+    );
   };
   const keepStreamAlive = () => {
     clearTimeout(timer);
@@ -313,51 +369,45 @@ export function watchJob(id: string, onUpdate: (job: Job) => void, onError: (err
     // Allow two missed heartbeats before falling back to HTTP polling.
     timer = setTimeout(() => fallback(5000), 45000);
   };
-  fetchJob(id, controller.signal)
-    .then(({ job }) => {
-      if (controller.signal.aborted) return;
-      onUpdate(job);
-      if (isJobFinished(job)) return;
-      try {
-        if (sessionStorage.getItem("applio:remote-bridge") === "1") {
-          fallback();
-          return;
+  let remote = false;
+  try {
+    remote = sessionStorage.getItem("applio:remote-bridge") === "1";
+  } catch {
+    /* the stream error still falls back if storage is unavailable */
+  }
+  if (remote || typeof EventSource === "undefined") fallback();
+  else {
+    const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+    try {
+      const query = view === "batch" ? "?batch=true" : "";
+      source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events${query}`);
+      source.addEventListener("heartbeat", () => {
+        if (source && hasSnapshot) keepStreamAlive();
+      });
+      source.onmessage = (event) => {
+        if (!source) return;
+        try {
+          // The stream starts with a full snapshot, including for finished jobs.
+          const { job } = JSON.parse(event.data) as { job: Job };
+          if (job?.id !== id) return;
+          hasSnapshot = true;
+          onUpdate(job);
+          if (isJobFinished(job)) closeStream();
+          else keepStreamAlive();
+        } catch {
+          /* malformed chunks do not postpone the fallback */
         }
-      } catch {
-        /* storage may be unavailable; the stream error still falls back */
-      }
-      const apiBase = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
-      try {
-        source = new EventSource(`${apiBase}/api/jobs/${encodeURIComponent(id)}/events`);
-        source.addEventListener("heartbeat", keepStreamAlive);
-        source.onmessage = (event) => {
-          if (controller.signal.aborted || !source) return;
-          try {
-            const { job: update } = JSON.parse(event.data) as { job: Job };
-            if (!update || update.id !== id) return;
-            onUpdate(update);
-            if (isJobFinished(update)) {
-              closeStream();
-              return;
-            }
-            keepStreamAlive();
-          } catch {
-            /* malformed chunks do not postpone the fallback */
-          }
-        };
-        source.onerror = () => {
-          if (source) fallback();
-        };
-        timer = setTimeout(fallback, 4000);
-      } catch {
-        fallback();
-      }
-    })
-    .catch((error) => {
-      if (!controller.signal.aborted) onError(error);
-    });
+      };
+      source.onerror = () => {
+        if (source) fallback();
+      };
+      timer = setTimeout(fallback, 4000);
+    } catch {
+      fallback();
+    }
+  }
   return () => {
-    controller.abort();
+    stopped = true;
     closeStream();
     stopPolling?.();
   };

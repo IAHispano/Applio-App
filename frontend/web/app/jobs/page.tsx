@@ -1,10 +1,10 @@
 "use client";
 
 import { Activity, ArrowRight, Copy, Download, RefreshCw } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JobDetails from "@/components/JobDetails";
 import { JobBadge, JobCancelButton, JobProgress } from "@/components/JobStatus";
+import Link from "@/components/layout/IntentLink";
 import PageHeader from "@/components/layout/PageHeader";
 import SetupLogLine from "@/components/setup/SetupLogLine";
 import { Alert, Badge, Button, Card, Disclosure, EmptyState, StatTile } from "@/components/ui";
@@ -15,15 +15,81 @@ import { jobHref } from "@/lib/job-url";
 import { cleanJobLogs } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
+async function readHistoryJob(id: string, signal?: AbortSignal) {
+  const { job } = await apiGet<{ job: Job }>(`/api/jobs/${encodeURIComponent(id)}?logTail=20`, { signal });
+  return job;
+}
+
+async function copyHistoryJob(id: string) {
+  const clipboard = navigator.clipboard;
+  const write = clipboard.write;
+  if (typeof ClipboardItem !== "undefined" && write) {
+    // WebKit requires the write to begin inside the click, before the fetch resolves.
+    const data = readHistoryJob(id).then(
+      (job) => new Blob([JSON.stringify(job, null, 2)], { type: "text/plain" }),
+    );
+    await Promise.all([data, write.call(clipboard, [new ClipboardItem({ "text/plain": data })])]);
+  } else {
+    await clipboard.writeText(JSON.stringify(await readHistoryJob(id), null, 2));
+  }
+}
+
+function HistoryDetails({ id, updatedAt }: { id: string; updatedAt: string }) {
+  const { t } = useI18n();
+  const [job, setJob] = useState<Job | null>(null);
+  const [error, setError] = useState("");
+  const [retry, setRetry] = useState(0);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: Reload when the job changes or the user retries.
+  useEffect(() => {
+    const controller = new AbortController();
+    setError("");
+    void readHistoryJob(id, controller.signal).then(
+      (job) => {
+        if (!controller.signal.aborted) setJob(job);
+      },
+      (err) => {
+        if (!controller.signal.aborted) setError(errMsg(err));
+      },
+    );
+    return () => controller.abort();
+  }, [id, updatedAt, retry]);
+
+  const logs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
+  return (
+    <div className="mt-4 space-y-4">
+      {error && (
+        <Alert variant="error">
+          <p className="m-0">{error}</p>
+          <Button variant="ghost" onClick={() => setRetry((current) => current + 1)}>
+            {t("Retry")}
+          </Button>
+        </Alert>
+      )}
+      {!job && !error && <p role="status">{t("Loading activity…")}</p>}
+      {job && <JobDetails job={job} />}
+      {logs.length > 0 && (
+        <section>
+          <h3 className="text-sm font-medium mt-0 mb-2">{t("Recent logs")}</h3>
+          <div className="max-h-48 overflow-auto space-y-2 break-words text-xs rounded-lg bg-black/30 p-3">
+            {logs
+              .map((line, position) => ({ id: `log-${position}`, line }))
+              .map(({ id, line }) => (
+                <SetupLogLine key={id} text={line} />
+              ))}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 export default function JobsPage() {
   const { t } = useI18n();
   const [jobs, setJobs] = useWorkspaceState<Job[]>("page:jobs:jobs", []);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [query] = useWorkspaceState("page:jobs:query", "");
-  const [state] = useWorkspaceState("page:jobs:state", "all");
-  const [type] = useWorkspaceState("page:jobs:type", "all");
   const fetching = useRef(false);
   const mounted = useRef(false);
   const hasActiveJobs = useRef(false);
@@ -32,7 +98,7 @@ export default function JobsPage() {
     fetching.current = true;
     setRefreshing(true);
     try {
-      const response = await apiGet<{ jobs: Job[] }>("/api/jobs", { force: true });
+      const response = await apiGet<{ jobs: Job[] }>("/api/jobs?compact=true");
       if (mounted.current) {
         hasActiveJobs.current = response.jobs.some(
           (job) => job.status === "queued" || job.status === "running",
@@ -81,18 +147,16 @@ export default function JobsPage() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, [refresh]);
-  const filtered = useMemo(
-    () =>
-      jobs.filter(
-        (job) =>
-          (state === "all" || historyState(job) === state) &&
-          (type === "all" || (job.label || job.type) === type) &&
-          JSON.stringify([job.id, job.label, job.type, job.params, job.outputFile, job.error, job.result])
-            .toLowerCase()
-            .includes(query.toLowerCase().trim()),
-      ),
-    [jobs, state, type, query],
-  );
+  const counts = useMemo(() => {
+    const totals = { active: 0, completed: 0, failed: 0, stopped: 0 };
+    for (const job of jobs) {
+      if (job.status === "running" || job.status === "queued") totals.active++;
+      else if (job.status === "done") totals.completed++;
+      else if (historyState(job) === "stopped") totals.stopped++;
+      else totals.failed++;
+    }
+    return totals;
+  }, [jobs]);
   const now = Date.now();
   return (
     <div className="page-stack">
@@ -111,32 +175,24 @@ export default function JobsPage() {
       </PageHeader>
       {error && <Alert variant="error">{error}</Alert>}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatTile
-          label={t("Active")}
-          value={jobs.filter((job) => job.status === "running" || job.status === "queued").length}
-        />
-        <StatTile label={t("Completed")} value={jobs.filter((job) => job.status === "done").length} />
-        <StatTile
-          label={t("Failed / interrupted")}
-          value={jobs.filter((job) => ["error", "interrupted"].includes(historyState(job))).length}
-        />
-        <StatTile label={t("Stopped")} value={jobs.filter((job) => historyState(job) === "stopped").length} />
+        <StatTile label={t("Active")} value={counts.active} />
+        <StatTile label={t("Completed")} value={counts.completed} />
+        <StatTile label={t("Failed / interrupted")} value={counts.failed} />
+        <StatTile label={t("Stopped")} value={counts.stopped} />
       </div>
       {loading ? (
         <Card role="status">{t("Loading activity…")}</Card>
-      ) : filtered.length === 0 ? (
+      ) : jobs.length === 0 ? (
         <Card>
-          <EmptyState
-            icon={<Activity size={22} />}
-            title={t(jobs.length ? "No jobs match these filters." : "No jobs yet.")}
-          />
+          <EmptyState icon={<Activity size={22} />} title={t("No jobs yet.")} />
         </Card>
       ) : (
         <ul className="list-none m-0 p-0 card-stack">
-          {filtered.map((job) => {
+          {jobs.map((job) => {
             const jobState = historyState(job);
             const active = job.status === "running" || job.status === "queued";
             const message = job.error || (typeof job.result?.message === "string" ? job.result.message : "");
+            const context = jobContext(job);
             return (
               <li key={job.id}>
                 <Card className="space-y-4">
@@ -163,9 +219,9 @@ export default function JobsPage() {
                       {active && <JobCancelButton jobId={job.id} onError={setError} />}
                     </div>
                   </div>
-                  {jobContext(job).length > 0 && (
+                  {context.length > 0 && (
                     <dl className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm bg-[var(--input-bg)] border border-[var(--border)] rounded-lg p-3">
-                      {jobContext(job).map(([label, value]) => (
+                      {context.map(([label, value]) => (
                         <div key={label} className="min-w-0">
                           <dt className="text-[var(--muted)] mb-1">{t(label)}</dt>
                           <dd className="m-0 break-words [overflow-wrap:anywhere]" title={value}>
@@ -216,30 +272,14 @@ export default function JobsPage() {
                       variant="ghost"
                       icon={<Copy size={13} />}
                       onClick={() => {
-                        void navigator.clipboard
-                          .writeText(JSON.stringify(job, null, 2))
-                          .catch((err) => setError(errMsg(err)));
+                        void copyHistoryJob(job.id).catch((err) => setError(errMsg(err)));
                       }}
                     >
                       {t("Copy job details")}
                     </Button>
                   </div>
                   <Disclosure title={t("Settings, results and recent logs")}>
-                    <div className="mt-4 space-y-4">
-                      <JobDetails job={job} />
-                      {job.logs.length > 0 && (
-                        <section>
-                          <h3 className="text-sm font-medium mt-0 mb-2">{t("Recent logs")}</h3>
-                          <div className="max-h-48 overflow-auto space-y-2 break-words text-xs rounded-lg bg-black/30 p-3">
-                            {cleanJobLogs(job.logs)
-                              .map((line, position) => ({ id: `log-${position}`, line }))
-                              .map(({ id, line }) => (
-                                <SetupLogLine key={id} text={line} />
-                              ))}
-                          </div>
-                        </section>
-                      )}
-                    </div>
+                    {() => <HistoryDetails id={job.id} updatedAt={job.updatedAt} />}
                   </Disclosure>
                 </Card>
               </li>
