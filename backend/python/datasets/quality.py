@@ -45,18 +45,21 @@ def db(value):
     return round(20 * math.log10(max(float(value), 1e-12)), 2)
 
 
-def sections(mask, window_seconds, duration, minimum=0.0):
-    result = []
-    start = None
-    for index, active in enumerate([*mask, False]):
-        if active and start is None:
-            start = index * window_seconds
-        elif not active and start is not None:
-            end = min(duration, index * window_seconds)
-            if end - start >= minimum:
-                result.append({"start": round(start, 3), "end": round(end, 3)})
-            start = None
-    return result
+def section_bounds(mask, window_seconds, duration, minimum=0.0):
+    transitions = np.flatnonzero(np.diff(mask, prepend=False, append=False))
+    starts, ends = transitions.reshape(-1, 2).T * window_seconds
+    np.minimum(ends, duration, out=ends)
+    if minimum:
+        keep = ends - starts >= minimum
+        starts, ends = starts[keep], ends[keep]
+    return starts, ends
+
+
+def section_preview(starts, ends):
+    return [
+        {"start": round(start, 3), "end": round(end, 3)}
+        for start, end in zip(starts[:50].tolist(), ends[:50].tolist())
+    ]
 
 
 def decode(filename, workspace):
@@ -116,7 +119,11 @@ def analyze_audio(filename, workspace, silence_db=-50):
                 "Recordings longer than four hours must be split before review"
             )
         window = max(1, round(rate * 0.02))
-        silent_windows, clipping_windows = [], []
+        full_windows, tail_frames = divmod(total_frames, window)
+        num_windows = full_windows + bool(tail_frames)
+        silent_windows = np.empty(num_windows, dtype=bool)
+        clipping_windows = np.empty(num_windows, dtype=bool)
+        windows_read = 0
         clipping_samples, count, energy, active_energy, active_count, peak = (
             0,
             0,
@@ -158,35 +165,31 @@ def analyze_audio(filename, workspace, silence_db=-50):
                 sample_counts = np.append(sample_counts, tail.size)
 
             silent = np.sqrt(window_energy / sample_counts) < silence_amplitude
-            silent_windows.extend(silent.tolist())
-            clipping_windows.extend(window_clipping.tolist())
+            end = windows_read + len(silent)
+            silent_windows[windows_read:end] = silent
+            clipping_windows[windows_read:end] = window_clipping
+            windows_read = end
             active = ~silent
             active_count += int(sample_counts[active].sum())
             # Preserve the order of the per-window sums for the reported level.
             for value in window_energy[active].tolist():
                 active_energy += value
-        silence_sections = sections(silent_windows, window / rate, duration, 0.3)
-        clipping_sections = sections(clipping_windows, window / rate, duration)
-        first_voice = next(
-            (i for i, silent in enumerate(silent_windows) if not silent),
-            len(silent_windows),
+        silent_windows = silent_windows[:windows_read]
+        silence_starts, silence_ends = section_bounds(
+            silent_windows, window / rate, duration, 0.3
         )
-        last_voice = next(
-            (
-                i
-                for i in range(len(silent_windows) - 1, -1, -1)
-                if not silent_windows[i]
-            ),
-            -1,
+        clipping_starts, clipping_ends = section_bounds(
+            clipping_windows[:windows_read], window / rate, duration
         )
-        silent_duration = (
-            sum(
-                min(window, total_frames - i * window)
-                for i, silent in enumerate(silent_windows)
-                if silent
-            )
-            / rate
+        first_voice = int(silent_windows.argmin()) if active_count else windows_read
+        last_voice = (
+            windows_read - 1 - int(silent_windows[::-1].argmin())
+            if active_count
+            else -1
         )
+        silent_frames = np.count_nonzero(silent_windows) * window
+        if tail_frames and windows_read == num_windows and silent_windows[-1]:
+            silent_frames -= window - tail_frames
         return {
             "duration": round(duration, 3),
             "sampleRate": rate,
@@ -198,17 +201,24 @@ def analyze_audio(filename, workspace, silence_db=-50):
             ),
             "clippingSamples": clipping_samples,
             "clippingFraction": round(clipping_samples / count, 6),
-            "silenceFraction": round(silent_duration / duration, 4),
+            "silenceFraction": round((silent_frames / rate) / duration, 4),
             "leadingSilence": round(min(duration, first_voice * window / rate), 3),
             "trailingSilence": round(
                 max(0.0, duration - (last_voice + 1) * window / rate), 3
             ),
-            "clippingSections": clipping_sections[:50],
-            "clippingSectionCount": len(clipping_sections),
-            "silenceSections": silence_sections[:50],
-            "silenceSectionCount": len(silence_sections),
+            "clippingSections": section_preview(clipping_starts, clipping_ends),
+            "clippingSectionCount": len(clipping_starts),
+            "silenceSections": section_preview(silence_starts, silence_ends),
+            "silenceSectionCount": len(silence_starts),
             "longestSilence": round(
-                max((s["end"] - s["start"] for s in silence_sections), default=0), 3
+                max(
+                    (
+                        round(end, 3) - round(start, 3)
+                        for start, end in zip(silence_starts.tolist(), silence_ends.tolist())
+                    ),
+                    default=0,
+                ),
+                3,
             ),
             "pcmHash": pcm_hash.hexdigest(),
         }
