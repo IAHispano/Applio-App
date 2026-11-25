@@ -18,6 +18,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use std::{
     collections::HashMap,
+    ffi::OsStr,
     path::{Component, Path, PathBuf},
     sync::Arc,
 };
@@ -31,7 +32,10 @@ struct Models {
 pub fn router(engine: Arc<NativeEngine>) -> Router {
     Router::new()
         .route("/api/models", get(list))
+        .route("/api/models/voices", get(voices))
+        .route("/api/models/audios", get(audios))
         .route("/api/models/library", get(library))
+        .route("/api/models/dashboard", get(dashboard))
         .route("/api/models/inspect", post(inspect))
         .route("/api/models/preload", post(preload))
         .route("/api/models/speakers", get(speakers))
@@ -41,36 +45,50 @@ pub fn router(engine: Arc<NativeEngine>) -> Router {
             cache: MetadataCache::default(),
         }))
 }
-fn files(root: &Path, extensions: &[&str], found: &mut Vec<PathBuf>) -> Result<()> {
+fn visit_files(
+    root: &Path,
+    extensions: &[&str],
+    visit: &mut impl FnMut(&Path, &OsStr),
+) -> Result<()> {
     let entries = match std::fs::read_dir(root) {
         Ok(entries) => entries,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
         Err(error) => return Err(error.into()),
     };
-    let mut entries: Vec<_> = entries.collect::<std::io::Result<_>>()?;
-    entries.sort_by_cached_key(|entry| entry.file_name());
     for entry in entries {
+        let entry = entry?;
         let kind = entry.file_type()?;
-        let path = entry.path();
+        let name = entry.file_name();
         if kind.is_dir() {
-            let name = entry.file_name().to_string_lossy().to_lowercase();
-            if name != ".onnx-cache" && !name.starts_with(".onnx-export-") {
-                files(&path, extensions, found)?;
+            let folder = name.to_string_lossy();
+            let exporting = folder
+                .get(..".onnx-export-".len())
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case(".onnx-export-"));
+            if !folder.eq_ignore_ascii_case(".onnx-cache") && !exporting {
+                visit_files(&root.join(&name), extensions, visit)?;
             }
         } else if kind.is_file()
-            && path
+            && Path::new(&name)
                 .extension()
                 .and_then(|extension| extension.to_str())
-                .is_some_and(|extension| extensions.contains(&extension.to_lowercase().as_str()))
+                .is_some_and(|extension| {
+                    extensions
+                        .iter()
+                        .any(|supported| extension.eq_ignore_ascii_case(supported))
+                })
         {
-            found.push(path);
+            visit(root, &name);
         }
     }
     Ok(())
 }
 pub(crate) fn scan(root: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     let mut all = Vec::new();
-    files(root, &["pth", "onnx", "index"], &mut all)?;
+    visit_files(root, &["pth", "onnx", "index"], &mut |folder, name| {
+        all.push(folder.join(name));
+    })?;
+    // Component ordering preserves the original sorted depth-first scan for index matching.
+    all.sort_unstable();
     let (mut models, mut indexes) = (Vec::new(), Vec::new());
     for file in all {
         let name = file.file_name().unwrap_or_default().to_string_lossy();
@@ -87,31 +105,28 @@ pub(crate) fn scan(root: &Path) -> Result<(Vec<PathBuf>, Vec<PathBuf>)> {
     }
     Ok((models, indexes))
 }
+fn visit_samples(runtime: &EngineRuntime, visit: &mut impl FnMut(&Path, &OsStr)) -> Result<()> {
+    visit_files(
+        &runtime.data.join("assets/audios"),
+        uploads::AUDIO_EXTENSIONS,
+        visit,
+    )
+}
+
+fn sample_paths(runtime: &EngineRuntime) -> Result<Vec<String>> {
+    let mut audios = Vec::new();
+    visit_samples(runtime, &mut |folder, name| {
+        audios.push(runtime.model_relative(&folder.join(name)));
+    })?;
+    audios.sort_unstable();
+    Ok(audios)
+}
+
 async fn list(State(state): State<Arc<Models>>) -> Result<Json<Value>, Error> {
     let runtime = state.engine.runtime.clone();
     tokio::task::spawn_blocking(move || -> Result<Json<Value>> {
-        let (models, indexes) = scan(&runtime.logs)?;
-        let mut audios = Vec::new();
-        files(
-            &runtime.data.join("assets/audios"),
-            uploads::AUDIO_EXTENSIONS,
-            &mut audios,
-        )?;
-        let mut models: Vec<_> = models
-            .iter()
-            .map(|file| runtime.model_relative(file))
-            .collect();
-        models.sort();
-        let mut indexes: Vec<_> = indexes
-            .iter()
-            .map(|file| runtime.model_relative(file))
-            .collect();
-        indexes.sort();
-        let mut audios: Vec<_> = audios
-            .iter()
-            .map(|file| runtime.model_relative(file))
-            .collect();
-        audios.sort();
+        let VoiceLists { models, indexes } = voice_lists(&runtime)?;
+        let audios = sample_paths(&runtime)?;
         Ok(Json(
             json!({"models":models,"indexes":indexes,"audios":audios,"root":runtime.data}),
         ))
@@ -120,9 +135,67 @@ async fn list(State(state): State<Arc<Models>>) -> Result<Json<Value>, Error> {
     .map_err(Error::internal)?
     .map_err(Error::internal)
 }
+
+fn relative_paths(runtime: &EngineRuntime, paths: Vec<PathBuf>) -> Vec<String> {
+    let mut paths: Vec<_> = paths
+        .iter()
+        .map(|path| runtime.model_relative(path))
+        .collect();
+    paths.sort_unstable();
+    paths
+}
+
+#[derive(Serialize)]
+struct VoiceLists {
+    models: Vec<String>,
+    indexes: Vec<String>,
+}
+
+fn voice_lists(runtime: &EngineRuntime) -> Result<VoiceLists> {
+    let (models, indexes) = scan(&runtime.logs)?;
+    Ok(VoiceLists {
+        models: relative_paths(runtime, models),
+        indexes: relative_paths(runtime, indexes),
+    })
+}
+
+async fn voices(State(state): State<Arc<Models>>) -> Result<Json<VoiceLists>, Error> {
+    let runtime = state.engine.runtime.clone();
+    tokio::task::spawn_blocking(move || voice_lists(&runtime))
+        .await
+        .map_err(Error::internal)?
+        .map(Json)
+        .map_err(Error::internal)
+}
+
+#[derive(Serialize)]
+struct SampleList {
+    audios: Vec<String>,
+}
+
+async fn audios(State(state): State<Arc<Models>>) -> Result<Json<SampleList>, Error> {
+    let runtime = state.engine.runtime.clone();
+    tokio::task::spawn_blocking(move || -> Result<SampleList> {
+        Ok(SampleList {
+            audios: sample_paths(&runtime)?,
+        })
+    })
+    .await
+    .map_err(Error::internal)?
+    .map(Json)
+    .map_err(Error::internal)
+}
 #[derive(Serialize)]
 struct ModelLibrary {
     models: Vec<LibraryModel>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ModelDashboard {
+    model_count: usize,
+    audio_count: usize,
+    recent_models: Vec<LibraryModel>,
 }
 
 #[derive(Serialize)]
@@ -157,8 +230,24 @@ impl LibraryIndex<'_> {
     }
 }
 
-fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
-    let (models, indexes) = scan(&runtime.logs)?;
+fn library_models(
+    runtime: &EngineRuntime,
+    models: Vec<PathBuf>,
+    indexes: &[PathBuf],
+    limit: usize,
+) -> Result<Vec<LibraryModel>> {
+    let mut models = models
+        .into_iter()
+        .map(|model| {
+            let metadata = model.metadata()?;
+            let modified_at = chrono::DateTime::<chrono::Utc>::from(metadata.modified()?);
+            Ok((model, metadata.len(), modified_at))
+        })
+        .collect::<std::io::Result<Vec<_>>>()?;
+    // Keep scan order for modification times that display as the same millisecond.
+    models.sort_by_key(|(_, _, modified_at)| std::cmp::Reverse(modified_at.timestamp_millis()));
+    models.truncate(limit);
+
     let mut first_index_by_folder = HashMap::new();
     let mut candidates: Vec<_> = indexes
         .iter()
@@ -180,8 +269,7 @@ fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
         .collect();
 
     let mut results = Vec::with_capacity(models.len());
-    for model in models {
-        let metadata = model.metadata()?;
+    for (model, pth_size, modified_at) in models {
         let name = model.file_stem().unwrap_or_default().to_string_lossy();
         let folded_stem = name.to_lowercase();
         let parent = model.parent();
@@ -212,11 +300,10 @@ fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
             id: relative.clone(),
             name: name.into_owned(),
             pth_path: relative,
-            pth_size: metadata.len(),
+            pth_size,
             index_path,
             index_size,
-            modified_at: chrono::DateTime::<chrono::Utc>::from(metadata.modified()?)
-                .to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
+            modified_at: modified_at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
             folder: if folder.is_empty() {
                 "root".into()
             } else {
@@ -224,8 +311,35 @@ fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
             },
         });
     }
-    results.sort_by(|a, b| b.modified_at.cmp(&a.modified_at));
-    Ok(ModelLibrary { models: results })
+    Ok(results)
+}
+
+fn model_library(runtime: &EngineRuntime) -> Result<ModelLibrary> {
+    let (models, indexes) = scan(&runtime.logs)?;
+    let limit = models.len();
+    Ok(ModelLibrary {
+        models: library_models(runtime, models, &indexes, limit)?,
+    })
+}
+
+fn model_dashboard(runtime: &EngineRuntime) -> Result<ModelDashboard> {
+    let (models, indexes) = scan(&runtime.logs)?;
+    let mut audio_count = 0;
+    visit_samples(runtime, &mut |_, _| audio_count += 1)?;
+    Ok(ModelDashboard {
+        model_count: models.len(),
+        audio_count,
+        recent_models: library_models(runtime, models, &indexes, 4)?,
+    })
+}
+
+async fn dashboard(State(state): State<Arc<Models>>) -> Result<Json<ModelDashboard>, Error> {
+    let runtime = state.engine.runtime.clone();
+    tokio::task::spawn_blocking(move || model_dashboard(&runtime))
+        .await
+        .map_err(Error::internal)?
+        .map(Json)
+        .map_err(Error::internal)
 }
 
 async fn library(State(state): State<Arc<Models>>) -> Result<Json<ModelLibrary>, Error> {
@@ -681,7 +795,7 @@ mod tests {
         })
         .unwrap();
 
-        for file in [
+        for (position, file) in [
             "a/älva.index",
             "b/000-fallback.index",
             "b/voice.index",
@@ -691,9 +805,34 @@ mod tests {
             "c/added_IVF_Zola.index",
             "d/zola.pth",
             "plain.pth",
-        ] {
-            write(&logs.join(file));
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let path = logs.join(file);
+            write(&path);
+            fs::OpenOptions::new()
+                .write(true)
+                .open(&path)
+                .unwrap()
+                .set_modified(
+                    std::time::UNIX_EPOCH + std::time::Duration::from_secs(position as u64),
+                )
+                .unwrap();
         }
+        write(&runtime.data.join("assets/audios/sample.wav"));
+        write(&runtime.data.join("assets/audios/nested/upper.MP3"));
+        write(&runtime.data.join("assets/audios/.ONNX-CACHE/ignored.wav"));
+        write(
+            &runtime
+                .data
+                .join("assets/audios/.Onnx-Export-12/ignored.wav"),
+        );
+        write(&runtime.data.join("assets/audios/ignored.jpg"));
+        assert_eq!(
+            sample_paths(&runtime).unwrap(),
+            ["assets/audios/nested/upper.MP3", "assets/audios/sample.wav"]
+        );
 
         let library = model_library(&runtime).unwrap();
         let entries: HashMap<_, _> = library
@@ -715,6 +854,16 @@ mod tests {
             assert_eq!(entry.index_path.as_deref(), expected_index);
             assert_eq!(entry.index_size, expected_index.map(|_| 10));
         }
+
+        let dashboard = model_dashboard(&runtime).unwrap();
+        assert_eq!(dashboard.model_count, 5);
+        assert_eq!(dashboard.audio_count, 2);
+        assert_eq!(dashboard.recent_models.len(), 4);
+        assert_eq!(dashboard.recent_models[0].pth_path, "logs/plain.pth");
+        assert_eq!(
+            serde_json::to_value(&dashboard.recent_models).unwrap(),
+            serde_json::to_value(&library.models[..4]).unwrap()
+        );
     }
 
     #[test]
