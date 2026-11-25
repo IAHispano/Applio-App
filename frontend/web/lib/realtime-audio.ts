@@ -126,10 +126,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.dropped += drop + skip;
       this.rp = (this.rp + drop) % this.ring.length;
       this.buffered -= drop;
-      for (let i = skip; i < c.length; i++) {
-        this.ring[this.wp] = c[i];
-        this.wp = (this.wp + 1) % this.ring.length;
-      }
+      const end = Math.min(c.length, skip + this.ring.length - this.wp);
+      this.ring.set(c.subarray(skip, end), this.wp);
+      if (end < c.length) this.ring.set(c.subarray(end), 0);
+      this.wp = (this.wp + incoming) % this.ring.length;
       this.buffered += incoming;
     };
   }
@@ -137,26 +137,33 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     const outL = outputs[0] && outputs[0][0];
     const outR = outputs[0] && outputs[0][1];
     if (!outL) return true;
+    const ring = this.ring;
+    const channels = inputs[0];
+    const channelCount = channels?.length ?? 0;
+    const target = this.passthrough || this.waitingForVoice ? 1 : 0;
+    const step = 1 / (sampleRate * 0.01);
+    const inputGain = this.inputGain;
+    const available = Math.min(outL.length, this.buffered);
+    if (this.started && !target) this.underruns += outL.length - available;
+    let rp = this.rp;
+    let mix = this.mix;
     for (let i = 0; i < outL.length; i++) {
       let s = 0;
-      if (this.buffered > 0) {
-        s = this.ring[this.rp];
-        this.rp = (this.rp + 1) % this.ring.length;
-        this.buffered--;
-      } else if (this.started && !this.passthrough && !this.waitingForVoice) {
-        this.underruns++;
+      if (i < available) {
+        s = ring[rp++];
+        if (rp === ring.length) rp = 0;
       }
-      const target = this.passthrough || this.waitingForVoice ? 1 : 0;
-      const step = 1 / (sampleRate * 0.01);
-      this.mix += Math.max(-step, Math.min(step, target - this.mix));
-      const channels = inputs[0] || [];
+      mix += Math.max(-step, Math.min(step, target - mix));
       let microphone = 0;
-      for (const channel of channels) microphone += channel[i] || 0;
-      if (channels.length) microphone /= channels.length;
-      s = s * (1 - this.mix) + microphone * this.inputGain * this.mix;
+      for (let channel = 0; channel < channelCount; channel++) microphone += channels[channel][i] || 0;
+      if (channelCount) microphone /= channelCount;
+      s = s * (1 - mix) + microphone * inputGain * mix;
       outL[i] = s;
       if (outR) outR[i] = s;
     }
+    this.rp = rp;
+    this.buffered -= available;
+    this.mix = mix;
     this.reportFrames += outL.length;
     if (this.reportFrames >= sampleRate / 4) {
       this.reportFrames = 0;
