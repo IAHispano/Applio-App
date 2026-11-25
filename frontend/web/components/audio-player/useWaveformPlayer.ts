@@ -40,8 +40,8 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
   const source = { src, file, originalSrc };
   const activeTrack = sameSource(comparison, source) && originalSrc ? comparison.track : "converted";
   const activeSrc = activeTrack === "original" ? originalSrc || "" : src;
-  const downloadSrc =
-    file && activeTrack === "converted" ? (fileSource?.file === file ? fileSource.url : "") : activeSrc;
+  const localFile = activeTrack === "converted" ? file : null;
+  const downloadSrc = localFile ? (fileSource?.file === localFile ? fileSource.url : "") : activeSrc;
 
   // A File URL is also the download target, so it must survive waveform errors
   // and offscreen deferral. Only the hook that created it may revoke it.
@@ -117,7 +117,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
         barRadius: 2,
         height: settings.current.compact ? 44 : 64,
         normalize: true,
-        url: downloadSrc,
+        url: localFile ? undefined : downloadSrc,
         plugins: [
           Hover.create({
             lineColor: "rgba(255, 255, 255, 0.5)",
@@ -188,6 +188,8 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
         setIsReady(false);
         setIsPlaying(false);
       });
+      // Local uploads already have the blob that WaveSurfer would fetch from the URL.
+      if (localFile) void ws.loadBlob(localFile).catch(() => {});
     } catch {
       setError("Failed to initialize waveform");
     }
@@ -203,7 +205,7 @@ export function useWaveformPlayer({ src, file, originalSrc, compact }: Source & 
         // A partially initialized media backend may already be disposed.
       }
     };
-  }, [downloadSrc, nearViewport, src, file, originalSrc]);
+  }, [downloadSrc, nearViewport, src, file, originalSrc, localFile]);
 
   useEffect(() => {
     const ws = wavesurferRef.current;

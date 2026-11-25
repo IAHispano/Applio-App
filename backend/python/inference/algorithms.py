@@ -94,7 +94,11 @@ def retrieve_embeddings(queries, index, vectors, batch_size=256, k=8):
         np.divide(weights, totals, out=weights, where=totals > 0)
         gathered = vectors[np.clip(neighbors, 0, max(0, len(vectors) - 1))]
         gathered[~valid] = 0
-        retrieved = np.sum(gathered * weights[:, :, None], axis=1)
+        # Advanced indexing owns this buffer. Reuse it for the weighted vectors.
+        gathered = gathered.astype(np.result_type(gathered, weights), copy=False)
+        np.multiply(gathered, weights[:, :, None], out=gathered)
+        retrieved = np.sum(gathered, axis=1)
+        del gathered  # Release this batch before allocating the next gather.
         # An empty index may return eight missing neighbors for every query.
         result[start : start + len(query)] = np.where(totals > 0, retrieved, query)
     return result

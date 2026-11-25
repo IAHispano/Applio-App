@@ -88,6 +88,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   const wsRef = useRef<WaveSurfer | null>(null);
 
   const [isReady, setIsReady] = useState(false);
+  const [plotReady, setPlotReady] = useState(false);
   const [error, setError] = useState("");
   const [stats, setStats] = useWorkspaceState<AudioStats | null>("NativeAnalyzer:extra:stats", null);
   const [zoomLabel, setZoomLabel] = useWorkspaceState("NativeAnalyzer:extra:zoomLabel", "Fit");
@@ -206,19 +207,13 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
   useEffect(() => {
     if (!waveRef.current || !specRef.current) return;
 
-    let blobUrl: string | null = null;
-    let urlToLoad: string | null = null;
-    if (file) {
-      blobUrl = URL.createObjectURL(file);
-      urlToLoad = blobUrl;
-    } else if (fallbackPath) {
-      urlToLoad = `/${fallbackPath.replace(/^[\\/]+/, "").replace(/\\/g, "/")}`;
-    }
-    if (!urlToLoad) return;
+    if (!file && !fallbackPath) return;
+    const urlToLoad =
+      file || !fallbackPath ? undefined : `/${fallbackPath.replace(/^[\\/]+/, "").replace(/\\/g, "/")}`;
 
     setIsReady(false);
+    setPlotReady(false);
     setError("");
-    let _alive = true;
     setStats(null);
     setZoomLabel("Fit");
     zoomBaseRef.current = 0;
@@ -236,6 +231,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       gainDB: 0,
       rangeDB: 120,
       colorMap: spekColorMap(),
+      useWebWorker: true,
     });
 
     let ws: WaveSurfer | null = null;
@@ -258,6 +254,9 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       });
       wsRef.current = ws;
 
+      specPlugin.on("ready", () => {
+        if (wsRef.current === ws) setPlotReady(true);
+      });
       specPlugin.on("click", (relX: number) => {
         if (durationRef.current > 0) {
           ws?.setTime(relX * durationRef.current);
@@ -265,6 +264,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
       });
 
       ws.on("ready", () => {
+        if (wsRef.current !== ws) return;
         setIsReady(true);
         try {
           const buf = ws?.getDecodedData();
@@ -304,6 +304,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
         drawRuler();
       });
       ws.on("error", () => {
+        if (wsRef.current !== ws) return;
         setError(t("Failed to decode audio file"));
         setIsReady(false);
       });
@@ -319,19 +320,18 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
         zoomStep(e.deltaY > 0 ? 1 / 1.25 : 1.25);
       };
       zoomHost?.addEventListener("wheel", onWheel, { passive: false });
+      if (file) void ws.loadBlob(file).catch(() => {});
     } catch {
       setError(t("Failed to initialize analyzer"));
     }
 
     return () => {
-      _alive = false;
+      wsRef.current = null;
       try {
         ws?.destroy();
       } catch {
         /* ignore */
       }
-      wsRef.current = null;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
       if (zoomHost && onWheel) zoomHost.removeEventListener("wheel", onWheel);
     };
   }, [
@@ -389,7 +389,7 @@ export default function NativeAnalyzer({ file, fallbackPath }: NativeAnalyzerPro
           <Button
             variant="ghost"
             onClick={downloadSpectrogram}
-            disabled={!isReady}
+            disabled={!plotReady}
             icon={<Download size={13} />}
           >
             {t("Download Plot")}

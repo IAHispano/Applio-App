@@ -43,11 +43,22 @@ def run(backend):
     worker.body.remove(imports[0])
     # Utility commands retain their own lazy imports. The serial worker keeps
     # the real converter and all model caches once a conversion needs them.
+    namespace = {
+        "__name__": __name__,
+        "__file__": str(script),
+        "VoiceConverter": LazyVoiceConverter,
+    }
     exec(
         compile(tree, str(script), "exec"),
-        {
-            "__name__": "__main__",
-            "__file__": str(script),
-            "VoiceConverter": LazyVoiceConverter,
-        },
+        namespace,
     )
+    upstream_map_params = namespace["map_params"]
+
+    def map_params(params, input_path, output_path):
+        kwargs = upstream_map_params(params, input_path, output_path)
+        if params.get("cleanupStage") == "output":
+            kwargs["cleanup_stage"] = "output"
+        return kwargs
+
+    namespace["map_params"] = map_params
+    namespace["run_worker"]()
