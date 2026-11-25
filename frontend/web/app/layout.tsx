@@ -6,6 +6,7 @@ import AppShell from "@/components/layout/AppShell";
 import SkipLink from "@/components/layout/SkipLink";
 import AutoUpdateModal from "@/components/setup/AutoUpdateModal";
 import TermsModal from "@/components/setup/TermsModal";
+import YourDataDocument from "@/components/setup/YourDataDocument";
 import { RemoteBridgeProvider } from "@/lib/bridge-mode";
 import { ECOSYSTEM } from "@/lib/ecosystem";
 import { I18nProvider } from "@/lib/i18n";
@@ -42,7 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <SetupProvider>
                 <SkipLink />
                 <AppShell>{children}</AppShell>
-                <TermsModal />
+                <TermsModal privacyGuide={<YourDataDocument embedded />} />
                 <AutoUpdateModal />
                 <Toaster />
                 <JobNotifications />

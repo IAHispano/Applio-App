@@ -1,22 +1,7 @@
 "use client";
 
-import {
-  AlertTriangle,
-  ArrowDown,
-  Ban,
-  CheckCircle2,
-  Database,
-  ExternalLink,
-  FileClock,
-  FileText,
-  Shield,
-  ShieldAlert,
-  Sparkles,
-  UserCheck,
-} from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "@/components/layout/IntentLink";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Button, Dialog } from "@/components/ui";
 import { useI18n } from "@/lib/i18n";
 
@@ -48,60 +33,18 @@ export function useAcceptedTerms(): boolean {
   return accepted;
 }
 
-export default function TermsModal() {
+export default function TermsModal({ privacyGuide }: { privacyGuide?: ReactNode }) {
   const pathname = usePathname();
   const { t, loaded } = useI18n();
   const [open, setOpen] = useState(false);
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [agreed, setAgreed] = useState(false);
-  const scrollRef = useRef<HTMLElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    // The informational guide is readable before consent; operational pages still require it.
+    // The privacy guide remains available without accepting the terms.
     setOpen(pathname !== "/your-data" && !hasAcceptedTerms() && loaded);
   }, [loaded, pathname]);
 
-  const updateReadingProgress = useCallback(() => {
-    const el = scrollRef.current;
-    // The closed native dialog has no layout until showModal() runs.
-    if (!el?.clientHeight) return;
-
-    const maxScroll = el.scrollHeight - el.clientHeight;
-    if (maxScroll <= 0) {
-      setScrollProgress(100);
-      setScrolledToBottom(true);
-      return;
-    }
-
-    const current = Math.min(maxScroll, Math.max(0, el.scrollTop));
-    const progress = Math.round((current / maxScroll) * 100);
-    setScrollProgress(progress);
-
-    // Considered read if scrolled within 40px of bottom or >= 98%
-    const isAtBottom = maxScroll - current < 40 || progress >= 98;
-    if (isAtBottom) setScrolledToBottom(true);
-  }, []);
-
-  useEffect(() => {
-    const region = scrollRef.current;
-    if (!open || pathname === "/your-data" || !region) return;
-    const observer = new ResizeObserver(updateReadingProgress);
-    observer.observe(region);
-    return () => observer.disconnect();
-  }, [open, pathname, updateReadingProgress]);
-
-  const scrollToBottom = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    // The jump button disappears when the document reaches the end.
-    el.focus({ preventScroll: true });
-    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    el.scrollTo({ top: el.scrollHeight, behavior: reduceMotion ? "instant" : "smooth" });
-  };
-
   const handleAccept = () => {
-    if (!agreed || !scrolledToBottom) return;
     try {
       localStorage.setItem(TERMS_STORAGE_KEY, "true");
       localStorage.setItem(TERMS_DATE_KEY, new Date().toISOString());
@@ -117,417 +60,196 @@ export default function TermsModal() {
   return (
     <Dialog
       isOpen={open}
-      initialFocus={scrollRef}
+      initialFocus={titleRef}
       aria-labelledby="terms-modal-title"
       aria-describedby="terms-modal-description"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
     >
-      <div className="relative w-full max-w-3xl max-h-[calc(100dvh-1.5rem)] sm:max-h-[calc(100dvh-2.5rem)] flex flex-col rounded-2xl border border-[var(--border)] bg-[var(--panel)] backdrop-blur-2xl shadow-2xl overflow-x-hidden overflow-y-auto">
-        {/* Top ambient highlight line */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent pointer-events-none" />
-
-        <div className="p-3 sm:p-6 bg-[var(--surface)] flex items-center justify-between gap-4 shrink-0">
-          <div className="flex items-center gap-3.5 min-w-0">
-            <div className="w-11 h-11 rounded-xl bg-[var(--accent-soft)] border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0 shadow-inner">
-              <FileText className="w-5 h-5 text-[var(--heading)]" />
-            </div>
-            <div className="space-y-0.5 min-w-0">
-              <div className="flex items-center gap-2">
-                <h2
-                  id="terms-modal-title"
-                  className="text-lg font-bold text-[var(--heading)] tracking-tight m-0"
-                >
-                  {t("Terms of Use")}
-                </h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/10 border border-[var(--border)] text-[var(--text)]">
-                  Applio
-                </span>
-              </div>
-              <p id="terms-modal-description" className="text-xs text-[var(--muted)] m-0">
-                {t("Please review and accept our official terms before using Applio.")}
-              </p>
-              <Link
-                href="/your-data"
-                className="inline-block mt-2 text-xs text-[var(--heading)] underline underline-offset-4"
-              >
-                {t("Your data & privacy")}
-              </Link>
-            </div>
-          </div>
-
-          {/* Reading progress indicator in header */}
-          <div className="hidden sm:flex flex-col items-end gap-1 shrink-0 select-none">
-            <span className="text-[11px] text-[var(--muted)]">
-              {scrolledToBottom ? (
-                <span className="text-[var(--heading)] font-semibold flex items-center gap-1">
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[var(--heading)]" />
-                  {t("Document Read")}
-                </span>
-              ) : (
-                <span>
-                  {scrollProgress}% {t("read")}
-                </span>
-              )}
-            </span>
-            <div className="w-24 h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-150 ${
-                  scrolledToBottom ? "bg-emerald-400" : "bg-white"
-                }`}
-                style={{ width: `${scrollProgress}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Slim reading progress bar for mobile / full width */}
-        <div className="sm:hidden w-full h-1 bg-white/10 overflow-hidden shrink-0">
-          <div
-            className={`h-full transition-all duration-150 ${
-              scrolledToBottom ? "bg-emerald-400" : "bg-white"
-            }`}
-            style={{ width: `${scrollProgress}%` }}
-          />
-        </div>
-
-        {/* Scrollable Terms Content - Verbatim from TERMS_OF_USE.md */}
-        <div className="relative flex-1 overflow-hidden flex flex-col min-h-16">
-          <section
-            ref={scrollRef}
-            // biome-ignore lint/a11y/noNoninteractiveTabindex: This labeled scroll region must be keyboard-scrollable.
-            tabIndex={0}
-            onScroll={updateReadingProgress}
-            aria-label={t("Terms of Use document")}
-            className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-6 text-xs sm:text-sm text-[var(--text)] leading-relaxed font-sans focus-visible:-outline-offset-2 focus-visible:outline-white scrollbar-thin"
+      <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--panel)] shadow-xl">
+        <div className="min-h-0 overflow-y-auto px-5 py-6 sm:px-8 sm:py-8">
+          <h2
+            id="terms-modal-title"
+            ref={titleRef}
+            tabIndex={-1}
+            className="m-0 text-2xl font-semibold text-[var(--heading)] tracking-tight"
           >
-            {/* Top Important Banner */}
-            <div className="p-4 rounded-xl border border-[var(--border)] bg-white/[0.04] text-neutral-200 flex items-start gap-3.5 shadow-sm">
-              <ShieldAlert className="w-5 h-5 shrink-0 mt-0.5 text-[var(--heading)]" />
-              <div className="space-y-0.5">
-                <h3 className="text-xs font-semibold text-[var(--heading)] m-0">{t("Important Notice")}</h3>
-                <p className="text-xs text-[var(--text)] m-0 leading-normal">
+            {t("Welcome to Applio")}
+          </h2>
+          <p id="terms-modal-description" className="mt-2 text-sm leading-relaxed text-[var(--muted)]">
+            {t("Before you get started, here are a few basics for using Applio responsibly.")}
+          </p>
+
+          <ul className="my-5 list-disc space-y-2 ps-5 text-sm leading-relaxed text-[var(--text)]">
+            <li>{t("Use audio you own or have permission to use.")}</li>
+            <li>{t("Respect people’s privacy and avoid misleading or harming others.")}</li>
+            <li>{t("Follow the laws where you live.")}</li>
+          </ul>
+
+          <details className="border-t border-[var(--border)]">
+            <summary className="cursor-pointer py-3 text-sm font-medium text-[var(--heading)]">
+              {t("Terms of Use")}
+            </summary>
+            <div className="space-y-5 pb-2 text-sm leading-relaxed text-[var(--text)]">
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Responsibilities of the User")}</h3>
+                <p>{t("By using Applio, you agree to the following responsibilities:")}</p>
+                <ul className="list-none space-y-3 p-0">
+                  <li>
+                    <strong>{t("Respect Intellectual Property and Privacy Rights")}</strong>
+                    <ul className="mt-1 list-disc space-y-1 ps-5">
+                      <li>
+                        {t(
+                          "Ensure that any audio or material processed through Applio is either owned by you or used with explicit permission from the rightful owner.",
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          "Respect copyrights, intellectual property rights, and privacy rights of all individuals and entities.",
+                        )}
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>{t("Avoid Harmful or Unethical Use")}</strong>
+                    <ul className="mt-1 list-disc space-y-1 ps-5">
+                      <li>
+                        {t(
+                          "Do not use Applio to create or distribute content that harms, defames, or infringes upon the rights of others.",
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          "Avoid any activities that may violate ethical standards, promote hate speech, or facilitate illegal conduct.",
+                        )}
+                      </li>
+                    </ul>
+                  </li>
+                  <li>
+                    <strong>{t("Adhere to Local Laws and Regulations")}</strong>
+                    <p>
+                      {t(
+                        "Familiarize yourself with and comply with the laws and regulations governing the use of AI, voice transformation tools, and generated content in your jurisdiction.",
+                      )}
+                    </p>
+                  </li>
+                </ul>
+              </section>
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Disclaimer of Liability")}</h3>
+                <p>
                   {t(
-                    "Applio is an open-source audio research and voice transformation tool. Responsible, ethical, and legal use is strictly required.",
+                    "Applio and its contributors disclaim all liability for any misuse or unintended consequences arising from the use of this tool.",
                   )}
                 </p>
-              </div>
-            </div>
-
-            {/* Section 1: Responsibilities of the User */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-[var(--heading)]">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <UserCheck className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Responsibilities of the User")}
-                </h3>
-              </div>
-              <p className="text-xs text-[var(--muted)] m-0">
-                {t("By using Applio, you agree to the following responsibilities:")}
-              </p>
-
-              <div className="space-y-3 pt-1">
-                {/* 1. Respect Intellectual Property */}
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1.5">
-                  <h4 className="text-xs font-semibold text-neutral-200 m-0">
-                    1. {t("Respect Intellectual Property and Privacy Rights")}
-                  </h4>
-                  <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--muted)]">
-                    <li>
+                <ul className="list-none space-y-3 p-0">
+                  <li>
+                    <strong>{t("No Warranty")}</strong>
+                    <p>{t('Applio is provided "as is" without any warranty, express or implied.')}</p>
+                  </li>
+                  <li>
+                    <strong>{t("User Responsibility")}</strong>
+                    <p>
                       {t(
-                        "Ensure that any audio or material processed through Applio is either owned by you or used with explicit permission from the rightful owner.",
+                        "You bear full responsibility for how you choose to use Applio and any outcomes resulting from that use.",
                       )}
-                    </li>
-                    <li>
+                    </p>
+                  </li>
+                  <li>
+                    <strong>{t("No Endorsement")}</strong>
+                    <p>
                       {t(
-                        "Respect copyrights, intellectual property rights, and privacy rights of all individuals and entities.",
+                        "Applio does not endorse or support any activities or content created with this tool that result in harm, illegal activity, or unethical practices.",
                       )}
-                    </li>
-                  </ul>
-                </div>
-
-                {/* 2. Avoid Harmful or Unethical Use */}
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1.5">
-                  <h4 className="text-xs font-semibold text-neutral-200 m-0">
-                    2. {t("Avoid Harmful or Unethical Use")}
-                  </h4>
-                  <ul className="list-disc pl-4 space-y-1 text-xs text-[var(--muted)]">
-                    <li>
+                    </p>
+                  </li>
+                </ul>
+              </section>
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Permitted Use Cases")}</h3>
+                <p>{t("Applio is designed for:")}</p>
+                <ul className="list-none space-y-3 p-0">
+                  <li>
+                    <strong>{t("Personal Projects")}</strong>
+                    <p>{t("Experimentation and creative endeavors for personal enrichment.")}</p>
+                  </li>
+                  <li>
+                    <strong>{t("Academic Research")}</strong>
+                    <p>{t("Advancing scientific understanding and education.")}</p>
+                  </li>
+                  <li>
+                    <strong>{t("Investigative Purposes")}</strong>
+                    <p>{t("Analyzing data in lawful and ethical contexts.")}</p>
+                  </li>
+                  <li>
+                    <strong>{t("Commercial Use")}</strong>
+                    <p>
                       {t(
-                        "Do not use Applio to create or distribute content that harms, defames, or infringes upon the rights of others.",
+                        "Creating content for commercial purposes, provided that appropriate rights and permissions are obtained and all legal and ethical standards are adhered to.",
                       )}
-                    </li>
-                    <li>
-                      {t(
-                        "Avoid any activities that may violate ethical standards, promote hate speech, or facilitate illegal conduct.",
-                      )}
-                    </li>
-                  </ul>
-                </div>
-
-                {/* 3. Adhere to Local Laws */}
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1.5">
-                  <h4 className="text-xs font-semibold text-neutral-200 m-0">
-                    3. {t("Adhere to Local Laws and Regulations")}
-                  </h4>
-                  <p className="text-xs text-[var(--muted)] m-0 leading-relaxed">
-                    {t(
-                      "Familiarize yourself with and comply with the laws and regulations governing the use of AI, voice transformation tools, and generated content in your jurisdiction.",
-                    )}
-                  </p>
-                </div>
-              </div>
+                    </p>
+                  </li>
+                </ul>
+              </section>
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Prohibited Activities")}</h3>
+                <p>{t("The following uses are explicitly prohibited:")}</p>
+                <ul className="list-none space-y-3 p-0">
+                  <li>
+                    <strong>{t("Harmful Applications")}</strong>
+                    <p>{t("Generating audio to defame, harm, or manipulate others.")}</p>
+                  </li>
+                  <li>
+                    <strong>{t("Unauthorized Distribution")}</strong>
+                    <p>{t("Sharing content that violates copyrights or the rights of others.")}</p>
+                  </li>
+                  <li>
+                    <strong>{t("Deceptive Practices")}</strong>
+                    <p>{t("Creating content intended to deceive or defraud others.")}</p>
+                  </li>
+                </ul>
+              </section>
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Training Data")}</h3>
+                <p>
+                  {t(
+                    "All official models distributed by Applio have been trained under publicly available datasets such as",
+                  )}{" "}
+                  <a
+                    href="https://huggingface.co/datasets/IAHispano/Applio-Dataset"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-4"
+                  >
+                    VCTK
+                  </a>
+                  .{" "}
+                  {t(
+                    "We strive to maintain transparency and ethical practices in the development and distribution of our tools.",
+                  )}
+                </p>
+              </section>
+              <section className="space-y-2">
+                <h3 className="font-semibold text-[var(--heading)]">{t("Amendments")}</h3>
+                <p>
+                  {t(
+                    "Applio reserves the right to modify these terms at any time. Continued use of the tool signifies your acceptance of any updated terms.",
+                  )}
+                </p>
+              </section>
             </div>
+          </details>
 
-            {/* Section 2: Disclaimer of Liability */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-[var(--heading)]">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <Shield className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Disclaimer of Liability")}
-                </h3>
-              </div>
-              <p className="text-xs text-[var(--muted)] m-0">
-                {t(
-                  "Applio and its contributors disclaim all liability for any misuse or unintended consequences arising from the use of this tool.",
-                )}
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-[var(--heading)] block">
-                    {t("No Warranty")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t('Applio is provided "as is" without any warranty, express or implied.')}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-[var(--heading)] block">
-                    {t("User Responsibility")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t(
-                      "You bear full responsibility for how you choose to use Applio and any outcomes resulting from that use.",
-                    )}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-[var(--heading)] block">
-                    {t("No Endorsement")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t(
-                      "Applio does not endorse or support any activities or content created with this tool that result in harm, illegal activity, or unethical practices.",
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: Permitted Use Cases */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-neutral-200">
-                <div className="w-6 h-6 rounded-lg bg-white/10 border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <Sparkles className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Permitted Use Cases")}
-                </h3>
-              </div>
-              <p className="text-xs text-[var(--muted)] m-0">{t("Applio is designed for:")}</p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-neutral-200 block">
-                    {t("Personal Projects")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Experimentation and creative endeavors for personal enrichment.")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-neutral-200 block">
-                    {t("Academic Research")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Advancing scientific understanding and education.")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-neutral-200 block">
-                    {t("Investigative Purposes")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Analyzing data in lawful and ethical contexts.")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-white/5 space-y-1">
-                  <strong className="text-xs font-semibold text-neutral-200 block">
-                    {t("Commercial Use")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t(
-                      "Creating content for commercial purposes, provided that appropriate rights and permissions are obtained and all legal and ethical standards are adhered to.",
-                    )}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 4: Prohibited Activities */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-3.5 hover:border-white/20 transition-colors">
-              <div className="flex items-center gap-2 text-neutral-200">
-                <div className="w-6 h-6 rounded-lg bg-white/10 border border-[var(--border)] flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <Ban className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Prohibited Activities")}
-                </h3>
-              </div>
-              <p className="text-xs text-[var(--muted)] m-0">
-                {t("The following uses are explicitly prohibited:")}
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-                <div className="p-3 rounded-lg bg-black/40 border border-red-500/15 space-y-1">
-                  <strong className="text-xs font-semibold text-red-300 block">
-                    {t("Harmful Applications")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Generating audio to defame, harm, or manipulate others.")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-red-500/15 space-y-1">
-                  <strong className="text-xs font-semibold text-red-300 block">
-                    {t("Unauthorized Distribution")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Sharing content that violates copyrights or the rights of others.")}
-                  </p>
-                </div>
-                <div className="p-3 rounded-lg bg-black/40 border border-red-500/15 space-y-1">
-                  <strong className="text-xs font-semibold text-red-300 block">
-                    {t("Deceptive Practices")}
-                  </strong>
-                  <p className="text-[11px] text-[var(--muted)] m-0 leading-normal">
-                    {t("Creating content intended to deceive or defraud others.")}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 5: Training Data */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-2">
-              <div className="flex items-center gap-2 text-[var(--heading)]">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <Database className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Training Data")}
-                </h3>
-              </div>
-              <p className="text-sm text-[var(--text)] m-0 leading-relaxed">
-                {t(
-                  "All official models distributed by Applio have been trained under publicly available datasets such as",
-                )}{" "}
-                <a
-                  href="https://huggingface.co/datasets/IAHispano/Applio-Dataset"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[var(--heading)] font-medium underline underline-offset-2 hover:text-[var(--text)]"
-                >
-                  <span>VCTK</span>
-                  <ExternalLink className="w-3 h-3 inline" />
-                </a>
-                .{" "}
-                {t(
-                  "We strive to maintain transparency and ethical practices in the development and distribution of our tools.",
-                )}
-              </p>
-            </div>
-
-            {/* Section 6: Amendments */}
-            <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 sm:p-5 space-y-2">
-              <div className="flex items-center gap-2 text-[var(--heading)]">
-                <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center text-[var(--heading)] shrink-0">
-                  <FileClock className="w-3.5 h-3.5" />
-                </div>
-                <h3 className="text-sm font-bold text-[var(--heading)] tracking-tight m-0">
-                  {t("Amendments")}
-                </h3>
-              </div>
-              <p className="text-sm text-[var(--text)] m-0 leading-relaxed">
-                {t(
-                  "Applio reserves the right to modify these terms at any time. Continued use of the tool signifies your acceptance of any updated terms.",
-                )}
-              </p>
-            </div>
-
-            <div className="pt-2 text-[11px] text-[var(--muted)] text-center italic">
-              {t("End of document. Continued use of Applio constitutes full acceptance of these terms.")}
-            </div>
-          </section>
-
-          {/* Quick jump to bottom floating button when not at bottom */}
-          {!scrolledToBottom && (
-            <div className="absolute bottom-4 end-4 rounded-[var(--radius-button)] bg-[var(--panel)]">
-              <Button
-                variant="ghost"
-                onClick={scrollToBottom}
-                aria-label={t("Scroll to bottom")}
-                iconAfter={<ArrowDown />}
-              >
-                {t("Scroll down")}
-              </Button>
-            </div>
+          {privacyGuide && (
+            <details className="border-t border-[var(--border)]">
+              <summary className="cursor-pointer py-3 text-sm font-medium text-[var(--heading)]">
+                {t("Your data & privacy")}
+              </summary>
+              {privacyGuide}
+            </details>
           )}
         </div>
-
-        {/* Modal Footer with Agreement Controls */}
-        <div className="p-3 sm:p-5 bg-[var(--surface)] border-t border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 min-w-0">
-            <label
-              className={`flex items-center gap-3 select-none text-xs transition-opacity ${
-                !scrolledToBottom ? "opacity-50 cursor-not-allowed" : "cursor-pointer text-neutral-100"
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={agreed}
-                disabled={!scrolledToBottom}
-                aria-describedby="terms-reading-status"
-                onChange={(e) => setAgreed(e.target.checked)}
-                className="w-4 h-4 rounded border-white/20 accent-white bg-white/5 disabled:cursor-not-allowed cursor-pointer"
-              />
-              <span className="font-medium">{t("I have read and agree to the Applio Terms of Use")}</span>
-            </label>
-
-            <span id="terms-reading-status" role="status" className="text-[11px] font-medium">
-              {scrolledToBottom ? (
-                <span className="text-[var(--heading)] flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 shrink-0 text-[var(--heading)]" aria-hidden="true" />
-                  {t("Unlocked")}
-                </span>
-              ) : (
-                <span className="text-[var(--muted)] flex items-center gap-1">
-                  <AlertTriangle className="w-3 h-3 shrink-0 text-[var(--muted)]" aria-hidden="true" />
-                  {t("Scroll to the bottom to unlock")}
-                </span>
-              )}
-            </span>
-          </div>
-
-          <Button
-            disabled={!agreed || !scrolledToBottom}
-            onClick={handleAccept}
-            icon={<CheckCircle2 className="w-4 h-4" />}
-          >
-            {t("Accept & Continue")}
-          </Button>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-[var(--border)] px-5 py-4 sm:px-8">
+          <Button onClick={handleAccept}>{t("Accept & Continue")}</Button>
         </div>
       </div>
     </Dialog>
