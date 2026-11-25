@@ -219,14 +219,18 @@ class MdxSeparator(BaseSeparator):
         chunk_size = self.chunk_size
         overlap = 0.02 if is_match_mix else self.overlap
         pad = self.gen_size + self.trim - (mix.shape[-1] % self.gen_size)
-        mixture = np.pad(mix, ((0, 0), (self.trim, pad)))
+        signal_end = self.trim + mix.shape[-1]
+        padded_length = signal_end + pad
         step = max(1, int((1 - overlap) * chunk_size))
-        result = np.zeros_like(mixture, dtype=np.float32)
+        result = np.zeros(mix.shape, dtype=np.float32)
         # Every channel uses the same window; keep a single coverage buffer.
-        divider = np.zeros(mixture.shape[-1], dtype=np.float32)
+        divider = np.zeros(mix.shape[-1], dtype=np.float32)
         batch_size = self.inference_batch_size
-        starts = range(0, mixture.shape[-1], step)
+        starts = range(0, padded_length, step)
+        capacity = self.fixed_batch_size or min(batch_size, len(starts))
+        batch = np.empty((capacity, 2, chunk_size), dtype=np.float32)
         full_window = np.hanning(chunk_size).astype(np.float32) if overlap else None
+        weighted = None
 
         with torch.inference_mode(), self.inference_progress(
             total=len(starts), desc="Separating"
@@ -234,33 +238,47 @@ class MdxSeparator(BaseSeparator):
             for offset in range(0, len(starts), batch_size):
                 locations = starts[offset : offset + batch_size]
                 actual_batch = self.fixed_batch_size or len(locations)
-                batch = np.zeros((actual_batch, 2, chunk_size), dtype=np.float32)
+                windows = batch[:actual_batch]
+                windows.fill(0)
+                regions = []
                 for index, start in enumerate(locations):
-                    length = min(chunk_size, mixture.shape[-1] - start)
-                    batch[index, :, :length] = mixture[:, start : start + length]
+                    # Copy only the part of the window inside the source audio.
+                    # The unwritten samples provide the original zero padding.
+                    end = min(start + chunk_size, signal_end)
+                    begin = max(start, self.trim)
+                    if begin < end:
+                        window_slice = slice(begin - start, end - start)
+                        audio_slice = slice(begin - self.trim, end - self.trim)
+                        windows[index, :, window_slice] = mix[:, audio_slice]
+                        length = min(chunk_size, padded_length - start)
+                        regions.append((index, length, window_slice, audio_slice))
                 predictions = self.run_model(
-                    torch.from_numpy(batch).to(self.torch_device),
+                    torch.from_numpy(windows).to(self.torch_device),
                     is_match_mix=is_match_mix,
                 )
-                for index, start in enumerate(locations):
-                    length = min(chunk_size, mixture.shape[-1] - start)
+                for index, length, window_slice, audio_slice in regions:
                     window = full_window
                     if overlap and length != chunk_size:
                         window = np.hanning(length).astype(np.float32)
+                    prediction = predictions[index, :, window_slice]
                     if window is None:
-                        result[:, start : start + length] += predictions[
-                            index, :, :length
-                        ]
-                        divider[start : start + length] += 1
+                        result[:, audio_slice] += prediction
+                        divider[audio_slice] += 1
                     else:
-                        result[:, start : start + length] += (
-                            predictions[index, :, :length] * window
-                        )
-                        divider[start : start + length] += window
+                        weights = window[window_slice]
+                        if weighted is None:
+                            weighted = np.empty(
+                                (2, chunk_size),
+                                dtype=np.result_type(prediction, weights),
+                            )
+                        chunk = weighted[:, : len(weights)]
+                        np.multiply(prediction, weights, out=chunk)
+                        result[:, audio_slice] += chunk
+                        divider[audio_slice] += weights
                 progress.update(len(locations))
 
         np.divide(result, divider, out=result, where=divider > 0)
-        return result[:, self.trim : self.trim + mix.shape[-1]]
+        return result
 
     def run_model(self, mix, is_match_mix=False):
         spek = self.stft(mix)
