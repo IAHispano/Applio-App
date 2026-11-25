@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { JobError } from "@/components/JobStatus";
 import { Button, IconButton, SegmentedControl, StatTile } from "@/components/ui";
 import SettingHelp from "@/components/ui/SettingHelp";
-import { errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
+import { ApiError, errMsg, fileBasename, outputUrl, postForm, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useJob } from "@/lib/useJob";
@@ -17,6 +17,10 @@ interface F0CurveExtractorProps {
 }
 
 type MethodType = "rmvpe" | "fcpe" | "crepe" | "swift";
+interface AcceptedExtraction {
+  jobId: string;
+  uploadedInputPath?: string;
+}
 
 export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtractorProps) {
   const { t } = useI18n();
@@ -28,6 +32,7 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
   // Track the current active job ID and request sequence
   const activeJobIdRef = useRef<string | null>(jobId);
   const reqSeqRef = useRef(0);
+  const uploadRef = useRef<{ file: File; accepted: Promise<AcceptedExtraction> } | null>(null);
   const [requestedKey, setRequestedKey] = useWorkspaceState("F0CurveExtractor:extra:requestedKey", "");
   const lastRequestedKeyRef = useRef(requestedKey);
 
@@ -40,7 +45,6 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
       ? (job.result.curveFile as string)
       : null;
 
-  // Stable execution function with zero reactive dependencies to prevent loops
   const runExtraction = useCallback(
     async (fileInput: File | null, pathInput: string | undefined, methodInput: MethodType) => {
       if (!fileInput && !pathInput) {
@@ -49,29 +53,61 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
         return;
       }
 
-      // Stop previous active job if one was running
       if (activeJobIdRef.current) {
-        stopJob(activeJobIdRef.current).catch(() => {});
+        void stopJob(activeJobIdRef.current).catch(() => {});
+        activeJobIdRef.current = null;
       }
 
       const seq = ++reqSeqRef.current;
       setLocalError("");
       setJobId(null);
 
-      try {
+      function submit(inputPath?: string) {
         const fd = new FormData();
-        if (fileInput) {
-          fd.append("audio", fileInput);
-        } else if (pathInput) {
-          fd.append("inputPath", pathInput);
-        }
+        if (inputPath) fd.append("inputPath", inputPath);
+        else if (fileInput) fd.append("audio", fileInput);
         fd.append("method", methodInput);
+        return postForm<AcceptedExtraction>("/api/extra/f0", fd);
+      }
 
-        const res = await postForm<{ jobId: string }>("/api/extra/f0", fd);
-        if (reqSeqRef.current === seq) {
-          activeJobIdRef.current = res.jobId;
-          setJobId(res.jobId);
+      function upload() {
+        const accepted = submit();
+        if (fileInput) uploadRef.current = { file: fileInput, accepted };
+        return accepted;
+      }
+
+      try {
+        let result: AcceptedExtraction;
+        if (!fileInput) {
+          uploadRef.current = null;
+          result = await submit(pathInput);
+        } else {
+          const previous = uploadRef.current;
+          // Reuse the same upload even when a method changes before it finishes.
+          const original = previous?.file === fileInput ? await previous.accepted.catch(() => null) : null;
+          if (reqSeqRef.current !== seq) return;
+          if (original?.uploadedInputPath) {
+            try {
+              result = await submit(original.uploadedInputPath);
+            } catch (err) {
+              if (reqSeqRef.current !== seq) return;
+              if (
+                !(err instanceof ApiError && err.status === 400 && err.message.startsWith("File not found: "))
+              ) {
+                throw err;
+              }
+              result = await upload();
+            }
+          } else {
+            result = await upload();
+          }
         }
+        if (reqSeqRef.current !== seq) {
+          void stopJob(result.jobId).catch(() => {});
+          return;
+        }
+        activeJobIdRef.current = result.jobId;
+        setJobId(result.jobId);
       } catch (err) {
         if (reqSeqRef.current === seq) {
           setLocalError(errMsg(err));
@@ -84,6 +120,12 @@ export default function F0CurveExtractor({ file, fallbackPath }: F0CurveExtracto
   // Automatically trigger extraction ONLY when audio source or method changes
   useEffect(() => {
     if (!file && !fallbackPath) {
+      reqSeqRef.current++;
+      uploadRef.current = null;
+      if (activeJobIdRef.current) {
+        void stopJob(activeJobIdRef.current).catch(() => {});
+        activeJobIdRef.current = null;
+      }
       setJobId(null);
       setLocalError("");
       lastRequestedKeyRef.current = "";

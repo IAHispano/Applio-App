@@ -1,10 +1,6 @@
-// WebSocket URL resolution for realtime voice conversion.
-//
-// Local page → direct backend URL (browser → Express → engine, no extra hop).
-// Tunneled page (any other host) → same-origin path: the tunnel only exposes
-// the Next.js server, so Next's rewrite proxy forwards the upgrade to Express,
-// which relays it to the engine.
-// Pure function (no window access) so it can be unit-tested.
+// The exported desktop UI is served by Rust, which already handles websocket
+// upgrades on the page's origin. Only the Next.js development server needs
+// the configured loopback API listener.
 
 const API_HTTP = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
@@ -29,7 +25,7 @@ export function resolveRealtimeWsUrl(host: string, protocol: string, path: strin
   // `host` (not hostname + port) avoids the empty-port `host:/…` malformed
   // URL when served on default 443/80 ports (Applio-main's main.js has this
   // flaw: `location.hostname + ":" + location.port` with an empty port).
-  if (LOOPBACK_HOSTS.has(bareHost(host))) {
+  if (process.env.NODE_ENV === "development" && LOOPBACK_HOSTS.has(bareHost(host))) {
     return `${API_HTTP.replace(/^http/, "ws")}${path}`;
   }
   const proto = protocol === "https:" ? "wss:" : "ws:";

@@ -11,7 +11,7 @@ use std::{
     sync::{Mutex, OnceLock},
     time::Duration,
 };
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
 use tokio_util::sync::CancellationToken;
 
 #[derive(Serialize, Deserialize)]
@@ -230,7 +230,7 @@ impl Transfer<'_> {
         } else {
             length
         };
-        let mut file = tokio::fs::OpenOptions::new()
+        let file = tokio::fs::OpenOptions::new()
             .create(true)
             .write(true)
             .append(offset > 0)
@@ -248,23 +248,27 @@ impl Transfer<'_> {
         let mut received = offset;
         progress(received, total);
         let mut stream = response.bytes_stream();
-        loop {
-            let bytes = tokio::select! {
-                biased;
-                _ = token.cancelled() => bail!("Stopped by user"),
-                bytes = tokio::time::timeout(Duration::from_secs(60), stream.next()) => bytes.context("Download stalled for 60 seconds")?,
-            };
-            let Some(bytes) = bytes else {
-                break;
-            };
-            let bytes = bytes?;
-            file.write_all(&bytes).await?;
-            // Complete buffered file IO before honoring cancellation or releasing the
-            // destination lock. A resumed job must see exactly the committed offset.
-            file.flush().await?;
-            received += bytes.len() as u64;
-            progress(received, total);
+        let mut file = BufWriter::with_capacity(256 * 1024, file);
+        let transfer = async {
+            loop {
+                let bytes = tokio::select! {
+                    biased;
+                    _ = token.cancelled() => bail!("Stopped by user"),
+                    bytes = tokio::time::timeout(Duration::from_secs(60), stream.next()) => bytes.context("Download stalled for 60 seconds")?,
+                };
+                let Some(bytes) = bytes else { return Ok(()); };
+                let bytes = bytes?;
+                file.write_all(&bytes).await?;
+                received += bytes.len() as u64;
+                progress(received, total);
+            }
         }
+        .await;
+        // Drain received bytes before a retry or cancellation releases the target.
+        let flushed = file.flush().await;
+        transfer?;
+        flushed?;
+        let file = file.into_inner();
         if received == 0
             || (total > 0 && received != total)
             || (length > 0 && received - offset != length)
@@ -298,5 +302,95 @@ impl Transfer<'_> {
         tokio::fs::rename(partial, destination).await?;
         let _ = tokio::fs::remove_file(metadata_file).await;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tokio::{io::AsyncBufReadExt, net::TcpListener};
+
+    #[tokio::test]
+    async fn cancelled_download_flushes_received_bytes_and_resumes_before_publish() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/voice.pth", listener.local_addr().unwrap());
+        let bytes = b"first-second";
+        let prefix = 5;
+        let cancelled = CancellationToken::new();
+        let server_token = cancelled.clone();
+        let server = tokio::spawn(async move {
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut stream = tokio::io::BufReader::new(stream);
+            let mut headers = String::new();
+            while stream.read_line(&mut headers).await.unwrap() > 2 {}
+            assert!(!headers.to_ascii_lowercase().contains("range:"));
+            let reply = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nETag: \"fixture\"\r\nConnection: close\r\n\r\n", bytes.len());
+            stream.get_mut().write_all(reply.as_bytes()).await.unwrap();
+            stream.get_mut().write_all(&bytes[..prefix]).await.unwrap();
+            server_token.cancelled().await;
+            drop(stream);
+
+            let (stream, _) = listener.accept().await.unwrap();
+            let mut stream = tokio::io::BufReader::new(stream);
+            let mut headers = String::new();
+            while stream.read_line(&mut headers).await.unwrap() > 2 {}
+            let headers = headers.to_ascii_lowercase();
+            assert!(headers.contains("\r\nrange: bytes=5-\r\n"));
+            assert!(headers.contains("\r\nif-range: \"fixture\"\r\n"));
+            let reply = format!(
+                "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\nContent-Range: bytes {}-{}/{}\r\nETag: \"fixture\"\r\nConnection: close\r\n\r\n",
+                bytes.len() - prefix, prefix, bytes.len() - 1, bytes.len()
+            );
+            stream.get_mut().write_all(reply.as_bytes()).await.unwrap();
+            stream.get_mut().write_all(&bytes[prefix..]).await.unwrap();
+        });
+
+        let root = tempfile::tempdir().unwrap();
+        let destination = root.path().join("voice.pth");
+        let partial = root.path().join("voice.pth.part");
+        tokio::fs::write(&destination, b"existing").await.unwrap();
+        let client = client().unwrap();
+        let checksum = format!("{:x}", Sha256::digest(bytes));
+        let first = file(
+            &client,
+            &url,
+            &destination,
+            Some(&checksum),
+            &cancelled,
+            |received, _| {
+                if received == prefix as u64 {
+                    cancelled.cancel();
+                }
+            },
+            |_| panic!("cancellation must skip retries"),
+        );
+        let error = tokio::time::timeout(Duration::from_secs(10), first)
+            .await
+            .unwrap()
+            .unwrap_err();
+        assert_eq!(error.to_string(), "Stopped by user");
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), b"existing");
+        assert_eq!(tokio::fs::read(&partial).await.unwrap(), bytes[..prefix]);
+
+        let token = CancellationToken::new();
+        let resumed = file(
+            &client,
+            &url,
+            &destination,
+            Some(&checksum),
+            &token,
+            |_, _| {},
+            |_| {
+                panic!("the valid resume should complete on its first attempt");
+            },
+        );
+        tokio::time::timeout(Duration::from_secs(10), resumed)
+            .await
+            .unwrap()
+            .unwrap();
+        server.await.unwrap();
+        assert_eq!(tokio::fs::read(&destination).await.unwrap(), bytes);
+        assert!(!partial.exists());
+        assert!(!root.path().join("voice.pth.part.json").exists());
     }
 }

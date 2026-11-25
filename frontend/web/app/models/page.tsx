@@ -64,6 +64,7 @@ interface CheckpointPosition {
 }
 
 type Section = "library" | "download" | "blend" | "inspect" | "export";
+const libraryPageSize = 48;
 
 // Training saves every checkpoint in the same folder as
 // "<name>_<epoch>e_<step>s.pth" (or "<name>.pth" for a final/exported model).
@@ -143,6 +144,7 @@ export default function ModelsPage() {
   const [models, setModels] = useWorkspaceState<ModelItem[]>("page:models:models", []);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useWorkspaceState("page:models:search", "");
+  const [libraryPage, setLibraryPage] = useState(0);
   const [error, setError] = useState("");
   const [deleteTargets, setDeleteTargets] = useState<ModelItem[]>([]);
   const [deleting, setDeleting] = useState(false);
@@ -174,18 +176,21 @@ export default function ModelsPage() {
   const [expIndex, setExpIndex] = useWorkspaceState("page:models:expIndex", "");
   const [expLoading, setExpLoading] = useState(false);
 
-  const loadLibrary = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await apiGet<{ models: ModelItem[] }>("/api/models/library");
-      setModels(res.models || []);
-    } catch (e) {
-      setError(errMsg(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [setModels]);
+  const loadLibrary = useCallback(
+    async (force = false) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await apiGet<{ models: ModelItem[] }>("/api/models/library", { force });
+        setModels(res.models || []);
+      } catch (e) {
+        setError(errMsg(e));
+      } finally {
+        setLoading(false);
+      }
+    },
+    [setModels],
+  );
 
   const loadExports = useCallback(async () => {
     setExpLoading(true);
@@ -332,9 +337,18 @@ export default function ModelsPage() {
     );
   }, [groups, search]);
   const filteredModels = useMemo(() => filteredGroups.flatMap((group) => group.models), [filteredGroups]);
+  const pages = Math.ceil(filteredGroups.length / libraryPageSize);
+  const currentPage = Math.min(libraryPage, Math.max(0, pages - 1));
+  const offset = currentPage * libraryPageSize;
+  const visibleGroups = filteredGroups.slice(offset, offset + libraryPageSize);
 
   const selectedCount = selected.size;
   const allFilteredSelected = filteredModels.length > 0 && filteredModels.every((m) => selected.has(m.id));
+
+  function updateSearch(value: string) {
+    setSearch(value);
+    setLibraryPage(0);
+  }
 
   function activeCheckpoint(group: ModelGroup): ModelItem {
     return group.models.find((m) => m.id === checkpointSelection[group.key]) ?? group.models[0];
@@ -423,14 +437,14 @@ export default function ModelsPage() {
                     placeholder={t("Search models by name or folder…")}
                     aria-label={t("Search models by name or folder")}
                     value={search}
-                    onChange={(e) => setSearch(e.target.value)}
+                    onChange={(e) => updateSearch(e.target.value)}
                     className="min-w-0 w-full ps-9!"
                   />
                   {search && (
                     <IconButton
                       icon={<X size={14} />}
                       label={t("Clear search")}
-                      onClick={() => setSearch("")}
+                      onClick={() => updateSearch("")}
                     />
                   )}
                 </div>
@@ -454,7 +468,7 @@ export default function ModelsPage() {
                 </Button>
                 <IconButton
                   label={t("Refresh models and indexes")}
-                  onClick={loadLibrary}
+                  onClick={() => void loadLibrary(true)}
                   disabled={loading}
                   icon={<RefreshCw className={loading ? "animate-spin" : undefined} />}
                 />
@@ -483,6 +497,28 @@ export default function ModelsPage() {
             )}
           </div>
 
+          {pages > 1 && (
+            <div className="pagination-actions ms-auto">
+              <Button
+                variant="ghost"
+                disabled={currentPage === 0}
+                onClick={() => setLibraryPage(currentPage - 1)}
+              >
+                {t("Previous")}
+              </Button>
+              <span className="field-help" role="status">
+                {currentPage + 1} / {pages}
+              </span>
+              <Button
+                variant="ghost"
+                disabled={currentPage === pages - 1}
+                onClick={() => setLibraryPage(currentPage + 1)}
+              >
+                {t("Next")}
+              </Button>
+            </div>
+          )}
+
           {/* Model Cards Grid */}
           {filteredGroups.length === 0 ? (
             <Card>
@@ -510,11 +546,11 @@ export default function ModelsPage() {
             </Card>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 min-[1800px]:grid-cols-5 card-grid items-stretch">
-              {filteredGroups.map((group, groupIndex) => {
+              {visibleGroups.map((group, groupIndex) => {
                 const current = activeCheckpoint(group);
                 const selectedInGroup = group.models.filter((m) => selected.has(m.id)).length;
                 const isSelected = selectedInGroup === group.models.length;
-                const selectId = `checkpoint-select-${groupIndex}`;
+                const selectId = `checkpoint-select-${offset + groupIndex}`;
                 return (
                   // biome-ignore lint/a11y/useKeyWithClickEvents lint/a11y/noStaticElementInteractions: card click toggles selection; the checkbox inside is the keyboard control
                   <div

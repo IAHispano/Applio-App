@@ -11,7 +11,10 @@ use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::{Arc, Mutex, OnceLock},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex, OnceLock,
+    },
     time::{Duration, Instant},
 };
 use tokio::sync::{broadcast, watch};
@@ -22,9 +25,11 @@ use uuid::Uuid;
 tokio::task_local! { pub(crate) static API_REQUEST: bool; }
 
 pub const MAX_JOBS: usize = 200;
+pub(crate) const HISTORY_LOG_TAIL: usize = 20;
 const MAX_LOGS: usize = 500;
 const HISTORY_LOGS: usize = 100;
 const EVENT_BUFFER: usize = 256;
+const BATCH_PAGE_SIZE: usize = 20;
 
 pub fn timestamp() -> String {
     Utc::now().to_rfc3339_opts(SecondsFormat::Millis, true)
@@ -87,6 +92,12 @@ pub struct Job {
 impl Job {
     pub fn active(&self) -> bool {
         matches!(self.status, JobStatus::Queued | JobStatus::Running)
+    }
+
+    pub(crate) fn api_owned(&self) -> bool {
+        self.params
+            .as_ref()
+            .is_some_and(|params| params["source"] == "api")
     }
 
     pub fn label(&self) -> &'static str {
@@ -157,14 +168,11 @@ impl Job {
         value
     }
 
-    pub fn public_value(&self, log_tail: Option<usize>) -> Value {
-        // Select the tail before serialization. Serializing a complete training
-        // log and then discarding it made history requests allocate it twice.
-        let start = log_tail.map_or(0, |tail| self.logs.len().saturating_sub(tail));
+    fn public_fields(&self) -> Value {
         let mut value = json!({
             "id": self.id, "type": self.kind, "status": self.status,
             "createdAt": self.created_at, "updatedAt": self.updated_at,
-            "label": self.label(), "logs": &self.logs[start..],
+            "label": self.label(),
         });
         macro_rules! optional {
             ($($key:literal => $field:ident),* $(,)?) => {
@@ -173,10 +181,96 @@ impl Job {
         }
         optional! {
             "startedAt" => started_at, "finishedAt" => finished_at,
-            "params" => params, "result" => result, "error" => error,
-            "errorDetails" => error_details, "outputFile" => output_file,
+            "error" => error, "outputFile" => output_file,
             "stage" => stage, "stageCurrent" => stage_current,
             "stageTotal" => stage_total, "progress" => progress,
+        }
+        value
+    }
+
+    fn log_tail(&self, limit: usize) -> &[String] {
+        &self.logs[self.logs.len().saturating_sub(limit)..]
+    }
+
+    fn history_card(&self) -> Value {
+        let mut value = self.public_fields();
+        value["logs"] = json!(self.log_tail(if self.active() { HISTORY_LOG_TAIL } else { 0 }));
+        if let Some(params) = &self.params {
+            let context = [
+                "modelName",
+                "pthPath",
+                "model",
+                "inputPath",
+                "inputFolder",
+                "modelLink",
+                "url",
+                "ttsVoice",
+            ]
+            .into_iter()
+            .filter_map(|key| params[key].as_str().map(|field| (key, field)))
+            .filter(|(_, field)| !field.is_empty())
+            .take(3)
+            .map(|(key, field)| (key.to_owned(), json!(field)))
+            .collect::<serde_json::Map<_, _>>();
+            if !context.is_empty() {
+                value["params"] = Value::Object(context);
+            }
+        }
+        if let Some(message) = self
+            .result
+            .as_ref()
+            .and_then(|result| result["message"].as_str())
+        {
+            value["result"] = json!({"message": message});
+        }
+        value
+    }
+
+    pub fn public_value(&self, log_tail: Option<usize>) -> Value {
+        let mut value = self.public_fields();
+        value["logs"] = json!(self.log_tail(log_tail.unwrap_or(self.logs.len())));
+        if let Some(details) = &self.error_details {
+            value["errorDetails"] = json!(details);
+        }
+        if let Some(params) = &self.params {
+            value["params"] = params.clone();
+        }
+        if let Some(result) = &self.result {
+            value["result"] = result.clone();
+        }
+        value
+    }
+
+    fn batch_view(&self, page: usize) -> Value {
+        let mut value = self.public_fields();
+        value["logs"] = json!(self.log_tail(if self.status == JobStatus::Error {
+            50
+        } else {
+            0
+        }));
+        if let Some(details) = &self.error_details {
+            value["errorDetails"] = json!(details);
+        }
+        if let Some(params) = self.params.as_ref().and_then(Value::as_object) {
+            value["params"] = Value::Object(
+                params
+                    .iter()
+                    .filter(|(key, _)| {
+                        !matches!(key.as_str(), "selectedFiles" | "excludedFiles" | "models")
+                    })
+                    .map(|(key, field)| (key.clone(), field.clone()))
+                    .collect(),
+            );
+        }
+        if let Some(result) = self.result.as_ref().filter(|result| result.is_object()) {
+            let items = result["items"].as_array().map_or(&[][..], Vec::as_slice);
+            let start = page.saturating_mul(BATCH_PAGE_SIZE).min(items.len());
+            let end = start.saturating_add(BATCH_PAGE_SIZE).min(items.len());
+            value["result"] = json!({
+                "files": result["files"], "failed": result["failed"], "total": result["total"],
+                "outputFolder": result["outputFolder"], "itemCount": items.len(),
+                "pageSize": BATCH_PAGE_SIZE, "items": &items[start..end],
+            });
         }
         value
     }
@@ -196,42 +290,63 @@ pub(crate) struct JobSubscription {
     pub updates: Option<broadcast::Receiver<Arc<Job>>>,
 }
 
+pub(crate) struct BatchSubscription {
+    pub snapshot: Arc<Value>,
+    // A slow viewer can recover from the latest first page without a queue of
+    // stale result snapshots. Other pages are read directly from the store.
+    pub updates: Option<watch::Receiver<Arc<Value>>>,
+}
+
 struct Entry {
     ordinal: u64,
     job: Job,
     cancellation: CancellationToken,
     last_log_event: Option<Instant>,
     updates: Option<broadcast::Sender<Arc<Job>>>,
+    batch_updates: Option<watch::Sender<Arc<Value>>>,
 }
 
 impl Entry {
     fn publish(&mut self) {
+        let active = self.job.active();
         if let Some(updates) = self
             .updates
             .as_ref()
             .filter(|sender| sender.receiver_count() > 0)
         {
             let _ = updates.send(Arc::new(self.job.clone()));
-            if self.job.active() {
-                return;
+        } else {
+            self.updates = None;
+        }
+        if let Some(updates) = self.batch_updates.as_ref() {
+            if updates.receiver_count() > 0 {
+                updates.send_replace(Arc::new(self.job.batch_view(0)));
+            }
+            if updates.receiver_count() == 0 || !active {
+                self.batch_updates = None;
             }
         }
-        self.updates = None;
+        if !active {
+            self.updates = None;
+        }
     }
 }
 
 struct StoreState {
     jobs: HashMap<String, Entry>,
     revision: u64,
+    activity_revision: u64,
     next_ordinal: u64,
     closed: bool,
 }
 struct Inner {
     state: Mutex<StoreState>,
     path: PathBuf,
+    activity_instance: Uuid,
     activity: broadcast::Sender<Arc<Value>>,
     dirty: watch::Sender<u64>,
-    persist_gate: tokio::sync::Mutex<()>,
+    active_revision: AtomicU64,
+    persisted_revision: Arc<tokio::sync::Mutex<Option<u64>>>,
     sealed: CancellationToken,
 }
 
@@ -258,6 +373,7 @@ impl JobStore {
                         cancellation,
                         last_log_event: None,
                         updates: None,
+                        batch_updates: None,
                     },
                 )
             })
@@ -269,13 +385,16 @@ impl JobStore {
             state: Mutex::new(StoreState {
                 jobs,
                 revision: 0,
+                activity_revision: 0,
                 next_ordinal,
                 closed: false,
             }),
             path,
+            activity_instance: Uuid::new_v4(),
             activity,
             dirty,
-            persist_gate: tokio::sync::Mutex::new(()),
+            active_revision: AtomicU64::new(0),
+            persisted_revision: Arc::new(tokio::sync::Mutex::new(None)),
             sealed: CancellationToken::new(),
         }));
         let weak = Arc::downgrade(&store.0);
@@ -355,8 +474,11 @@ impl JobStore {
                 cancellation: CancellationToken::new(),
                 last_log_event: None,
                 updates: None,
+                batch_updates: None,
             },
         );
+        self.0.active_revision.fetch_add(1, Ordering::Release);
+        state.activity_revision += 1;
         self.changed(&mut state);
         self.publish_activity(&job);
         Ok(job)
@@ -381,8 +503,17 @@ impl JobStore {
             .get(id)
             .map(|entry| entry.job.clone())
     }
-    pub fn revision(&self) -> u64 {
-        *self.0.dirty.borrow()
+    pub(crate) fn active_revision(&self) -> u64 {
+        self.0.active_revision.load(Ordering::Acquire)
+    }
+    pub(crate) fn has_active_jobs(&self) -> bool {
+        self.0
+            .state
+            .lock()
+            .unwrap()
+            .jobs
+            .values()
+            .any(|entry| entry.job.active())
     }
     pub fn active_params(&self) -> Vec<(String, Value)> {
         self.0
@@ -409,11 +540,80 @@ impl JobStore {
             .map(|entry| entry.job.public_value(Some(log_tail)))
             .collect()
     }
-    pub fn activity(&self) -> Vec<Value> {
+    pub(crate) fn history_cards(&self) -> Vec<Value> {
         ordered_entries(&self.0.state.lock().unwrap(), true)
             .into_iter()
-            .map(|entry| entry.job.summary())
+            .map(|entry| entry.job.history_card())
             .collect()
+    }
+    pub(crate) fn integration_activity(&self) -> Value {
+        let state = self.0.state.lock().unwrap();
+        let mut active = 0;
+        let mut completed = 0;
+        let mut failed = 0;
+        let mut jobs = Vec::new();
+        for entry in ordered_entries(&state, true)
+            .into_iter()
+            .filter(|entry| entry.job.api_owned())
+        {
+            let job = &entry.job;
+            match job.status {
+                JobStatus::Queued | JobStatus::Running => active += 1,
+                JobStatus::Done => completed += 1,
+                JobStatus::Error => failed += 1,
+            }
+            if jobs.len() < 10 {
+                jobs.push(job.public_value(Some(10)));
+            }
+        }
+        json!({"total":active + completed + failed, "active":active, "completed":completed, "failed":failed, "jobs":jobs})
+    }
+    pub fn activity(&self) -> Vec<Value> {
+        activity_summaries(&self.0.state.lock().unwrap())
+    }
+    pub(crate) fn activity_if_changed(
+        &self,
+        matches_tag: impl FnOnce(&str) -> bool,
+    ) -> (String, Option<Vec<Value>>) {
+        // Compare and capture under the same lock so the tag describes the response.
+        let state = self.0.state.lock().unwrap();
+        let tag = format!(
+            "\"{}-{}\"",
+            self.0.activity_instance, state.activity_revision
+        );
+        let summaries = (!matches_tag(&tag)).then(|| activity_summaries(&state));
+        (tag, summaries)
+    }
+    pub(crate) fn dashboard(&self) -> Value {
+        let state = self.0.state.lock().unwrap();
+        let entries = ordered_entries(&state, true);
+        let active_jobs = entries.iter().filter(|entry| entry.job.active()).count();
+        let recent_jobs: Vec<_> = entries
+            .iter()
+            .take(4)
+            .map(|entry| entry.job.summary())
+            .collect();
+        let latest_output = entries.iter().find_map(|entry| {
+            let job = &entry.job;
+            let output = job.output_file.as_deref()?;
+            // Match the playable formats used by the web output player.
+            let (_, extension) = output.rsplit_once('.')?;
+            if job.status != JobStatus::Done
+                || !matches!(
+                    extension.to_ascii_lowercase().as_str(),
+                    "wav" | "mp3" | "flac" | "ogg" | "m4a" | "opus"
+                )
+            {
+                return None;
+            }
+            let params = job.params.as_ref().unwrap_or(&Value::Null);
+            Some(json!({
+                "jobId": job.id, "outputFile": output, "label": job.label(),
+                "createdAt": job.created_at, "model": params["pthPath"].as_str(),
+                "index": params["indexPath"].as_str(),
+            }))
+        });
+        json!({"activeJobs": active_jobs, "recentJobs": recent_jobs, "latestOutput": latest_output})
     }
     /// Register while holding the mutation lock, then capture the snapshot.
     /// Events received afterwards can never predate this initial snapshot.
@@ -432,14 +632,55 @@ impl JobStore {
         })
     }
 
+    pub(crate) fn public_job(
+        &self,
+        id: &str,
+        batch_page: Option<usize>,
+        log_tail: Option<usize>,
+    ) -> Option<Value> {
+        let state = self.0.state.lock().unwrap();
+        let job = &state.jobs.get(id)?.job;
+        match batch_page {
+            Some(page) => (job.kind == JobType::BatchInference).then(|| job.batch_view(page)),
+            None => Some(job.public_value(log_tail)),
+        }
+    }
+
+    pub(crate) fn subscribe_batch(&self, id: &str) -> Option<BatchSubscription> {
+        let mut state = self.0.state.lock().unwrap();
+        let entry = state.jobs.get_mut(id)?;
+        if entry.job.kind != JobType::BatchInference {
+            return None;
+        }
+        let snapshot = Arc::new(entry.job.batch_view(0));
+        let updates = entry.job.active().then(|| {
+            entry
+                .batch_updates
+                .get_or_insert_with(|| watch::channel(snapshot.clone()).0)
+                .subscribe()
+        });
+        Some(BatchSubscription { snapshot, updates })
+    }
+
+    pub(crate) fn batch_output(&self, id: &str, index: usize) -> Option<(PathBuf, PathBuf)> {
+        let state = self.0.state.lock().unwrap();
+        let job = &state.jobs.get(id)?.job;
+        if job.kind != JobType::BatchInference {
+            return None;
+        }
+        let result = job.result.as_ref()?;
+        let item = result["items"].get(index)?;
+        (item["status"] == "done").then_some(())?;
+        Some((
+            result["outputFolder"].as_str()?.into(),
+            item["output"].as_str()?.into(),
+        ))
+    }
+
     pub(crate) fn subscribe_activity(&self) -> (Vec<Value>, broadcast::Receiver<Arc<Value>>) {
         let state = self.0.state.lock().unwrap();
         let receiver = self.0.activity.subscribe();
-        let activity = ordered_entries(&state, true)
-            .into_iter()
-            .map(|entry| entry.job.summary())
-            .collect();
-        (activity, receiver)
+        (activity_summaries(&state), receiver)
     }
     pub fn cancellation(&self, id: &str) -> Option<CancellationToken> {
         self.0
@@ -461,10 +702,12 @@ impl JobStore {
         }
         entry.job.updated_at = timestamp();
         if !entry.job.active() {
+            self.0.active_revision.fetch_add(1, Ordering::Release);
             entry.cancellation.cancel();
         }
         entry.publish();
         self.publish_activity(&entry.job);
+        state.activity_revision += 1;
         self.changed(&mut state);
         true
     }
@@ -495,12 +738,20 @@ impl JobStore {
         });
     }
     pub fn progress(&self, id: &str, progress: f64) {
+        self.set_progress(id, progress, false);
+    }
+    pub(crate) fn advance_progress(&self, id: &str, progress: f64) {
+        self.set_progress(id, progress, true);
+    }
+    fn set_progress(&self, id: &str, progress: f64, only_increase: bool) {
         if !progress.is_finite() {
             return;
         }
         let progress = progress.round().clamp(0.0, 100.0) as u8;
         self.update(id, |job| {
-            if job.progress == Some(progress) {
+            if job.progress == Some(progress)
+                || only_increase && job.progress.is_some_and(|current| current > progress)
+            {
                 false
             } else {
                 job.progress = Some(progress);
@@ -513,6 +764,26 @@ impl JobStore {
             job.result = Some(result);
             true
         });
+    }
+    pub(crate) fn update_result(&self, id: &str, update: impl FnOnce(&mut Value)) {
+        self.update(id, |job| {
+            let Some(result) = job.result.as_mut() else {
+                return false;
+            };
+            update(result);
+            true
+        });
+    }
+    pub(crate) fn result_snapshot(&self, id: &str) -> Option<Value> {
+        self.0
+            .state
+            .lock()
+            .unwrap()
+            .jobs
+            .get(id)?
+            .job
+            .result
+            .clone()
     }
     pub fn done(&self, id: &str, result: Value, output_file: Option<String>) {
         self.update(id, |job| {
@@ -542,11 +813,17 @@ impl JobStore {
         self.fail(id, reason.to_owned(), None)
     }
     pub fn cancel_all(&self, reason: &str) {
-        for job in self.list() {
-            if job.active() {
-                self.cancel(&job.id, reason);
-            }
+        for id in self.active_ids(|_| true) {
+            self.cancel(&id, reason);
         }
+    }
+
+    pub(crate) fn active_ids(&self, matches: impl Fn(&Job) -> bool) -> Vec<String> {
+        ordered_entries(&self.0.state.lock().unwrap(), true)
+            .into_iter()
+            .filter(|entry| entry.job.active() && matches(&entry.job))
+            .map(|entry| entry.job.id.clone())
+            .collect()
     }
 
     pub fn log(&self, id: &str, line: &str) {
@@ -587,6 +864,7 @@ impl JobStore {
     }
 
     pub fn conversion_output(&self, id: &str, output: &str) {
+        const CONVERTING: &str = "Converting audio…";
         static SPLIT: OnceLock<Regex> = OnceLock::new();
         static CHUNK: OnceLock<Regex> = OnceLock::new();
         let split = SPLIT.get_or_init(|| Regex::new(r"Audio split into (\d+) chunks").unwrap());
@@ -598,27 +876,33 @@ impl JobStore {
             } else if lower.contains("tts audio generated") {
                 self.stage(id, "Loading voice model…", None, None);
             } else if lower.contains("converting audio '") {
-                self.stage(id, "Converting audio…", None, None);
+                self.stage(id, CONVERTING, None, None);
             }
             if let Some(total) = split
                 .captures(line)
                 .and_then(|c| c[1].parse::<u64>().ok())
                 .filter(|n| *n > 0)
             {
-                self.stage(id, "Converting audio…", Some(0), Some(total));
+                self.stage(id, CONVERTING, Some(0), Some(total));
                 self.progress(id, 0.0);
             }
             if let Some(current) = chunk.captures(line).and_then(|c| c[1].parse::<u64>().ok()) {
-                if let Some(job) = self
-                    .get(id)
-                    .filter(|job| job.stage.as_deref() == Some("Converting audio…"))
-                {
-                    if let Some(total) = job.stage_total.filter(|total| *total > 0) {
-                        let current = current.min(total);
-                        self.stage(id, "Converting audio…", Some(current), Some(total));
-                        self.progress(id, current as f64 * 100.0 / total as f64);
+                self.update(id, |job| {
+                    let Some(total) = job
+                        .stage_total
+                        .filter(|total| *total > 0 && job.stage.as_deref() == Some(CONVERTING))
+                    else {
+                        return false;
+                    };
+                    let current = current.min(total);
+                    let progress = (current as f64 * 100.0 / total as f64).round() as u8;
+                    if job.stage_current == Some(current) && job.progress == Some(progress) {
+                        return false;
                     }
-                }
+                    job.stage_current = Some(current);
+                    job.progress = Some(progress);
+                    true
+                });
             }
             if lower.contains("saving audio as") {
                 self.stage(id, "Saving audio…", None, None);
@@ -627,58 +911,62 @@ impl JobStore {
     }
 
     pub async fn flush(&self) -> Result<()> {
-        let _gate = self.0.persist_gate.lock().await;
+        let persisted = self.0.persisted_revision.clone().lock_owned().await;
         if self.0.sealed.is_cancelled() {
             return Ok(());
         }
-        loop {
-            let (revision, bytes) = {
-                let state = self.0.state.lock().unwrap();
-                let jobs: Vec<_> = ordered_jobs(&state, false)
+        let inner = self.0.clone();
+        tokio::task::spawn_blocking(move || {
+            // The writer keeps the lock if its caller is cancelled. Sealing
+            // waits for the atomic replacement before another store can open.
+            let mut persisted = persisted;
+            let (revision, jobs) = {
+                let state = inner.state.lock().unwrap();
+                if *persisted == Some(state.revision) {
+                    return Ok(());
+                }
+                let jobs: Vec<_> = ordered_entries(&state, false)
                     .into_iter()
-                    .map(|mut job| {
-                        job.logs = job.logs[job.logs.len().saturating_sub(HISTORY_LOGS)..].to_vec();
+                    .map(|entry| {
+                        let mut job = entry.job.clone();
+                        job.logs
+                            .drain(..job.logs.len().saturating_sub(HISTORY_LOGS));
                         job
                     })
                     .collect();
-                (state.revision, serde_json::to_vec(&jobs)?)
+                (state.revision, jobs)
             };
-            let inner = self.0.clone();
-            let published = tokio::task::spawn_blocking(move || -> Result<bool> {
-                let parent = inner
-                    .path
-                    .parent()
-                    .context("History has no parent directory")?;
-                std::fs::create_dir_all(parent)?;
-                let temporary = parent.join(format!(".jobs-{}.tmp", Uuid::new_v4()));
-                let operation = (|| -> Result<bool> {
-                    use std::io::Write;
-                    let mut options = std::fs::OpenOptions::new();
-                    options.write(true).create_new(true);
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::OpenOptionsExt;
-                        options.mode(0o600);
-                    }
-                    let mut file = options.open(&temporary)?;
-                    file.write_all(&bytes)?;
-                    file.sync_all()?;
-                    drop(file);
-                    let state = inner.state.lock().unwrap();
-                    if state.revision != revision {
-                        return Ok(false);
-                    }
-                    crate::storage::replace_file(&temporary, &inner.path)?;
-                    Ok(true)
-                })();
-                let _ = std::fs::remove_file(&temporary);
-                operation
-            })
-            .await??;
-            if published {
-                return Ok(());
-            }
-        }
+            let parent = inner
+                .path
+                .parent()
+                .context("History has no parent directory")?;
+            std::fs::create_dir_all(parent)?;
+            let temporary = parent.join(format!(".jobs-{}.tmp", Uuid::new_v4()));
+            let operation = (|| -> Result<()> {
+                let mut options = std::fs::OpenOptions::new();
+                options.write(true).create_new(true);
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::OpenOptionsExt;
+                    options.mode(0o600);
+                }
+                let file = options.open(&temporary)?;
+                let mut writer = std::io::BufWriter::new(file);
+                serde_json::to_writer(&mut writer, &jobs)?;
+                use std::io::Write;
+                writer.flush()?;
+                writer.get_ref().sync_all()?;
+                drop(writer);
+                // The watch channel schedules the next snapshot if jobs changed
+                // during I/O. Waiting for them to stop changing can starve writes.
+                crate::storage::replace_file(&temporary, &inner.path)?;
+                *persisted = Some(revision);
+                Ok(())
+            })();
+            let _ = std::fs::remove_file(&temporary);
+            operation
+        })
+        .await?
     }
 }
 
@@ -690,10 +978,17 @@ impl JobStore {
     /// over the history of the next API generation.
     pub async fn seal(&self) {
         self.close_admission();
-        let _gate = self.0.persist_gate.lock().await;
+        let _gate = self.0.persisted_revision.lock().await;
         self.0.sealed.cancel();
     }
 }
+fn activity_summaries(state: &StoreState) -> Vec<Value> {
+    ordered_entries(state, true)
+        .into_iter()
+        .map(|entry| entry.job.summary())
+        .collect()
+}
+
 fn ordered_jobs(state: &StoreState, descending: bool) -> Vec<Job> {
     ordered_entries(state, descending)
         .into_iter()
@@ -797,6 +1092,275 @@ fn load_history(path: &Path) -> Result<Vec<Job>> {
 mod tests {
     use super::*;
     use tokio::sync::broadcast::error::TryRecvError;
+
+    #[tokio::test]
+    async fn training_progress_is_monotonic_and_conversion_chunks_publish_once() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = store.create(JobType::Train, json!({})).unwrap();
+        store.advance_progress(&job.id, 52.6);
+        store.advance_progress(&job.id, 51.1);
+        assert_eq!(store.get(&job.id).unwrap().progress, Some(53));
+        store.stage(&job.id, "Index", None, None);
+        store.advance_progress(&job.id, 12.0);
+        assert_eq!(store.get(&job.id).unwrap().progress, Some(12));
+
+        let job = store.create(JobType::Inference, json!({})).unwrap();
+        store.conversion_output(&job.id, "Audio split into 3 chunks");
+        let mut updates = store.subscribe_job(&job.id).unwrap().updates.unwrap();
+        store.conversion_output(&job.id, "Converted audio chunk 2");
+        let progress = updates.try_recv().unwrap();
+        assert_eq!(progress.stage_current, Some(2));
+        assert_eq!(progress.stage_total, Some(3));
+        assert_eq!(progress.progress, Some(67));
+        store.conversion_output(&job.id, "Converted audio chunk 2");
+        assert!(matches!(updates.try_recv(), Err(TryRecvError::Empty)));
+        store.seal().await;
+    }
+
+    #[tokio::test]
+    async fn integration_activity_counts_only_api_jobs_and_limits_details() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        store
+            .create(JobType::BatchInference, json!({"modelName": "desktop"}))
+            .unwrap();
+        API_REQUEST
+            .scope(true, async {
+                for number in 0..15 {
+                    let job = store
+                        .create(JobType::BatchInference, json!({"batch": number}))
+                        .unwrap();
+                    match number {
+                        0 => store.error(&job.id, "Failed", None),
+                        1 => store.running(&job.id),
+                        2 => {}
+                        _ => store.done(&job.id, json!({"items": [number]}), None),
+                    }
+                }
+            })
+            .await;
+        let status = store.integration_activity();
+        assert_eq!(status["total"], 15);
+        assert_eq!(status["active"], 2);
+        assert_eq!(status["completed"], 12);
+        assert_eq!(status["failed"], 1);
+        let jobs = status["jobs"].as_array().unwrap();
+        assert_eq!(jobs.len(), 10);
+        assert!(jobs.iter().all(|job| job["params"]["source"] == "api"));
+        store.seal().await;
+    }
+
+    #[tokio::test]
+    async fn active_revision_tracks_admission_and_exit_without_rebuilding_on_progress() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        assert_eq!(store.active_revision(), 0);
+        let job = store
+            .create(JobType::Train, json!({"inputPath": "audio.wav"}))
+            .unwrap();
+        assert_eq!(store.active_revision(), 1);
+        assert!(store.has_active_jobs());
+        store.running(&job.id);
+        store.log(&job.id, "processing");
+        store.progress(&job.id, 50.0);
+        assert_eq!(store.active_revision(), 1);
+        assert!(store.cancel(&job.id, "Stopped by user"));
+        assert_eq!(store.active_revision(), 2);
+        assert!(!store.has_active_jobs());
+        store.seal().await;
+    }
+
+    #[tokio::test]
+    async fn batch_pages_keep_result_offsets_and_publish_the_latest_terminal_state() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = store
+            .create(
+                JobType::BatchInference,
+                json!({"selectedFiles": ["voice.wav"], "inputFolder": "inputs"}),
+            )
+            .unwrap();
+        let mut subscription = store.subscribe_batch(&job.id).unwrap().updates.unwrap();
+        let items: Vec<_> = (0..24)
+            .map(|index| {
+                json!({
+                    "input": format!("clip{index}.wav"), "status": "done",
+                    "output": format!("outputs/clip{index}.wav"),
+                })
+            })
+            .collect();
+        store.result(
+            &job.id,
+            json!({"items": items, "files": 24, "failed":0, "total": 24, "outputFolder":"outputs"}),
+        );
+        let second = store.public_job(&job.id, Some(1), None).unwrap();
+        assert_eq!(second["result"]["itemCount"], 24);
+        assert_eq!(second["result"]["items"], json!(&items[20..]));
+        assert_eq!(second["params"], json!({"inputFolder": "inputs"}));
+        assert_eq!(
+            store.public_job(&job.id, Some(usize::MAX), None).unwrap()["result"]["items"],
+            json!([])
+        );
+        assert_eq!(
+            store.batch_output(&job.id, 20),
+            Some(("outputs".into(), "outputs/clip20.wav".into()))
+        );
+        store.done(&job.id, store.result_snapshot(&job.id).unwrap(), None);
+
+        subscription.changed().await.unwrap();
+        let terminal = subscription.borrow_and_update().clone();
+        assert_eq!(terminal["status"], "done");
+        assert_eq!(terminal["result"]["items"], json!(&items[..20]));
+        assert!(subscription.changed().await.is_err());
+        let full = store.public_job(&job.id, None, None).unwrap();
+        assert_eq!(full["params"]["selectedFiles"], json!(["voice.wav"]));
+        assert_eq!(full["result"]["items"], json!(items));
+        store.seal().await;
+    }
+
+    #[tokio::test]
+    async fn history_cards_keep_display_context_and_leave_full_details_on_demand() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        let job = store
+            .create(
+                JobType::BatchInference,
+                json!({
+                    "modelName": "voice", "pthPath": "model.pth", "inputFolder": "inputs",
+                    "modelLink": "another field", "selectedFiles": ["audio.wav"],
+                }),
+            )
+            .unwrap();
+        for number in 0..25 {
+            store.log(&job.id, &format!("Line {number}"));
+        }
+        let active = &store.history_cards()[0];
+        assert_eq!(active["logs"].as_array().unwrap().len(), HISTORY_LOG_TAIL);
+        assert_eq!(active["logs"][0], "Line 5");
+        assert_eq!(
+            active["params"],
+            json!({"modelName": "voice", "pthPath": "model.pth", "inputFolder": "inputs"})
+        );
+
+        let result = json!({"message": "Finished", "items": [{"output": "audio.wav"}]});
+        store.done(&job.id, result.clone(), Some("audio.wav".into()));
+        let finished = &store.history_cards()[0];
+        assert_eq!(finished["logs"], json!([]));
+        assert_eq!(finished["result"], json!({"message": "Finished"}));
+        assert_eq!(finished["outputFile"], "audio.wav");
+        let detail = store
+            .public_job(&job.id, None, Some(HISTORY_LOG_TAIL))
+            .unwrap();
+        assert_eq!(detail, store.public_list(HISTORY_LOG_TAIL)[0]);
+        assert_eq!(detail["result"], result);
+        assert_eq!(detail["params"]["selectedFiles"], json!(["audio.wav"]));
+        assert_eq!(
+            store.public_job(&job.id, None, None).unwrap()["logs"]
+                .as_array()
+                .unwrap()
+                .len(),
+            25
+        );
+        store.seal().await;
+    }
+
+    #[test]
+    fn sealing_waits_for_a_cancelled_flush_to_publish() {
+        tokio::runtime::Builder::new_current_thread()
+            .max_blocking_threads(1)
+            .enable_all()
+            .build()
+            .unwrap()
+            .block_on(async {
+                let root = tempfile::tempdir().unwrap();
+                let path = root.path().join("jobs.json");
+                let store = JobStore::open(path.clone()).unwrap();
+                let job = store.create(JobType::Train, json!({})).unwrap();
+                for number in 0..=HISTORY_LOGS {
+                    store.log(&job.id, &format!("Line {number}"));
+                }
+                store.done(&job.id, Value::Null, None);
+
+                let (release, blocked) = std::sync::mpsc::channel();
+                let blocker = tokio::task::spawn_blocking(move || blocked.recv().unwrap());
+                let writer = tokio::spawn({
+                    let store = store.clone();
+                    async move { store.flush().await }
+                });
+                while store.0.persisted_revision.try_lock().is_ok() {
+                    tokio::task::yield_now().await;
+                }
+                writer.abort();
+                assert!(writer.await.unwrap_err().is_cancelled());
+                assert!(store.0.persisted_revision.try_lock().is_err());
+
+                release.send(()).unwrap();
+                blocker.await.unwrap();
+                store.seal().await;
+                let saved = load_history(&path).unwrap();
+                assert_eq!(saved[0].id, job.id);
+                assert_eq!(saved[0].status, JobStatus::Done);
+                assert_eq!(saved[0].logs.len(), HISTORY_LOGS);
+                assert_eq!(saved[0].logs.first().unwrap(), "Line 1");
+                assert_eq!(
+                    saved[0].logs.last().unwrap(),
+                    &format!("Line {HISTORY_LOGS}")
+                );
+            });
+    }
+
+    #[tokio::test]
+    async fn dashboard_counts_active_jobs_and_projects_only_the_latest_audio() {
+        let root = tempfile::tempdir().unwrap();
+        let store = JobStore::open(root.path().join("jobs.json")).unwrap();
+        assert!(store.dashboard()["latestOutput"].is_null());
+        let active = store.create(JobType::Train, json!({})).unwrap();
+        let audio = store
+            .create(JobType::Inference, json!({"pthPath": "logs/voice.pth", "indexPath": "logs/voice.index", "inputPath": "private.wav"}))
+            .unwrap();
+        let image = store.create(JobType::Other, json!({})).unwrap();
+        let failed = store.create(JobType::Inference, json!({})).unwrap();
+        let older_audio = store.create(JobType::Tts, json!({})).unwrap();
+        for (position, job) in [&older_audio, &audio, &image, &failed, &active]
+            .into_iter()
+            .enumerate()
+        {
+            store.update(&job.id, |job| {
+                job.created_at = format!("2026-01-01T00:00:0{position}.000Z");
+                true
+            });
+        }
+        store.log(&audio.id, "detailed output");
+        store.done(
+            &audio.id,
+            json!({"size": 123}),
+            Some("outputs/voice.WAV".into()),
+        );
+        store.done(&image.id, Value::Null, Some("outputs/image.png".into()));
+        store.update(&failed.id, |job| {
+            job.output_file = Some("outputs/failed.wav".into());
+            true
+        });
+        store.error(&failed.id, "failed", None);
+        store.done(
+            &older_audio.id,
+            Value::Null,
+            Some("outputs/older.mp3".into()),
+        );
+
+        let dashboard = store.dashboard();
+        assert_eq!(dashboard["activeJobs"], 1);
+        assert_eq!(dashboard["recentJobs"], json!(&store.activity()[..4]));
+        assert_eq!(
+            dashboard["latestOutput"],
+            json!({
+                "jobId": audio.id, "outputFile": "outputs/voice.WAV", "label": audio.label(),
+                "createdAt": "2026-01-01T00:00:01.000Z", "model": "logs/voice.pth", "index": "logs/voice.index"
+            })
+        );
+        store.seal().await;
+    }
 
     #[tokio::test]
     async fn activity_and_job_subscribers_receive_their_own_updates() {

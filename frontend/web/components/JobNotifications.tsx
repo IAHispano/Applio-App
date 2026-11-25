@@ -1,8 +1,8 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
-import { apiGet, clearApiCache, fetchModels } from "@/lib/api";
-import { useRemoteBridge } from "@/lib/bridge-mode";
+import { useEffect, useRef, useState } from "react";
+import { refreshObservedModels } from "@/lib/api";
+import { hasRemoteBridgeSessionHint, useRemoteBridge } from "@/lib/bridge-mode";
 import { useI18n } from "@/lib/i18n";
 import { type JobActivity, JobNotificationTracker } from "@/lib/job-notifications";
 import { jobHref, normalizeJobHref } from "@/lib/job-url";
@@ -21,9 +21,13 @@ interface DesktopNotifications {
 
 export default function JobNotifications() {
   const { remote } = useRemoteBridge();
+  const pollOnly = remote || hasRemoteBridgeSessionHint();
   const { t } = useI18n();
   const router = useRouter();
-  const tracker = useRef(new JobNotificationTracker());
+  const [tracker] = useState(() => new JobNotificationTracker());
+  const activityTag = useRef<string | null>(null);
+  const latest = useRef({ t, router });
+  latest.current = { t, router };
   useEffect(() => {
     let disposed = false;
     let stream: EventSource | undefined;
@@ -31,12 +35,12 @@ export default function JobNotifications() {
     let supportTimer: ReturnType<typeof setTimeout> | undefined;
     const controller = new AbortController();
     const bridge = (window as unknown as { applio?: DesktopNotifications }).applio;
-    const unsubscribe = bridge?.onJobOpen?.((href) => router.push(normalizeJobHref(href)));
+    const unsubscribe = bridge?.onJobOpen?.((href) => latest.current.router.push(normalizeJobHref(href)));
     const announce = ({ job, terminal }: { job: JobActivity; terminal: boolean }) => {
+      const { t } = latest.current;
       window.dispatchEvent(new Event("applio:job-state"));
       if (terminal && ["train", "download", "other"].includes(job.type)) {
-        clearApiCache("/api/models");
-        void fetchModels().catch(() => {});
+        refreshObservedModels();
       }
       const href = jobHref(job.id);
       const title = t(job.label);
@@ -61,7 +65,7 @@ export default function JobNotifications() {
             const notification = new Notification(title, { body, tag: `job-${job.id}` });
             notification.onclick = () => {
               window.focus();
-              router.push(href);
+              latest.current.router.push(href);
               notification.close();
             };
           }
@@ -77,6 +81,7 @@ export default function JobNotifications() {
         if (remind) {
           supportTimer = setTimeout(() => {
             if (disposed) return;
+            const { t } = latest.current;
             toast(t("Enjoying Applio? Your support helps us keep it free."), "info", {
               id: "support-reminder",
               duration: 9000,
@@ -87,26 +92,34 @@ export default function JobNotifications() {
       }
     };
     const snapshot = (jobs: JobActivity[]) => {
-      for (const event of tracker.current.snapshot(jobs)) announce(event);
+      for (const event of tracker.snapshot(jobs)) announce(event);
     };
     const poll = async () => {
       try {
-        const data = await apiGet<{ jobs: JobActivity[] }>("/api/jobs/activity", {
+        const response = await fetch("/api/jobs/activity", {
+          cache: "no-store",
+          headers: activityTag.current ? { "If-None-Match": activityTag.current } : undefined,
           signal: controller.signal,
         });
-        if (!disposed) snapshot(data.jobs);
+        if (response.ok) {
+          const data = (await response.json()) as { jobs: JobActivity[] };
+          if (!disposed) {
+            snapshot(data.jobs);
+            activityTag.current = response.headers.get("etag");
+          }
+        }
       } catch {
         /* retry without spamming connection errors */
       }
       if (!disposed && (!stream || stream.readyState !== EventSource.OPEN)) polling = setTimeout(poll, 2000);
     };
-    if (!remote && typeof EventSource !== "undefined") {
+    if (!pollOnly && typeof EventSource !== "undefined") {
       stream = new EventSource("/api/jobs/events");
       stream.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data) as { jobs?: JobActivity[]; job?: JobActivity };
           if (data.jobs) snapshot(data.jobs);
-          else if (data.job) for (const update of tracker.current.update(data.job)) announce(update);
+          else if (data.job) for (const update of tracker.update(data.job)) announce(update);
         } catch {
           /* ignore malformed stream messages */
         }
@@ -127,6 +140,6 @@ export default function JobNotifications() {
       clearTimeout(supportTimer);
       unsubscribe?.();
     };
-  }, [t, router, remote]);
+  }, [tracker, pollOnly]);
   return null;
 }

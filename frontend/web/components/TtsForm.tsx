@@ -32,7 +32,7 @@ import { useI18n } from "@/lib/i18n";
 import { matchIndex } from "@/lib/model-index";
 import { SETTING_HELP } from "@/lib/setting-help";
 import { useConversionParameters } from "@/lib/useConversionParameters";
-import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { usePersistentJob } from "@/lib/useJob";
 import { useSpeakers } from "@/lib/useSpeakers";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
@@ -70,9 +70,8 @@ export default function TtsForm() {
   conversionValuesRef.current = conversion.values;
   const primedRef = useRef("");
   const [sid, setSid] = useWorkspaceState("TtsForm:components:sid", 0);
-  const [jobId, setJobId] = usePersistentJobId("tts");
-  const { job: watchedJob, error, setError, stop } = useJob(jobId);
-  const job = watchedJob?.id === jobId ? watchedJob : null;
+  const { jobId, setJobId, activity } = usePersistentJob("tts");
+  const { job, error, setError, stop } = activity;
   const awaitingJob = Boolean(jobId && !job && !error);
   const [busy, setBusy] = useState(false);
   const [voicesError, setVoicesError] = useState("");

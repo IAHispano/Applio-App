@@ -1,47 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { errMsg, fetchJob, type Job, stopJob, watchJob } from "@/lib/api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { errMsg, isMissingJob, type Job, type JobView, stopJob, watchJob } from "@/lib/api";
 
 const JOB_ID_PREFIX = "applio:job:";
 
-// Persists only the job id (not the job payload) in localStorage so a
-// running or finished job survives route changes and page refreshes while
-// the API server is up. On mount the id is re-validated against the server:
-// ids the server no longer knows (e.g. after an API restart) are dropped
-// silently, so nothing stale is ever resurrected.
-export function usePersistentJobId(key: string) {
+// The watcher restores the saved id and validates it on the same connection.
+export function usePersistentJob(key: string, view: JobView = "full") {
   const storageKey = `${JOB_ID_PREFIX}${key}`;
   const [jobId, setJobIdState] = useState<string | null>(null);
+  const currentJobId = useRef<string | null>(null);
 
   // Static HTML and the initial client render both start without a saved job.
   useEffect(() => {
     try {
-      setJobIdState(window.localStorage.getItem(storageKey));
+      const saved = window.localStorage.getItem(storageKey);
+      currentJobId.current = saved;
+      setJobIdState(saved);
     } catch {
       /* storage unavailable */
     }
   }, [storageKey]);
 
-  useEffect(() => {
-    if (!jobId) return;
-    let cancelled = false;
-    fetchJob(jobId).catch(() => {
-      if (cancelled) return;
-      try {
-        window.localStorage.removeItem(storageKey);
-      } catch {
-        /* storage unavailable */
-      }
-      setJobIdState(null);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [jobId, storageKey]);
-
   const setJobId = useCallback(
     (id: string | null) => {
+      currentJobId.current = id;
       setJobIdState(id);
       try {
         if (id) window.localStorage.setItem(storageKey, id);
@@ -53,7 +36,23 @@ export function usePersistentJobId(key: string) {
     [storageKey],
   );
 
-  return [jobId, setJobId] as const;
+  const clearMissing = useCallback(
+    (id: string) => {
+      if (currentJobId.current !== id) return;
+      currentJobId.current = null;
+      setJobIdState(null);
+      try {
+        // Another tab can have stored a newer job while this request was in flight.
+        if (window.localStorage.getItem(storageKey) === id) window.localStorage.removeItem(storageKey);
+      } catch {
+        /* storage unavailable */
+      }
+    },
+    [storageKey],
+  );
+
+  const activity = useJob(jobId, view, clearMissing);
+  return { jobId, setJobId, activity };
 }
 
 // Shared job polling hook.
@@ -115,40 +114,59 @@ export function cleanJobLogs(logs?: string[]): string[] {
 
 const recentJobs = new Map<string, Job>();
 
-export function useJob(jobId: string | null) {
-  const [job, setJob] = useState<Job | null>(() => (jobId ? (recentJobs.get(jobId) ?? null) : null));
-  const [error, setError] = useState("");
+export function useJob(jobId: string | null, view: JobView = "full", onMissing?: (id: string) => void) {
+  const cacheKey = `${view}:${jobId}`;
+  const [observed, setJob] = useState<Job | null>(() => (jobId ? (recentJobs.get(cacheKey) ?? null) : null));
+  const [actionError, setActionError] = useState("");
+  const [transportError, setTransportError] = useState("");
+  const job = observed?.id === jobId ? observed : null;
+  const setError = useCallback((message: string) => {
+    setActionError(message);
+    setTransportError("");
+  }, []);
 
   useEffect(() => {
-    setJob(jobId ? (recentJobs.get(jobId) ?? null) : null);
+    setJob(jobId ? (recentJobs.get(cacheKey) ?? null) : null);
     setError("");
     if (!jobId) return;
     return watchJob(
       jobId,
       (job) => {
-        recentJobs.delete(job.id);
-        recentJobs.set(job.id, job);
+        recentJobs.delete(cacheKey);
+        recentJobs.set(cacheKey, job);
         if (recentJobs.size > 100) {
           const oldest = recentJobs.keys().next().value;
           if (oldest !== undefined) recentJobs.delete(oldest);
         }
         setJob(job);
+        setTransportError("");
       },
-      (error) => setError(errMsg(error)),
+      (error) => {
+        if (isMissingJob(error)) {
+          recentJobs.delete(cacheKey);
+          setJob(null);
+          if (onMissing) {
+            onMissing(jobId);
+            return;
+          }
+        }
+        setTransportError(errMsg(error));
+      },
+      view,
     );
-  }, [jobId]);
+  }, [jobId, cacheKey, view, onMissing, setError]);
 
-  const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
   const isActive = job?.status === "running" || job?.status === "queued";
 
+  const observedId = job?.id;
   const stop = useCallback(async () => {
-    if (!job) return;
+    if (!observedId) return;
     try {
-      await stopJob(job.id);
+      await stopJob(observedId);
     } catch (e) {
       setError(errMsg(e));
     }
-  }, [job]);
+  }, [observedId, setError]);
 
-  return { job, setJob, error, setError, cleanedLogs, isActive, stop };
+  return { job, error: actionError || transportError, setError, isActive, stop };
 }

@@ -27,10 +27,11 @@ import ProgressBar from "@/components/ui/ProgressBar";
 import { errMsg, stopJob } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { toast } from "@/lib/toast";
-import { cleanJobLogs, useJob } from "@/lib/useJob";
+import { cleanJobLogs, type useJob } from "@/lib/useJob";
 
 interface TrainingConsoleProps {
   jobId: string | null;
+  activity: ReturnType<typeof useJob>;
   modelName: string;
   totalEpochs?: number;
   onStop?: () => Promise<void> | void;
@@ -47,6 +48,7 @@ interface ParsedMetrics {
 
 export default function TrainingConsole({
   jobId,
+  activity,
   modelName,
   totalEpochs = 200,
   onStop,
@@ -54,7 +56,8 @@ export default function TrainingConsole({
   const { t } = useI18n();
   const router = useRouter();
 
-  const { job, error, setError } = useJob(jobId);
+  const { job, error, setError } = activity;
+  const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
   // A restored job keeps its submitted limit even if the form has reset or
   // been edited since launch.
   const submittedEpochs = job?.params?.totalEpoch;
@@ -96,8 +99,6 @@ export default function TrainingConsole({
     // Only the status matters: depending on `job` would restart the timer on
     // every poll tick.
   }, [jobStatus]);
-
-  const cleanedLogs = useMemo(() => cleanJobLogs(job?.logs), [job?.logs]);
 
   const metrics: ParsedMetrics = useMemo(() => {
     let currentEpoch: number | null = null;

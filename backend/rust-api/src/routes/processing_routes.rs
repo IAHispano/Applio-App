@@ -202,6 +202,45 @@ pub(crate) fn final_output(
     Ok(engine.runtime.repo_relative(&file))
 }
 
+async fn convert(
+    engine: &NativeEngine,
+    job: &Job,
+    token: &CancellationToken,
+    mut params: Value,
+    input: &Path,
+    wav: &Path,
+    stdout: &mut String,
+) -> Result<Value> {
+    let speech = job.kind == JobType::Tts;
+    if speech {
+        params["cleanupStage"] = json!("output");
+    }
+    let response = engine.worker.request(
+        json!({"command":"infer", "id":job.id, "params":params, "inputPath":input, "outputPath":wav}),
+        token,
+        |line| log(engine, &job.id, line, stdout),
+    ).await;
+    match response {
+        Ok(response) => Ok(response),
+        Err(error) if speech && error.is::<crate::worker::WorkerTaskError>() => Err(error),
+        Err(error) => {
+            if token.is_cancelled() {
+                bail!("Stopped by user");
+            }
+            engine.jobs.log(
+                &job.id,
+                &format!("Worker notice: {error}; falling back to standalone CLI runner..."),
+            );
+            let mut args = infer_cli(&params, input, wav);
+            if speech {
+                args.extend(["--cleanup-stage".into(), "output".into()]);
+            }
+            cli(engine, &job.id, args, token, stdout).await?;
+            Ok(Value::Null)
+        }
+    }
+}
+
 pub(crate) async fn inference(
     State(engine): State<Arc<NativeEngine>>,
     request: Request,
@@ -221,25 +260,28 @@ pub(crate) async fn inference(
         saved["source"] = json!("api");
     }
     model_paths(&engine, &mut params)?;
-    let job = engine.start_job(JobType::Inference, saved, Some(Resource::Gpu), move |engine, job, token| async move {
-        let wav = output(&engine, "web_output", "wav");
-        engine.jobs.stage(&job.id, "Preparing conversion…", None, None);
-        let mut stdout = String::new();
-        let response = engine.worker.request(json!({"command":"infer", "id":job.id, "params":params, "inputPath":audio, "outputPath":wav}), &token, |line| log(&engine, &job.id, line, &mut stdout)).await;
-        let response = match response {
-            Ok(response) => response,
-            Err(error) => {
-                if token.is_cancelled() { bail!("Stopped by user"); }
-                engine.jobs.log(&job.id, &format!("Worker notice: {error}; falling back to standalone CLI runner..."));
-                cli(&engine, &job.id, infer_cli(&params, &audio, &wav), &token, &mut stdout).await?;
-                Value::Null
-            }
-        };
-        engine.jobs.stage(&job.id, "Checking output…", None, None);
-        let file = final_output(&engine, &wav, &string(&params, "exportFormat"), &response, &["outputPath"])?;
-        engine.jobs.log(&job.id, &format!("Done -> {file}"));
-        Ok(JobResult::new(json!({"stdout":tail(&stdout)}), Some(file)))
-    }).await.map_err(Error::internal)?;
+    let job = engine
+        .start_job(
+            JobType::Inference,
+            saved,
+            Some(Resource::Gpu),
+            move |engine, job, token| async move {
+                let wav = output(&engine, "web_output", "wav");
+                engine
+                    .jobs
+                    .stage(&job.id, "Preparing conversion…", None, None);
+                let mut stdout = String::new();
+                let format = string(&params, "exportFormat");
+                let response =
+                    convert(&engine, &job, &token, params, &audio, &wav, &mut stdout).await?;
+                engine.jobs.stage(&job.id, "Checking output…", None, None);
+                let file = final_output(&engine, &wav, &format, &response, &["outputPath"])?;
+                engine.jobs.log(&job.id, &format!("Done -> {file}"));
+                Ok(JobResult::new(json!({"stdout":tail(&stdout)}), Some(file)))
+            },
+        )
+        .await
+        .map_err(Error::internal)?;
     input.retain();
     Ok(accepted(job))
 }
@@ -260,43 +302,115 @@ pub(crate) async fn tts(State(engine): State<Arc<NativeEngine>>, request: Reques
                 .map_err(anyhow::Error::from)?;
         }
     }
-    let tts_file = input.file("txt_file").map(path_string).unwrap_or_default();
-    if string(&params, "ttsText").is_empty() && tts_file.is_empty() {
+    let tts_file = input.file("txt_file").map(Path::to_owned);
+    if string(&params, "ttsText").is_empty() && tts_file.is_none() {
         return Err(Error::input("Provide 'ttsText' or upload a 'txt_file'."));
     }
     let mut saved = params.clone();
-    saved["ttsFile"] = json!(tts_file);
+    saved["ttsFile"] = json!(tts_file.as_deref().map(path_string).unwrap_or_default());
     if integration {
         saved["source"] = json!("api");
     }
     model_paths(&engine, &mut params)?;
-    let job = engine.start_job(JobType::Tts, saved, Some(Resource::Gpu), move |engine, job, token| async move {
-        let intermediate = output(&engine, "tts_output", "wav");
-        let wav = output(&engine, "tts_rvc_output", "wav");
-        engine.jobs.stage(&job.id, "Preparing speech synthesis…", None, None);
-        let mut stdout = String::new();
-        let response = engine.worker.request(json!({"command":"tts", "id":job.id, "params":params, "ttsText":params["ttsText"], "ttsFile":tts_file, "ttsVoice":params["ttsVoice"], "ttsRate":params["ttsRate"], "outputTtsPath":intermediate, "outputRvcPath":wav}), &token, |line| log(&engine, &job.id, line, &mut stdout)).await;
-        let response = match response {
-            Ok(response) => response,
-            Err(error) if error.is::<crate::worker::WorkerTaskError>() => return Err(error),
-            Err(error) => {
-                if token.is_cancelled() { bail!("Stopped by user"); }
-                engine.jobs.log(&job.id, &format!("Worker notice: {error}; falling back to standalone CLI runner..."));
-                engine.jobs.stage(&job.id, "Generating speech…", None, None);
-                cli(&engine, &job.id, vec!["rvc/lib/tools/tts.py".into(), "--tts-file".into(), tts_file, "--tts-text".into(), string(&params,"ttsText"), "--tts-voice".into(), string(&params,"ttsVoice"), "--tts-rate".into(), params["ttsRate"].to_string(), "--output-tts-path".into(), path_string(&intermediate)], &token, &mut stdout).await?;
-                engine.jobs.stage(&job.id, "Loading voice model…", None, None);
-                let mut args = infer_cli(&params, &intermediate, &wav);
-                args.extend(["--cleanup-stage".into(), "output".into()]);
-                cli(&engine, &job.id, args, &token, &mut stdout).await?;
-                Value::Null
-            }
-        };
-        engine.jobs.stage(&job.id, "Checking output…", None, None);
-        let file = final_output(&engine, &wav, &string(&params,"exportFormat"), &response, &["outputRvcPath", "outputPath"])?;
-        Ok(JobResult::new(json!({"stdout":tail(&stdout), "ttsIntermediate":engine.runtime.repo_relative(&intermediate)}), Some(file)))
-    }).await.map_err(Error::internal)?;
+    let job = engine
+        .start_job(
+            JobType::Tts,
+            saved,
+            None,
+            move |engine, job, token| async move {
+                run_tts(&engine, &job, &token, params, tts_file.as_deref()).await
+            },
+        )
+        .await
+        .map_err(Error::internal)?;
     input.retain();
     Ok(accepted(job))
+}
+
+async fn run_tts(
+    engine: &NativeEngine,
+    job: &Job,
+    token: &CancellationToken,
+    params: Value,
+    tts_file: Option<&Path>,
+) -> Result<JobResult> {
+    let intermediate = output(engine, "tts_output", "wav");
+    let wav = output(engine, "tts_rvc_output", "wav");
+    engine
+        .jobs
+        .stage(&job.id, "Preparing speech synthesis…", None, None);
+    let mut stdout = String::new();
+    {
+        let _network = engine
+            .scheduler
+            .acquire(&job.id, Resource::Network, token)
+            .await?
+            .context("Stopped by user")?;
+        engine.jobs.stage(&job.id, "Generating speech…", None, None);
+        let typed_text;
+        let file = if let Some(file) = tts_file {
+            file
+        } else {
+            // Keep typed text out of command arguments, including large input.
+            typed_text = tempfile::NamedTempFile::new_in(&engine.runtime.config_dir)?;
+            tokio::fs::write(
+                typed_text.path(),
+                params["ttsText"].as_str().unwrap_or_default(),
+            )
+            .await?;
+            typed_text.path()
+        };
+        let spec = engine.runtime.python_command([
+            "rvc/lib/tools/tts.py".into(),
+            "--tts-file".into(),
+            path_string(file),
+            "--tts-voice".into(),
+            string(&params, "ttsVoice"),
+            "--tts-rate".into(),
+            params["ttsRate"].to_string(),
+            "--output-tts-path".into(),
+            path_string(&intermediate),
+        ])?;
+        ManagedProcess::run(&spec, token, |_, line| {
+            log(engine, &job.id, line, &mut stdout)
+        })
+        .await?
+        .ensure_success()?;
+        anyhow::ensure!(
+            intermediate
+                .metadata()
+                .is_ok_and(|file| file.is_file() && file.len() > 0),
+            "Processing finished but no output file was found."
+        );
+    }
+    engine.jobs.stage(
+        &job.id,
+        "Waiting for the GPU to become available.",
+        None,
+        None,
+    );
+    let _gpu = engine
+        .scheduler
+        .acquire(&job.id, Resource::Gpu, token)
+        .await?
+        .context("Stopped by user")?;
+    engine
+        .jobs
+        .stage(&job.id, "Loading voice model…", None, None);
+    let format = string(&params, "exportFormat");
+    let response = convert(engine, job, token, params, &intermediate, &wav, &mut stdout).await?;
+    engine.jobs.stage(&job.id, "Checking output…", None, None);
+    let file = final_output(
+        engine,
+        &wav,
+        &format,
+        &response,
+        &["outputRvcPath", "outputPath"],
+    )?;
+    Ok(JobResult::new(
+        json!({"stdout":tail(&stdout), "ttsIntermediate":engine.runtime.repo_relative(&intermediate)}),
+        Some(file),
+    ))
 }
 
 fn normalize_tts_text(bytes: &[u8]) -> Result<Option<String>> {
@@ -336,6 +450,8 @@ async fn extra_audio(engine: Arc<NativeEngine>, request: Request, f0: bool) -> A
         uploads::parse(request, &engine.runtime.uploads, &uploads::audio_rule()).await?;
     ready(&engine).await?;
     let audio = input_audio(&engine, &input)?;
+    let uploaded_path =
+        (f0 && input.file("audio").is_some()).then(|| engine.runtime.repo_relative(&audio));
     let method = input.body.get("method").cloned().unwrap_or(json!("rmvpe"));
     if f0
         && !["crepe", "fcpe", "rmvpe", "swift"]
@@ -372,7 +488,11 @@ async fn extra_audio(engine: Arc<NativeEngine>, request: Request, f0: bool) -> A
         Ok(JobResult::new(result, Some(file)))
     }).await.map_err(Error::internal)?;
     input.retain();
-    Ok(accepted(job))
+    let (status, Json(mut body)) = accepted(job);
+    if let Some(path) = uploaded_path {
+        body["uploadedInputPath"] = json!(path);
+    }
+    Ok((status, Json(body)))
 }
 fn parse_json(stdout: &str) -> Result<Value> {
     let line = stdout

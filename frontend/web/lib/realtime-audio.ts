@@ -51,32 +51,34 @@ export const INPUT_WORKLET = `
 class InputProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
-    this.buffer = new Float32Array(96000);
+    this.buffer = null;
     this.buffered = 0;
     this.block = 0;
     this.port.onmessage = (e) => {
-      this.block = e.data.block_frame || 0;
-      if (e.data.reset) this.buffered = 0;
+      const block = e.data.block_frame || 0;
+      if (e.data.reset || block !== this.block) {
+        this.buffer = null;
+        this.buffered = 0;
+      }
+      this.block = block;
     };
   }
   process(inputs) {
     if (this.block <= 0) return true;
-    const ch = inputs[0] && inputs[0][0];
-    if (ch && ch.length > 0) {
-      if (this.buffered + ch.length > this.buffer.length) {
-        const nextBuf = new Float32Array(Math.max(this.buffer.length * 2, this.buffered + ch.length));
-        nextBuf.set(this.buffer.subarray(0, this.buffered));
-        this.buffer = nextBuf;
+    const ch = inputs[0]?.[0];
+    if (!ch) return true;
+    let offset = 0;
+    while (offset < ch.length) {
+      const out = this.buffer ?? (this.buffer = new Float32Array(this.block));
+      const count = Math.min(this.block - this.buffered, ch.length - offset);
+      out.set(count === ch.length ? ch : ch.subarray(offset, offset + count), this.buffered);
+      this.buffered += count;
+      offset += count;
+      if (this.buffered === this.block) {
+        this.port.postMessage({ chunk: out }, [out.buffer]);
+        this.buffer = null;
+        this.buffered = 0;
       }
-      this.buffer.set(ch, this.buffered);
-      this.buffered += ch.length;
-    }
-    while (this.buffered >= this.block) {
-      const out = new Float32Array(this.block);
-      out.set(this.buffer.subarray(0, this.block));
-      this.port.postMessage({ chunk: out }, [out.buffer]);
-      this.buffer.copyWithin(0, this.block, this.buffered);
-      this.buffered -= this.block;
     }
     return true;
   }
@@ -126,10 +128,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.dropped += drop + skip;
       this.rp = (this.rp + drop) % this.ring.length;
       this.buffered -= drop;
-      for (let i = skip; i < c.length; i++) {
-        this.ring[this.wp] = c[i];
-        this.wp = (this.wp + 1) % this.ring.length;
-      }
+      const end = Math.min(c.length, skip + this.ring.length - this.wp);
+      this.ring.set(c.subarray(skip, end), this.wp);
+      if (end < c.length) this.ring.set(c.subarray(end), 0);
+      this.wp = (this.wp + incoming) % this.ring.length;
       this.buffered += incoming;
     };
   }
@@ -137,26 +139,43 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     const outL = outputs[0] && outputs[0][0];
     const outR = outputs[0] && outputs[0][1];
     if (!outL) return true;
-    for (let i = 0; i < outL.length; i++) {
-      let s = 0;
-      if (this.buffered > 0) {
-        s = this.ring[this.rp];
-        this.rp = (this.rp + 1) % this.ring.length;
-        this.buffered--;
-      } else if (this.started && !this.passthrough && !this.waitingForVoice) {
-        this.underruns++;
+    const ring = this.ring;
+    const channels = inputs[0];
+    const channelCount = channels?.length ?? 0;
+    const target = this.passthrough || this.waitingForVoice ? 1 : 0;
+    const step = 1 / (sampleRate * 0.01);
+    const inputGain = this.inputGain;
+    const available = Math.min(outL.length, this.buffered);
+    if (this.started && !target) this.underruns += outL.length - available;
+    if (!target && this.mix === 0) {
+      if (available > 0) {
+        const end = Math.min(ring.length, this.rp + available);
+        const first = end - this.rp;
+        outL.set(ring.subarray(this.rp, end));
+        if (first < available) outL.set(ring.subarray(0, available - first), first);
+        this.rp = (this.rp + available) % ring.length;
       }
-      const target = this.passthrough || this.waitingForVoice ? 1 : 0;
-      const step = 1 / (sampleRate * 0.01);
-      this.mix += Math.max(-step, Math.min(step, target - this.mix));
-      const channels = inputs[0] || [];
-      let microphone = 0;
-      for (const channel of channels) microphone += channel[i] || 0;
-      if (channels.length) microphone /= channels.length;
-      s = s * (1 - this.mix) + microphone * this.inputGain * this.mix;
-      outL[i] = s;
-      if (outR) outR[i] = s;
+      outL.fill(0, available);
+    } else {
+      let rp = this.rp;
+      let mix = this.mix;
+      for (let i = 0; i < outL.length; i++) {
+        let converted = 0;
+        if (i < available) {
+          converted = ring[rp++];
+          if (rp === ring.length) rp = 0;
+        }
+        mix += Math.max(-step, Math.min(step, target - mix));
+        let microphone = 0;
+        for (let channel = 0; channel < channelCount; channel++) microphone += channels[channel][i] || 0;
+        if (channelCount) microphone /= channelCount;
+        outL[i] = converted * (1 - mix) + microphone * inputGain * mix;
+      }
+      this.rp = rp;
+      this.mix = mix;
     }
+    if (outR) outR.set(outL);
+    this.buffered -= available;
     this.reportFrames += outL.length;
     if (this.reportFrames >= sampleRate / 4) {
       this.reportFrames = 0;

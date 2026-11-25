@@ -31,10 +31,10 @@ import {
 } from "@/components/ui";
 import AudioDropzone from "@/components/ui/AudioDropzone";
 import SettingHelp from "@/components/ui/SettingHelp";
-import { apiGet, errMsg, fetchModels, postForm } from "@/lib/api";
+import { apiGet, errMsg, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
-import { useJob, usePersistentJobId } from "@/lib/useJob";
+import { usePersistentJob } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 interface UvrModel {
@@ -101,10 +101,6 @@ export default function UvrPage() {
   const [modelsLoading, setModelsLoading] = useState(true);
   const [audioFile, setAudioFile] = useWorkspaceState<File | null>("page:audio-separator:audioFile", null);
   const [inputPath, setInputPath] = useWorkspaceState("page:audio-separator:inputPath", "");
-  const [sampleAudios, setSampleAudios] = useWorkspaceState<string[]>(
-    "page:audio-separator:sampleAudios",
-    [],
-  );
   const [model, setModel] = useWorkspaceState("page:audio-separator:model", DEFAULT_MODEL);
   const [format, setFormat] = useWorkspaceState("page:audio-separator:format", "WAV");
   const [stemMode, setStemMode] = useWorkspaceState("page:audio-separator:stemMode", "all");
@@ -144,10 +140,9 @@ export default function UvrPage() {
   );
   const [device, setDevice] = useWorkspaceState("page:audio-separator:device", "auto");
   const [gpuDevices, setGpuDevices] = useWorkspaceState<GpuDevice[]>("page:audio-separator:gpuDevices", []);
-  const [jobId, setJobId] = usePersistentJobId("uvr");
+  const { jobId, setJobId, activity } = usePersistentJob("uvr");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const activity = useJob(jobId);
   const { job } = activity;
 
   const [importOpen, setImportOpen] = useState(false);
@@ -185,20 +180,9 @@ export default function UvrPage() {
     [loadModels, setModel],
   );
 
-  const refreshSampleAudios = useCallback(async () => {
-    try {
-      const m = await fetchModels(true);
-      if (m?.audios) setSampleAudios(m.audios);
-    } catch {
-      /* ignore */
-    }
-  }, [setSampleAudios]);
-
   useEffect(() => {
     loadModels();
-    refreshSampleAudios();
     const onFocus = () => {
-      refreshSampleAudios();
       void loadModels(false);
     };
     window.addEventListener("focus", onFocus);
@@ -206,7 +190,7 @@ export default function UvrPage() {
       modelsRequest.current++;
       window.removeEventListener("focus", onFocus);
     };
-  }, [loadModels, refreshSampleAudios]);
+  }, [loadModels]);
 
   useEffect(() => {
     apiGet<{
@@ -233,6 +217,16 @@ export default function UvrPage() {
   }, [job?.id, job?.status, loadModels]);
 
   const selectedModel = useMemo(() => models.find((m) => m.filename === model), [models, model]);
+  const modelOptions = useMemo(
+    () =>
+      models.map((m) => ({
+        value: m.filename,
+        label: m.name,
+        description: (m.stems ?? []).map((stem) => t(stem)).join(" / "),
+        badge: m.downloaded ? t("Downloaded") : m.type,
+      })),
+    [models, t],
+  );
   const modelStems = useMemo(() => {
     const list = (selectedModel?.stems ?? []).filter((s) => s && s !== "Unknown");
     return list.length > 0 ? list : ["Vocals", "Instrumental"];
@@ -434,10 +428,8 @@ export default function UvrPage() {
             <AudioDropzone
               audioFile={audioFile}
               inputPath={inputPath}
-              sampleAudios={sampleAudios}
               onFileSelect={setAudioFile}
               onPathSelect={setInputPath}
-              onRefreshAudios={refreshSampleAudios}
               youtube
             />
             <div className="space-y-4 pt-5">
@@ -451,14 +443,7 @@ export default function UvrPage() {
                     disabled={modelsLoading || models.length === 0}
                     placeholder={modelsLoading ? t("Loading models…") : t("Select a model")}
                     className="w-full"
-                    options={models.map((m) => ({
-                      value: m.filename,
-                      label: m.name,
-                      description: (m.stems ?? []).map((stem) => t(stem)).join(" / "),
-                      // The badge carries the status; the name already says the
-                      // architecture and the description lists the stems.
-                      badge: m.downloaded ? t("Downloaded") : m.type,
-                    }))}
+                    options={modelOptions}
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -931,7 +916,9 @@ export default function UvrPage() {
                       {t("Download")}
                     </Button>
                   </div>
-                  <AudioWavePlayer src={s.url} filename={s.file.split("/").pop() ?? s.file} />
+                  <Disclosure title={t("Preview {file}", { file: t(s.label) })}>
+                    {() => <AudioWavePlayer src={s.url} filename={s.file.split("/").pop() ?? s.file} />}
+                  </Disclosure>
                 </div>
               ))}
             </div>

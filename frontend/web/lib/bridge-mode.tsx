@@ -39,6 +39,14 @@ export const REMOTE_HOST_ROUTES = new Set([
 ]);
 const RemoteContext = createContext<{ remote: boolean; expiresAt?: number }>({ remote: false });
 
+export function hasRemoteBridgeSessionHint(): boolean {
+  try {
+    return sessionStorage.getItem("applio:remote-bridge") === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function RemoteBridgeProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<{ remote: boolean; expiresAt?: number }>({ remote: false });
   useEffect(() => {
@@ -46,12 +54,7 @@ export function RemoteBridgeProvider({ children }: { children: React.ReactNode }
     let disposed = false;
     let timer: ReturnType<typeof setTimeout>;
     const controller = new AbortController();
-    let remote = false;
-    try {
-      remote = sessionStorage.getItem("applio:remote-bridge") === "1";
-    } catch {
-      /* optional hint */
-    }
+    let remote = hasRemoteBridgeSessionHint();
     if (remote) setSession({ remote: true });
     const check = async () => {
       try {

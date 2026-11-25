@@ -8,23 +8,19 @@ import SampleAudioSource from "@/components/audio-source/SampleAudioSource";
 import { useMicrophoneRecording } from "@/components/audio-source/useMicrophoneRecording";
 import { useYoutubeAudio } from "@/components/audio-source/useYoutubeAudio";
 import YoutubeSource from "@/components/audio-source/YoutubeSource";
-import { fetchModels } from "@/lib/api";
+import { cachedSampleAudios, fetchSampleAudios, resolveAudioUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import Button from "./Button";
 import SourceTabs, { type SourceTab, SourceTabPanel } from "./SourceTabs";
 
 export interface AudioDropzoneProps {
   audioFile: File | null;
   inputPath: string;
-  sampleAudios: string[];
   onFileSelect: (file: File | null) => void;
   onPathSelect: (path: string) => void;
   disabled?: boolean;
   /** Show the YouTube tab: paste a link, download to assets/audios, select it. */
   youtube?: boolean;
-  /** Optional callback when audios should be refreshed in parent */
-  onRefreshAudios?: () => void;
 }
 
 type DropzoneTab = "upload" | "samples" | "youtube" | "mic";
@@ -40,12 +36,10 @@ function formatBytes(bytes: number): string {
 function AudioDropzoneInner({
   audioFile,
   inputPath,
-  sampleAudios,
   onFileSelect,
   onPathSelect,
   disabled = false,
   youtube = false,
-  onRefreshAudios,
 }: AudioDropzoneProps) {
   const { t } = useI18n();
   const [tab, setTab] = useState<DropzoneTab>("upload");
@@ -55,39 +49,38 @@ function AudioDropzoneInner({
   const changeSourceRef = useRef<HTMLButtonElement | null>(null);
   const pendingFocus = useRef<"change-source" | "current-tab" | null>(null);
 
-  const [localSampleAudios, setLocalSampleAudios] = useState<string[]>(sampleAudios);
+  const [samples, setSamples] = useState<string[]>(() => cachedSampleAudios() ?? []);
+  const [loadingSamples, setLoadingSamples] = useState(false);
+  const sampleRequest = useRef(0);
 
-  useEffect(() => {
-    setLocalSampleAudios(sampleAudios);
-  }, [sampleAudios]);
-
-  const refreshSampleAudios = useCallback(async () => {
-    onRefreshAudios?.();
+  const refreshSampleAudios = useCallback(async (force = false) => {
+    const request = ++sampleRequest.current;
+    setLoadingSamples(true);
     try {
-      const data = await fetchModels(true);
-      if (data?.audios) {
-        setLocalSampleAudios(data.audios);
-      }
+      const paths = await fetchSampleAudios(force);
+      if (request === sampleRequest.current) setSamples(paths);
     } catch {
       /* ignore */
+    } finally {
+      if (request === sampleRequest.current) setLoadingSamples(false);
     }
-  }, [onRefreshAudios]);
+  }, []);
 
   // Refresh on user actions, not callback changes after the parent rerenders.
   const selectTab = (nextTab: DropzoneTab) => {
-    if (nextTab === "samples" && tab !== "samples") void refreshSampleAudios();
+    if (nextTab === "samples" && tab !== "samples") void refreshSampleAudios(true);
     setTab(nextTab);
   };
 
   const toggleSourcePicker = () => {
-    if (!showSourcePicker) void refreshSampleAudios();
+    if (!showSourcePicker && tab === "samples") void refreshSampleAudios(true);
     setShowSourcePicker(!showSourcePicker);
   };
 
   const youtubeSource = useYoutubeAudio({
     enabled: youtube,
     disabled,
-    onRefresh: refreshSampleAudios,
+    onRefresh: () => refreshSampleAudios(true),
     onSelected: (path) => {
       onPathSelect(path);
       onFileSelect(null);
@@ -126,8 +119,6 @@ function AudioDropzoneInner({
       pendingFocus.current = null;
     }
   }, [activeTab, hasAudio, showSourcePicker, sourceId]);
-
-  const previewSrc = usePreviewUrl(audioFile, inputPath) || "";
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -225,7 +216,7 @@ function AudioDropzoneInner({
           </div>
 
           <AudioWavePlayer
-            src={previewSrc}
+            src={audioFile ? "" : resolveAudioUrl(inputPath)}
             file={audioFile}
             title={activeTitle}
             showAnalyzerLink={false}
@@ -318,10 +309,11 @@ function AudioDropzoneInner({
             idPrefix={sourceId}
             tab="samples"
             active={activeTab}
-            focusable={!localSampleAudios.length || disabled}
+            focusable={!samples.length || disabled}
           >
             <SampleAudioSource
-              audios={localSampleAudios}
+              audios={samples}
+              loading={loadingSamples}
               value={inputPath}
               onSelect={handleSampleSelect}
               onRefresh={refreshSampleAudios}
@@ -345,23 +337,5 @@ function AudioDropzoneInner({
   );
 }
 
-function areAudioDropzonePropsEqual(prev: AudioDropzoneProps, next: AudioDropzoneProps): boolean {
-  if (prev.audioFile !== next.audioFile) return false;
-  if (prev.inputPath !== next.inputPath) return false;
-  if (prev.disabled !== next.disabled) return false;
-  if (prev.youtube !== next.youtube) return false;
-  // Compare the entries, not just the count: a refreshed list can swap one
-  // sample for another without changing its length.
-  if (
-    prev.sampleAudios.length !== next.sampleAudios.length ||
-    prev.sampleAudios.some((audio, index) => audio !== next.sampleAudios[index])
-  )
-    return false;
-  if (prev.onFileSelect !== next.onFileSelect) return false;
-  if (prev.onPathSelect !== next.onPathSelect) return false;
-  if (prev.onRefreshAudios !== next.onRefreshAudios) return false;
-  return true;
-}
-
-const AudioDropzone = React.memo(AudioDropzoneInner, areAudioDropzonePropsEqual);
+const AudioDropzone = React.memo(AudioDropzoneInner);
 export default AudioDropzone;

@@ -1,7 +1,7 @@
 "use client";
 import { Layers, RefreshCw, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
-import JobPanel from "@/components/JobPanel";
+import { JobPanelContent } from "@/components/JobPanel";
 import { Alert, Badge, Button, Card, CardHeader, Disclosure, FileInput } from "@/components/ui";
 import ModelDropdown from "@/components/ui/ModelDropdown";
 import SettingHelp from "@/components/ui/SettingHelp";
@@ -9,7 +9,7 @@ import SliderField from "@/components/ui/SliderField";
 import { errMsg, fetchModels, fileBasename, postForm } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
-import { usePersistentJobId } from "@/lib/useJob";
+import { usePersistentJob } from "@/lib/useJob";
 import { useWorkspaceState } from "@/lib/workspace-state";
 export default function BlenderPanel() {
   const { t } = useI18n();
@@ -20,7 +20,7 @@ export default function BlenderPanel() {
   const [f1, setF1] = useWorkspaceState<File | null>("BlenderPanel:models:f1", null);
   const [f2, setF2] = useWorkspaceState<File | null>("BlenderPanel:models:f2", null);
   const [ratio, setRatio] = useWorkspaceState("BlenderPanel:models:ratio", 0.5);
-  const [jobId, setJobId] = usePersistentJobId("blender");
+  const { jobId, setJobId, activity } = usePersistentJob("blender");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -213,7 +213,7 @@ export default function BlenderPanel() {
             {busy ? t("Blending…") : t("Fuse Models")}
           </Button>
         </div>
-        <JobPanel jobId={jobId} embedded />
+        <JobPanelContent jobId={jobId} activity={activity} embedded />
       </Card>
     </form>
   );

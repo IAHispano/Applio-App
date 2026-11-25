@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 const MAX_LINE_BYTES: usize = 16 * 1024 * 1024;
 const STDOUT_TAIL: usize = 4 * 1024 * 1024;
 const STDERR_TAIL: usize = 2 * 1024 * 1024;
+const TAIL_COMPACTION_BUFFER: usize = 256 * 1024;
 
 pub fn json_result(stdout: &str) -> Result<serde_json::Value> {
     let json = stdout
@@ -212,6 +213,7 @@ impl ManagedProcess {
         process.stdin.take();
         let mut stdout = String::new();
         let mut stderr = String::new();
+        let mut output_open = true;
         let status;
         loop {
             tokio::select! {
@@ -227,11 +229,11 @@ impl ManagedProcess {
                     process.tree.kill();
                     break;
                 }
-                event = process.output.recv() => {
+                event = process.output.recv(), if output_open => {
                     match event {
                         Some(OutputEvent::Line(stream, line)) => record(stream, &line, &mut stdout, &mut stderr, &mut on_line),
                         Some(OutputEvent::ReadError(error)) => { process.stop().await?; bail!(error); },
-                        None => { status = process.child.wait().await?; process.tree.kill(); break; },
+                        None => output_open = false,
                     }
                 }
             }
@@ -244,6 +246,8 @@ impl ManagedProcess {
                 OutputEvent::ReadError(error) => bail!(error),
             }
         }
+        trim_tail(&mut stdout, STDOUT_TAIL);
+        trim_tail(&mut stderr, STDERR_TAIL);
         Ok(ProcessOutput {
             code: status.code(),
             success: status.success(),
@@ -257,6 +261,31 @@ impl Drop for ManagedProcess {
         self.tree.kill();
         let _ = self.child.start_kill();
     }
+}
+
+#[cfg(all(test, unix))]
+#[tokio::test]
+async fn a_process_that_closes_its_output_can_still_be_cancelled() {
+    let root = tempfile::tempdir().unwrap();
+    let command = CommandSpec::new("sh", root.path())
+        .args(["-c", "exec 1>&- 2>&-; : > started; exec sleep 60"]);
+    let cancelled = CancellationToken::new();
+    let stop = cancelled.clone();
+    let child = tokio::spawn(async move { ManagedProcess::run(&command, &stop, |_, _| {}).await });
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while !root.path().join("started").exists() {
+            tokio::time::sleep(Duration::from_millis(5)).await;
+        }
+    })
+    .await
+    .unwrap();
+    tokio::time::sleep(Duration::from_millis(20)).await;
+    cancelled.cancel();
+    let result = tokio::time::timeout(Duration::from_secs(3), child)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(result.unwrap_err().to_string(), "Stopped by user");
 }
 
 #[derive(Clone, Debug)]
@@ -316,14 +345,61 @@ fn record(
     callback(stream, line);
 }
 fn append_tail(value: &mut String, line: &str, limit: usize) {
-    value.push_str(line);
+    if line.len() >= limit {
+        value.clear();
+        value.push_str(&line[tail_start(line, limit - 1)..]);
+    } else {
+        value.push_str(line);
+    }
     value.push('\n');
-    if value.len() > limit {
-        let mut from = value.len() - limit;
-        while !value.is_char_boundary(from) {
-            from += 1;
-        }
-        value.drain(..from);
+    // Compact in batches so frequent output lines do not each shift megabytes.
+    if value.len() > limit + TAIL_COMPACTION_BUFFER.min(limit) {
+        trim_tail(value, limit);
+    }
+}
+
+fn tail_start(value: &str, limit: usize) -> usize {
+    let mut start = value.len().saturating_sub(limit);
+    while !value.is_char_boundary(start) {
+        start += 1;
+    }
+    start
+}
+
+fn trim_tail(value: &mut String, limit: usize) {
+    let start = tail_start(value, limit);
+    if start > 0 {
+        value.drain(..start);
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn compacted_output_tail_retains_the_same_utf8_suffix() {
+    let mut output = String::new();
+    let mut complete = String::new();
+    let limit = 17;
+    for line in [
+        "éab",
+        "hello",
+        "",
+        "🌻abc",
+        "日本語",
+        "overflow",
+        "🍎🍊🍐🍇🍌🍒🍑",
+        "x",
+    ] {
+        append_tail(&mut output, line, limit);
+        assert!(output.len() <= 2 * limit);
+        complete.push_str(line);
+        complete.push('\n');
+        let mut final_tail = output.clone();
+        trim_tail(&mut final_tail, limit);
+        let expected = complete
+            .char_indices()
+            .find(|(start, _)| complete.len() - start <= limit)
+            .map_or("", |(start, _)| &complete[start..]);
+        assert_eq!(final_tail, expected);
     }
 }
 

@@ -45,7 +45,7 @@ pub struct AppState {
     interface_loaded: tokio::sync::Notify,
     startup_error: Mutex<Option<String>>,
     hotkey: Mutex<String>,
-    realtime: Mutex<Option<(Value, Instant)>>,
+    realtime: Mutex<Option<(tray::RealtimeSnapshot, Instant)>>,
     notified: Mutex<HashSet<String>>,
     updates: updater::UpdateState,
 }
@@ -231,7 +231,6 @@ async fn startup(app: AppHandle) -> Result<(), String> {
         let _ = tray::refresh(&app);
         return Err(message);
     }
-    let _ = tray::refresh(&app);
     logging::write(&state.paths.config, "Interface ready");
     Ok(())
 }
@@ -437,10 +436,9 @@ async fn set_passthrough_hotkey(
             .on_shortcut(accelerator.as_str(), |app, _, event| {
                 if event.state() == ShortcutState::Pressed {
                     let state = app.state::<AppState>();
-                    let realtime = state.realtime.lock().unwrap();
-                    if realtime.as_ref().is_some_and(|(value, at)| {
-                        at.elapsed().as_secs() < 10 && value["streaming"] == true
-                    }) {
+                    let streaming = tray::fresh_realtime(&state.realtime.lock().unwrap())
+                        .is_some_and(|value| value.streaming);
+                    if streaming {
                         let _ = app.emit("realtime-command", "passthrough-toggle");
                     }
                 }
@@ -464,25 +462,18 @@ async fn report_realtime_state(
     state_value: Option<Value>,
 ) -> Result<(), String> {
     // state_value is renamed to `state` in JS below to avoid a state injection collision.
-    let valid = state_value.filter(|value| {
-        ["connecting", "streaming", "muted", "monitor"]
-            .iter()
-            .all(|key| value[key].is_boolean())
-            && value["model"].as_str().is_some_and(|v| v.len() <= 4096)
-            && ["processingMs", "roundTripMs"].iter().all(|key| {
-                value[key]
-                    .as_f64()
-                    .is_some_and(|v| (0.0..=120000.0).contains(&v))
-            })
-    });
-    let next = valid.map(|value| (value, Instant::now()));
+    let next = state_value
+        .as_ref()
+        .and_then(tray::RealtimeSnapshot::from_report)
+        .map(|value| (value, Instant::now()));
     let changed = {
         let mut current = state.realtime.lock().unwrap();
         // Heartbeats repeat unchanged snapshots to keep the freshness window
         // open; rebuilding the tray menu for those can close it while the user
         // is aiming at an item, so only changed states reach the tray.
-        let changed =
-            current.as_ref().map(|(value, _)| value) != next.as_ref().map(|(value, _)| value);
+        let changed = current.as_ref().map(|(value, _)| value)
+            != next.as_ref().map(|(value, _)| value)
+            || (next.is_some() && tray::fresh_realtime(&current).is_none());
         *current = next;
         changed
     };
@@ -592,11 +583,15 @@ fn main() {
                             if state.startup_error.lock().unwrap().is_some() {
                                 return;
                             }
-                            state.ready.store(true, Ordering::SeqCst);
-                            state.interface_loaded.notify_one();
+                            let became_ready = !state.ready.swap(true, Ordering::SeqCst);
+                            if became_ready {
+                                state.interface_loaded.notify_one();
+                            }
                             let _ = window.show();
                             let _ = window.set_focus();
-                            let _ = tray::refresh(window.app_handle());
+                            if became_ready {
+                                let _ = tray::refresh(window.app_handle());
+                            }
                         }
                     })
                     .on_navigation(move |url| {

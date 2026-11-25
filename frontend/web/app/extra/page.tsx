@@ -6,10 +6,9 @@ import { useCallback, useEffect } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import PageHeader from "@/components/layout/PageHeader";
 import { Card, CardHeader, CustomSelect, FileInput } from "@/components/ui";
-import { fetchModels } from "@/lib/api";
+import { fetchSampleAudios, resolveAudioUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { SETTING_HELP } from "@/lib/setting-help";
-import { usePreviewUrl } from "@/lib/usePreviewUrl";
 import { useWorkspaceState } from "@/lib/workspace-state";
 
 function ExtraLoading({ analyzer }: { analyzer: boolean }) {
@@ -39,11 +38,9 @@ export default function ExtraPage() {
 
   const refreshAudios = useCallback(async () => {
     try {
-      const m = await fetchModels(true);
-      if (m?.audios) {
-        setAudios(m.audios);
-        setInputPath((prev) => (prev && m.audios.includes(prev) ? prev : m.audios[0] || ""));
-      }
+      const paths = await fetchSampleAudios(true);
+      setAudios(paths);
+      setInputPath((prev) => (prev && paths.includes(prev) ? prev : paths[0] || ""));
     } catch {
       /* ignore */
     }
@@ -55,8 +52,6 @@ export default function ExtraPage() {
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
   }, [refreshAudios]);
-
-  const previewUrl = usePreviewUrl(audio, audio ? undefined : inputPath);
 
   return (
     <div className="page-stack">
@@ -116,10 +111,15 @@ export default function ExtraPage() {
         </div>
 
         {/* Audio Preview Player */}
-        {previewUrl && (
+        {(audio || inputPath) && (
           <div className="mt-4">
             <span className="field-help block mb-1 font-medium">{t("Source Audio Preview:")}</span>
-            <AudioWavePlayer src={previewUrl} title={audio?.name || inputPath} showAnalyzerLink={false} />
+            <AudioWavePlayer
+              src={audio ? "" : resolveAudioUrl(inputPath)}
+              file={audio}
+              title={audio?.name || inputPath}
+              showAnalyzerLink={false}
+            />
           </div>
         )}
       </Card>

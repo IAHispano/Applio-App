@@ -253,7 +253,14 @@ async fn prepare(
         .as_array()
         .filter(|items| !items.is_empty() && items.len() <= 5000)
         .context("Choose valid recordings from this review.")?;
-    let mut seen = HashSet::new();
+    let available: HashSet<_> = report["clips"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|clip| usable(clip))
+        .filter_map(|clip| clip["id"].as_str())
+        .collect();
+    let mut seen = HashSet::with_capacity(include.len());
     for value in include {
         let value = value
             .as_str()
@@ -264,13 +271,7 @@ async fn prepare(
                         .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
             })
             .context("Choose valid recordings from this review.")?;
-        if !seen.insert(value)
-            || !report["clips"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|clip| clip["id"] == value && usable(clip))
-        {
+        if !seen.insert(value) || !available.contains(value) {
             return Err(Error::input("Choose valid recordings from this review."));
         }
     }

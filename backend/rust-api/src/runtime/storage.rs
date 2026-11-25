@@ -5,10 +5,9 @@ use crate::engine_runtime::ConfigStore;
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use sha2::{Digest, Sha256};
 use std::{
     fs,
-    io::{Read, Write},
+    io::{self, BufRead, BufReader, Write},
     path::{Component, Path, PathBuf},
 };
 use uuid::Uuid;
@@ -145,19 +144,29 @@ pub fn validate_move(source: &Path, destination: &Path) -> Result<()> {
     }
     Ok(())
 }
-fn digest(path: &Path) -> Result<Vec<u8>> {
-    let mut file = fs::File::open(path)?;
-    let mut buffer = vec![0; 1024 * 1024];
-    let mut digest = Sha256::new();
+pub(crate) fn file_contents_equal(
+    from: &Path,
+    to: &Path,
+    buffer_capacity: usize,
+) -> io::Result<bool> {
+    let mut from = BufReader::with_capacity(buffer_capacity, fs::File::open(from)?);
+    let mut to = BufReader::with_capacity(buffer_capacity, fs::File::open(to)?);
     loop {
-        let count = file.read(&mut buffer)?;
+        let left = from.fill_buf()?;
+        let right = to.fill_buf()?;
+        let count = left.len().min(right.len());
         if count == 0 {
-            break;
+            return Ok(left.is_empty() && right.is_empty());
         }
-        digest.update(&buffer[..count]);
+        if left[..count] != right[..count] {
+            return Ok(false);
+        }
+        from.consume(count);
+        to.consume(count);
     }
-    Ok(digest.finalize().to_vec())
 }
+
+const MODEL_COMPARE_BUFFER: usize = 128 * 1024;
 fn link(source: &Path, target: &Path, destination: &Path) -> Result<()> {
     #[cfg(unix)]
     {
@@ -195,15 +204,15 @@ fn copy(source: &Path, destination: &Path) -> Result<()> {
     Ok(())
 }
 struct Relocation<'a> {
-    source: &'a Path,
-    physical: PathBuf,
+    source: PathBuf,
+    physical: &'a Path,
     destination: &'a Path,
     data: &'a Path,
 }
 impl Relocation<'_> {
     fn path(&self, value: &str) -> Result<String> {
         let path = absolute(&self.data.join(value))?;
-        for root in [&self.physical, &absolute(self.source)?] {
+        for root in [self.physical, &self.source] {
             if let Ok(relative) = path.strip_prefix(root) {
                 return Ok(self
                     .destination
@@ -215,24 +224,28 @@ impl Relocation<'_> {
         Ok(value.into())
     }
     fn text(&self, text: &str) -> Result<String> {
-        text.split('\n')
-            .map(|line| {
-                line.strip_suffix('\r')
-                    .unwrap_or(line)
-                    .split('|')
-                    .enumerate()
-                    .map(|(number, value)| {
-                        if number < 4 && !value.is_empty() {
-                            self.path(value)
-                        } else {
-                            Ok(value.into())
-                        }
-                    })
-                    .collect::<Result<Vec<_>>>()
-                    .map(|fields| fields.join("|"))
-            })
-            .collect::<Result<Vec<_>>>()
-            .map(|lines| lines.join("\n"))
+        let mut moved = String::with_capacity(text.len());
+        for (line_index, line) in text.split('\n').enumerate() {
+            if line_index > 0 {
+                moved.push('\n');
+            }
+            for (field, value) in line
+                .strip_suffix('\r')
+                .unwrap_or(line)
+                .split('|')
+                .enumerate()
+            {
+                if field > 0 {
+                    moved.push('|');
+                }
+                if field < 4 && !value.is_empty() {
+                    moved.push_str(&self.path(value)?);
+                } else {
+                    moved.push_str(value);
+                }
+            }
+        }
+        Ok(moved)
     }
 }
 fn same_link(actual: &Path, expected: &Path) -> Result<bool> {
@@ -265,7 +278,8 @@ fn verify(source: &Path, destination: &Path, relocation: Option<&Relocation<'_>>
             if let Some(relocation) = relocation.filter(|_| entry.file_name() == "filelist.txt") {
                 relocation.text(&fs::read_to_string(&from)?)? == fs::read_to_string(&to)?
             } else {
-                entry.metadata()?.len() == other.len() && digest(&from)? == digest(&to)?
+                entry.metadata()?.len() == other.len()
+                    && file_contents_equal(&from, &to, MODEL_COMPARE_BUFFER)?
             }
         } else {
             false
@@ -291,7 +305,8 @@ fn merge(source: &Path, destination: &Path) -> Result<()> {
                 } else if !kind.is_file()
                     || !other.is_file()
                     || other.file_type().is_symlink()
-                    || digest(&from)? != digest(&to)?
+                    || entry.metadata()?.len() != other.len()
+                    || !file_contents_equal(&from, &to, MODEL_COMPARE_BUFFER)?
                 {
                     bail!(
                         "Destination contains a conflicting file: {}",
@@ -483,8 +498,8 @@ fn move_directory(
         relocate(
             &journal.stage,
             &Relocation {
-                source,
-                physical: physical(source)?,
+                source: absolute(source)?,
+                physical: &from,
                 destination,
                 data,
             },
@@ -528,8 +543,8 @@ fn cleanup(source: &Path, destination: &Path, data: &Path) -> Result<()> {
         &from,
         &to,
         Some(&Relocation {
-            source,
-            physical: from.clone(),
+            source: absolute(source)?,
+            physical: &from,
             destination,
             data,
         }),
@@ -605,4 +620,91 @@ pub fn initialize(
         destination
     };
     Ok((absolute(&active)?, error))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn model_move_verifies_equal_contents_and_relocates_training_paths() {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path();
+        let source = data.join("logs");
+        let destination = data.join("relocated");
+        let journal = data.join("journal.json");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        let checkpoint = vec![7; MODEL_COMPARE_BUFFER + 17];
+        fs::write(source.join("voice.pth"), &checkpoint).unwrap();
+        fs::write(destination.join("voice.pth"), &checkpoint).unwrap();
+        fs::write(destination.join("extra.index"), b"index").unwrap();
+        let filelist = "logs/voice.pth||external|logs/voice.pth|logs/keep-as-metadata\r\n";
+        fs::write(source.join("filelist.txt"), filelist).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(source.join("voice.pth"), source.join("voice-link")).unwrap();
+
+        move_directory(&source, &destination, data, &journal, || Ok(())).unwrap();
+        assert!(!journal.exists());
+        assert_eq!(fs::read(destination.join("voice.pth")).unwrap(), checkpoint);
+        assert_eq!(fs::read(destination.join("extra.index")).unwrap(), b"index");
+        let moved = destination
+            .join("voice.pth")
+            .to_string_lossy()
+            .replace('\\', "/");
+        assert_eq!(
+            fs::read_to_string(destination.join("filelist.txt")).unwrap(),
+            format!("{moved}||external|{moved}|logs/keep-as-metadata\n")
+        );
+        #[cfg(unix)]
+        assert_eq!(
+            fs::read_link(destination.join("voice-link")).unwrap(),
+            destination.join("voice.pth")
+        );
+
+        let mut changed = checkpoint.clone();
+        *changed.last_mut().unwrap() = 6;
+        fs::write(destination.join("voice.pth"), changed).unwrap();
+        assert!(cleanup(&source, &destination, data).is_err());
+        assert_eq!(fs::read(source.join("voice.pth")).unwrap(), checkpoint);
+        fs::write(destination.join("voice.pth"), &checkpoint).unwrap();
+        cleanup(&source, &destination, data).unwrap();
+        assert!(!source.exists());
+    }
+
+    #[test]
+    fn model_move_rolls_back_a_conflict_or_failed_preferences_write() {
+        let root = tempfile::tempdir().unwrap();
+        let data = root.path();
+        let source = data.join("logs");
+        let destination = data.join("relocated");
+        let journal = data.join("journal.json");
+        fs::create_dir(&source).unwrap();
+        fs::create_dir(&destination).unwrap();
+        fs::write(source.join("voice.pth"), b"source").unwrap();
+        fs::write(destination.join("voice.pth"), b"target").unwrap();
+        fs::write(destination.join("extra.index"), b"index").unwrap();
+
+        let error = move_directory(&source, &destination, data, &journal, || {
+            panic!("preferences cannot be committed when the destination conflicts");
+        })
+        .unwrap_err();
+        assert!(error
+            .to_string()
+            .contains("Destination contains a conflicting file"));
+        assert!(!journal.exists());
+        assert_eq!(fs::read(destination.join("voice.pth")).unwrap(), b"target");
+        assert_eq!(fs::read(source.join("voice.pth")).unwrap(), b"source");
+
+        fs::remove_file(destination.join("voice.pth")).unwrap();
+        let error = move_directory(&source, &destination, data, &journal, || {
+            bail!("injected preferences write failure");
+        })
+        .unwrap_err();
+        assert_eq!(error.to_string(), "injected preferences write failure");
+        assert!(!journal.exists());
+        assert!(!destination.join("voice.pth").exists());
+        assert_eq!(fs::read(destination.join("extra.index")).unwrap(), b"index");
+        assert_eq!(fs::read(source.join("voice.pth")).unwrap(), b"source");
+    }
 }

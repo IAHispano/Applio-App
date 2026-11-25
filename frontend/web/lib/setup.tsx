@@ -20,7 +20,7 @@ interface SetupContextValue {
   status: SetupStatus | null;
   loading: boolean;
   error: string;
-  refresh: (force?: boolean) => Promise<void>;
+  refresh: (force?: boolean) => Promise<SetupStatus | null>;
   isReady: boolean;
 }
 
@@ -37,11 +37,13 @@ export function SetupProvider({ children }: { children: React.ReactNode }) {
     try {
       setLoading(true);
       const res = await apiGet<SetupStatus>(`/api/setup/status${force ? "?refresh=1" : ""}`, { force });
-      if (id !== requestId.current) return;
+      if (id !== requestId.current) return null;
       setStatus(res);
       setError("");
+      return res;
     } catch (e) {
       if (id === requestId.current) setError(errMsg(e));
+      return null;
     } finally {
       if (id === requestId.current) setLoading(false);
     }

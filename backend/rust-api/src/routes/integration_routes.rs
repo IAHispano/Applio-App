@@ -296,19 +296,19 @@ async fn authorize(
     );
     response
 }
-fn api_job(job: &Job) -> bool {
-    job.params
-        .as_ref()
-        .is_some_and(|params| params["source"] == "api")
-}
 async fn status(
     State(engine): State<Arc<NativeEngine>>,
 ) -> Result<Json<Value>, processing_routes::Error> {
     let config = engine.runtime.config.load()?;
-    let jobs: Vec<_> = engine.jobs.list().into_iter().filter(api_job).collect();
-    Ok(Json(
-        json!({"enabled":config["api_access"]["key_hash"].as_str().is_some(),"total":jobs.len(),"completed":jobs.iter().filter(|job|job.status == JobStatus::Done).count(),"active":jobs.iter().filter(|job|job.active()).count(),"failed":jobs.iter().filter(|job|job.status == JobStatus::Error).count(),"jobs":jobs.iter().take(10).map(|job|job.public_value(Some(10))).collect::<Vec<_>>(),"models":model_catalog(&engine).await.map_err(processing_routes::Error::internal)?.iter().map(|(id,path)|json!({"id":id,"name":path.file_stem().unwrap_or_default().to_string_lossy()})).collect::<Vec<_>>()}),
-    ))
+    let mut activity = engine.jobs.integration_activity();
+    activity["enabled"] = json!(config["api_access"]["key_hash"].as_str().is_some());
+    let models = model_catalog(&engine)
+        .await
+        .map_err(processing_routes::Error::internal)?;
+    activity["models"] = Value::Array(models.iter().map(|(id, path)| {
+        json!({"id":id, "name":path.file_stem().unwrap_or_default().to_string_lossy()})
+    }).collect());
+    Ok(Json(activity))
 }
 async fn create_key(
     State(engine): State<Arc<NativeEngine>>,
@@ -621,7 +621,7 @@ async fn conversion(State(engine): State<Arc<NativeEngine>>, request: Request) -
     }
 }
 fn find_job(engine: &NativeEngine, id: &str) -> Option<Job> {
-    engine.jobs.get(id).filter(api_job)
+    engine.jobs.get(id).filter(Job::api_owned)
 }
 async fn job(State(engine): State<Arc<NativeEngine>>, Path(id): Path<String>) -> Response {
     match find_job(&engine, &id) {
@@ -711,6 +711,27 @@ mod tests {
             ("assets/config_template.json", "{}"),
             ("backend/applio/rvc/configs/config.py", ""),
             (
+                "backend/applio/rvc/lib/tools/tts.py",
+                r#"
+import argparse, sys, time, wave
+from pathlib import Path
+parser = argparse.ArgumentParser()
+for name in ('tts-file', 'tts-voice', 'tts-rate', 'output-tts-path'):
+    parser.add_argument('--' + name, required=True)
+args = parser.parse_args()
+text = Path(args.tts_file).read_text(encoding='utf-8')
+if text == 'cancel-this-request':
+    Path('fixture-synthesizing').touch()
+    time.sleep(30)
+if text == 'throttled-speech':
+    print('429 Too Many Requests\nprovider handshake traceback', file=sys.stderr)
+    sys.exit(1)
+with wave.open(args.output_tts_path, 'wb') as audio:
+    audio.setparams((1, 2, 16000, 0, 'NONE', 'not compressed'))
+    audio.writeframes(b'\0\0' * 160)
+"#,
+            ),
+            (
                 "backend/applio/rvc/lib/tools/tts_voices.json",
                 r#"[{"ShortName":"en-US-AriaNeural"}]"#,
             ),
@@ -739,11 +760,6 @@ from pathlib import Path
 print(json.dumps({'_applio_ipc':True,'type':'ready'}), flush=True)
 for line in sys.stdin:
     request = json.loads(line)
-    if request.get('ttsText') == 'cancel-this-request':
-        time.sleep(30)
-    if request.get('ttsText') == 'throttled-speech':
-        print(json.dumps({'_applio_ipc':True,'type':'error','id':request['id'],'error':'429 Too Many Requests','traceback':'provider handshake traceback'}), flush=True)
-        continue
     if request.get('command') == 'model_blender':
         assert request['ratio'] == 0.25
         assert Path(request['pth1']).is_file() and Path(request['pth2']).is_file()
@@ -753,6 +769,8 @@ for line in sys.stdin:
         continue
     if request.get('inputPath'):
         assert Path(request['inputPath']).read_bytes().startswith(b'RIFF')
+        if Path(request['inputPath']).name.startswith('tts_output_'):
+            assert request['command'] == 'infer' and request['params']['cleanupStage'] == 'output'
     destination = Path(request.get('outputRvcPath') or request['outputPath'])
     destination.parent.mkdir(parents=True, exist_ok=True)
     with wave.open(str(destination), 'wb') as audio:
@@ -1082,7 +1100,7 @@ print('Model downloaded successfully.')
             .to_owned();
         let download = completed(&engine, &download_id).await;
         assert_eq!(download.status, JobStatus::Done, "{:?}", download.error);
-        assert!(api_job(&download));
+        assert!(download.api_owned());
         let response = app.clone().oneshot(request("POST", "/v1/applio/voice-blender", Some(&first), json!({"modelName":"api-fusion", "pthPath1":"logs/test.pth", "pthPath2":"logs/test.pth", "ratio":0.25}))).await.unwrap();
         assert_eq!(response.status(), StatusCode::ACCEPTED);
         let blend_id = payload(response).await["jobId"]
@@ -1091,7 +1109,7 @@ print('Model downloaded successfully.')
             .to_owned();
         let blend = completed(&engine, &blend_id).await;
         assert_eq!(blend.status, JobStatus::Done, "{:?}", blend.error);
-        assert!(api_job(&blend));
+        assert!(blend.api_owned());
         let response = app
             .clone()
             .oneshot(request(
@@ -1244,6 +1262,7 @@ print('Model downloaded successfully.')
                     job.params
                         .as_ref()
                         .is_some_and(|params| params["ttsText"] == "cancel-this-request")
+                        && engine.runtime.data.join("fixture-synthesizing").is_file()
                 }) {
                     break job.id;
                 }
@@ -1252,15 +1271,19 @@ print('Model downloaded successfully.')
         })
         .await
         .unwrap();
+        let realtime = engine.scheduler.begin_realtime().unwrap();
         pending.abort();
         let _ = pending.await;
         tokio::time::timeout(Duration::from_secs(10), async {
-            while engine.jobs.get(&cancelled_id).unwrap().active() || engine.scheduler.gpu_busy() {
+            while engine.jobs.get(&cancelled_id).unwrap().active()
+                || engine.scheduler.status().active.contains(&cancelled_id)
+            {
                 tokio::time::sleep(Duration::from_millis(10)).await;
             }
         })
         .await
         .unwrap();
+        drop(realtime);
         assert_eq!(
             engine.jobs.get(&cancelled_id).unwrap().status,
             JobStatus::Error

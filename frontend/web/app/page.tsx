@@ -20,7 +20,7 @@ import {
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import Loading from "@/app/loading";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobPanelContent } from "@/components/JobPanel";
@@ -28,17 +28,9 @@ import { JobBadge } from "@/components/JobStatus";
 import Link from "@/components/layout/IntentLink";
 import PageHeader from "@/components/layout/PageHeader";
 import { Alert, Badge, Button, Card, CardHeader, StatTile } from "@/components/ui";
+import Disclosure from "@/components/ui/Disclosure";
 import ProgressBar from "@/components/ui/ProgressBar";
-import {
-  apiGet,
-  apiSend,
-  errMsg,
-  fetchModels,
-  fileBasename,
-  isAudioFile,
-  type Job,
-  outputUrl,
-} from "@/lib/api";
+import { apiGet, apiSend, errMsg, fileBasename, type Job, outputUrl } from "@/lib/api";
 import { type TFn, useI18n } from "@/lib/i18n";
 import { jobHref } from "@/lib/job-url";
 import { useRealtimeGpuReserved } from "@/lib/realtime-presence";
@@ -52,10 +44,10 @@ const FirstRunSetup = dynamic(() => import("@/components/setup/FirstRunSetup"), 
   loading: Loading,
 });
 
-interface ModelsSummary {
-  models: string[];
-  indexes: string[];
-  audios: string[];
+interface DashboardModels {
+  modelCount: number;
+  audioCount: number;
+  recentModels: LibraryModel[];
 }
 
 interface LibraryModel {
@@ -63,8 +55,7 @@ interface LibraryModel {
   name: string;
   indexPath: string | null;
   modifiedAt: string;
-  pthSize?: number;
-  indexSize?: number;
+  pthSize: number;
 }
 
 interface StorageSummary {
@@ -72,13 +63,19 @@ interface StorageSummary {
   totalFiles: number;
 }
 
-interface LastConversion {
+interface LatestOutput {
   jobId: string;
   outputFile: string;
-  label?: string;
+  label: string;
   createdAt: string;
-  model?: string;
-  index?: string;
+  model: string | null;
+  index: string | null;
+}
+
+interface DashboardJobs {
+  activeJobs: number;
+  recentJobs: Pick<Job, "id" | "type" | "label" | "status" | "createdAt" | "stage" | "progress">[];
+  latestOutput: LatestOutput | null;
 }
 
 function ActionCard({
@@ -155,91 +152,82 @@ function DashboardStat({
   );
 }
 
+function LatestOutputPreview({ outputFile }: { outputFile: string }) {
+  const { t } = useI18n();
+  const filename = fileBasename(outputFile);
+  return (
+    <Disclosure title={t("Preview {file}", { file: filename })}>
+      {() => (
+        <AudioWavePlayer src={outputUrl(outputFile)} filename={filename} showAnalyzerLink={false} compact />
+      )}
+    </Disclosure>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const { t } = useI18n();
-  const { status, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
-  const [modelsData, setModelsData] = useWorkspaceState<ModelsSummary | null>("page:app:modelsData", null);
+  const { status, isReady, error: setupError, loading: setupLoading, refresh: refreshSetup } = useSetup();
+  const [models, setModels] = useWorkspaceState<DashboardModels | null>("page:app:dashboardModels", null);
+  const [jobs, setJobs] = useWorkspaceState<DashboardJobs | null>("page:app:dashboardJobs", null);
   const [sysInfo, setSysInfo] = useWorkspaceState<DiagnosticInfo | null>("page:app:sysInfo", null);
-  const [library, setLibrary] = useWorkspaceState<LibraryModel[] | null>("page:app:library", null);
-  const [jobs, setJobs] = useWorkspaceState<Job[] | null>("page:app:jobs", null);
   const [storage, setStorage] = useWorkspaceState<StorageSummary | null>("page:app:storage", null);
-  const [lastConversion, setLastConversion] = useWorkspaceState<LastConversion | null>(
-    "page:app:lastConversion",
-    null,
-  );
   const [showDetails, setShowDetails] = useWorkspaceState("page:app:showDetails", false);
   const realtimeLive = useRealtimeGpuReserved();
   const [error, setError] = useState("");
-  const [refreshing, setRefreshing] = useState(true);
+  const [loadingModels, setLoadingModels] = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
   const [jobId, setJobId] = useWorkspaceState<string | null>("page:app:jobId", null);
-  const [forceSetup, setForceSetup] = useState(false);
-  const requests = useRef<AbortController | null>(null);
+  const [forceSetup, setForceSetup] = useState<boolean | null>(null);
+  const [refreshVersion, refreshDashboard] = useReducer((version: number) => version + 1, 0);
   const [stuck, setStuck] = useState(false);
   const activity = useJob(jobId);
   const { job: prereqJob, isActive: prereqRunning } = activity;
+  const dashboardRefresh = isReady && forceSetup === false ? refreshVersion : null;
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get("setup") === "1" || params.get("setup") === "true") {
-        setForceSetup(true);
-      }
-    }
+    const setupParam = new URLSearchParams(window.location.search).get("setup");
+    setForceSetup(setupParam === "1" || setupParam === "true");
   }, []);
 
-  const refresh = useCallback(
-    async (force = false) => {
-      requests.current?.abort();
-      const controller = new AbortController();
-      requests.current = controller;
-      setRefreshing(true);
-      setError("");
-      const load = async <T,>(path: string, update: (value: T) => void) => {
-        try {
-          const value =
-            path === "/api/models"
-              ? ((await fetchModels(force)) as T)
-              : await apiGet<T>(path, { force, signal: controller.signal });
-          if (!controller.signal.aborted) update(value);
-        } catch {
-          // Optional sections remain usable when another service is unavailable.
-        }
-      };
-      await Promise.all([
-        refreshSetup(force),
-        load<ModelsSummary>("/api/models", setModelsData),
-        load<DiagnosticInfo>("/api/report/info", setSysInfo),
-        load<{ models: LibraryModel[] }>("/api/models/library", (value) => setLibrary(value.models)),
-        load<{ jobs: Job[] }>("/api/jobs/activity", (value) => setJobs(value.jobs)),
-        load<{ stats: StorageSummary }>("/api/settings/storage", (value) => setStorage(value.stats)),
-        load<{ jobs: Job[] }>("/api/jobs", (value) => {
-          const latest = value.jobs
-            .filter((job) => job.status === "done" && job.outputFile && isAudioFile(job.outputFile))
-            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-          setLastConversion(
-            latest?.outputFile
-              ? {
-                  jobId: latest.id,
-                  outputFile: latest.outputFile,
-                  label: latest.label,
-                  createdAt: latest.createdAt,
-                  model: typeof latest.params?.pthPath === "string" ? latest.params.pthPath : undefined,
-                  index: typeof latest.params?.indexPath === "string" ? latest.params.indexPath : undefined,
-                }
-              : null,
-          );
-        }),
-      ]);
-      if (!controller.signal.aborted) setRefreshing(false);
-    },
-    [refreshSetup, setSysInfo, setModelsData, setLibrary, setJobs, setStorage, setLastConversion],
-  );
+  const recheck = useCallback(() => {
+    setError("");
+    refreshDashboard();
+    void refreshSetup(true);
+  }, [refreshSetup]);
 
   useEffect(() => {
-    refresh();
-    return () => requests.current?.abort();
-  }, [refresh]);
+    if (dashboardRefresh === null) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    setLoadingModels(true);
+    apiGet<DashboardModels>("/api/models/dashboard", { signal })
+      .then((data) => {
+        if (!signal.aborted) setModels(data);
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!signal.aborted) setLoadingModels(false);
+      });
+    apiGet<{ stats: StorageSummary }>("/api/settings/storage", { signal })
+      .then(({ stats }) => {
+        if (!signal.aborted) setStorage(stats);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [dashboardRefresh, setModels, setStorage]);
+
+  useEffect(() => {
+    if (dashboardRefresh === null || !showDetails) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    apiGet<DiagnosticInfo>("/api/report/info", { signal })
+      .then((info) => {
+        if (!signal.aborted) setSysInfo(info);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [dashboardRefresh, showDetails, setSysInfo]);
 
   // If /api/setup/status never resolves (backend warming torch, EPERM-locked
   // .venv, offline port), the skeleton below would otherwise look like a dead
@@ -255,21 +243,26 @@ export default function Home() {
   }, [status]);
 
   useEffect(() => {
-    let disposed = false;
+    if (dashboardRefresh === null) return;
     const controller = new AbortController();
+    const { signal } = controller;
     let inFlight = false;
     let timer: ReturnType<typeof setTimeout>;
+    setLoadingJobs(true);
     const poll = async () => {
-      if (disposed || inFlight || document.hidden) return;
+      if (signal.aborted || inFlight || document.hidden) return;
       inFlight = true;
       try {
-        const data = await apiGet<{ jobs: Job[] }>("/api/jobs/activity", { signal: controller.signal });
-        if (!disposed) setJobs(data.jobs);
+        const data = await apiGet<DashboardJobs>("/api/jobs/dashboard", { signal });
+        if (!signal.aborted) setJobs(data);
       } catch {
         // Resume after transient service restarts.
       } finally {
         inFlight = false;
-        if (!disposed) timer = setTimeout(poll, 15000);
+        if (!signal.aborted) {
+          setLoadingJobs(false);
+          timer = setTimeout(poll, 15000);
+        }
       }
     };
     const resume = () => {
@@ -278,15 +271,14 @@ export default function Home() {
         timer = setTimeout(poll, 0);
       }
     };
-    timer = setTimeout(poll, 15000);
     document.addEventListener("visibilitychange", resume);
+    void poll();
     return () => {
-      disposed = true;
       clearTimeout(timer);
       controller.abort();
       document.removeEventListener("visibilitychange", resume);
     };
-  }, [setJobs]);
+  }, [dashboardRefresh, setJobs]);
 
   async function prerequisites() {
     setError("");
@@ -300,17 +292,13 @@ export default function Home() {
 
   // Checks alone can't show the download, so re-run them once the job settles.
   useEffect(() => {
-    if (prereqJob?.status === "done") refresh(true);
+    if (prereqJob?.status === "done") recheck();
     else if (prereqJob?.status === "error" && prereqJob.error) setError(prereqJob.error);
-  }, [prereqJob?.status, prereqJob?.error, refresh]);
+  }, [prereqJob?.status, prereqJob?.error, recheck]);
 
   const passedChecks = status?.checks.filter((c) => c.status === "ok").length ?? 0;
   const totalChecks = status?.checks.length ?? 0;
-  const modelCount = modelsData?.models.length ?? 0;
-  const audioCount = modelsData?.audios.length ?? 0;
-  const recentModels = library?.slice(0, 4) ?? [];
-  const recentJobs = [...(jobs ?? [])].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 4);
-  const activeJobs = (jobs ?? []).filter((job) => job.status === "running" || job.status === "queued").length;
+  const latestOutput = jobs?.latestOutput;
 
   if (!status) {
     const combinedError = error || setupError;
@@ -320,7 +308,7 @@ export default function Home() {
           <div className="max-w-md w-full space-y-4 text-center">
             <Alert variant="error">{combinedError}</Alert>
             <div className="action-row mx-auto">
-              <Button onClick={() => refresh(true)} icon={<RefreshCw size={14} />}>
+              <Button onClick={recheck} icon={<RefreshCw size={14} />}>
                 {t("Retry Connection")}
               </Button>
               <Button variant="ghost" href="/setup">
@@ -354,7 +342,7 @@ export default function Home() {
               {t("Still checking engine status… the first torch import can take a few minutes.")}
             </p>
             <div className="action-row">
-              <Button variant="ghost" onClick={() => refresh(true)} icon={<RefreshCw size={13} />}>
+              <Button variant="ghost" onClick={recheck} icon={<RefreshCw size={13} />}>
                 {t("Retry Check")}
               </Button>
               <Button href="/setup">{t("Go to Setup")}</Button>
@@ -370,7 +358,7 @@ export default function Home() {
       <FirstRunSetup
         onComplete={() => {
           setForceSetup(false);
-          refresh(true);
+          refreshDashboard();
         }}
       />
     );
@@ -385,20 +373,22 @@ export default function Home() {
           href="/models"
           icon={<Database size={16} />}
           label={t("Voice Models")}
-          value={modelsData ? modelCount : "—"}
+          value={models?.modelCount ?? "—"}
         />
         <DashboardStat
           href="/extra"
           icon={<FileAudio size={16} />}
           label={t("Audio files")}
-          value={modelsData ? audioCount : "—"}
+          value={models?.audioCount ?? "—"}
         />
         <DashboardStat
           href="/jobs"
           icon={<Activity size={16} />}
           label={t("Active jobs")}
-          value={jobs ? activeJobs : "—"}
-          subtext={realtimeLive ? t("Realtime streaming") : activeJobs > 0 ? t("Processing now") : t("Idle")}
+          value={jobs?.activeJobs ?? "—"}
+          subtext={
+            realtimeLive ? t("Realtime streaming") : jobs?.activeJobs ? t("Processing now") : t("Idle")
+          }
         />
         <DashboardStat
           href="/settings"
@@ -414,12 +404,7 @@ export default function Home() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <span>{error || setupError}</span>
             {setupError && (
-              <Button
-                variant="ghost"
-                loading={setupLoading}
-                onClick={() => refresh(true)}
-                icon={<RefreshCw size={14} />}
-              >
+              <Button variant="ghost" loading={setupLoading} onClick={recheck} icon={<RefreshCw size={14} />}>
                 {t("Retry Connection")}
               </Button>
             )}
@@ -460,23 +445,23 @@ export default function Home() {
         </div>
       </section>
 
-      {lastConversion && (
+      {latestOutput && (
         <Card as="section">
           <CardHeader
             title={t("Latest output")}
             icon={<FileAudio size={17} />}
-            description={`${t(lastConversion.label || "Audio")} · ${timeAgo(lastConversion.createdAt, t)}`}
+            description={`${t(latestOutput.label)} · ${timeAgo(latestOutput.createdAt, t)}`}
             action={
               <>
-                <Button variant="ghost" href={jobHref(lastConversion.jobId)}>
+                <Button variant="ghost" href={jobHref(latestOutput.jobId)}>
                   {t("Open job")}
                 </Button>
-                {lastConversion.model && (
+                {latestOutput.model && (
                   <Button
                     variant="ghost"
                     href={`/inference?${new URLSearchParams({
-                      model: lastConversion.model,
-                      ...(lastConversion.index ? { index: lastConversion.index } : {}),
+                      model: latestOutput.model,
+                      ...(latestOutput.index ? { index: latestOutput.index } : {}),
                     }).toString()}`}
                   >
                     {t("Convert again")}
@@ -485,12 +470,7 @@ export default function Home() {
               </>
             }
           />
-          <AudioWavePlayer
-            src={outputUrl(lastConversion.outputFile)}
-            filename={fileBasename(lastConversion.outputFile)}
-            showAnalyzerLink={false}
-            compact
-          />
+          <LatestOutputPreview key={latestOutput.jobId} outputFile={latestOutput.outputFile} />
         </Card>
       )}
 
@@ -506,13 +486,13 @@ export default function Home() {
               </Button>
             }
           />
-          {library === null ? (
+          {models === null ? (
             <p className="text-sm text-[var(--muted)] m-0">
-              {refreshing ? t("Loading models…") : t("Service unavailable")}
+              {loadingModels ? t("Loading models…") : t("Service unavailable")}
             </p>
-          ) : recentModels.length ? (
+          ) : models.recentModels.length ? (
             <ul className="m-0 p-0 list-none">
-              {recentModels.map((model) => (
+              {models.recentModels.map((model) => (
                 <li key={model.pthPath}>
                   <Link
                     href={`/inference?${new URLSearchParams({ model: model.pthPath, ...(model.indexPath ? { index: model.indexPath } : {}) })}`}
@@ -559,11 +539,11 @@ export default function Home() {
           />
           {jobs === null ? (
             <p className="text-sm text-[var(--muted)] m-0">
-              {refreshing ? t("Loading…") : t("Service unavailable")}
+              {loadingJobs ? t("Loading…") : t("Service unavailable")}
             </p>
-          ) : recentJobs.length ? (
+          ) : jobs.recentJobs.length ? (
             <ul className="m-0 p-0 list-none">
-              {recentJobs.map((job) => (
+              {jobs.recentJobs.map((job) => (
                 <li key={job.id}>
                   <Link
                     href={jobHref(job.id)}
@@ -578,7 +558,7 @@ export default function Home() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 min-w-0">
-                      <JobBadge status={job.status} error={job.error} />
+                      <JobBadge status={job.status} />
                       {(job.status === "running" || job.status === "queued") && job.stage && (
                         <span className="text-[11px] text-[var(--muted)] truncate">{t(job.stage)}</span>
                       )}
@@ -619,7 +599,7 @@ export default function Home() {
               </Button>
               <Button
                 variant="ghost"
-                onClick={() => refresh(true)}
+                onClick={recheck}
                 title={t("Re-run diagnostic checks")}
                 icon={<RefreshCw size={14} />}
               >

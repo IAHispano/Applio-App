@@ -2,7 +2,7 @@
 
 import { ChevronDown } from "lucide-react";
 import type React from "react";
-import { useCallback, useId } from "react";
+import { useCallback, useId, useState } from "react";
 
 export interface DisclosureProps {
   /** Header title text */
@@ -10,8 +10,8 @@ export interface DisclosureProps {
   description?: React.ReactNode;
   /** Optional icon displayed before the title */
   icon?: React.ReactNode;
-  /** Collapsible content */
-  children: React.ReactNode;
+  /** A render function mounts its content only while the disclosure is open. */
+  children: React.ReactNode | (() => React.ReactNode);
   /** Controlled open state */
   open?: boolean;
   /** Uncontrolled initial open state */
@@ -44,6 +44,8 @@ export default function Disclosure({
   bodyClassName = "",
 }: DisclosureProps) {
   const helpId = useId();
+  const deferred = typeof children === "function";
+  const [expanded, setExpanded] = useState(defaultOpen ?? false);
   // <details> has no `defaultOpen` attribute — apply the initial state imperatively.
   const initialOpenRef = useCallback(
     (el: HTMLDetailsElement | null) => {
@@ -60,7 +62,15 @@ export default function Disclosure({
       ref={initialOpenRef}
       className={`group mt-2 p-0 border border-[var(--border)] rounded-lg overflow-hidden bg-[var(--input-bg)] transition-colors ${className}`}
       open={open}
-      onToggle={onToggle ? (e) => onToggle(e.currentTarget.open) : undefined}
+      onToggle={
+        deferred || onToggle
+          ? (event) => {
+              const next = event.currentTarget.open;
+              if (deferred && open === undefined) setExpanded(next);
+              onToggle?.(next);
+            }
+          : undefined
+      }
     >
       <summary
         aria-describedby={description ? helpId : undefined}
@@ -86,7 +96,11 @@ export default function Disclosure({
           className="disclosure-chevron transition-transform duration-200 text-[var(--muted)] shrink-0"
         />
       </summary>
-      <div className={`disclosure-body px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>{children}</div>
+      {(!deferred || (open ?? expanded)) && (
+        <div className={`disclosure-body px-3.5 pb-3.5 pt-1.5 space-y-4 ${bodyClassName}`}>
+          {deferred ? children() : children}
+        </div>
+      )}
     </details>
   );
 }

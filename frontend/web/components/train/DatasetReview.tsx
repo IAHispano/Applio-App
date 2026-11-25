@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ClipboardCheck, FolderCheck, Play, Search, Square } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { JobStage } from "@/components/JobStatus";
 import { Alert, Badge, Button, Disclosure, ToggleField } from "@/components/ui";
 import ProgressBar from "@/components/ui/ProgressBar";
@@ -180,14 +180,18 @@ export default function DatasetReview({
     } else setPreviewId(clip.id);
   }
 
-  const visible =
-    review?.clips.filter(
-      (clip) =>
-        (filter === "all" ||
-          (filter === "flagged" && clip.issues.length > 0) ||
-          clip.issues.includes(filter as Issue)) &&
-        clip.path.toLowerCase().includes(query.toLowerCase()),
-    ) || [];
+  const visible = useMemo(() => {
+    const search = query.toLowerCase();
+    return (
+      review?.clips.filter(
+        (clip) =>
+          (filter === "all" ||
+            (filter === "flagged" && clip.issues.length > 0) ||
+            clip.issues.includes(filter as Issue)) &&
+          (!search || clip.path.toLowerCase().includes(search)),
+      ) ?? []
+    );
+  }, [filter, query, review]);
   const pages = Math.ceil(visible.length / 40);
   const rows = visible.slice(page * 40, (page + 1) * 40);
   return (

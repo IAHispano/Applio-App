@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown, Download } from "lucide-react";
+import { useMemo } from "react";
 import AudioWavePlayer from "@/components/AudioWavePlayer";
 import { JobBadge, JobCancelButton, JobError, JobProgress } from "@/components/JobStatus";
 import SetupLogLine from "@/components/setup/SetupLogLine";
@@ -8,7 +9,7 @@ import { Alert, Button, Card } from "@/components/ui";
 import { fileBasename, isAudioFile, isImageFile, outputUrl } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { isHiddenSetupLine, mergeSetupLines } from "@/lib/setup-logs";
-import { useJob } from "@/lib/useJob";
+import { cleanJobLogs, useJob } from "@/lib/useJob";
 
 export interface JobPanelProps {
   jobId: string | null;
@@ -34,7 +35,9 @@ export function JobPanelContent({
   activity,
 }: JobPanelProps & { activity: ReturnType<typeof useJob> }) {
   const { t } = useI18n();
-  const { job, error, setError, cleanedLogs } = activity;
+  const { job, error, setError } = activity;
+  const logs = (showLogs && !compact) || job?.status === "error" ? job?.logs : undefined;
+  const cleanedLogs = useMemo(() => cleanJobLogs(logs), [logs]);
 
   if (!jobId) return null;
   if (error) {

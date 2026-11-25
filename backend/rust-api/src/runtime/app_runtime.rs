@@ -5,7 +5,8 @@ use serde_json::Value;
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    io::Write,
+    fs::{self, Metadata},
+    io::{self, Write},
     path::{Path, PathBuf},
 };
 
@@ -74,6 +75,26 @@ fn relocate(value: &mut Value, old: &Path, new: &Path) {
         _ => {}
     }
 }
+
+fn linked(metadata: &Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        if metadata.file_attributes() & 0x400 != 0 {
+            return true;
+        }
+    }
+    metadata.file_type().is_symlink()
+}
+
+fn same_file_contents(source: &Path, destination: &Path, size: u64) -> io::Result<bool> {
+    let metadata = fs::symlink_metadata(destination)?;
+    if !metadata.is_file() || linked(&metadata) || metadata.len() != size {
+        return Ok(false);
+    }
+    crate::storage::file_contents_equal(source, destination, 8192)
+}
+
 fn copy_tree(
     source: &Path,
     destination: &Path,
@@ -84,13 +105,7 @@ fn copy_tree(
     // Do not follow model junctions, symlinks, or other links during an import.
     // Linked content stays where it is (its absolute paths in configuration
     // remain intact) and must never block startup: skip it instead of failing.
-    let linked = metadata.file_type().is_symlink();
-    #[cfg(windows)]
-    let linked = {
-        use std::os::windows::fs::MetadataExt;
-        linked || metadata.file_attributes() & 0x400 != 0
-    };
-    if linked {
+    if linked(&metadata) {
         eprintln!(
             "Skipping linked legacy content during import: {}",
             source.display()
@@ -114,6 +129,11 @@ fn copy_tree(
             && ["config.json", "jobs.json", "filelist.txt"].contains(&name)
             && metadata.len() <= 32 * 1024 * 1024;
         if !rewrite {
+            // Packaged themes and requirements are refreshed on every launch.
+            // Keep byte-identical regular copies to avoid another sync and rename.
+            if replace && same_file_contents(source, destination, metadata.len()).unwrap_or(false) {
+                return Ok(());
+            }
             std::fs::create_dir_all(destination.parent().context("Missing import destination")?)?;
             let mut staged = tempfile::NamedTempFile::new_in(destination.parent().unwrap())?;
             std::io::copy(&mut std::fs::File::open(source)?, &mut staged)?;
@@ -252,8 +272,9 @@ pub fn prepare(
     }
     if packaged && code != data {
         let marker = data.join(".seed-version");
-        let changed = std::fs::read_to_string(&marker).unwrap_or_default().trim()
-            != env!("CARGO_PKG_VERSION");
+        let version = env!("CARGO_PKG_VERSION");
+        let seeded = std::fs::read_to_string(&marker).unwrap_or_default();
+        let changed = seeded.trim() != version;
         for name in [
             "requirements.txt",
             "requirements-uvr.txt",
@@ -287,7 +308,11 @@ pub fn prepare(
             )?;
         }
         std::fs::create_dir_all(data.join("rvc/models"))?;
-        publish(&marker, env!("CARGO_PKG_VERSION").as_bytes(), true)?;
+        if seeded != version
+            || !fs::symlink_metadata(&marker).is_ok_and(|m| m.is_file() && !linked(&m))
+        {
+            publish(&marker, version.as_bytes(), true)?;
+        }
     }
     let mut env = Environment::new();
     let dotenv = data.join(".env");
@@ -336,4 +361,85 @@ pub fn prepare(
         env.insert("PATH".into(), std::env::join_paths(path)?);
     }
     Ok(env)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    #[test]
+    fn packaged_startup_preserves_identical_files_and_repairs_refreshed_resources() {
+        let root = tempfile::tempdir().unwrap();
+        let code = root.path().join("code");
+        let data = root.path().join("data");
+        let config = root.path().join("config");
+        fs::create_dir_all(code.join("assets/themes")).unwrap();
+        fs::write(code.join("requirements.txt"), "packages").unwrap();
+        fs::write(code.join("core.py"), "current engine entry").unwrap();
+        fs::write(code.join("assets/themes/builtin.json"), "ruby").unwrap();
+        fs::write(code.join("assets/preset.json"), "factory").unwrap();
+        fs::create_dir_all(data.join("assets/themes")).unwrap();
+        fs::write(data.join("assets/preset.json"), "user preset").unwrap();
+        fs::write(data.join("assets/themes/user.json"), "user theme").unwrap();
+        let start = || prepare(&code, &data, &config, true, false, &[]).unwrap();
+        start();
+
+        let theme = data.join("assets/themes/builtin.json");
+        let requirements = data.join("requirements.txt");
+        let marker = data.join(".seed-version");
+        let timestamps: Vec<_> = [&theme, &requirements, &marker]
+            .into_iter()
+            .map(|path| {
+                fs::OpenOptions::new()
+                    .write(true)
+                    .open(path)
+                    .unwrap()
+                    .set_modified(UNIX_EPOCH + Duration::from_secs(1_000_000_000))
+                    .unwrap();
+                fs::metadata(path).unwrap().modified().unwrap()
+            })
+            .collect();
+        start();
+        for (path, timestamp) in [&theme, &requirements, &marker].into_iter().zip(timestamps) {
+            assert_eq!(fs::metadata(path).unwrap().modified().unwrap(), timestamp);
+        }
+
+        fs::write(&theme, "jade").unwrap();
+        fs::remove_file(&requirements).unwrap();
+        fs::write(&marker, "previous version").unwrap();
+        fs::write(data.join("core.py"), "old engine entry").unwrap();
+        start();
+        assert_eq!(fs::read_to_string(theme).unwrap(), "ruby");
+        assert_eq!(fs::read_to_string(requirements).unwrap(), "packages");
+        assert_eq!(
+            fs::read_to_string(marker).unwrap(),
+            env!("CARGO_PKG_VERSION")
+        );
+        assert_eq!(
+            fs::read_to_string(data.join("core.py")).unwrap(),
+            "current engine entry"
+        );
+        assert_eq!(
+            fs::read_to_string(data.join("assets/preset.json")).unwrap(),
+            "user preset"
+        );
+        assert_eq!(
+            fs::read_to_string(data.join("assets/themes/user.json")).unwrap(),
+            "user theme"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn packaged_refresh_replaces_an_identical_destination_symlink() {
+        let root = tempfile::tempdir().unwrap();
+        let source = root.path().join("source.json");
+        let destination = root.path().join("destination.json");
+        fs::write(&source, "{}\n").unwrap();
+        std::os::unix::fs::symlink(&source, &destination).unwrap();
+        copy_tree(&source, &destination, true, None).unwrap();
+        assert!(fs::symlink_metadata(&destination).unwrap().is_file());
+        assert_eq!(fs::read(destination).unwrap(), b"{}\n");
+    }
 }
