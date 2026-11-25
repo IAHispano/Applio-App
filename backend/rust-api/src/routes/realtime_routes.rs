@@ -178,6 +178,10 @@ async fn audio(State(engine): State<Arc<NativeEngine>>, ws: WebSocketUpgrade) ->
 async fn change_config(State(engine): State<Arc<NativeEngine>>, ws: WebSocketUpgrade) -> Response {
     socket(engine, ws, false).await
 }
+fn is_eager_retry(text: &str) -> bool {
+    text.contains("retry_eager")
+        && serde_json::from_str::<Value>(text).is_ok_and(|message| message["type"] == "retry_eager")
+}
 async fn socket(engine: Arc<NativeEngine>, ws: WebSocketUpgrade, audio: bool) -> Response {
     let Some((_, mut cancelled)) = engine.realtime.active() else {
         return Error(
@@ -257,7 +261,14 @@ async fn socket(engine: Arc<NativeEngine>, ws: WebSocketUpgrade, audio: bool) ->
                 while let Some(Ok(message)) = engine_stream.next().await {
                     use tokio_tungstenite::tungstenite::Message as Upstream;
                     let message = match message {
-                        Upstream::Text(text) => Message::Text(text.to_string().into()),
+                        Upstream::Text(text) => {
+                            // The proxy can close the session before the Python exit
+                            // code is observed. Save the fallback before forwarding it.
+                            if audio && is_eager_retry(text.as_str()) {
+                                engine.realtime.disable_cuda_graphs();
+                            }
+                            Message::Text(text.to_string().into())
+                        }
                         Upstream::Binary(data) => Message::Binary(data),
                         Upstream::Ping(data) => Message::Ping(data),
                         Upstream::Pong(data) => Message::Pong(data),
@@ -277,4 +288,18 @@ async fn socket(engine: Arc<NativeEngine>, ws: WebSocketUpgrade, audio: bool) ->
             // drops the GPU lease only after stopping the owned process tree.
         })
         .into_response()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::is_eager_retry;
+
+    #[test]
+    fn only_the_engine_retry_event_switches_inference_mode() {
+        assert!(is_eager_retry(r#"{"type": "retry_eager"}"#));
+        assert!(!is_eager_retry(
+            r#"{"type": "config_error", "message": "retry_eager"}"#
+        ));
+        assert!(!is_eager_retry(r#"{"type": "latency", "value": 10}"#));
+    }
 }

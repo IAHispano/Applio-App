@@ -801,15 +801,13 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
       };
       ws.onclose = () => {
         if (sessRef.current?.ws !== ws) return;
-        stopStream(true);
+        const stopped = stopStream(true);
         if (retryEager) {
           const recoveryEpoch = streamEpochRef.current;
           setMsg(t("Restarting realtime with compatible inference…"));
-          apiSend("/api/realtime/start", "POST", {})
-            .then(() => {
-              if (streamEpochRef.current === recoveryEpoch) return reconnectRef.current();
-            })
-            .catch((error) => setMsg(errMsg(error)));
+          void stopped.then(() => {
+            if (streamEpochRef.current === recoveryEpoch) return reconnectRef.current();
+          });
         }
       };
       ws.onerror = () => {
@@ -971,10 +969,11 @@ export default function RealtimeWorkspace({ active = true }: { active?: boolean 
     // The backend also stops the engine when the audio socket closes, but
     // stop it explicitly so no dead service lingers (including a prewarmed
     // engine when leaving the page without ever streaming).
-    void apiSend("/api/realtime/stop", "POST")
+    const stopped = apiSend<void>("/api/realtime/stop", "POST")
       .catch(() => {})
       .finally(() => refreshEngine());
     if (!silentStop) setMsg(t("Stopped."));
+    return stopped;
   }
 
   function changeConfig(key: string, value: number | string | boolean, ifKwargs = false) {

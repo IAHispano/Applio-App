@@ -151,6 +151,9 @@ impl Realtime {
     pub fn generation(&self) -> u64 {
         self.state.lock().unwrap().generation
     }
+    pub(crate) fn disable_cuda_graphs(&self) {
+        self.graphs_disabled.store(true, Ordering::SeqCst);
+    }
     pub fn active(&self) -> Option<(String, CancellationToken)> {
         let state = self.state.lock().unwrap();
         state
