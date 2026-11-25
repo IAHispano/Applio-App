@@ -428,11 +428,11 @@ export default function ConversionParameters({
         step={step}
         icon={<Sliders size={18} className="text-white" />}
         title={t("Conversion Parameters")}
-        description={
+        description={t(
           simplified
-            ? undefined
-            : t("Fine-tune pitch shifting, index feature retrieval, and audio envelope response.")
-        }
+            ? "Adjust pitch shift and advanced conversion settings."
+            : "Fine-tune pitch shifting, index feature retrieval, and audio envelope response.",
+        )}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {targetSelect}

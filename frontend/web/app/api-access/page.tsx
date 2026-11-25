@@ -227,6 +227,7 @@ export default function ApiAccessPage() {
         <Card className="mb-4">
           <CardHeader
             title={t("Base URL")}
+            description={t("Local root address for OpenAI-compatible and Applio API requests.")}
             icon={<Code2 size={16} />}
             action={<CopyButton value={`${base}/v1`} onError={setError} />}
           />
@@ -336,7 +337,11 @@ export default function ApiAccessPage() {
           </div>
           <div className="space-y-4 min-w-0">
             <Card className="space-y-4">
-              <CardHeader step={2} title={t("Quick start")} />
+              <CardHeader
+                step={2}
+                title={t("Quick start")}
+                description={t("Pick a voice model and copy a ready-to-run request snippet.")}
+              />
               <label className="field-label" htmlFor="api-example-model">
                 {t("Voice Model")}
               </label>
@@ -415,6 +420,7 @@ export default function ApiAccessPage() {
           <CardHeader
             icon={<Activity size={18} />}
             title={t("Recent API jobs")}
+            description={t("Monitor recent requests submitted through your API keys.")}
             action={
               <Link href="/jobs" className="flex gap-1 items-center text-xs">
                 {t("Job history")}

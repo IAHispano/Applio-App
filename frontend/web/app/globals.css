@@ -653,6 +653,9 @@ details[data-disclosure] > summary:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+h1[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 dialog.app-dialog {
   position: fixed;
@@ -805,7 +808,7 @@ h2.card-heading {
 }
 
 /* Keep workspaces readable on large desktop displays, with a shared page gutter. */
-#main-content > div {
+#main-content:not([data-full-width]) > div {
   width: 100%;
   max-width: 1600px;
   margin-inline: auto;
@@ -1410,6 +1413,15 @@ input[type="range"].audio-volume-range::-moz-range-thumb {
   .form-action-row {
     grid-template-columns: minmax(0, 1fr) minmax(0, 13rem);
   }
+}
+.app-button-compact {
+  height: 32px;
+  padding: 4px 10px;
+  font-size: 0.75rem;
+}
+.app-button-compact .app-button-icon > svg {
+  width: 14px;
+  height: 14px;
 }
 .app-button-icon-only,
 .app-button-square {

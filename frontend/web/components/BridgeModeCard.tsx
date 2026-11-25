@@ -125,6 +125,7 @@ export default function BridgeModeCard() {
       <CardHeader
         icon={<Smartphone size={19} />}
         title={t("Connect another device")}
+        description={t("Share a private link or QR code and approve devices for remote access.")}
         action={
           <div className="flex items-center gap-3 flex-wrap">
             <Badge

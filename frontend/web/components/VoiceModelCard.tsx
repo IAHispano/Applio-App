@@ -135,6 +135,7 @@ export default function VoiceModelCard({
         step={step}
         icon={<Music size={18} className="text-white" />}
         title={t("Voice Model")}
+        description={t(SETTING_HELP.voiceModel)}
         action={
           <div className="flex items-center gap-2">
             {pthPath && (

@@ -720,6 +720,9 @@ export default function BatchForm() {
             <>
               <CardHeader
                 title={t("Batch Conversion Complete")}
+                description={t(
+                  "Inspect finished items, preview outputs, or test the model in single conversion.",
+                )}
                 action={
                   <Button
                     variant="ghost"

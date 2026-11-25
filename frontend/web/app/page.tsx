@@ -428,7 +428,10 @@ export default function Home() {
       )}
 
       <section className="space-y-3">
-        <CardHeader title={t("Quick Actions")} />
+        <CardHeader
+          title={t("Quick Actions")}
+          description={t("Jump straight into training, speech synthesis, blending, or audio separation.")}
+        />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 card-grid">
           <ActionCard
             href="/train"
@@ -495,6 +498,7 @@ export default function Home() {
         <Card as="section" className="min-w-0 lg:col-span-2">
           <CardHeader
             title={t("Recent Models")}
+            description={t("Recently updated voice checkpoints and feature indexes.")}
             icon={<Database size={17} />}
             action={
               <Button href="/models" variant="ghost">
@@ -545,6 +549,7 @@ export default function Home() {
         <Card as="section" className="min-w-0">
           <CardHeader
             title={t("Recent activity")}
+            description={t("Latest voice conversion, training, and separation jobs.")}
             icon={<Clock3 size={17} />}
             action={
               <Button href="/jobs" variant="ghost">
@@ -593,6 +598,7 @@ export default function Home() {
         <CardHeader
           icon={<Activity size={17} />}
           title={t("System Diagnostics")}
+          description={t("Runtime, hardware, and prerequisite readiness checks.")}
           action={
             <>
               <Badge variant={passedChecks === totalChecks ? "success" : "warning"}>

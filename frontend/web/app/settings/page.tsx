@@ -1089,6 +1089,9 @@ export default function SettingsPage() {
               <CardHeader
                 icon={<HardDrive size={18} />}
                 title={t("Disk & Cache Storage")}
+                description={t(
+                  "Inspect uploaded inputs and temporary outputs, and clear cached files to free disk space.",
+                )}
                 action={
                   <Button
                     variant="ghost"

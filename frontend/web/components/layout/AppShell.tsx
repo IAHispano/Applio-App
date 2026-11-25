@@ -123,7 +123,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           id="main-content"
           ref={mainRef}
           tabIndex={-1}
-          className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip [--workspace-gutter:0.75rem] sm:[--workspace-gutter:1.25rem] lg:[--workspace-gutter:1.5rem] 2xl:[--workspace-gutter:2rem] px-[var(--workspace-gutter)] pt-4 outline-none flex flex-col ${workspaceBottomPadding} ${fullWidthWorkspace ? "lg:pb-0" : showNavigation ? "lg:pb-4" : ""}`}
+          data-full-width={fullWidthWorkspace ? "true" : undefined}
+          className={`flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-clip [--workspace-gutter:0.75rem] sm:[--workspace-gutter:1.25rem] lg:[--workspace-gutter:1.5rem] 2xl:[--workspace-gutter:2rem] outline-none flex flex-col ${
+            fullWidthWorkspace
+              ? `px-0 pt-0 lg:px-[var(--sidebar-gap)] lg:py-4 ${workspaceBottomPadding} lg:pb-4`
+              : `px-[var(--workspace-gutter)] pt-4 ${workspaceBottomPadding} ${showNavigation ? "lg:pb-4" : ""}`
+          }`}
         >
           <div
             hidden={hidePage}
