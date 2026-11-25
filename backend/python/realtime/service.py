@@ -138,14 +138,25 @@ _STRIP_MARK = "_applio_parametrizations_stripped"
 _installed = False
 
 
-def _install_caches():
-    """Keep checkpoints, embedders and F0 models loaded between connections."""
+def _install_adapters():
+    """Install desktop optimizations without modifying the pinned engine."""
     global _installed
     if _installed:
         return
     _installed = True
 
-    from rvc.realtime import configuration, pipeline
+    from rvc.realtime import configuration, core, pipeline
+
+    from .phase import cpu_phase_vocoder
+
+    original_phase = core.phase_vocoder
+
+    def phase_vocoder(a, b, fade_out, fade_in):
+        if a.device.type == "cpu":
+            return cpu_phase_vocoder(a, b, fade_out, fade_in)
+        return original_phase(a, b, fade_out, fade_in)
+
+    core.phase_vocoder = phase_vocoder
 
     original_strip = pipeline.strip_parametrizations
 
@@ -211,7 +222,7 @@ def _install_caches():
 
 def _boot():
     try:
-        _install_caches()
+        _install_adapters()
     except Exception:
         traceback.print_exc()
 
