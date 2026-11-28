@@ -146,6 +146,33 @@ const THEME_PRESETS: ThemePreset[] = [
     accent: "#ef4444",
     border: "#3d171d",
   },
+  {
+    id: "tokyo-night.json",
+    name: "Tokyo Night",
+    subtitle: "Indigo & Periwinkle",
+    bg: "#1a1b26",
+    surface: "#16161e",
+    accent: "#7aa2f7",
+    border: "#414868",
+  },
+  {
+    id: "monimal-dark.json",
+    name: "Monimal Dark",
+    subtitle: "Monochrome Ink",
+    bg: "#0a0a0a",
+    surface: "#191919",
+    accent: "#737373",
+    border: "#383838",
+  },
+  {
+    id: "monimal-light.json",
+    name: "Monimal Light",
+    subtitle: "Monochrome Paper",
+    bg: "#d9d9d9",
+    surface: "#fafafa",
+    accent: "#737373",
+    border: "#cfcfcf",
+  },
 ];
 
 const SETTINGS_SECTIONS = [

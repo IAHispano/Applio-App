@@ -1,0 +1,87 @@
+{
+  "name": "Tokyo Night",
+  "version": "1.0.0",
+  "description": "Deep indigo night sky with periwinkle blue accents and soft lavender-slate contrast.",
+  "mode": "dark",
+  "colors": {
+    "primary": "#7aa2f7",
+    "primarySoft": "rgba(122, 162, 247, 0.14)",
+    "background": "#1a1b26",
+    "surface": "#16161e",
+    "surfaceDim": "#1a1b26",
+    "panel": "#16161e",
+    "border": "#414868",
+    "text": "#c0caf5",
+    "heading": "#c0caf5",
+    "muted": "#a9b1d6",
+    "ctaBg": "#7aa2f7",
+    "ctaText": "#1a1b26",
+    "buttonBg": "#292e42",
+    "buttonBgHover": "rgba(122, 162, 247, 0.2)",
+    "buttonTextHover": "#c0caf5",
+    "buttonGhostText": "#c0caf5",
+    "buttonGhostBorder": "#414868",
+    "buttonGhostBorderHover": "#7aa2f7",
+    "sliderTrack": "#292e42",
+    "sliderThumb": "#7aa2f7",
+    "checkboxBorder": "#414868",
+    "checkboxBorderHover": "#7aa2f7",
+    "checkboxChecked": "#7aa2f7",
+    "checkboxCheck": "#1a1b26",
+    "fileButtonBg": "transparent",
+    "fileButtonBorder": "#414868",
+    "fileButtonText": "#c0caf5",
+    "fileButtonBgHover": "#292e42",
+    "focusBorder": "#7aa2f7",
+    "selectionBg": "#7aa2f7",
+    "selectionText": "#1a1b26",
+    "logBg": "#13131a",
+    "ok": "#9ece6a",
+    "warn": "#e0af68",
+    "err": "#f7768e",
+    "dangerBg": "rgba(247, 118, 142, 0.14)",
+    "dangerBorder": "rgba(247, 118, 142, 0.35)",
+    "dangerText": "#f7768e",
+    "dangerBgHover": "rgba(247, 118, 142, 0.24)",
+    "dangerBorderHover": "rgba(247, 118, 142, 0.55)",
+    "dangerTextHover": "#ffffff"
+  },
+  "radius": {
+    "card": "10px",
+    "input": "10px",
+    "button": "10px",
+    "pill": "999px"
+  },
+  "fonts": {
+    "display": [
+      "system-ui",
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "Segoe UI",
+      "sans-serif"
+    ],
+    "body": [
+      "system-ui",
+      "-apple-system",
+      "BlinkMacSystemFont",
+      "Segoe UI",
+      "sans-serif"
+    ],
+    "mono": [
+      "ui-monospace",
+      "SFMono-Regular",
+      "Menlo",
+      "Consolas",
+      "monospace"
+    ]
+  },
+  "titlebar": {
+    "bg": "#16161e",
+    "closeBg": "#e81123",
+    "closeText": "#ffffff"
+  },
+  "shadows": {
+    "card": "0 1px 3px 0px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)",
+    "button": "0 1px 3px 0px rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1)"
+  }
+}

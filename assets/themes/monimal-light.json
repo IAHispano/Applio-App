@@ -1,0 +1,84 @@
+{
+  "name": "Monimal Light",
+  "version": "1.0.0",
+  "description": "Minimal monochrome light canvas with crisp white cards, blush-gray accent and sharp corners.",
+  "mode": "light",
+  "colors": {
+    "primary": "#737373",
+    "primarySoft": "rgba(221, 197, 197, 0.55)",
+    "background": "#d9d9d9",
+    "surface": "#fafafa",
+    "surfaceDim": "#f5f5f5",
+    "panel": "#ffffff",
+    "border": "#cfcfcf",
+    "text": "#0a0a0a",
+    "heading": "#0a0a0a",
+    "muted": "#717171",
+    "ctaBg": "#737373",
+    "ctaText": "#fafafa",
+    "buttonBg": "#f5f5f5",
+    "buttonBgHover": "#ddc5c5",
+    "buttonTextHover": "#6d4f4f",
+    "buttonGhostText": "#171717",
+    "buttonGhostBorder": "#cfcfcf",
+    "buttonGhostBorderHover": "#a1a1a1",
+    "sliderTrack": "#e5e5e5",
+    "sliderThumb": "#737373",
+    "checkboxBorder": "#a1a1a1",
+    "checkboxBorderHover": "#737373",
+    "checkboxChecked": "#737373",
+    "checkboxCheck": "#fafafa",
+    "fileButtonBg": "#f5f5f5",
+    "fileButtonBorder": "#cfcfcf",
+    "fileButtonText": "#171717",
+    "fileButtonBgHover": "#e5e5e5",
+    "focusBorder": "#a1a1a1",
+    "selectionBg": "#ddc5c5",
+    "selectionText": "#6d4f4f",
+    "logBg": "#f5f5f5",
+    "ok": "#16a34a",
+    "warn": "#d97706",
+    "err": "#e7000b",
+    "dangerBg": "rgba(231, 0, 11, 0.08)",
+    "dangerBorder": "rgba(231, 0, 11, 0.28)",
+    "dangerText": "#b91c1c",
+    "dangerBgHover": "rgba(231, 0, 11, 0.16)",
+    "dangerBorderHover": "rgba(231, 0, 11, 0.5)",
+    "dangerTextHover": "#7f1d1d"
+  },
+  "radius": {
+    "card": "3px",
+    "input": "3px",
+    "button": "3px",
+    "pill": "999px"
+  },
+  "fonts": {
+    "display": [
+      "google:Atkinson Hyperlegible",
+      "ui-sans-serif",
+      "sans-serif",
+      "system-ui"
+    ],
+    "body": [
+      "google:Atkinson Hyperlegible",
+      "ui-sans-serif",
+      "sans-serif",
+      "system-ui"
+    ],
+    "mono": [
+      "google:JetBrains Mono",
+      "ui-monospace",
+      "monospace"
+    ]
+  },
+  "titlebar": {
+    "bg": "#d9d9d9",
+    "closeBg": "#e81123",
+    "closeText": "#ffffff"
+  },
+  "shadows": {
+    "card": "0px 1px 3px 0px hsl(0 0% 0% / 0.15), 0px 1px 2px -1px hsl(0 0% 0% / 0.15)",
+    "button": "0px 1px 3px 0px hsl(0 0% 0% / 0.15), 0px 1px 2px -1px hsl(0 0% 0% / 0.15)"
+  },
+  "custom_css": "html[data-theme-mode='light'] .text-white:not(.cta):not([class*='bg-red-']) { color: var(--heading) !important; } html[data-theme-mode='light'] .text-neutral-300, html[data-theme-mode='light'] .text-neutral-400 { color: var(--muted) !important; } html[data-theme-mode='light'] .bg-white\\/5, html[data-theme-mode='light'] .bg-white\\/10, html[data-theme-mode='light'] .bg-black\\/30, html[data-theme-mode='light'] .bg-black\\/40, html[data-theme-mode='light'] .bg-black\\/50, html[data-theme-mode='light'] .bg-black\\/60 { background-color: var(--input-bg) !important; } html[data-theme-mode='light'] .border-white\\/5, html[data-theme-mode='light'] .border-white\\/10, html[data-theme-mode='light'] .border-white\\/15, html[data-theme-mode='light'] .border-white\\/20 { border-color: var(--border) !important; }"
+}
