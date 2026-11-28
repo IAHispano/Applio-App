@@ -1,0 +1,83 @@
+{
+  "name": "Monimal Dark",
+  "version": "1.0.0",
+  "description": "Minimal monochrome dark canvas with sharp corners and Atkinson Hyperlegible typeface.",
+  "mode": "dark",
+  "colors": {
+    "primary": "#737373",
+    "primarySoft": "rgba(115, 115, 115, 0.18)",
+    "background": "#0a0a0a",
+    "surface": "#191919",
+    "surfaceDim": "#141414",
+    "panel": "#262626",
+    "border": "#383838",
+    "text": "#fafafa",
+    "heading": "#fafafa",
+    "muted": "#a1a1a1",
+    "ctaBg": "#737373",
+    "ctaText": "#fafafa",
+    "buttonBg": "#262626",
+    "buttonBgHover": "#404040",
+    "buttonTextHover": "#fafafa",
+    "buttonGhostText": "#fafafa",
+    "buttonGhostBorder": "#383838",
+    "buttonGhostBorderHover": "#525252",
+    "sliderTrack": "#262626",
+    "sliderThumb": "#737373",
+    "checkboxBorder": "#525252",
+    "checkboxBorderHover": "#737373",
+    "checkboxChecked": "#737373",
+    "checkboxCheck": "#fafafa",
+    "fileButtonBg": "transparent",
+    "fileButtonBorder": "#383838",
+    "fileButtonText": "#fafafa",
+    "fileButtonBgHover": "#262626",
+    "focusBorder": "#737373",
+    "selectionBg": "#737373",
+    "selectionText": "#fafafa",
+    "logBg": "#0a0a0a",
+    "ok": "#4ade80",
+    "warn": "#fbbf24",
+    "err": "#ff6467",
+    "dangerBg": "rgba(255, 100, 103, 0.14)",
+    "dangerBorder": "rgba(255, 100, 103, 0.35)",
+    "dangerText": "#ff6467",
+    "dangerBgHover": "rgba(255, 100, 103, 0.24)",
+    "dangerBorderHover": "rgba(255, 100, 103, 0.55)",
+    "dangerTextHover": "#fafafa"
+  },
+  "radius": {
+    "card": "3px",
+    "input": "3px",
+    "button": "3px",
+    "pill": "999px"
+  },
+  "fonts": {
+    "display": [
+      "google:Atkinson Hyperlegible",
+      "ui-sans-serif",
+      "sans-serif",
+      "system-ui"
+    ],
+    "body": [
+      "google:Atkinson Hyperlegible",
+      "ui-sans-serif",
+      "sans-serif",
+      "system-ui"
+    ],
+    "mono": [
+      "google:JetBrains Mono",
+      "ui-monospace",
+      "monospace"
+    ]
+  },
+  "titlebar": {
+    "bg": "#0a0a0a",
+    "closeBg": "#e81123",
+    "closeText": "#ffffff"
+  },
+  "shadows": {
+    "card": "0px 1px 3px 0px hsl(0 0% 0% / 0.31), 0px 1px 2px -1px hsl(0 0% 0% / 0.31)",
+    "button": "0px 1px 3px 0px hsl(0 0% 0% / 0.31), 0px 1px 2px -1px hsl(0 0% 0% / 0.31)"
+  }
+}
